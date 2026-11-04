@@ -16,6 +16,7 @@ open. It is kept honest: "Planned" means not built.
 | `recurring.py` | Anticipator: approved recurring work (schedules) prepared just in time |
 | `nextaction.py` | Anticipator: next-best analytical action after finished work |
 | `health.py` | Anticipator: credential expiry and age, connection reliability trends, schema-change impact with a validated fix |
+| `attention.py` | Per-person attention preferences applied to pushes and to the activity center |
 | `earlywarning.py` | Anticipator: developing adverse trends on monitored metrics, investigated before anyone is told |
 
 The cycle per workspace: **observe** (signals from authorized metadata) -> **contextualize** (the run's datasets and
@@ -129,6 +130,20 @@ definition change; the asset registry then shows the dependent reports and dashb
 repair. Items close themselves (`resolved`) when the signal is gone, for example after the credential is replaced with a
 later expiry.
 
+## Attention management (scenario H)
+
+Per person, per workspace (`attention_prefs`): opt out, minimum score, daily cap on pushed items (default 3), quiet hours
+(HH:MM to HH:MM in an IANA time zone, may wrap midnight) and muted kinds. Each cycle gathers every item worth pushing
+and takes them highest score first. For each person who would be told (the item's audience, plus workspace owners and
+admins as for any notice):
+
+* opted out, muted kind, under their minimum score, or the same subject pushed to them in the last 24 hours: not told;
+* in quiet hours or at their daily cap: the item is **held** for its audience and retried next cycle (logged once).
+
+If nobody may be told and nothing is held, the item stays in the activity center only (`not_pushed`). The activity center
+leaves out muted kinds and items under the person's minimum score, and is empty for someone who opted out. The
+workspace's `daily_surface_limit` still caps all pushes. `notices.raise_notice` gained an `exclude` set for this.
+
 ## API
 
 | Route | Purpose |
@@ -139,6 +154,8 @@ later expiry.
 | `POST /v1/workspaces/{ws}/anticipations/refresh` | Run a cycle now (admins) |
 | `GET /v1/workspaces/{ws}/anticipations/{id}` | One item with its checks, dependencies, resources and event trail |
 | `GET /v1/workspaces/{ws}/anticipations/{id}/why` | The grounded explanation: `{short, detail[], why[], signals, checks, score, scores, depends_on, level_required, methods}` (`short`/`detail` match the evidence explain shape) |
+| `GET /v1/workspaces/{ws}/attention` | The caller's attention preferences and the kinds they can mute |
+| `PUT /v1/workspaces/{ws}/attention` | `{opted_out, min_score, max_per_day, quiet_start, quiet_end, timezone, muted_kinds}` |
 | `POST /v1/workspaces/{ws}/anticipations/{id}/act` | `{action: run_now | dismiss | snooze | useful | not_useful | incorrect, until?, note?}` |
 
 ## Storage
@@ -179,7 +196,7 @@ monitor would catch them at all. Earlier detection of fast moves without more fa
 | N1 | Next-best action: comparisons against other periods, hypothesis tests and briefings as further suggestion kinds | Planned |
 | N2 | Early warning on unmonitored metrics, leading-indicator search across metrics (correlation without causal claims), capacity-exhaustion and cost-variance projections | Planned |
 | N3 | Health foresight: volume anomalies and incomplete ingestion, storage pressure, API deprecation notices, retyped-column repair candidates, predicting breakage before a connection sync commits the new version | Planned |
-| N4 | Attention management: per-person frequency, quiet periods, relevance thresholds, muted kinds, opt-out (scenario H) | Planned, slice 5 (table exists) |
+| N4 | Attention: digest delivery for held items, per-person budgets on background compute | Planned |
 | N5 | Learning from outcomes and anticipation quality metrics; offline verification (scenario I) | Planned, slice 6 |
 | N6 | Capability-gap forecasting through the Capability Foundry (scenario G) | Planned, slice 7 |
 | N7 | Consume the unified event model (CONTROL 40) instead of after-ingest hooks once it is merged | Planned |

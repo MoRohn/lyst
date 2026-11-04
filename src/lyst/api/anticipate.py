@@ -20,6 +20,16 @@ class AnticipationSettingsIn(BaseModel):
     daily_surface_limit: int | None = None
 
 
+class AttentionIn(BaseModel):
+    opted_out: bool | None = None
+    min_score: float | None = None
+    max_per_day: int | None = None
+    quiet_start: str | None = None   # HH:MM in the person's time zone; "" clears
+    quiet_end: str | None = None
+    timezone: str | None = None      # IANA name
+    muted_kinds: list[str] | None = None
+
+
 class AnticipationActIn(BaseModel):
     action: str                    # an offered action id, or dismiss | snooze | useful | not_useful | incorrect
     until: datetime | None = None  # snooze
@@ -34,6 +44,15 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
     @app.patch("/v1/workspaces/{ws}/anticipation/settings")
     def anticipation_settings_set(request: Request, ws: str, body: AnticipationSettingsIn, user: User) -> dict[str, Any]:
         return L(request).anticipation.set_settings(user, ws, body.model_dump(exclude_none=True))
+
+    @app.get("/v1/workspaces/{ws}/attention")
+    def attention(request: Request, ws: str, user: User) -> dict[str, Any]:
+        """The caller's own attention preferences for anticipation."""
+        return L(request).anticipation.attention(user, ws)
+
+    @app.put("/v1/workspaces/{ws}/attention")
+    def attention_set(request: Request, ws: str, body: AttentionIn, user: User) -> dict[str, Any]:
+        return L(request).anticipation.set_attention(user, ws, body.model_dump(exclude_unset=True))
 
     @app.get("/v1/workspaces/{ws}/anticipations")
     def anticipations(request: Request, ws: str, user: User, status: str = "open", kind: str | None = None, limit: int = 50,
