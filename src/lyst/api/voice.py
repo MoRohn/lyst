@@ -54,6 +54,7 @@ class VoiceTurnIn(BaseModel):
     text: str | None = None          # recognised on the person's device
     audio_b64: str | None = None     # one utterance, base64
     mime: str = "audio/wav"
+    confidence: float | None = None  # the device recogniser's confidence for ``text``, 0..1
 
 
 class VoiceSpeakIn(BaseModel):
@@ -102,7 +103,9 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
                 audio = base64.b64decode(body.audio_b64, validate=True)
             except (binascii.Error, ValueError) as exc:
                 raise ValueError("audio_b64 is not valid base64") from exc
-        return L(request).voice.turn(user, ws, sid, text=body.text, audio=audio, mime=body.mime)
+        if body.confidence is not None and not 0 <= body.confidence <= 1:
+            raise ValueError("confidence is between 0 and 1")
+        return L(request).voice.turn(user, ws, sid, text=body.text, audio=audio, mime=body.mime, confidence=body.confidence)
 
     @app.get("/v1/workspaces/{ws}/voice/sessions/{sid}/answer/{task_id}")
     def voice_answer(request: Request, ws: str, sid: str, task_id: str, user: User) -> dict[str, Any]:
