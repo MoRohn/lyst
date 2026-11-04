@@ -243,17 +243,22 @@ where they point, with Mark all read and "What to tell me about".
   that computed it, the SQL that ran, the metric version and the dataset version (rows, checksum, load time,
   classification) to its source, with the checks, assumptions, citations and approvals involved. A figure counts as
   traced only when a stored result backs it at the precision written. Ask how it was figured, what it rests on,
-  what would change it, or have Lyst reproduce it under your current permissions.
+  what would change it, or have Lyst reproduce it under your current permissions; the answers come from those
+  records, not invented explanations, and Lyst says when the data behind an answer has a newer version.
 * **Enforces data classification.** Administrators classify datasets on four levels plus personal, financial and
   regulated tags, with a reason kept for every change. A versioned policy sets who may read each level and what
   may reach an external model or an export, and it is enforced in the data service, the model gateway and the
-  exporters, not in prompts. A refusal says who to ask, and administrators see the rule behind it.
+  exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from
+  it never reach an external model or an exported file. Anyone can check ahead of time whether work would be
+  allowed, narrowed or refused, and why; administrators also see the rule.
 * **Explains what it asks you to approve.** Each approval and review states the action, why, what it affects
   (including reports built on a changed definition), the expected result, how to undo it, and a risk level from
-  what it actually does.
+  what it actually does. A "where things stand" summary tells a returning person what they asked for, what
+  finished, what is running, what needs them and what comes next.
 * **Accounts for cost and value.** Model cost, tokens, retries, compute and query time, rows and connector work by
   person, task, schedule, model or purpose, beside verified answers, time to a verified answer and reuse. Effort
-  avoided appears only with an assumption an administrator supplies, and there is never an invented ROI figure.
+  avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
+  suggested savings cite the numbers behind them.
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, labelled like "Q2 FY2027".
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
