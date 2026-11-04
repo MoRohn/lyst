@@ -177,7 +177,7 @@ export const workflow = {
   eyebrow: 'How Lyst works',
   headline: 'A better way to get analytical work done.',
   steps: [
-    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
+    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question, or hand over a vague project. It becomes a living spec whose requirements count as met only with evidence.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
