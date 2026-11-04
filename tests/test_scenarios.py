@@ -51,6 +51,12 @@ def test_a_values_match_pandas(seeded, frame):
     table = {row[0]: row[1] for row in r["tables"][0]["rows"]}
     for region, value in q2.groupby("region").revenue.sum().items():
         assert table[region] == pytest.approx(value, rel=1e-9)
+    # the split the question asked for is in the answer itself, with each region's share of the total
+    assert "By region:" in r["answer"] and all(region in r["answer"] for region in q2.region.unique())
+    import re
+
+    shares = [int(x) for x in re.findall(r"\((\d+)%\)", r["answer"])]
+    assert len(shares) == q2.region.nunique() and 98 <= sum(shares) <= 102
 
 
 def test_ambiguous_term_asks_instead_of_guessing(seeded):

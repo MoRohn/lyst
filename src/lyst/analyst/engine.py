@@ -1297,6 +1297,16 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                            "rows": [[r[bd["by"]], r["value"]] for r in bd["table"]]})
             top = bd["table"][0]
             findings.append(f"Highest: {top[bd['by']]} at {fmt(top['value'], spec)}.")
+            # the question asked for the split, so the answer carries it: every member (up to six) with its share of an
+            # additive total; rates get their values only, since shares of a ratio mean nothing
+            rows = [r for r in bd["table"] if r["value"] is not None]
+            additive = spec.format != "percent" and getattr(spec, "kind", "simple") == "simple"
+            total = sum(r["value"] for r in rows) if additive else 0
+            members = ", ".join(f"{r[bd['by']]} {fmt(r['value'], spec)}" + (f" ({r['value'] / total:.0%})" if additive and total else "")
+                                for r in rows[:6])
+            more = f", and {len(rows) - 6} more" if len(rows) > 6 else ""
+            if members:
+                answer = (answer.rstrip(".") + ". " if answer else "") + f"By {bd['by'].replace('_', ' ')}: {members}{more}."
         if o.get("series") and not o.get("forecast"):
             charts.append({"type": "line", "title": f"{spec.title} by month",
                            "x": [p["period"] for p in o["series"]["points"]],
