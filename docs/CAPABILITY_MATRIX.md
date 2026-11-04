@@ -15,6 +15,7 @@
 | Platform | API compatibility record with a breaking-change test and `Lyst-API-Version` header | Tested | `test_api_contract.py`, docs/api/contract.txt |
 | Platform | Python SDK `lyst-client` (files, questions, SQL, events, webhooks, typed errors, retries, signature verification) | Tested | `test_sdk.py`, sdk/python |
 | Platform | MCP hardening: tool annotations, per-call audit, result size budget, `events` and `ingest_file` tools | Tested | `test_mcp.py` |
+| Analyst | Experiment registry: forecast-method backtests (six methods, rolling origin, MASE/MAE/RMSE/MAPE/sMAPE/bias/coverage) with paired-error significance and a no-clear-winner verdict, eval-bank arms, recorded inputs and environment, exact reproduction with data and environment drift, decisions with an against-evidence flag | Tested | `test_experiments.py`, docs/EXTENSIBILITY.md |
 | Data | Read-only SQL guard with column policies | Tested | `test_sqlguard.py`, `test_security.py` |
 | Data | Catalog insights on every version: grain, keys, duplicates at the grain, column meaning, robust outliers, missingness concentration and co-missingness, time-series gaps, freshness, ranked risks with a summary | Tested | `test_catalog.py::test_a_catalog_finds_grain_keys_relationships_and_planted_problems`, docs/PLATFORM.md |
 | Data | Relationships across datasets (foreign-key candidates, shared dimensions, inconsistent definitions, overlapping sources reconciled by totals) recorded in the knowledge graph | Tested | `test_catalog.py` |

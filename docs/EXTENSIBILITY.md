@@ -101,3 +101,30 @@ Every tool declares MCP annotations (read-only and idempotent for lookups and SQ
 work, never destructive). Every call is audited as `mcp.<tool>` with its outcome. Results above
 `LYST_MCP_MAX_BYTES` (256 KB) are cut to fit, rows first, with `truncated`, the total and a note. New tools:
 `events` (what changed since a cursor) and `ingest_file` (base64, 20 MB at most, inspect or load).
+
+## 6. Experiment registry (`src/lyst/experiments.py`, workspace migration 41)
+
+An experiment states a question, a kind and a spec; running it records one run per arm with its inputs (metric
+version, dataset versions, the executed SQL and the exact series), the environment (`src/lyst/environment.py`:
+Python and the versions of the packages that decide numbers, plus the lockfile digest), scores and digests.
+
+* **forecast**: rolling-origin backtests of `naive`, `seasonal_naive`, `mean`, `drift`, `linear_trend` and `ets` (the
+  analyst's default) on an approved metric at a grain. Scores: MASE (primary by default), MAE, RMSE, MAPE, sMAPE,
+  bias, interval coverage. A winner is named only when it beats the runner-up on paired absolute errors (Wilcoxon
+  signed-rank, one-sided, 5%); otherwise the verdict is "no clear winner" and the simplest tied method is
+  recommended. The comparison also says where the analyst's default ranks and which methods' intervals are
+  calibrated (coverage within 15 points of the nominal 80%).
+* **eval**: the evaluation bank as an experiment arm; later runs are compared with the first using
+  `lyst.evals.compare` when the regression gate is installed (ops thread), else a per-case pass comparison.
+
+`POST .../experiment-runs/{id}/reproduce` recomputes a forecast run on its recorded series and returns
+`{same, differences, observed_changed, environment}` (the scenario reproduction shape): `observed_changed` says
+today's data differs from what the run saw; `environment` lists package or Python changes. `POST .../decision`
+records the chosen arm with a note and whether it goes against the evidence; a decided experiment is closed.
+
+Routes: `GET /v1/experiments/methods`, `GET|POST /v1/workspaces/{ws}/experiments`, `GET .../experiments/{id}`,
+`POST .../{id}/run`, `GET .../{id}/comparison`, `POST .../{id}/decision`, `GET|POST .../experiment-runs/{id}[/reproduce]`.
+Permissions: `experiment.run` (editor), `experiment.decide` (admin). Events: `experiment.created|ran|decided`.
+
+Gaps: the decision is advice; the analyst's forecast step does not yet read it. No causal-method arms yet
+(interrupted time series vs difference-in-differences), and no hyperparameter search.

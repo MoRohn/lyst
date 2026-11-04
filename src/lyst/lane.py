@@ -16,3 +16,7 @@ def attach(lyst) -> None:
     lyst.events = EventService(lyst.stores, lyst.guard)
     lyst.webhooks = WebhookService(lyst.stores, lyst.guard, lyst.events)
     lyst.runtime.periodic.append(lyst.webhooks.run)  # collects events, then delivers what is due
+
+    from .experiments import ExperimentService
+
+    lyst.experiments = ExperimentService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lambda: lyst)

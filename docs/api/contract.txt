@@ -21,6 +21,7 @@ GET /v1/credentials/{cid}/history | query: - | body: -
 GET /v1/domains | query: - | body: -
 GET /v1/domains/{package_id} | query: - | body: -
 GET /v1/events/types | query: - | body: -
+GET /v1/experiments/methods | query: - | body: -
 GET /v1/ingest/formats | query: - | body: -
 GET /v1/installation | query: - | body: -
 GET /v1/me | query: - | body: -
@@ -77,6 +78,10 @@ GET /v1/workspaces/{ws}/documents/search | query: q | body: -
 GET /v1/workspaces/{ws}/entities | query: - | body: -
 GET /v1/workspaces/{ws}/evals | query: - | body: -
 GET /v1/workspaces/{ws}/events | query: - | body: -
+GET /v1/workspaces/{ws}/experiment-runs/{run_id} | query: - | body: -
+GET /v1/workspaces/{ws}/experiments | query: - | body: -
+GET /v1/workspaces/{ws}/experiments/{eid} | query: - | body: -
+GET /v1/workspaces/{ws}/experiments/{eid}/comparison | query: - | body: -
 GET /v1/workspaces/{ws}/findings | query: - | body: -
 GET /v1/workspaces/{ws}/glossary | query: - | body: -
 GET /v1/workspaces/{ws}/inbox | query: - | body: -
@@ -164,6 +169,10 @@ POST /v1/workspaces/{ws}/decision-records/{decision_id}/submit | query: - | body
 POST /v1/workspaces/{ws}/documents | query: - | body: file
 POST /v1/workspaces/{ws}/documents/reindex | query: - | body: -
 POST /v1/workspaces/{ws}/entities | query: - | body: kind,name
+POST /v1/workspaces/{ws}/experiment-runs/{run_id}/reproduce | query: - | body: -
+POST /v1/workspaces/{ws}/experiments | query: - | body: name
+POST /v1/workspaces/{ws}/experiments/{eid}/decision | query: - | body: choice
+POST /v1/workspaces/{ws}/experiments/{eid}/run | query: - | body: -
 POST /v1/workspaces/{ws}/findings/{finding_id} | query: - | body: status
 POST /v1/workspaces/{ws}/glossary | query: - | body: definition,term
 POST /v1/workspaces/{ws}/ingest | query: - | body: file

@@ -64,6 +64,9 @@ CATALOG: dict[str, tuple[str, str]] = {
     "workflow.retire": ("workflow.retired", "workflow"),
     "schedule.create": ("schedule.created", "schedule"),
     "skill.register": ("skill.registered", "skill"),
+    "experiment.create": ("experiment.created", "experiment"),
+    "experiment.run": ("experiment.ran", "experiment"),
+    "experiment.decide": ("experiment.decided", "experiment"),
     # operations (quotas, scenarios, decision records)
     "quota.set": ("quota.set", "workspace"),
     "scenario.define": ("scenario.defined", "scenario"),
@@ -87,7 +90,7 @@ TASK_STATES = {"done": "task.completed", "failed": "task.failed", "awaiting_appr
 ANY_OUTCOME = {"contract.check", "connection.sync", "policy.export", "policy.read"}
 # event types every member may read; the rest (membership, approvals, others' tasks) need audit.read
 MEMBER_TYPES = ("dataset.*", "ingest.*", "document.*", "metric.*", "contract.*", "connection.synced", "asset.*",
-                "dashboard.*", "artifact.*", "workflow.*", "scenario.*", "decision.*")
+                "dashboard.*", "artifact.*", "workflow.*", "scenario.*", "decision.*", "experiment.*")
 
 
 def types() -> list[str]:

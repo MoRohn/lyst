@@ -33,6 +33,18 @@ class WebhookPatch(BaseModel):
     rotate_secret: bool = False
 
 
+class ExperimentIn(BaseModel):
+    name: str
+    kind: str = "forecast"
+    question: str | None = None
+    spec: dict[str, Any] = {}
+
+
+class DecideIn(BaseModel):
+    choice: str
+    note: str = ""
+
+
 class IngestCommit(BaseModel):
     tables: list[IngestChoice] = []
     document: bool | None = None
@@ -130,4 +142,44 @@ def register(app, L, User) -> None:
     @app.post("/v1/workspaces/{ws}/webhook-deliveries/{did}/redeliver")
     def webhooks_redeliver(request: Request, ws: str, did: str, user: User):
         return L(request).webhooks.redeliver(user, ws, did)
+
+    # -- experiments --------------------------------------------------------------------------
+
+    @app.get("/v1/experiments/methods")
+    def experiment_methods(user: User):
+        from ..experiments import COMPLEXITY, DEFAULT_METHOD, METRICS  # noqa: PLC0415
+
+        return {"forecast": COMPLEXITY, "default": DEFAULT_METHOD, "scores": list(METRICS), "kinds": ["forecast", "eval"]}
+
+    @app.get("/v1/workspaces/{ws}/experiments")
+    def experiments_list(request: Request, ws: str, user: User):
+        return L(request).experiments.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/experiments", status_code=201)
+    def experiments_create(request: Request, ws: str, body: ExperimentIn, user: User):
+        return L(request).experiments.create(user, ws, name=body.name, kind=body.kind, spec=body.spec, question=body.question)
+
+    @app.get("/v1/workspaces/{ws}/experiments/{eid}")
+    def experiments_get(request: Request, ws: str, eid: str, user: User):
+        return L(request).experiments.get(user, ws, eid)
+
+    @app.post("/v1/workspaces/{ws}/experiments/{eid}/run")
+    async def experiments_run(request: Request, ws: str, eid: str, user: User):
+        return await run_in_threadpool(L(request).experiments.run, user, ws, eid)
+
+    @app.get("/v1/workspaces/{ws}/experiments/{eid}/comparison")
+    def experiments_compare(request: Request, ws: str, eid: str, user: User, batch: str | None = None):
+        return L(request).experiments.compare(user, ws, eid, batch=batch)
+
+    @app.post("/v1/workspaces/{ws}/experiments/{eid}/decision")
+    def experiments_decide(request: Request, ws: str, eid: str, body: DecideIn, user: User):
+        return L(request).experiments.decide(user, ws, eid, choice=body.choice, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/experiment-runs/{run_id}")
+    def experiment_run(request: Request, ws: str, run_id: str, user: User):
+        return L(request).experiments.run_detail(user, ws, run_id)
+
+    @app.post("/v1/workspaces/{ws}/experiment-runs/{run_id}/reproduce")
+    def experiment_reproduce(request: Request, ws: str, run_id: str, user: User):
+        return L(request).experiments.reproduce(user, ws, run_id)
 
