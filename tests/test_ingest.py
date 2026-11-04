@@ -269,6 +269,11 @@ def test_api_inspect_commit_and_one_call_load(seeded):
         assert r.status_code == 200, r.text
         assert len(r.json()["datasets"]) == 2
         assert client.get("/v1/workspaces/northwind/ingest", headers=h).json()[0]["status"] == "committed"
+        fmts = client.get("/v1/ingest/formats", headers=h).json()
+        assert {"xlsx", "csv", "parquet", "docx", "pdf"} <= set(fmts["extensions"]) and "xls" in fmts["refused"]
+        assert client.get("/v1/ingest/formats").status_code in (401, 403)
+        single = client.post("/v1/workspaces/northwind/ingest", headers=h, files={"file": ("one.tsv", b"a\tb\n1\t2\n")}).json()
+        assert single["kind"] == "table" and len(single["tables"]) == 1 and single["delimiter"] == "\t"
         r = client.post("/v1/workspaces/northwind/ingest", headers=h, files={"file": ("q.csv", b"x,y\n1,2\n3,4\n")},
                         data={"commit": "true"})
         assert r.status_code == 200 and r.json()["datasets"][0]["dataset"] == "q"

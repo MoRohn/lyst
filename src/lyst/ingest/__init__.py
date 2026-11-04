@@ -54,6 +54,15 @@ UNSUPPORTED = {
 }
 
 
+def formats() -> dict[str, Any]:
+    """What the uploader may offer, so its file picker stays in sync with what is read."""
+    groups = {"spreadsheet": ["xlsx", "xlsm"], "table": ["csv", "tsv", "txt", "parquet", "json", "jsonl", "ndjson"],
+              "document": ["docx", "pptx", "pdf", "html", "htm", "md", "markdown"]}
+    return {"extensions": [e for g in groups.values() for e in g], "groups": groups,
+            "max_bytes": 200 * 1024 * 1024,
+            "refused": {ext.lstrip("."): why for ext, why in {**UNSUPPORTED, ".xls": "a legacy Excel 97-2003 file; save it as .xlsx"}.items()}}
+
+
 def sniff(content: bytes, filename: str) -> str:
     """The file's format from its bytes first and its name second (a renamed file is read as what it is)."""
     lower = filename.lower()
@@ -373,4 +382,4 @@ class IngestService:
         return {"plan": job, **self.commit(actor, ws, job["id"])}
 
 
-__all__ = ["IngestService", "read_any", "sniff"]
+__all__ = ["IngestService", "formats", "read_any", "sniff"]

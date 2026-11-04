@@ -27,6 +27,13 @@ class IngestCommit(BaseModel):
 
 
 def register(app, L, User) -> None:
+    @app.get("/v1/ingest/formats")
+    def ingest_formats(user: User) -> dict[str, Any]:
+        """File types the ingest door reads, grouped, plus the ones it refuses and why."""
+        from ..ingest import formats  # noqa: PLC0415
+
+        return formats()
+
     @app.post("/v1/workspaces/{ws}/ingest")
     async def ingest_inspect(request: Request, ws: str, user: User, file: Annotated[UploadFile, File()],
                              classification: Annotated[str, Form()] = "internal",

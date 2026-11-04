@@ -11,7 +11,9 @@ One door for files: `POST /v1/workspaces/{ws}/ingest` (multipart `file`, optiona
 **Look first, then load.** `inspect` reads the file and returns a plan; nothing becomes a dataset until `commit`
 (`POST .../ingest/{id}/commit` with `{"tables": [{"key", "name", "include"}], "document": bool}`). `commit=true` on
 upload loads the plan's own choices in one call (for scripts and the SDK). `DELETE .../ingest/{id}` discards a
-staged file. The staged bytes live in the encrypted workspace database (`ingest_jobs`, workspace migration 40) and
+staged file. `GET /v1/ingest/formats` lists the extensions read (grouped spreadsheet, table, document), the size
+limit and the refused types with the reason, so an uploader's file picker stays in sync. CSV, TSV and Parquet return one
+table (a CSV with several blocks separated by blank lines returns each block; the first is included). The staged bytes live in the encrypted workspace database (`ingest_jobs`, workspace migration 40) and
 are dropped on commit or discard; the SHA-256 stays, so a re-upload of the same file says which earlier upload it
 duplicates.
 
