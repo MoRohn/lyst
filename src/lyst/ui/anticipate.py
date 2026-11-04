@@ -14,8 +14,12 @@ from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
 VERDICT = {"ready": ("Ready", "ok"), "blocked": ("Blocked", "bad"), "warn": ("Check first", "warn"),
+           "risk": ("At risk", "bad"), "watch": ("Keep an eye on it", "warn"),
            "warning": ("Check first", "warn"), "stale": ("Out of date", "warn")}
-ACTION = {"run_now": "Run now", "dismiss": "Dismiss", "snooze": "Later", "watch": "Watch it", "schedule": "Repeat it"}
+ACTION = {"run_now": "Run now", "dismiss": "Dismiss", "snooze": "Later", "watch": "Watch it", "schedule": "Repeat it",
+          "renew": "Renew", "open_source": "Open source", "open_dataset": "Open dataset", "test_connection": "Test it",
+          "propose_fix": "Propose a fix"}
+PRIMARY = ("run_now", "renew", "open_source", "open_dataset", "test_connection", "propose_fix", "watch", "schedule", "snooze")
 NEXT = "next_best_action"  # shown under the answer it came from, not in Work
 LEVELS = {"off": "Off", "suggest": "Suggest", "prepare": "Prepare", "investigate": "Investigate", "automate": "Automate"}
 LEVEL_TEXT = {"off": "Lyst only does what it is asked.",
@@ -43,6 +47,8 @@ def _wants_person(a: dict) -> bool:
         return False
     if a.get("kind") == "early_warning":
         return a.get("verdict") == "verified"
+    if a.get("kind") == "health_foresight":
+        return a.get("verdict") == "risk"
     return a.get("status") == "surfaced" or a.get("verdict") not in (None, "ready")
 
 
@@ -55,7 +61,14 @@ def _act(a: dict, action: str) -> None:
                     {"dismiss": "Dismissed", "snooze": "Hidden until tomorrow", "useful": "Thanks, noted",
                      "not_useful": "Thanks, Lyst will suggest less like this", "incorrect": "Thanks, noted as wrong"}
                     .get(action))
-    if r and r.get("needs_approval"):
+    if r and r.get("open") is not None:  # a link: go where the fix is made
+        if r.get("credential_id") and action == "renew":
+            st.switch_page("app_pages/settings.py", query_params={"view": "connections"})
+        elif r.get("dataset"):
+            st.switch_page("app_pages/data.py", query_params={"dataset": r["dataset"]})
+        elif r.get("connection_id"):
+            st.switch_page("app_pages/data.py", query_params={"connection": r["connection_id"]})
+    elif r and r.get("needs_approval"):
         st.toast("Proposed. It starts once an admin approves it.", icon=":material/approval:")
         st.rerun()
     elif r and r.get("task_id"):
@@ -101,13 +114,27 @@ def rows(found: list[dict], *, key: str) -> None:
         meta = " · ".join(x for x in ((a.get("reasons") or [None])[0],
                                       f"needed {kit.when(a['needed_at'])}" if a.get("needed_at") else None) if x)
         ids = [x["id"] if isinstance(x, dict) else x for x in a.get("actions") or []]
-        acts = [(ACTION[x], x) for x in ("run_now", "watch", "schedule", "snooze") if x in ids][:2] + [("Why", "why")]
+        acts = [(ACTION[x], x) for x in PRIMARY if x in ids][:2] + [("Why", "why")]
         hit = kit.row(a.get("objective") or a.get("kind", "").replace("_", " "), meta, status=status, actions=acts,
                       key=f"{key}{a['id']}", divider=i < len(found) - 1)
         if hit == "why":
             why(a)
         elif hit:
             _act(a, hit)
+
+
+def about(subject_kind: str, subject_id: str, *, key: str) -> None:
+    """Inside a source or dataset: what Lyst foresees for it (an expiring credential, a schema change, a source
+    that keeps failing), with the fix one click away."""
+    found = [a for a in items() if a.get("kind") == "health_foresight" and a.get("subject_kind") == subject_kind
+             and str(a.get("subject_id")) == str(subject_id)]
+    if found:
+        kit.label("Lyst sees ahead")
+        rows(found, key=key)
+
+
+def health_by_subject() -> dict[tuple[str, str], dict]:
+    return {(a.get("subject_kind"), str(a.get("subject_id"))): a for a in items() if a.get("kind") == "health_foresight"}
 
 
 def coming_up() -> None:
