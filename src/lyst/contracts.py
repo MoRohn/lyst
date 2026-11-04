@@ -30,6 +30,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from .catalog import _family, _q, impact_of
+from .notices import raise_notice
 from .security import Guard, Principal
 from .store import Stores
 
@@ -289,7 +290,6 @@ class ContractService:
     def _notify(self, ws: str, dataset: str, version: int, check_id: str, outcome: str, results: list[dict[str, Any]],
                 impacted: list[dict[str, Any]], owner: str | None) -> None:
         """A finding in the inbox, deduplicated per dataset version, for the owner and the workspace's owners and admins."""
-        db = self._db(ws)
         problems = [r["text"] for r in results if r["severity"] in ("breaking", "fail")]
         order = {"dashboard": 0, "workflow": 1, "monitor": 2, "metric": 3}
         assets = [f"{i['kind']} {i.get('title') or i['name']}" for i in sorted(impacted, key=lambda i: order.get(i["kind"], 9))
@@ -297,19 +297,11 @@ class ContractService:
         summary = (f"{dataset} v{version} {'breaks' if outcome == 'breaking' else 'fails'} its contract: {problems[0]}"
                    + (f" (and {len(problems) - 1} more)" if len(problems) > 1 else "")
                    + (f". Affected: {', '.join(assets[:6])}" if assets else ". Nothing downstream reads the affected columns") + ".")
-        key = f"contract:{dataset}:{version}"
-        if db.scalar("SELECT count(*) FROM findings WHERE dedupe_key = ?", [key]):
-            return
-        fid = "f_" + uuid.uuid4().hex[:10]
         metric = next((i["name"] for i in impacted if i["kind"] == "metric"), "")
-        db.execute("INSERT INTO findings (id, monitor_id, kind, period, label, metric, summary, priority, direction, z, value, baseline, task_id, "
-                   "status, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'down', NULL, NULL, NULL, NULL, 'new', ?)",
-                   [fid, f"contract:{dataset}", "contract_breaking" if outcome == "breaking" else "contract_failed", str(version),
-                    f"{dataset} v{version}", metric, summary, 9.0 if outcome == "breaking" else 6.0 + min(3.0, len(assets) * 0.5), key])
-        rows = self.stores.control.query("SELECT user_id FROM memberships WHERE workspace_id = ? AND role IN ('owner', 'admin')", [ws])
-        for uid in {r["user_id"] for r in rows} | ({owner} if owner else set()):
-            db.execute("INSERT INTO notifications (id, user_id, finding_id, channel, status) VALUES (?, ?, ?, 'inbox', 'unread')",
-                       ["n_" + uuid.uuid4().hex[:10], uid, fid])
+        raise_notice(self.stores, ws, source=f"contract:{dataset}", kind="contract_breaking" if outcome == "breaking" else "contract_failed",
+                     label=f"{dataset} v{version}", summary=summary, period=str(version), metric=metric,
+                     priority=9.0 if outcome == "breaking" else 6.0 + min(3.0, len(assets) * 0.5),
+                     dedupe_key=f"contract:{dataset}:{version}", recipients={owner} if owner else None)
         log.info("contract %s on %s v%s (check %s)", outcome, dataset, version, check_id)
 
 

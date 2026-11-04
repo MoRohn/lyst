@@ -24,7 +24,7 @@ from . import Connector, ConnectorError, Field, Manifest, SourceTable, register
 @register
 class RestConnector(Connector):
     manifest = Manifest(
-        kind="rest", label="REST API (JSON list)",
+        kind="rest", label="REST API (JSON list)", auth="token",
         fields=(Field("url", "Endpoint URL (https)"), Field("records_key", "Key holding the list (empty: the body is the list)", required=False),
                 Field("page_param", "Page query parameter (empty: no pagination)", required=False),
                 Field("next_key", "Key in the body holding the next page cursor or URL (empty: page numbers)", required=False),
@@ -81,7 +81,11 @@ class RestConnector(Connector):
                 else:
                     r = c.get(url, params=q, headers=self._headers())
                 if r.status_code != 200:
-                    raise ConnectorError(f"{url} returned {r.status_code}")
+                    category = {401: "auth", 403: "permission", 404: "not_found", 429: "rate_limit"}.get(
+                        r.status_code, "source" if r.status_code >= 500 else None)
+                    retry_after = r.headers.get("retry-after")
+                    raise ConnectorError(f"{url} returned {r.status_code}", category=category,
+                                         retry_after=float(retry_after) if retry_after and retry_after.isdigit() else None)
                 body = r.json()
                 records = body
                 if self.config.get("records_key"):

@@ -32,7 +32,7 @@ Rohn's order for this iteration: **(1) data intelligence and semantic modeling, 
 | 11 Extensibility | Connector SDK, governed skills with sandbox tests, MCP server | No plugin manifest for extensions beyond skills and connectors |
 | 12 Cross-system | Two-source reconciliation only inside the data-quality investigation | No reusable reconciliation or entity matching |
 
-## PR A: data intelligence and semantic modeling (this PR)
+## PR A: data intelligence and semantic modeling (#25, merged)
 
 Built in `src/lyst/catalog.py`, `src/lyst/contracts.py` and `src/lyst/semantic/`; workspace migration 9
 (`dataset_insights`, `data_contracts`, `contract_checks`, `metrics.replaced_by`); tests in `tests/test_catalog.py`.
@@ -81,13 +81,41 @@ Acceptance scenarios covered: **A** (catalog intelligence), **B** (metric lineag
 real dashboard in a unit test is slow; the impact walk reads the same table the Studio writes), **G** for data and
 definitions (search across workflows and documents; collaboration permissions are PR D).
 
+## PR B: connector maturity
+
+Built in `src/lyst/connectors/reliability.py`, `src/lyst/connectors/__init__.py` and `src/lyst/notices.py`;
+control migration 13 (`connection_events`; health columns on `connections`; `connection_syncs.last_schema`); tests
+in `tests/test_connector_ops.py`; operations described in `docs/CONNECTORS.md`.
+
+* Normalized error categories with a required action each; connectors that know the cause say so (HTTP 401, 403,
+  404, 429 with `Retry-After`, 5xx), PostgreSQL connection messages are recognized (an unknown role is an auth
+  failure, an unknown database a configuration error; checked against the local PostgreSQL 17).
+* One retry policy for transient failures across every connector, with backoff and `Retry-After`.
+* An event per operation and a health record per connection (state, reasons, action, credential state, per-table
+  freshness, schedules, overdue syncs, contract outcomes, last-day counts), over REST.
+* Inbox notices for connections that need a person, deduplicated per cause per day (shared with data contracts
+  through `notices.raise_notice`).
+* Schema changes detected on every sync; a retyped column on an incremental sync reloads in full.
+* Manifests declare `auth`, `read_only` and `retry_attempts`.
+
+Verified: 307 tests pass (19 new), ruff, eval and the license check. Acceptance scenario **D** runs in full: an
+expired token (the source starts answering 401) puts the connection in `needs_action` with the reconnect action and
+an inbox notice, nothing is retried, no secret appears in health or events, and replacing the credential in Settings
+recovers the next sync; a source that retypes a column and adds one triggers a full reload and a breaking contract
+check, and health points at the contract.
+
+Not built: connectors for MySQL, SQL Server, warehouses and SaaS systems (no servers to test against, see
+`docs/CONNECTORS.md`); generated connectors with sandbox tests and approved promotion (G13 below); webhook-driven
+(push) syncs.
+
 ## Where it surfaces (handed to the UX thread)
 
 The API is complete; the screens are the UX thread's call. Proposed placement, following their layout:
 catalog rows, insights and contracts in **Data › Datasets** (a dataset dialog with Summary · Detail · Method tabs:
 summary sentence and risks; columns and relationships; contract and check history); metric lineage, history,
 deprecation and the semantic audit in **Brain › Definitions**; search in the single box on Home or the sidebar;
-contract findings already arrive in the existing inbox.
+contract findings already arrive in the existing inbox. Connection health and events go in **Data › Datasets ›
+Sources** (a state badge, the reasons and the required action per connection, the event list on open).
 
 ## Prioritized record of remaining gaps
 
@@ -96,7 +124,7 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 
 | # | Gap | Priority | Status |
 |---|---|---|---|
-| G1 | Connector health and diagnostics: per connection last success, last failure class (auth, permission, network, schema, rate limit), required action, freshness; shared retry and rate-limit policy; schema evolution on sync feeding contracts | 1 | next (PR B) |
+| G1 | Connector health and diagnostics, shared retries and rate limits, schema evolution on sync | 1 | done (PR B) |
 | G2 | Unified artifact registry: one identity, owner, version, validation status and dependencies for reports, decks, workbooks, dashboards, workflows; stale detection when sources or definitions change (builds on `impact`) | 1 | next (PR C) |
 | G3 | Collaboration: share an investigation, comments on artifacts, review and approval of metric changes and contracts, ownership transfer, notification preferences | 1 | next (PR D) |
 | G4 | Natural-language transformations: derived datasets from a DuckDB SQL or Polars definition, verified by running them and checking the result against a contract, with lineage | 2 | open |
@@ -107,4 +135,6 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | G9 | Platform health page (workers, queues, DuckDB, storage, backups, connections) | 3 | open |
 | G10 | Extension manifest beyond skills and connectors | 3 | open |
 | G11 | Embedding-based search across catalog items (documents already have it) | 3 | open |
+| G13 | Generated connectors: Lyst drafts an adapter from an API description, tests it in the skill sandbox, and an admin promotes it | 2 | open |
+| G14 | Connectors for MySQL, SQL Server, Snowflake, Databricks, Redshift, object storage and SaaS systems | 2 | waiting (servers to test against) |
 | G12 | Insights on very large tables run exact distinct counts for keys; fine to tens of millions of rows on one machine, not measured beyond that | 3 | open |

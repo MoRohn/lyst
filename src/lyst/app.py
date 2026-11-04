@@ -89,6 +89,7 @@ class Lyst:
         catalog = CatalogService(stores, guard, data, semantic, knowledge)
         contracts = ContractService(stores, guard, catalog, semantic)
         catalog.contracts = contracts
+        connections.catalog = catalog
         data.after_ingest += [catalog.after_ingest, contracts.after_ingest]
         services.catalog = catalog
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,

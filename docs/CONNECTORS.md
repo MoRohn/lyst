@@ -20,12 +20,39 @@ rows plus the new ones. Every sync is a dataset version with a hash, so earlier 
 an audit line. A sync can be scheduled (`sync connection <id> table <t> by <cursor>`), which goes through the
 same approval as any schedule and runs as its owner.
 
+## Operations: errors, retries, health
+
+Every test, discovery and read goes through one path (`ConnectionService._attempt`):
+
+* **One error vocabulary.** Failures are classified as `auth`, `permission`, `rate_limit`, `timeout`, `network`,
+  `source`, `not_found`, `schema`, `config` or `unknown` (`connectors/reliability.py`), from a category the
+  connector set (`ConnectorError(..., category="rate_limit", retry_after=…)`, as the REST and URL-file connectors do
+  for HTTP status codes) or from the message. Each category has one sentence saying what the person should do.
+* **One retry policy.** Network, timeout, rate-limit and source errors are retried with exponential backoff and
+  jitter, honouring `Retry-After`, up to the manifest's `retry_attempts` (3). Auth, permission, not-found, schema and
+  config errors fail at once: retrying them hides the cause.
+* **Events.** Each operation is a row in `connection_events` (action, table, outcome, category, scrubbed message,
+  attempts, the categories retried, duration). Schema changes on a sync are events too.
+* **Health.** `GET /v1/workspaces/{ws}/connections/health` gives every connection a state (`healthy`, `degraded`,
+  `failing`, `needs_action`, `untested`), the reasons, the required action, last success and failure, consecutive
+  failures, the credential's id and state (never its value), each synced table's last sync, schedule, overdue flag,
+  data freshness and contract outcome, and the last day's operations, errors, retries and rate limits. Three
+  transient failures in a row, or any permanent one, put a finding in the inbox of the connection's creator and the
+  workspace's owners and admins, once a day per cause.
+* **Schema evolution.** A sync compares what the source returned with the dataset's current version. Added and
+  removed columns are recorded; a column that changed type on an incremental sync triggers a full reload, so a
+  version never mixes types. The dataset's data contract, if it has one, then reports the change as breaking with
+  everything downstream that is affected.
+
 ## Writing a connector
 
 Add a module in `src/lyst/connectors/` with a class that declares a `Manifest` (kind, label, fields with
 their `secret` flag, capabilities) and implements `test()`, `discover() -> list[SourceTable]` and
 `read(table, cursor_column, after) -> Iterator[pyarrow.Table]`, decorated with `@register`. Nothing in the
 core application changes; the API and the Data › Connections page read the manifest.
+
+Declare `auth` (`none`, `password`, `token`, `api_key`) and, if the source needs it, `retry_attempts`. Raise
+`ConnectorError` with a `category` when you know it (HTTP status codes map directly); the service classifies the rest.
 
 Rules every connector keeps: it reads, never writes; it validates identifiers it puts into SQL; it fails
 loudly on a connection problem so that nothing untestable is saved; it never logs secrets.

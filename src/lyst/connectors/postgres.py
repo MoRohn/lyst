@@ -19,7 +19,7 @@ def _q(ident: str) -> str:
 @register
 class PostgresConnector(Connector):
     manifest = Manifest(
-        kind="postgres", label="PostgreSQL",
+        kind="postgres", label="PostgreSQL", auth="password",
         fields=(Field("host", "Host"), Field("port", "Port", default="5432"), Field("dbname", "Database"),
                 Field("user", "User"), Field("password", "Password", secret=True, required=False),
                 Field("sslmode", "SSL mode", required=False, default="prefer"),
