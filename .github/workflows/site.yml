@@ -1,12 +1,12 @@
-# Builds, tests and deploys the Lyst website in site/ to GitHub Pages.
+# Builds, tests and deploys the Lyst website in site/ to GitHub Pages after every merge to main.
 # One-time setup (repository owner): Settings → Pages → Source: "GitHub Actions".
 # This workflow never changes repository settings itself.
 name: Website
 
 on:
+  # Every merge to main redeploys the site, so the live page always matches main.
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/site.yml']
   pull_request:
     paths: ['site/**', '.github/workflows/site.yml']
   workflow_dispatch:
