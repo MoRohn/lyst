@@ -45,3 +45,19 @@ per intent and a single explanation. So the next slices are, in order:
 8. **Experience and performance**: role-adaptive answers, follow-ups from chart elements, latency work.
 
 Each slice ships with tests and an update to `CAPABILITY_MATRIX.md`; nothing is marked done on a plan.
+
+## After the Ascension slices (same day)
+
+| Area | Now | Evidence |
+|---|---|---|
+| Analyst loop | Depth control; deep investigations test seven hypotheses by computation, scan a horizon for change points, corroborate with related metrics; member filters; forecasts with scenarios; event impact (ITS); correlation with detrending; gap → Foundry; sentence → dashboard | `test_reasoning.py`, `test_prescriptive.py`, `test_foundry.py`, `test_studio.py` |
+| Validation and evidence | Sources with versions, hashes, timestamps; verification intensity by consequence with independent pandas recomputation; join fan-out and stale-source checks | `test_execution.py`, `test_adversarial.py` |
+| Knowledge | Entities, relations, automatic lineage, documents with citations, contradiction disclosure, prior-answer consistency | `test_knowledge.py`, `test_adversarial.py` |
+| Runtime | DAG plans, parallel waves, optional steps, failure classes, idempotent long-running projects | `test_execution.py`, scenario G |
+| Proactive | Approved monitors that detect, investigate, rank, deduplicate, notify | `test_monitoring.py` |
+| Foundry | Templates or a model draft a skill; sandbox, adversarial cases, benchmark, approval, reuse | `test_foundry.py` |
+| Evaluation | 19 scored cases, 130 tests, a labelled productivity estimate | `lyst eval`, `pytest` |
+
+Still missing, in priority order: a real OpenRouter or local model exercised end to end (needs a key or an
+installed model), database and SaaS connectors, vector search, PDF and deck deliverables, an MCP server
+over the registry, tracing, backup automation, load tests, and a Compose run on a Docker host.

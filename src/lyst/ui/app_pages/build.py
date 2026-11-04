@@ -39,7 +39,9 @@ with tabs[0]:
 
                     s_ = pd.read_parquet(io.BytesIO(api.http.get(
                         f"/v1/workspaces/{ws}/dashboards/{d['id']}/files/{m['series_file']}", headers=api._h()).content)).sort_values("period")
-                    col.metric(m["title"], f"{s_['value'].iloc[-1]:,.4g}")
+                    v = s_["value"].iloc[-1]
+                    shown = f"{v * 100:.1f}%" if m["format"] == "percent" else (f"${v / 1e6:.2f}M" if m["format"] == "currency" else f"{v:,.0f}")
+                    col.metric(m["title"], shown)
                     col.line_chart(s_.set_index("period")["value"], height=160)
                 st.caption("Checks: " + "; ".join(("✓ " if c["passed"] else "✕ ") + c["name"] for c in man["checks"]))
                 st.code("streamlit run <bundle>/app.py", language="bash")
