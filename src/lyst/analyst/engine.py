@@ -920,6 +920,18 @@ def _numbers(text: str) -> list[float]:
     return out
 
 
+def _same_figures(prior: str, template: str, final: str) -> bool | None:
+    """Do two answers state the same figures? Wording may differ (a corrected premise, a model's narrative);
+    the numbers may not. None when either states no figures, so they cannot be compared."""
+    if prior in (template, final):
+        return True
+    a = {round(x, 6) for x in _numbers(prior)}
+    b = {round(x, 6) for x in _numbers(template)}
+    if not a or not b:
+        return None
+    return a <= b or b <= a
+
+
 def unbacked_numbers(text: str, allowed: list[float]) -> list[float]:
     """Numbers in model text that match no tool-produced value (within display rounding)."""
     bad = []
@@ -1285,6 +1297,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         status = "complete" if v["status"] != "failed" else "unverified"
 
     narrative_by = "template"
+    template_answer = answer
     allowed: list[float] = []
     _collect_numbers({k: o.get(k) for k in o if k not in ("understand",)}, allowed)
     if status == "complete" and ctx.services.llm.allowed_for(ctx.workspace_id) and findings:
@@ -1325,7 +1338,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             continue
         same_sources = {(x["dataset"], x["version"]) for x in pa.get("sources", [])}
         consistency = {"analysis_id": pa["analysis_id"], "at": pa["at"], "answer": pa["answer"],
-                       "same_data": None, "agrees": pa["answer"] == answer}
+                       "same_data": None, "agrees": _same_figures(pa["answer"], template_answer, answer)}
         break
     sources = []
     for m in c.get("metrics", []):
@@ -1338,10 +1351,10 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                             "rows": vr["row_count"], "loaded_at": str(vr["created_at"]), "data_through": m["max_date"]})
     if consistency:
         consistency["same_data"] = same_sources == {(x["dataset"], x["version"]) for x in sources}
-        if not consistency["agrees"] and consistency["same_data"]:
+        if consistency["agrees"] is False and consistency["same_data"]:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) on the same data answered differently: "
                                f"\"{consistency['answer'][:160]}\". Review both before relying on either.")
-        elif not consistency["agrees"]:
+        elif consistency["agrees"] is False:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) answered differently on an earlier data version.")
     assumptions += context_notes
     audience = u.get("audience", "analyst")

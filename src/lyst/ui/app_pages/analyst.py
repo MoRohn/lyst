@@ -103,7 +103,7 @@ def result(t: dict) -> None:
         return
     if not t["result"]:
         return
-    answer(t["result"])
+    answer(t["result"], key=tid)
     if t["result"]["status"] == "complete":
         d = st.columns([1, 1, 1, 1, 3])
         for i, (kind, label) in enumerate(EXPORTS):
