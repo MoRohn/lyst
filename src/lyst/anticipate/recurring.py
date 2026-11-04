@@ -297,3 +297,8 @@ def run(svc, actor: Principal, ws: str, a: dict[str, Any], action: str) -> dict[
         raise KeyError(a["subject_id"])
     req = json.loads(sched[0]["request"])
     return {"task_id": svc.runtime.submit(actor, ws, req["question"], kind="analysis", workflow=req.get("workflow"))}
+
+
+def summary(a: dict[str, Any]) -> str:
+    problems = [c["detail"] for c in (a["verification"] or {}).get("checks", []) if c["status"] == "block"]
+    return a["reasons"][0] + " Before it runs: " + "; ".join(problems) + "."

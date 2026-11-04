@@ -15,6 +15,7 @@ open. It is kept honest: "Planned" means not built.
 | `service.py` | The cycle, the activity center, explanations, a person's responses, level changes |
 | `recurring.py` | Anticipator: approved recurring work (schedules) prepared just in time |
 | `nextaction.py` | Anticipator: next-best analytical action after finished work |
+| `earlywarning.py` | Anticipator: developing adverse trends on monitored metrics, investigated before anyone is told |
 
 The cycle per workspace: **observe** (signals from authorized metadata) -> **contextualize** (the run's datasets and
 definitions, from its compiled workflow, the metrics its question names and the datasets its last run queried) ->
@@ -49,7 +50,7 @@ inputs, verification checks, offered actions, dependencies (dataset and metric v
 owner's role, the occurrence), resources used (compute ms, queries, model calls, refreshes), needed-at, valid-until,
 revision, inbox finding, task.
 
-Status: `candidate -> prepared -> surfaced -> accepted | dismissed | snoozed`, with `expired` past validity, `withdrawn`
+Status: `candidate -> (preparing, while a background investigation runs) -> prepared -> surfaced -> accepted | dismissed | snoozed`, with `expired` past validity, `withdrawn`
 when the level drops, and any open item re-opened as a candidate (revision + 1, event `invalidated` naming what changed)
 when a dependency changes.
 
@@ -84,6 +85,28 @@ analysis found and checked before it is shown; at most three per analysis, never
 
 `GET /v1/workspaces/{ws}/anticipations?subject=<task id>` lists the suggestions for one answer.
 
+## Early warning (scenario B)
+
+Scope: metrics with an approved, enabled monitor, read as the monitor's creator through the monitor's own read path
+(complete periods only, column and row policies apply). Detection needs level 2; investigation needs level 3.
+
+Signals on at least 12 periods: a **change point** (a new level of at least three periods that began in the last five, at
+least 2 sigma the adverse way), a **sustained trend** (four adverse steps totalling at least 1.5 sigma), **forecast
+drift** (refit without the last three periods: all three on the adverse side, two outside the 80% interval) and a
+**projected breach** (the next two forecast periods cross the monitor's alert line). Sigma is the standard deviation of
+the history before the recent window. A change point and forecast drift are two views of one level shift, so evidence
+is counted in three kinds (level, trend, projection); a warning needs two kinds or a change point of at least 4 sigma.
+
+Suppressed silently: stale data, a move that repeats the same periods last year (seasonal), one kind of evidence only,
+a period the monitor already alerted on, and (level 3) an investigation that fails or cannot attribute the move with
+verified confidence. At level 3 the warning becomes a read-only investigation task (kind `investigation`, maintenance
+priority 3, `deadline_at` before the next period) as the monitor's creator; once it completes with verified confidence and
+drivers, the finding (answer, drivers, implications, next steps, the forecast's interval and back-test error) is pushed
+once to the inbox. At level 2, or when the day's investigation budget is used, the warning waits in the activity center
+marked `unverified`.
+
+Lowering the level below 3 withdraws warnings whose investigation has not finished and cancels the queued task.
+
 ## API
 
 | Route | Purpose |
@@ -107,16 +130,37 @@ WORKSPACE migration 50: `anticipations`, `anticipation_events`, `anticipation_se
 performs one incremental sync before the run (one new row picked up, a new dataset version), with no model calls, well
 inside a 5 s bound; at level 2 the same item only warns and writes nothing.
 
+Early-warning calibration (`uv run python scripts/bench_earlywarning.py 200`; synthetic monthly series, 30 months,
+Gaussian noise; "replayed" walks a six-month decline month by month and compares the first month early warning raises
+with the first month the monitor's own rule, robust z >= 3 on the latest month, alerts):
+
+```
+runs per case: 200
+false positives, noise:            0.0%
+false positives, noise + blip:     2.5%
+decline 0.5 sigma/month: detected after 4 months 9.0%; replayed: earlier than the monitor 29%, same month 27%, later 44%, never 60%, mean lead -0.2 months
+decline 1.0 sigma/month: detected after 4 months 53.0%; replayed: earlier than the monitor 21%, same month 29%, later 50%, never 6%, mean lead -0.6 months
+decline 1.5 sigma/month: detected after 4 months 89.0%; replayed: earlier than the monitor 11%, same month 27%, later 62%, never 0%, mean lead -0.8 months
+decline 2.5 sigma/month: detected after 4 months 100.0%; replayed: earlier than the monitor 2%, same month 21%, later 76%, never 0%, mean lead -1.1 months
+```
+
+Reading: the detector is conservative (2.5% false positives on noise with a final 2.5-sigma blip, before the
+investigation stage filters further). Against a 3-sigma monitor it is rarely earlier: for fast declines the monitor's
+single-period rule fires first. Its value today is that a warning arrives investigated, with drivers and uncertainty,
+and that slow drifts (0.5-1 sigma a month) are caught earlier in about a quarter to a third of the cases where the
+monitor would catch them at all. Earlier detection of fast moves without more false positives is open (N10).
+
 ## Gaps (prioritized)
 
 | # | Gap | State |
 | --- | --- | --- |
 | N1 | Next-best action: comparisons against other periods, hypothesis tests and briefings as further suggestion kinds | Planned |
-| N2 | Early-warning analytics and read-only investigation before notifying (scenario B) | Planned, slice 3 |
+| N2 | Early warning on unmonitored metrics, leading-indicator search across metrics (correlation without causal claims), capacity-exhaustion and cost-variance projections | Planned |
 | N3 | Data and integration health foresight: schema-change impact with validated repair proposals, credential age and expiry, latency and failure trends (scenarios C, F) | Planned, slice 4 |
 | N4 | Attention management: per-person frequency, quiet periods, relevance thresholds, muted kinds, opt-out (scenario H) | Planned, slice 5 (table exists) |
 | N5 | Learning from outcomes and anticipation quality metrics; offline verification (scenario I) | Planned, slice 6 |
 | N6 | Capability-gap forecasting through the Capability Foundry (scenario G) | Planned, slice 7 |
 | N7 | Consume the unified event model (CONTROL 40) instead of after-ingest hooks once it is merged | Planned |
 | N8 | Use the operations calendar (`schedule_next`) for later occurrences; submit investigation tasks at maintenance priority with a deadline (operations is merged; the model-budget check already uses it) | Planned |
+| N10 | Early warning that leads a 3-sigma monitor on fast declines without raising false positives (sequential tests such as CUSUM calibrated per metric) | Planned |
 | N9 | Activity center, inline suggestions and Settings controls in the UI (UX thread) | Handed over |

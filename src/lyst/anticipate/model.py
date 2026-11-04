@@ -9,7 +9,7 @@ outcome can be read back.
 
 Status flow::
 
-    candidate -> prepared -> surfaced -> accepted | dismissed | snoozed -> (completed)
+    candidate -> (preparing: a background investigation runs) -> prepared -> surfaced -> accepted | dismissed | snoozed -> (completed)
          \\-> withdrawn (level lowered)   \\-> expired (past validity)   any open -> candidate again when a dependency
                                                                          changes (revision + 1, event "invalidated")
 """
@@ -22,7 +22,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-OPEN = ("candidate", "prepared", "surfaced", "snoozed")
+OPEN = ("candidate", "preparing", "prepared", "surfaced", "snoozed")
 TERMINAL = ("accepted", "dismissed", "expired", "withdrawn", "completed", "suppressed")
 JSON_COLS = ("audience", "signals", "reasons", "scores", "prepared", "verification", "actions", "depends", "resources")
 
