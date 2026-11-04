@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'Scenarios', 'Event impact'],
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Event impact'],
     status: 'available',
   },
   {
@@ -164,7 +164,7 @@ export const enterprise = {
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person, and a change to a shared definition needs an approver other than its author.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person. Decisions are recorded, approved and later checked against what happened.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, and row and column policies decide what each person sees. Reports stay private, go to named people or are published.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
