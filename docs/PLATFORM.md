@@ -108,7 +108,7 @@ Not built: connectors for MySQL, SQL Server, warehouses and SaaS systems (no ser
 `docs/CONNECTORS.md`); generated connectors with sandbox tests and approved promotion (G13 below); webhook-driven
 (push) syncs.
 
-## PR C: artifact intelligence and lifecycle (#34)
+## PR C: artifact intelligence and lifecycle (#34, merged)
 
 Built in `src/lyst/assets.py` with hooks in `deliverables.py`, `studio.py`, `workflows.py`, `semantic` and the
 runtime's worker tick; workspace migration 10 (`assets`, `asset_versions`); tests in `tests/test_assets.py`.
