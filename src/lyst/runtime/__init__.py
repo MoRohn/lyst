@@ -76,6 +76,7 @@ class TaskRuntime:
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
         self.parallelism = max(1, int(os.environ.get("LYST_TASK_PARALLELISM", "4")))
+        self.monitors = None  # set by the app; ticked by the worker loop
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
 
@@ -210,6 +211,8 @@ class TaskRuntime:
                           ["queued" if approve else "cancelled", ap["task_id"]])
 
         self.db.write(tx)
+        if ap["action"] == "monitor.activate" and approve and self.monitors:
+            self.monitors.on_approved(actor, ap["workspace_id"], json.loads(ap["payload"])["monitor_id"])
         if ap["action"] == "skill.register" and approve and self.services.skills:
             p = json.loads(ap["payload"])
             self.services.skills.on_approved(actor, ap["workspace_id"], p["name"], int(p["version"]))
@@ -263,6 +266,17 @@ class TaskRuntime:
             except AccessDenied:
                 log.warning("schedule %s owner lost access; skipped", sid)
         return started
+
+    def tick_monitors(self) -> int:
+        if not self.monitors:
+            return 0
+        n = 0
+        for w in self.db.query("SELECT id FROM workspaces"):
+            try:
+                n += len(self.monitors.tick(w["id"]))
+            except Exception:  # noqa: BLE001
+                log.exception("monitor tick failed for %s", w["id"])
+        return n
 
     # -- execution --------------------------------------------------------------------------
 
@@ -472,6 +486,7 @@ class TaskRuntime:
             try:
                 if time.monotonic() - last_tick > 5:
                     self.tick_schedules()
+                    self.tick_monitors()
                     last_tick = time.monotonic()
                 if not self.run_once():
                     self._stop.wait(self.poll_seconds)

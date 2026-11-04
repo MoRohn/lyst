@@ -100,6 +100,15 @@ Autonomy modes (`assist`, `delegate`, `autonomous`, `governed`) are stored per w
 they decide whether approval-gated steps may run without a person; per-tool and per-classification policy is
 Phase 5.
 
+## Proactive intelligence
+
+`monitoring.py`: an approved monitor on a governed metric is ticked by the worker loop. It detects a robust
+z-score shift in the latest complete period, an actual outside the ETS forecast interval, and data-quality
+problems inside the period; a material shift submits a deep investigation as the monitor's owner; findings
+are ranked (size of the move, direction against "higher is better", relative size), deduplicated per
+monitor, period and kind, written to each owner's and admin's inbox, and POSTed to the workspace webhook
+with redacted text.
+
 ## Security model
 
 * **Identity**: bearer API tokens, stored as SHA-256 hashes. OIDC is not built yet (Phase 2 remainder); the

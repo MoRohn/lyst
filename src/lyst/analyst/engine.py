@@ -42,6 +42,7 @@ class Services:
     registry: Registry
     skills: Any = None  # skills.SkillService
     knowledge: Any = None  # knowledge.KnowledgeService
+    monitors: Any = None  # monitoring.MonitorService
 
 
 # ------------------------------------------------------------------------------- helpers

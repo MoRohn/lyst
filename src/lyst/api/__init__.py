@@ -57,6 +57,20 @@ class Term(BaseModel):
 class WorkspacePatch(BaseModel):
     allow_external_llm: bool | None = None
     autonomy: str | None = None
+    webhook_url: str | None = None
+
+
+class MonitorIn(BaseModel):
+    metric: str
+    grain: str = "month"
+    threshold_sigma: float = 3.0
+    every_seconds: int = 3600
+    title: str | None = None
+    investigate: bool = True
+
+
+class FindingStatus(BaseModel):
+    status: str
 
 
 class SkillIn(BaseModel):
@@ -326,6 +340,40 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def schedule(request: Request, ws: str, body: ScheduleIn, user: User):
         return L(request).runtime.create_schedule(user, ws, body.title, body.question, body.every_seconds)
 
+    # -- proactive --------------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/monitors")
+    def monitors(request: Request, ws: str, user: User):
+        return L(request).monitors.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/monitors")
+    def create_monitor(request: Request, ws: str, body: MonitorIn, user: User):
+        return L(request).monitors.create(user, ws, **body.model_dump())
+
+    @app.post("/v1/workspaces/{ws}/monitors/{monitor_id}/disable")
+    def disable_monitor(request: Request, ws: str, monitor_id: str, user: User):
+        L(request).monitors.disable(user, ws, monitor_id)
+        return {"ok": True}
+
+    @app.post("/v1/workspaces/{ws}/monitors/tick")
+    def tick_monitors(request: Request, ws: str, user: User):
+        lyst = L(request)
+        lyst.guard.require(user, ws, "task.control")
+        return lyst.monitors.tick(ws)
+
+    @app.get("/v1/workspaces/{ws}/findings")
+    def findings(request: Request, ws: str, user: User, status: str | None = None):
+        return L(request).monitors.findings(user, ws, status=status)
+
+    @app.post("/v1/workspaces/{ws}/findings/{finding_id}")
+    def set_finding(request: Request, ws: str, finding_id: str, body: FindingStatus, user: User):
+        L(request).monitors.set_status(user, ws, finding_id, body.status)
+        return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/inbox")
+    def inbox(request: Request, ws: str, user: User):
+        return L(request).monitors.inbox(user, ws)
+
     # -- intelligence -----------------------------------------------------------------------
 
     @app.get("/v1/workspaces/{ws}/memory")
@@ -479,10 +527,18 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         lyst.guard.require(user, ws, "workspace.admin")
         if body.autonomy is not None and body.autonomy not in ("assist", "delegate", "autonomous", "governed"):
             raise ValueError("unknown autonomy mode")
-        for col, val in (("allow_external_llm", body.allow_external_llm), ("autonomy", body.autonomy)):
-            if val is not None:
-                lyst.stores.control.execute(f"UPDATE workspaces SET {col} = ? WHERE id = ?", [val, ws])
-                lyst.guard.audit(user, ws, f"settings.{col}", ws, "ok", {"value": val})
+        if body.webhook_url and not body.webhook_url.startswith("https://"):
+            raise ValueError("the webhook must be an https URL")
+        updates: list[tuple[str, Any]] = []
+        if body.allow_external_llm is not None:
+            updates.append(("allow_external_llm", body.allow_external_llm))
+        if body.autonomy is not None:
+            updates.append(("autonomy", body.autonomy))
+        if body.webhook_url is not None:  # "" clears it
+            updates.append(("webhook_url", body.webhook_url or None))
+        for col, val in updates:
+            lyst.stores.control.execute(f"UPDATE workspaces SET {col} = ? WHERE id = ?", [val, ws])
+            lyst.guard.audit(user, ws, f"settings.{col}", ws, "ok", {"value": val})
         return {"ok": True}
 
     @app.get("/v1/workspaces/{ws}/model-usage")

@@ -13,6 +13,7 @@ from .deliverables import ArtifactService
 from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
+from .monitoring import MonitorService
 from .runtime import TaskRuntime
 from .security import Guard
 from .semantic import SemanticService
@@ -34,6 +35,7 @@ class Lyst:
     skills: SkillService
     artifacts: ArtifactService
     knowledge: KnowledgeService
+    monitors: MonitorService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -49,7 +51,10 @@ class Lyst:
         services = Services(guard, data, semantic, memory, llm, REGISTRY, skills, knowledge)
         runtime = TaskRuntime(stores, services, **runtime_kw)
         artifacts = ArtifactService(stores, guard, settings.home, knowledge)
-        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge)
+        monitors = MonitorService(stores, guard, data, semantic, runtime)
+        runtime.monitors = monitors
+        services.monitors = monitors
+        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors)
 
     def close(self) -> None:
         self.runtime.stop()

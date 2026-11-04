@@ -23,6 +23,21 @@ def submit(q: str) -> None:
         st.error(str(e))
 
 
+try:
+    unread = [i for i in api.get(f"/v1/workspaces/{ws}/inbox") if i["read_status"] == "unread"]
+except APIError:
+    unread = []
+if unread:
+    with st.container(border=True):
+        st.markdown(f"**Lyst found {len(unread)} thing{'s' if len(unread) > 1 else ''} worth your attention**")
+        for f in unread[:3]:
+            c = st.columns([7, 1.5], vertical_alignment="center")
+            c[0].write(f["summary"])
+            if f.get("task_id") and c[1].button("See why", key=f"why_{f['id']}", type="tertiary"):
+                st.session_state.task_id = f["task_id"]
+                api.post(f"/v1/workspaces/{ws}/findings/{f['id']}", {"status": "acknowledged"})
+                st.rerun()
+
 st.markdown("## What should Lyst work on?")
 with st.form("ask", clear_on_submit=True, border=False):
     q = st.text_area("Request", placeholder="Describe the question or the work. Lyst plans it, runs it on "

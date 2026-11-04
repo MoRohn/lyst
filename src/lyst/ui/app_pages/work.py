@@ -8,7 +8,7 @@ from lyst.ui.components import STATUS
 
 api, ws = client(), workspace()
 st.markdown("## Work")
-tabs = st.tabs(["Board", "Approvals", "Schedules"])
+tabs = st.tabs(["Board", "Approvals", "Schedules", "Monitors"])
 
 with tabs[0]:
     tasks = api.get(f"/v1/workspaces/{ws}/tasks")
@@ -79,3 +79,40 @@ with tabs[2]:
                 st.success("Proposed. It starts once an admin approves it.")
             except APIError as e:
                 st.error(str(e))
+
+with tabs[3]:
+    st.caption("Monitors watch an approved metric, investigate material changes on their own, rank the findings and "
+               "notify owners and admins. A new monitor starts once an admin approves it.")
+    mons = api.get(f"/v1/workspaces/{ws}/monitors")
+    if mons:
+        st.dataframe(pd.DataFrame(mons)[["title", "metric", "grain", "threshold_sigma", "every_seconds", "enabled", "last_run_at"]],
+                     hide_index=True, width="stretch")
+    with st.form("monitor"):
+        mc = st.columns([2, 1, 1, 1])
+        metric = mc[0].selectbox("Metric", [m["name"] for m in api.get(f"/v1/workspaces/{ws}/metrics")])
+        grain = mc[1].selectbox("Grain", ["month", "quarter"])
+        sigma = mc[2].number_input("Alert beyond (sigma)", 1.0, 10.0, 3.0, 0.5)
+        every = mc[3].selectbox("Check every", [3600, 21600, 86400], format_func=lambda s: {3600: "hour", 21600: "6 hours", 86400: "day"}[s])
+        if st.form_submit_button("Propose monitor", type="primary"):
+            try:
+                api.post(f"/v1/workspaces/{ws}/monitors", {"metric": metric, "grain": grain, "threshold_sigma": sigma, "every_seconds": every})
+                st.success("Proposed. It starts once an admin approves it in Approvals.")
+            except APIError as e:
+                st.error(str(e))
+    st.markdown("**Findings**")
+    for f in api.get(f"/v1/workspaces/{ws}/findings"):
+        with st.container(border=True):
+            head = st.columns([6, 1, 1], vertical_alignment="center")
+            head[0].write(f["summary"])
+            head[1].badge(f["direction"], color="red" if f["direction"] == "risk" else "green")
+            head[2].caption(f"priority {f['priority']:.1f}")
+            row = st.columns([1, 1, 1, 5])
+            if f.get("task_id") and row[0].button("Open investigation", key=f"inv_{f['id']}", type="tertiary"):
+                st.session_state.task_id = f["task_id"]
+                st.switch_page("app_pages/analyst.py")
+            if f["status"] == "new" and row[1].button("Acknowledge", key=f"ack_{f['id']}", type="tertiary"):
+                api.post(f"/v1/workspaces/{ws}/findings/{f['id']}", {"status": "acknowledged"})
+                st.rerun()
+            if f["status"] != "dismissed" and row[2].button("Dismiss", key=f"dis_{f['id']}", type="tertiary"):
+                api.post(f"/v1/workspaces/{ws}/findings/{f['id']}", {"status": "dismissed"})
+                st.rerun()

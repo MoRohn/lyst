@@ -46,4 +46,5 @@
 | Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |
 | Deliverables | PDF, slides, generated dashboards | Planned (Phase 6) | — |
 | Ops | Tracing, backup automation, load tests | Planned (Phase 7) | — |
+| Proactive | Approved monitors: robust-z shift, forecast-interval deviation, data-quality checks; automatic deep investigation; priority ranking; dedupe; inbox and https webhook notifications | Tested | Scenario D, `test_monitoring.py` |
 | Models | Local model exercised end to end | Not yet: no local model is installed on the dev machine | — |

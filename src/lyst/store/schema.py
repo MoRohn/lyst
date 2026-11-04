@@ -183,6 +183,13 @@ CONTROL.append((
 ))
 
 CONTROL.append((
+    6,
+    """
+    ALTER TABLE workspaces ADD COLUMN webhook_url VARCHAR
+    """,
+))
+
+CONTROL.append((
     5,
     """
     ALTER TABLE api_tokens ADD COLUMN expires_at TIMESTAMPTZ;
@@ -344,6 +351,52 @@ WORKSPACE: list[Migration] = [
             text VARCHAR NOT NULL,
             terms JSON NOT NULL,
             PRIMARY KEY (document_id, seq)
+        )
+        """,
+    ),
+    (
+        3,
+        """
+        CREATE TABLE monitors (
+            id VARCHAR PRIMARY KEY,
+            metric VARCHAR NOT NULL,
+            grain VARCHAR NOT NULL,
+            threshold_sigma DOUBLE NOT NULL,
+            every_seconds INTEGER NOT NULL,
+            title VARCHAR NOT NULL,
+            investigate BOOLEAN NOT NULL DEFAULT true,
+            enabled BOOLEAN NOT NULL DEFAULT false,
+            approval_id VARCHAR,
+            created_by VARCHAR NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            next_run_at TIMESTAMPTZ,
+            last_run_at TIMESTAMPTZ
+        );
+        CREATE TABLE findings (
+            id VARCHAR PRIMARY KEY,
+            monitor_id VARCHAR NOT NULL,
+            kind VARCHAR NOT NULL,
+            period VARCHAR NOT NULL,
+            label VARCHAR NOT NULL,
+            metric VARCHAR NOT NULL,
+            summary VARCHAR NOT NULL,
+            priority DOUBLE NOT NULL,
+            direction VARCHAR NOT NULL,
+            z DOUBLE,
+            value DOUBLE,
+            baseline DOUBLE,
+            task_id VARCHAR,
+            status VARCHAR NOT NULL,
+            dedupe_key VARCHAR UNIQUE,
+            created_at TIMESTAMPTZ DEFAULT now()
+        );
+        CREATE TABLE notifications (
+            id VARCHAR PRIMARY KEY,
+            user_id VARCHAR,
+            finding_id VARCHAR NOT NULL,
+            channel VARCHAR NOT NULL,
+            status VARCHAR NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now()
         )
         """,
     ),

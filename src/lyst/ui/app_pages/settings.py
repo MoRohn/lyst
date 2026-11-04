@@ -48,6 +48,15 @@ if admin:
         st.caption(f"Gateway now: {g['inflight']} calls in flight, waiting {g['waiting']}, refusals {g['refusals'] or 'none'}")
 
 if admin:
+    st.markdown("#### Notifications")
+    hook = st.text_input("Webhook URL for monitor findings (https, JSON POST; empty to disable)",
+                         value=s["workspace"].get("webhook_url") or "")
+    if hook != (s["workspace"].get("webhook_url") or "") and st.button("Save webhook"):
+        try:
+            api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook})
+            st.rerun()
+        except APIError as e:
+            st.error(str(e))
     st.markdown("#### Members")
     members = api.get(f"/v1/workspaces/{ws}/members")
     st.dataframe(pd.DataFrame(members)[["email", "name", "role"]], hide_index=True, width="stretch")
