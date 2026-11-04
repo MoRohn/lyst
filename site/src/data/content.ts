@@ -214,3 +214,32 @@ export const footer = {
   privacy:
     'This site sets no cookies and runs no analytics or third-party scripts. If you sign up for updates, your email and the optional details you choose to share are used only to contact you about Lyst, and you can ask for them to be deleted at any time.',
 };
+
+/**
+ * Proof points: facts that can be checked in the public repository. Use floors
+ * ("180+") for counts that only grow, so the line stays true between updates.
+ */
+export const proof = [
+  { value: '180+', label: 'automated tests on main' },
+  { value: '5', label: 'data connectors' },
+  { value: 'Every', label: 'finding ships with its evidence' },
+  { value: 'AGPL-3.0', label: 'open source, self-hosted' },
+];
+
+export const studio = {
+  eyebrow: 'Lyst Studio',
+  headline: 'Real output, not a mockup.',
+  lede: 'Ask for “an operating margin dashboard by region, refreshed weekly” and Studio builds a standalone dashboard app from governed data. This screenshot is unedited output from the private preview, on sample data.',
+  steps: [
+    { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
+    { icon: 'Database', title: 'Governed extracts', text: 'Every number comes from governed metrics, with ratios kept as numerator and denominator.' },
+    { icon: 'ShieldCheck', title: 'Verified build', text: 'SQL is verified, a definitions README is written, and the app is render-checked.' },
+    { icon: 'CalendarClock', title: 'Approved refresh', text: 'A refresh schedule starts only after an owner approves it, with a check on every run.' },
+  ],
+};
+
+export const verification = {
+  eyebrow: 'Verification',
+  headline: 'Every answer is checked before you see it.',
+  lede: 'Lyst plans the work as a graph, runs independent steps in parallel, then recomputes high-consequence results a second way and runs adversarial checks before it calls anything verified.',
+};

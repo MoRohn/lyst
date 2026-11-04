@@ -169,6 +169,32 @@ test.describe('demonstrations', () => {
   });
 });
 
+test.describe('studio showcase and verification', () => {
+  test('switches between real dashboard pages and loads responsive images', async ({ page }) => {
+    const errors = trackErrors(page);
+    await page.goto('/#studio');
+    const list = page.getByRole('tablist', { name: 'Dashboard pages' });
+    const overview = page.locator('#st-view-overview img');
+    await overview.scrollIntoViewIfNeeded();
+    await expect(overview).toBeVisible();
+    await expect.poll(() => overview.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    expect(await page.locator('#st-view-overview source[type="image/avif"]').count()).toBe(1);
+    await list.getByRole('tab', { name: 'By region' }).click();
+    await expect(page.locator('#st-view-region img')).toBeVisible();
+    await expect(overview).toBeHidden();
+    await page.keyboard.press('ArrowRight');
+    await expect(overview).toBeVisible();
+    await expect(page.getByText('Real output · sample data')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('verification flow has a text equivalent', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.verify ol li')).toHaveCount(5);
+    await expect(page.locator('.verify svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
 test.describe('learn more sign-up (configured backend)', () => {
   const unique = () => `qa+${Date.now()}${Math.floor(Math.random() * 1e6)}@example.com`;
 

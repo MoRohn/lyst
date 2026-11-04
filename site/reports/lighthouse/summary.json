@@ -5,10 +5,10 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 807,
-      "CLS": 0.049,
+      "LCP_ms": 820,
+      "CLS": 0,
       "TBT_ms": 0,
-      "FCP_ms": 807
+      "FCP_ms": 820
     },
     "runs": [
       {
@@ -16,30 +16,30 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 807,
+        "LCP_ms": 816,
         "CLS": 0.049,
         "TBT_ms": 0,
-        "FCP_ms": 807
+        "FCP_ms": 816
       },
       {
         "performance": 100,
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 807,
-        "CLS": 0.049,
-        "TBT_ms": 0,
-        "FCP_ms": 807
-      },
-      {
-        "performance": 100,
-        "accessibility": 100,
-        "best-practices": 100,
-        "seo": 100,
-        "LCP_ms": 814,
+        "LCP_ms": 820,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 814
+        "FCP_ms": 820
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 805,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 805
       }
     ]
   },
@@ -60,10 +60,10 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 214,
+        "LCP_ms": 218,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 214
+        "FCP_ms": 218
       },
       {
         "performance": 100,
@@ -80,14 +80,14 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 216,
+        "LCP_ms": 218,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 216
+        "FCP_ms": 218
       }
     ]
   },
   "url": "http://localhost:4399/",
   "lighthouse": "13.6.0",
-  "date": "2026-11-04T10:06:23.979Z"
+  "date": "2026-11-04T13:56:27.250Z"
 }

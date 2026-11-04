@@ -1,0 +1,88 @@
+---
+import { proof } from '../data/content';
+import { site } from '../config/site';
+---
+
+<section class="proof" aria-label="Facts about Lyst">
+  <div class="container">
+    <ul>
+      {
+        proof.map((p, i) => (
+          <li data-reveal style={`--reveal-delay:${i}`}>
+            <span class="v num">{p.value}</span>
+            <span class="l">{p.label}</span>
+          </li>
+        ))
+      }
+    </ul>
+    {site.githubUrl && <p class="src">Each of these can be checked in the <a href={site.githubUrl}>public repository</a>.</p>}
+  </div>
+</section>
+
+<style>
+  .proof {
+    padding-bottom: clamp(3rem, 2rem + 3vw, 5rem);
+  }
+
+  ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: var(--space-5) var(--space-5) var(--space-5) 0;
+  }
+
+  li + li {
+    padding-left: var(--space-5);
+    border-left: 1px solid var(--line);
+  }
+
+  .v {
+    font-size: var(--step-3);
+    font-weight: 620;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    background: linear-gradient(120deg, var(--graphite) 30%, var(--teal-dark));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .l {
+    font-size: 0.9063rem;
+    color: var(--muted);
+  }
+
+  .src {
+    margin-top: var(--space-3);
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .src a {
+    color: var(--teal-deep);
+    text-underline-offset: 3px;
+  }
+
+  @media (max-width: 760px) {
+    ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    ul li:nth-child(3) {
+      padding-left: 0;
+      border-left: 0;
+    }
+
+    li:nth-child(n + 3) {
+      border-top: 1px solid var(--line);
+    }
+  }
+</style>
