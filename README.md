@@ -73,7 +73,9 @@ briefing, ready to forward; executive requests lead with it. Limitations stay vi
 Under each answer you can act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved
 analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, **Share** assigns
 it to a colleague or asks for a review, **Discuss** opens its thread, and **How this ran** shows each step, query
-and model call with its timing.
+and model call with its timing. Four questions sit under every answer: **How was this figured? · Where is it from?
+· What could change it? · Can it be repeated?** Each opens the engine's own explanation from its records, and the
+last reruns the recorded queries under your current permissions.
 
 <p align="center">
   <img src="docs/images/brief.png" alt="The Brief: the answer, the trust line, one chart, what to do and the PDF briefing" width="49%">
@@ -241,6 +243,27 @@ where they point, with Mark all read and "What to tell me about".
   resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
   shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer.
   Available through the API; screens are on the way ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
+* **One analyst, many specializations.** Lyst stays one analyst that assembles the expertise a request needs from
+  136 specialization profiles in 11 domains (data and BI, statistics, AI and ML, software, cloud, security,
+  finance and operations, marketing, media, science and industry, and more), backed by a shared library of 34
+  method families and 36 verification rules. A router picks the disciplines with its reasons, never grants a
+  permission a person lacks, and reports methods Lyst does not have yet. Text, voice and other channels share one
+  entry point. Maturity is computed and stated honestly: 101 profiles are Equipped, 35 Defined, and none is yet
+  claimed Operational. Through the API today ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
+* **A workbench for your own Python and SQL.** Analysts run their own Python on governed data in an
+  operating-system sandbox, on data already filtered by their column and row permissions. The code cannot read
+  Lyst's databases, keys or home folders and has no network access. Every run records its code, inputs, data
+  versions and software environment, so it can be reproduced and compared, and a result table can be saved as a
+  dataset with its lineage. On macOS the sandbox is verified by tests; on Linux it uses bubblewrap. Through the
+  API today ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+* **Voice.** Ask a question out loud and hear the verified answer read back, with the full result on screen. A
+  spoken question runs as you, through the same permissions, data policy and budgets as a typed one. Voice cannot
+  approve, delete, send or export anything; those go to the screen to confirm, and saying "stop" stops Lyst
+  talking without stopping the analysis. Audio is not kept unless an administrator turns that on, and transcripts
+  are redacted. Speech uses the browser by default; OpenRouter speech-to-text and text-to-speech are available
+  once an admin allows external audio, and an NVIDIA PersonaPlex server on your own GPU can add full-duplex
+  conversation (Lyst never bundles its weights, and that path has not yet been verified on real hardware). The
+  voice screens are on the way ([docs/VOICE.md](docs/VOICE.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -257,9 +280,11 @@ where they point, with Mark all read and "What to tell me about".
 * **Enforces data classification.** Administrators classify datasets on four levels plus personal, financial and
   regulated tags, with a reason kept for every change. A versioned policy sets who may read each level and what
   may reach an external model or an export, and it is enforced in the data service, the model gateway and the
-  exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from
-  it never reach an external model or an exported file. Anyone can check ahead of time whether work would be
-  allowed, narrowed or refused, and why; administrators also see the rule.
+  exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from it
+  never reach an external model or an exported file. Anyone can check ahead of time whether work would be allowed,
+  narrowed or refused, and why; administrators also see the rule. On screen: a dataset's Overview shows its
+  **Sensitivity** in words, and Settings › Workspace › **Data policy** sets who reads each level and what may
+  leave.
 * **Explains what it asks you to approve.** Each approval and review states the action, why, what it affects
   (including reports built on a changed definition), the expected result, how to undo it, and a risk level from
   what it actually does. A "where things stand" summary tells a returning person what they asked for, what
@@ -323,7 +348,11 @@ where they point, with Mark all read and "What to tell me about".
   data and filed for an admin's approval. Nothing changes silently, and warnings close themselves once fixed. Each
   person controls their own attention (quiet hours in their own time zone, a daily cap, muted kinds, a minimum
   relevance, or opting out); Lyst never tells anyone twice about the same thing in a day, and sends the most
-  valuable item first ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
+  valuable item first. In Data, a source Lyst foresees trouble for shows **At risk** or **Keep an eye on it**,
+  with the fix one click away. Lyst learns from outcomes (accepted, useful, dismissed, wrong) which kinds of item
+  to rank higher, reports its own relevance, timeliness and accuracy, runs fully offline when external services
+  are not allowed, and notices methods that upcoming work needs but no approved skill covers
+  ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -342,21 +371,28 @@ where they point, with Mark all read and "What to tell me about".
 * **Knows which source wins.** An administrator can mark a dataset as the authoritative source (optionally for a
   subject such as "P&L") or as secondary. When one term names two definitions that compute the same number from
   different sources, the authoritative one answers instead of the question bouncing back as ambiguous, and the
-  answer says which source was used and why; if the calculations differ, Lyst still asks. The semantic audit
-  flags definitions built on secondary sources, a secondary source is never marked trusted, and search ranks
-  authoritative sources first.
+  answer says which source was used and why; if the calculations differ, Lyst still asks. The semantic audit flags
+  definitions built on secondary sources, a secondary source is never marked trusted, and search ranks
+  authoritative sources first. In Data, an authoritative dataset shows **Source of truth**, and admins set it from
+  the dataset's Overview.
 * **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
   with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Connects an API from its description.** Give Lyst an API's OpenAPI document and it drafts a connection for
+  every endpoint that returns records, explaining where the records sit, how pages link, how to fetch only what
+  changed, and which credential the API expects. Each draft is tested against the live API without loading any
+  data (the token is used once and never stored, and samples are masked), then approved by an admin other than the
+  person who drafted it. Drafts are settings for Lyst's reviewed REST connector, never generated code.
 * **Speaks to the rest of your stack.** Every change in a workspace, from a new dataset version to a finished
   analysis, a contract check or an approval, becomes one event with a stable id. Stream the events, or have them
   delivered as signed webhooks with retries, dead-lettering and replay; webhooks never reach private network
   addresses. The Python SDK `lyst-client` (`pip install ./sdk/python`) covers files, questions, SQL, events and
   webhooks with typed errors and safe retries, and a recorded API contract keeps the HTTP API from breaking
-  callers. The MCP server marks which tools only read, audits every call, keeps results within a size budget,
-  and can read files and report what changed.
+  callers. The MCP server marks which tools only read, audits every call, keeps results within a size budget, and
+  can read files and report what changed. Admins manage webhooks in Settings › Workspace › **Webhooks** (Test,
+  Pause, a delivery log with resend, and a signing secret shown once).
 * **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
   every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
   error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown
@@ -464,7 +500,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
