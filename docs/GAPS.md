@@ -36,7 +36,7 @@ only Rohn or an environment can provide), **by design** (not a defect; documente
 
 | # | Gap | Status | Notes |
 |---|---|---|---|
-| D1 | Connectors: PostgreSQL, files, SQLite, REST only | open | MySQL/SQL Server/BigQuery/Snowflake need servers to test against; the SDK is in place. An HTTP file connector (CSV/Parquet/JSON by URL with ETag-based incremental pulls) is testable here and is next if time allows |
+| D1 | Connectors: PostgreSQL, files, SQLite, REST, and now files at a URL (CSV/TSV/Parquet/JSON, incremental by cursor; `tests/test_http_file.py`) | partly done | MySQL/SQL Server/BigQuery/Snowflake need servers to test against; the SDK is in place. The HTTP file connector is built; MySQL, SQL Server, BigQuery and Snowflake remain, needing servers to test against |
 | D2 | A dashboard cannot be retired or deleted | done (this sweep) | `retire` keeps the folder for the bundle but stops refreshes and hides it |
 | D3 | Dashboards built by a row-restricted user contain only that user's rows | by design | The manifest records who built it; the Build page says so |
 | D4 | Backup contains the sealed credential blobs; a restore into an installation with a different master key leaves them unreadable (reported as "secret unavailable", never garbage) | by design | `lyst restore` now checks the key against every file first; the same key opens the blobs |

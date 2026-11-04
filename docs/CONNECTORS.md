@@ -10,6 +10,7 @@ a workspace; secrets live in their own column of the encrypted control database 
 | `files` | CSV, TSV and Parquet files in one directory | No (a sync reloads the file) | The directory must be under `LYST_IMPORT_ROOT` (default `$LYST_HOME/imports`) |
 | `sqlite` | Tables and views of a SQLite file | Yes, by a cursor column | Opened `mode=ro`; the file must be under the import root |
 | `rest` | A JSON list endpoint with page or cursor pagination | Yes, with a `since` parameter and a cursor column | GET only, https only, hosts limited by `LYST_REST_ALLOWED_HOSTS`; bearer or API-key header; nested values stored as JSON text |
+| `http_file` | One CSV, TSV, Parquet or JSON file at a URL (a published extract, a portal download, an object-store link) | Yes, by cursor column: the file is downloaded again and only newer rows are appended | GET only, https only, same host allow-list; bearer or API-key header; at most `LYST_HTTP_FILE_MAX_MB` (200); JSON lines and nested keys supported |
 
 ## Syncing
 
