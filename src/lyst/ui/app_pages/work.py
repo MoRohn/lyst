@@ -8,9 +8,10 @@ from lyst.ui.components import md, task_state
 
 api, ws = client(), workspace()
 st.markdown("## Work")
-tabs = st.tabs(["Board", "Approvals", "Schedules", "Monitors"])
+SECTIONS = ("Board", "Approvals", "Schedules", "Monitors")
 
-with tabs[0]:
+@st.fragment
+def board() -> None:
     tasks = api.get(f"/v1/workspaces/{ws}/tasks")
     def lane(t) -> str:
         if t["status"] == "done":
@@ -30,17 +31,21 @@ with tabs[0]:
                 b = st.columns(2)
                 if t["status"] in ("queued", "running") and b[0].button("Pause", key=f"p{t['id']}", type="tertiary"):
                     api.post(f"/v1/tasks/{t['id']}/pause")
-                    st.rerun()
+                    st.rerun(scope="fragment")
                 if t["status"] == "paused" and b[0].button("Resume", key=f"r{t['id']}", type="tertiary"):
                     api.post(f"/v1/tasks/{t['id']}/resume")
-                    st.rerun()
+                    st.rerun(scope="fragment")
                 if t["status"] == "failed" and b[0].button("Retry", key=f"y{t['id']}", type="tertiary"):
                     api.post(f"/v1/tasks/{t['id']}/retry")
-                    st.rerun()
+                    st.rerun(scope="fragment")
+                if t["status"] == "done" and b[0].button("Open", key=f"o{t['id']}", type="tertiary",
+                                                         icon=":material/arrow_outward:"):
+                    st.session_state.task_id = t["id"]
+                    st.switch_page("app_pages/analyst.py")
                 if t["status"] not in ("done", "failed", "cancelled") and b[1].button(
                         "Cancel", key=f"c{t['id']}", type="tertiary"):
                     api.post(f"/v1/tasks/{t['id']}/cancel")
-                    st.rerun()
+                    st.rerun(scope="fragment")
     sel = st.selectbox("Inspect a task", [t["id"] for t in tasks], index=None,
                        format_func=lambda i: next(t["title"] for t in tasks if t["id"] == i))
     if sel:
@@ -49,7 +54,8 @@ with tabs[0]:
                                                "finished_at", "error"]], hide_index=True, width="stretch")
         st.dataframe(pd.DataFrame(t["events"]), hide_index=True, width="stretch")
 
-with tabs[1]:
+@st.fragment
+def approvals() -> None:
     pending = api.get(f"/v1/workspaces/{ws}/approvals")
     if not pending:
         st.caption("Nothing is waiting for approval.")
@@ -61,14 +67,15 @@ with tabs[1]:
             try:
                 if c[0].button("Approve", key=f"a{ap['id']}", type="primary"):
                     api.post(f"/v1/approvals/{ap['id']}", {"approve": True})
-                    st.rerun()
+                    st.rerun(scope="fragment")
                 if c[1].button("Reject", key=f"x{ap['id']}"):
                     api.post(f"/v1/approvals/{ap['id']}", {"approve": False})
-                    st.rerun()
+                    st.rerun(scope="fragment")
             except APIError as e:
                 st.error(str(e))
 
-with tabs[2]:
+@st.fragment
+def schedules() -> None:
     for s in api.get(f"/v1/workspaces/{ws}/schedules"):
         st.write(f"**{md(s['title'])}** · every {s['every_seconds'] // 3600 or s['every_seconds'] // 60} "
                  f"{'h' if s['every_seconds'] >= 3600 else 'min'} · {'active' if s['enabled'] else 'awaiting approval'}"
@@ -85,7 +92,8 @@ with tabs[2]:
             except APIError as e:
                 st.error(str(e))
 
-with tabs[3]:
+@st.fragment
+def monitors() -> None:
     st.caption("Monitors watch an approved metric, investigate material changes on their own, rank the findings and "
                "notify owners and admins. A new monitor starts once an admin approves it.")
     mons = api.get(f"/v1/workspaces/{ws}/monitors")
@@ -117,7 +125,22 @@ with tabs[3]:
                 st.switch_page("app_pages/analyst.py")
             if f["status"] == "new" and row[1].button("Acknowledge", key=f"ack_{f['id']}", type="tertiary"):
                 api.post(f"/v1/workspaces/{ws}/findings/{f['id']}", {"status": "acknowledged"})
-                st.rerun()
+                st.rerun(scope="fragment")
             if f["status"] != "dismissed" and row[2].button("Dismiss", key=f"dis_{f['id']}", type="tertiary"):
                 api.post(f"/v1/workspaces/{ws}/findings/{f['id']}", {"status": "dismissed"})
-                st.rerun()
+                st.rerun(scope="fragment")
+
+
+# Only the section in view is fetched and drawn, and each one reruns on its own when you act in it, so approving
+# a step does not reload the board, schedules, monitors and findings. The section is in the URL (?section=).
+try:
+    waiting = len(api.get(f"/v1/workspaces/{ws}/approvals"))
+except APIError:
+    waiting = 0
+labels = {s_: (f"{s_} · {waiting}" if s_ == "Approvals" and waiting else s_) for s_ in SECTIONS}
+asked = st.query_params.get("section", "Board").capitalize()
+section = st.segmented_control("Section", SECTIONS, default=asked if asked in SECTIONS else "Board",
+                               format_func=labels.get, label_visibility="collapsed", key="work_section") or "Board"
+if st.query_params.get("section") != section.lower():
+    st.query_params["section"] = section.lower()
+{"Board": board, "Approvals": approvals, "Schedules": schedules, "Monitors": monitors}[section]()
