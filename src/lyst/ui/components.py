@@ -138,12 +138,16 @@ def trust_line(r: dict[str, Any]) -> str | None:
     return None
 
 
+def _join(*parts: Any) -> str:
+    return " · ".join(str(p) for p in parts if p not in (None, ""))
+
+
 def caveats(r: dict[str, Any]) -> list[str]:
     """What a reader must not miss: wrong premises, defaulted periods, filters, disagreements, failed warnings."""
     sup = r.get("supporting") or {}
     out = [a for a in sup.get("assumptions", []) if _CAVEAT.search(a)]
-    out += [f"Check not passed: {c['name']} ({c['detail']})" for c in (r.get("confidence") or {}).get("checks", [])
-            if not c["passed"]]
+    out += [f"Check not passed: {c.get('name', 'a check')}" + (f" ({c['detail']})" if c.get("detail") else "")
+            for c in (r.get("confidence") or {}).get("checks", []) if not c.get("passed", True)]
     return out
 
 
@@ -205,8 +209,8 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
                 with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:", expanded=True):
                     icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
                     for h in r["hypotheses"]:
-                        st.markdown(f"{icons[h['verdict']]} **{h['id'].replace('_', ' ').capitalize()}** · {h['verdict']} · "
-                                    f"{md(h['detail'])}")
+                        st.markdown(f"{icons.get(h.get('verdict'), '·')} **{str(h.get('id', '')).replace('_', ' ').capitalize()}**"
+                                    f" · {h.get('verdict', '')} · {md(h.get('detail', ''))}")
             if sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown(bullets(sup["assumptions"]))
@@ -215,24 +219,33 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
             if sup.get("sources"):
                 st.markdown("**Sources**")
                 for src in sup["sources"]:
-                    st.caption(f"{src['dataset']} v{src['version']} · {src['rows']:,} rows · data through {src['data_through']} · "
-                               f"sha256 {src['sha256'][:12]}… · loaded {str(src['loaded_at'])[:16]}")
+                    st.caption(md(_join(src.get("dataset"), f"v{src['version']}" if src.get("version") else None,
+                                        f"{src['rows']:,} rows" if isinstance(src.get("rows"), int) else None,
+                                        f"data through {src['data_through']}" if src.get("data_through") else None,
+                                        f"sha256 {str(src['sha256'])[:12]}…" if src.get("sha256") else None,
+                                        f"loaded {str(src['loaded_at'])[:16]}" if src.get("loaded_at") else None)))
             if view not in ("Detail", "Method") and sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown(bullets(sup["assumptions"]))
             if sup.get("citations"):
                 st.markdown("**Documents consulted**")
                 for ci in sup["citations"]:
-                    st.caption(f"{ci['title']} · passage {ci['passage']}")
-                    st.markdown("> " + md(ci["quote"]))
+                    st.caption(md(_join(ci.get("title"), f"passage {ci['passage']}" if ci.get("passage") is not None else None)))
+                    if ci.get("quote"):
+                        st.markdown("> " + md(ci["quote"]))
             if conf.get("checks"):
                 st.markdown(f"**Checks** ({conf.get('basis', '')})")
                 st.dataframe(pd.DataFrame(conf["checks"]), hide_index=True, width="stretch",
                              column_config={"passed": st.column_config.CheckboxColumn("Passed")})
             if sup.get("plan"):
-                st.markdown("**Plan**  " + " → ".join(f"`{p['capability']}`" for p in sup["plan"]))
-            for q in sup.get("queries", []):
-                st.markdown(f"**{q['purpose']}** · {q['rows']} rows · {q['ms']} ms · query #{q['query_id']}")
-                st.code(q["sql"], language="sql")
+                st.markdown("**Plan**  " + " → ".join(f"`{p.get('capability', '?')}`" for p in sup["plan"]))
+            for q in sup.get("queries", []):  # scenario answers carry queries without rows, timing or an id
+                st.markdown("**" + md(q.get("purpose") or "Query") + "**" + md(" · " + _join(
+                    f"{q['rows']} rows" if q.get("rows") is not None else None,
+                    f"{q['ms']} ms" if q.get("ms") is not None else None,
+                    f"query #{q['query_id']}" if q.get("query_id") else None) if any(
+                    q.get(k) is not None for k in ("rows", "ms", "query_id")) else ""))
+                if q.get("sql"):
+                    st.code(q["sql"], language="sql")
             if sup.get("reproduce"):
                 st.caption(sup["reproduce"] + f" Narrative written by: {sup.get('narrative_by')}.")
