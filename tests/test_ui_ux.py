@@ -96,3 +96,39 @@ def test_home_guides_a_first_run(ui):  # noqa: F811
     body = _texts(at)
     assert "Get started" in body and "Keep watch" in body
     assert "at a glance" in body  # the business pulse above the suggestions
+
+
+def test_brain_shows_the_health_of_definitions(ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/brain.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    labels = [e.label for e in at.expander]
+    assert any("definition issue" in lb or "small gap" in lb for lb in labels)  # the semantic audit, in one line
+
+
+def test_data_rows_say_whether_a_table_can_be_relied_on(ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "data through" in body  # freshness from the catalog, not just the load time
+    # the demo ledger repeats a row at its grain: the list flags it before anyone opens it
+    assert any("badge[" in m.value and "to fix" in m.value for m in at.markdown)
+
+
+def test_search_results_open_where_each_thing_lives():
+    import pathlib  # noqa: PLC0415
+
+    src = pathlib.Path(__file__).parents[1] / "src/lyst/ui/app.py"
+    code = src.read_text()
+    start = code.index("def _destination")
+    ns: dict = {}
+    exec(code[start:code.index("@st.dialog(\"Search\"")], ns)  # noqa: S102  (the pure routing function only)
+    dest = ns["_destination"]
+    assert dest({"kind": "metric", "name": "revenue"}) == ("app_pages/brain.py", {"metric": "revenue"})
+    assert dest({"kind": "column", "name": "pnl.region"}) == ("app_pages/data.py", {"dataset": "pnl"})
+    assert dest({"kind": "analysis", "name": "t_1"}) == ("app_pages/analyst.py", {"task": "t_1"})

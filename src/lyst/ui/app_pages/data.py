@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Rohn Springfield
 """Data: what Lyst reads and what it makes from it. Datasets and their sources, dashboards, saved analyses, SQL."""
 
+import json
 import re
 
 import pandas as pd
@@ -9,6 +10,7 @@ import streamlit as st
 
 from lyst.ui import kit, reports
 from lyst.ui.client import APIError, client, workspace
+from lyst.ui.components import md
 
 api, ws = client(), workspace()
 editor = st.session_state.get("role") in ("editor", "admin", "owner")
@@ -65,34 +67,147 @@ def add_data() -> None:
                 st.rerun()
 
 
+SEVERITY = {"high": ("Fix first", "bad"), "medium": ("Worth a look", "warn"), "low": ("Minor", "off")}
+OUTCOME = {"pass": ("Contract kept", "ok"), "warn": ("Contract: warnings", "warn"), "fail": ("Contract broken", "bad"),
+           "breaking": ("Contract broken", "bad")}
+
+
+def health(d: dict) -> tuple[str, str] | None:
+    """One chip a business reader understands: can I rely on this table?"""
+    risks = d.get("risks") or {}
+    outcome = (d.get("contract") or {}).get("outcome")
+    if outcome in ("fail", "breaking"):
+        return OUTCOME[outcome]
+    if risks.get("high"):
+        return (f"{risks['high']} to fix", "bad")
+    if d.get("trusted"):
+        return ("Trusted", "verified")
+    if risks.get("medium"):
+        return (f"{risks['medium']} to check", "warn")
+    return None
+
+
 @st.dialog("Dataset", width="large")
 def dataset_detail(d: dict) -> None:
-    st.markdown(f"**{d['title']}** · `{d['name']}`")
-    st.caption(f"{d['row_count']:,} rows · version {d['version']} · updated {kit.when(d['refreshed_at'])} · "
-               f"{str(d['classification']).capitalize()}" + (f" · {d['description']}" if d.get("description") else "")
-               + f" · referred to as {d['name']} in SQL")
-    view = st.segmented_control("Show", ["Preview", "Columns", "Quality"], default="Preview",
-                                label_visibility="collapsed") or "Preview"
-    if view == "Preview":
-        r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": f'SELECT * FROM "{d["name"]}" LIMIT 50',
+    name = d["name"]
+    st.markdown(f"**{d['title']}**")
+    fresh = d.get("freshness") or {}
+    st.caption(" · ".join(x for x in (d.get("description"), f"{d.get('rows', d.get('row_count', 0)):,} rows",
+                                      f"data through {fresh['latest']}" if fresh.get("latest") else None,
+                                      f"updated {kit.when(d.get('refreshed_at'))}",
+                                      str(d.get("classification", "")).capitalize(),
+                                      f"called {name} in SQL") if x))
+    view = st.segmented_control("Show", ["Overview", "Preview", "Columns", "Contract"], default="Overview",
+                                label_visibility="collapsed", key=f"dsv_{name}") or "Overview"
+    if view == "Overview":
+        ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
+        if not ins:
+            return
+        risks = ins.get("risks") or []
+        if not risks:
+            st.markdown(md(ins.get("summary") or ""))
+        kit.label(f"Before you rely on it · {len(risks)}" if risks else "Before you rely on it")
+        if not risks:
+            st.caption(":material/check_circle: No quality risks found: no duplicate rows at its grain, no gaps in time, "
+                       "no unusual values.")
+        for k, r in enumerate(risks):
+            text, tone = SEVERITY.get(r["severity"], (r["severity"], "info"))
+            kit.row(r["text"], ", ".join(c.replace("_", " ") for c in r.get("columns", [])), status=(text, tone),
+                    key=f"risk_{name}_{k}", divider=k < len(risks) - 1)
+        used = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/impact")) or []
+        kit.label("What depends on it")
+        st.caption(", ".join(f"{u['title']} ({u['kind']})" for u in used) if used else "Nothing approved reads it yet.")
+        rel = ins.get("relationships") or []
+        if rel:
+            with st.expander(f"How it connects to other data · {len(rel)}", icon=":material/hub:"):
+                st.markdown("\n".join(f"- {md(x['text'])}" for x in rel))
+        if st.button("Ask Lyst to check its quality", icon=":material/fact_check:", key=f"askq_{name}"):
+            ask(f"Profile {name} for data quality issues")
+    elif view == "Preview":
+        r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": f'SELECT * FROM "{name}" LIMIT 50',
                                                                         "max_rows": 50}))
         if r:
             st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch", height=320)
     elif view == "Columns":
-        st.dataframe(pd.DataFrame(d["schema"]), hide_index=True, width="stretch")
+        ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
+        if ins:
+            st.dataframe(pd.DataFrame([{"Column": c["name"], "Kind": (c.get("semantic_type") or c.get("role") or "").replace("_", " "),
+                                        "Type": c.get("type"), "Missing": c.get("nulls"), "Distinct values": c.get("distinct"),
+                                        "Notes": "; ".join(c.get("issues") or [])} for c in ins["columns"]]),
+                         hide_index=True, width="stretch",
+                         column_config={"Missing": st.column_config.ProgressColumn("Missing", min_value=0, max_value=1)})
+            cols = st.multiselect("If these columns changed, what would be affected?", [c["name"] for c in ins["columns"]],
+                                  key=f"imp_{name}")
+            if cols:
+                hits = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/impact", columns=",".join(cols))) or []
+                st.markdown("\n".join(f"- **{md(h['title'])}** ({h['kind']}): {md(h['why'])}" for h in hits)
+                            if hits else "Nothing approved reads those columns.")
     else:
-        p = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{d['name']}/profile"))
-        if p:
-            issues = [(c["name"], i) for c in p.get("columns", []) for i in (c.get("issues") or [])]
-            if issues:
-                st.warning("\n".join(f"- **{n}**: {i}" for n, i in issues), icon=":material/report:")
-            else:
-                st.success("No column-level issues found.", icon=":material/check:")
-            st.dataframe(pd.DataFrame([{k: c.get(k) for k in ("name", "role", "dtype", "nulls", "unique")}
-                                       for c in p.get("columns", [])]), hide_index=True, width="stretch",
-                         column_config={"nulls": st.column_config.ProgressColumn("Nulls", min_value=0, max_value=1)})
-    if st.button("Ask Lyst to check its quality", icon=":material/fact_check:"):
-        ask(f"Profile {d['name']} for data quality issues")
+        contract(name)
+
+
+def contract(name: str) -> None:
+    """A data contract: what this table promises (columns, types, allowed values, key). Every refresh is checked
+    against it, and a break reaches the owner's inbox with what it affects."""
+    admin = st.session_state.get("role") in ("admin", "owner")
+    c = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/contract"))
+    if c is None:
+        return
+    st.caption("A contract is what this table promises: its columns, their types and allowed values, and what "
+               "identifies a row. Lyst checks every refresh against it and tells the owner when one breaks it.")
+    if not c.get("active"):
+        if not admin:
+            st.info("No contract yet. An admin can adopt one Lyst drafts from the data.", icon=":material/handshake:")
+            return
+        draft = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/contract/draft"))
+        if not draft:
+            return
+        st.markdown(f"Lyst drafted one from the data: **{len(draft['columns'])} columns**"
+                    + (f", one row per {' × '.join(k.replace('_', ' ') for k in draft['key'])}" if draft.get("key") else "")
+                    + (f", {len(draft.get('references') or [])} link(s) to other tables" if draft.get("references") else "") + ".")
+        st.dataframe(pd.DataFrame([{"Column": x["name"], "Type": x["type"], "Required": x["required"],
+                                    "Allowed values": ", ".join(map(str, x["accepted_values"] or [])),
+                                    "Minimum": x["min"]} for x in draft["columns"]]), hide_index=True, width="stretch")
+        with st.expander("Edit before adopting (JSON)", icon=":material/code:"):
+            raw = st.text_area("Contract", json.dumps(draft, indent=1, default=str), height=240, key=f"cdraft_{name}",
+                               label_visibility="collapsed")
+        if st.button("Adopt this contract", type="primary", icon=":material/handshake:", key=f"cadopt_{name}"):
+            try:
+                spec = json.loads(raw)
+            except ValueError as e:
+                st.error(f"The contract is not valid JSON: {e}")
+                return
+            out = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/datasets/{name}/contract", {"spec": spec}))
+            if out:
+                text, _ = OUTCOME.get((out.get("check") or {}).get("outcome"), ("Checked", "info"))
+                st.toast(f"Contract v{out['version']} adopted · {text}", icon=":material/handshake:")
+        return
+    status = c.get("status") or {}
+    text, tone = OUTCOME.get(status.get("outcome"), ("Not checked yet", "off"))
+    top = st.columns([3, 1.4], vertical_alignment="center")
+    top[0].markdown(f"**Contract v{status.get('version') or c['active'].get('version', '')}**"
+                    + (f" · last checked {kit.when(status.get('checked_at'))}" if status.get("checked_at") else ""))
+    kit.chip(text, tone, top[1])
+    b = st.columns([1.4, 1.4, 4])
+    if b[0].button("Check now", icon=":material/rule:", key=f"ccheck_{name}"):
+        r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/datasets/{name}/contract/check"))
+        if r:
+            st.toast(OUTCOME.get(r["outcome"], (r["outcome"], ""))[0], icon=":material/rule:")
+    if admin and b[1].button("Retire", type="tertiary", icon=":material/archive:", key=f"cretire_{name}"):
+        kit.guarded(lambda: api.delete(f"/v1/workspaces/{ws}/datasets/{name}/contract"), "Contract retired")
+    checks = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/contract/checks")) or []
+    if checks:
+        last = checks[0]
+        problems = [r for r in last.get("results", []) if r.get("severity") in ("breaking", "fail", "warn")]
+        if problems:
+            kit.label("What the last check found")
+            st.markdown("\n".join(f"- {md(r.get('text') or r.get('detail') or r)}" for r in problems))
+            if last.get("impacted"):
+                st.caption("Affects " + ", ".join(i.get("title") or i.get("name") for i in last["impacted"]))
+        with st.expander(f"Check history · {len(checks)}", icon=":material/history:"):
+            for k in checks[:10]:
+                st.caption(f"{kit.when(k['checked_at'])} · contract v{k['contract_version']} on data v{k['dataset_version']} · "
+                           f"{OUTCOME.get(k['outcome'], (k['outcome'], ''))[0]}")
 
 
 @st.dialog("Sync a table", width="large")
@@ -129,18 +244,24 @@ def datasets(catalog: list[dict]) -> None:
                      "Lyst can answer questions about it.", action="Add data" if editor else None, key="ds_empty"):
             add_data()
         return
+    try:
+        info = {c["name"]: c for c in api.get(f"/v1/workspaces/{ws}/catalog")}
+    except APIError:
+        info = {}
     q = st.text_input("Find", placeholder="Find a dataset", label_visibility="collapsed", key="ds_find") \
         if len(catalog) > 6 else ""
     shown = [d for d in catalog if not q or q.lower() in (d["title"] + d["name"] + (d.get("description") or "")).lower()]
     for i, d in enumerate(shown):
+        c = {**d, **info.get(d["name"], {})}
+        fresh = (c.get("freshness") or {}).get("latest")
         hit = kit.row(d["title"], " · ".join(x for x in (d.get("description"), f"{d['row_count']:,} rows",
+                                                           f"data through {fresh}" if fresh else
                                                            f"updated {kit.when(d['refreshed_at'])}",
                                                            str(d["classification"]).capitalize()) if x),
-                      actions=[("Open", "open")], key=f"d{d['name']}", divider=i < len(shown) - 1)
-        if hit:
-            dataset_detail(d)
-
-
+                      status=health(c), actions=[("Open", "open")], key=f"d{d['name']}", divider=i < len(shown) - 1)
+        if hit or st.query_params.get("dataset") == d["name"]:
+            st.query_params.pop("dataset", None)
+            dataset_detail(c)
 def connections() -> None:
     conns = api.get(f"/v1/workspaces/{ws}/connections")
     kit.label(f"Sources · {len(conns)}" if conns else "Sources")
