@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import attention, earlywarning, health, learning, model, nextaction, policy, recurring
+from . import attention, capability, earlywarning, health, learning, model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -49,7 +49,7 @@ class AnticipationService:
         self.runtime = runtime
         self.semantic = semantic
         self.connections = connections
-        self.anticipators = [recurring, nextaction, earlywarning, health]
+        self.anticipators = [recurring, nextaction, earlywarning, health, capability]
         self.collab = None  # set by the composition root; health foresight files definition fixes as reviews
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0

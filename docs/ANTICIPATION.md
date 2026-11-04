@@ -18,6 +18,7 @@ open. It is kept honest: "Planned" means not built.
 | `health.py` | Anticipator: credential expiry and age, connection reliability trends, schema-change impact with a validated fix |
 | `attention.py` | Per-person attention preferences applied to pushes and to the activity center |
 | `learning.py` | Outcome-based ranking, repeated-irrelevance suppression, retention, quality metrics |
+| `capability.py` | Anticipator: methods upcoming approved work needs that no approved skill covers |
 | `earlywarning.py` | Anticipator: developing adverse trends on monitored metrics, investigated before anyone is told |
 
 The cycle per workspace: **observe** (signals from authorized metadata) -> **contextualize** (the run's datasets and
@@ -170,6 +171,17 @@ when the level allows investigations and the workspace allows an external model,
 wording; `test_i_offline_anticipation_makes_no_network_request` runs every anticipator, a level-3 investigation included,
 with all non-loopback sockets and DNS refused and asserts no attempt was made.
 
+## Capability-gap forecasting (scenario G)
+
+Signals: an enabled schedule whose question names a method (the Foundry's `detect_gap`) that no approved skill covers;
+an open assignment with a due date whose note names one; or the same missing method in two or more finished tasks in 30
+days. Preparation (level 2, offline) reports whether a Foundry template exists, which suited open-source libraries are
+installed on this machine (checked with `importlib`, never downloaded), the skill contract and the input query when the
+question names an approved metric. At level 3 a template-backed candidate is proposed and run through the skill
+sandbox's static check, representative and adversarial tests, with its benchmark recorded; the skill stays `tested`.
+Accepting requests registration, which an owner who did not propose it must approve, as for any proposal. The item
+resolves itself once an approved skill covers the method.
+
 ## API
 
 | Route | Purpose |
@@ -216,6 +228,20 @@ single-period rule fires first. Its value today is that a warning arrives invest
 and that slow drifts (0.5-1 sigma a month) are caught earlier in about a quarter to a third of the cases where the
 monitor would catch them at all. Earlier detection of fast moves without more false positives is open (N10).
 
+Cycle cost on the demo workspace (`uv run python scripts/bench_anticipation.py 20`; two schedules due, two monitors, ten
+finished analyses, Apple M-series dev machine, one workspace):
+
+```
+cycles per level: 20
+level 1: first cycle 188 ms (anticipated 7, prepared 0); repeat median 182 ms, p95 195 ms; items next_best_action=5, recurring_prep=2
+level 2: first cycle 243 ms (anticipated 8, prepared 8); repeat median 192 ms, p95 211 ms; items early_warning=1, next_best_action=5, recurring_prep=2
+level 3: first cycle 244 ms (anticipated 8, prepared 7); repeat median 194 ms, p95 201 ms; items early_warning=1, next_best_action=5, recurring_prep=2
+```
+
+A cycle runs at most every 300 s per installation (`LYST_ANTICIPATE_EVERY`) and after each ingest or definition change;
+repeats cost about 0.2 s per busy workspace, almost all of it re-reading metric series for early warning and re-checking
+dependencies. Level 3 here started no investigation because no warning reached two kinds of evidence.
+
 ## Gaps (prioritized)
 
 | # | Gap | State |
@@ -225,8 +251,9 @@ monitor would catch them at all. Earlier detection of fast moves without more fa
 | N3 | Health foresight: volume anomalies and incomplete ingestion, storage pressure, API deprecation notices, retyped-column repair candidates, predicting breakage before a connection sync commits the new version | Planned |
 | N4 | Attention: digest delivery for held items, per-person budgets on background compute | Planned |
 | N5 | Learning per person (today per workspace family), time saved measured against manual runs, satisfaction prompts | Planned |
-| N6 | Capability-gap forecasting through the Capability Foundry (scenario G) | Planned, slice 7 |
+| N6 | Capability gaps: model-drafted candidates for methods without a template (needs a configured model), connector and data-type gaps, benchmarking candidates against each other | Planned |
 | N7 | Consume the unified event model (CONTROL 40) instead of after-ingest hooks once it is merged | Planned |
 | N8 | Use the operations calendar (`schedule_next`) for later occurrences; submit investigation tasks at maintenance priority with a deadline (operations is merged; the model-budget check already uses it) | Planned |
+| N11 | Cycle cost grows with finished analyses and monitored metrics; cache series between cycles when the dataset version is unchanged | Planned |
 | N10 | Early warning that leads a 3-sigma monitor on fast declines without raising false positives (sequential tests such as CUSUM calibrated per metric) | Planned |
 | N9 | Activity center, inline suggestions and Settings controls in the UI (UX thread) | Handed over |
