@@ -84,6 +84,50 @@ class Connector:
 CONNECTORS: dict[str, type[Connector]] = {}
 
 
+def scrub(text: str, secrets: dict[str, Any]) -> str:
+    """Remove a connection's own secret values (raw and URL-encoded) from text. Pattern redaction cannot know that
+    an arbitrary password is a secret; the connector service can, because it holds the values for the call."""
+    from urllib.parse import quote, quote_plus  # noqa: PLC0415
+
+    for v in sorted((str(v) for v in secrets.values() if v), key=len, reverse=True):
+        if len(v) < 4:
+            continue
+        for form in {v, quote(v, safe=""), quote_plus(v)}:
+            text = text.replace(form, "[secret]")
+    return text
+
+
+class _Scrubbed(Connector):
+    """Wraps a connector so no error it raises can carry its secrets into a stored status, an API response, a log
+    line or a chained traceback: every failure becomes a ConnectorError with the values removed."""
+
+    def __init__(self, inner: Connector, secrets: dict[str, Any]):  # noqa: D107 - no super(): config lives on inner
+        self.inner, self._secrets = inner, secrets
+        self.manifest = inner.manifest
+        self.config, self.secrets = inner.config, inner.secrets
+
+    def _fail(self, exc: BaseException) -> ConnectorError:
+        return ConnectorError(scrub(str(exc) or type(exc).__name__, self._secrets))
+
+    def test(self) -> dict[str, Any]:
+        try:
+            return self.inner.test()
+        except Exception as exc:  # noqa: BLE001 - re-raised, scrubbed, without the original as cause
+            raise self._fail(exc) from None
+
+    def discover(self) -> list[SourceTable]:
+        try:
+            return self.inner.discover()
+        except Exception as exc:  # noqa: BLE001
+            raise self._fail(exc) from None
+
+    def read(self, table: str, **kw: Any) -> Iterator[pa.Table]:
+        try:
+            yield from self.inner.read(table, **kw)
+        except Exception as exc:  # noqa: BLE001
+            raise self._fail(exc) from None
+
+
 def register(cls: type[Connector]) -> type[Connector]:
     CONNECTORS[cls.manifest.kind] = cls
     return cls
@@ -162,7 +206,11 @@ class ConnectionService:
         return config, secrets
 
     def _connector(self, kind: str, config: dict[str, Any], secrets: dict[str, str]) -> Connector:
-        return CONNECTORS[kind](config, secrets)
+        try:
+            inner = CONNECTORS[kind](config, secrets)
+        except Exception as exc:  # noqa: BLE001 - a constructor that validates may echo what it was given
+            raise ConnectorError(scrub(str(exc), secrets)) from None
+        return _Scrubbed(inner, secrets)
 
     def _resolve_secrets(self, ws: str, credential_id: str | None, inline: dict[str, str]) -> dict[str, str]:
         """The connector worker is the only consumer that sees a connection's secrets, for the duration of the call."""
