@@ -293,6 +293,13 @@ CONTROL.append((
     """,
 ))
 
+# Takeovers of a dead worker's lease, counted apart from ordinary claims so a task paused and resumed many times
+# is not mistaken for one that keeps killing its worker (runtime.MAX_TAKEOVERS).
+CONTROL.append((
+    9,
+    "ALTER TABLE tasks ADD COLUMN takeovers INTEGER NOT NULL DEFAULT 0",
+))
+
 WORKSPACE: list[Migration] = [
     (
         1,
