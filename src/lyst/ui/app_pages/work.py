@@ -4,7 +4,7 @@
 
 import streamlit as st
 
-from lyst.ui import kit
+from lyst.ui import collab, kit
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
@@ -73,10 +73,12 @@ def details(tid: str) -> None:
 def needs_you() -> None:
     approvals = api.get(f"/v1/workspaces/{ws}/approvals") if admin else []
     tasks = [t for t in api.get(f"/v1/workspaces/{ws}/tasks") if t.get("outcome") in ("needs_input", "unverified")]
-    if not approvals and not tasks:
-        kit.empty(":material/task_alt:", "Nothing needs you", "Approvals, questions Lyst needs answered and results that "
-                  "did not pass verification appear here.")
+    mine, revs = collab.waiting()
+    if not approvals and not tasks and not mine and not revs:
+        kit.empty(":material/task_alt:", "Nothing needs you", "Approvals, work assigned to you, reviews you can decide, "
+                  "questions Lyst needs answered and results that did not pass verification appear here.")
         return
+    collab.needs_you_lists()
     if approvals:
         kit.label(f"Approvals · {len(approvals)}")
         for i, ap in enumerate(approvals):
@@ -182,7 +184,7 @@ try:
     waiting = st.session_state.get("waiting", 0)
     kit.header("Work", "What Lyst is doing, what it finished, and what runs on its own.")
     mine = [t for t in api.get(f"/v1/workspaces/{ws}/tasks") if t.get("outcome") in ("needs_input", "unverified")]
-    waiting += len(mine)
+    waiting += len(mine)  # the sidebar count already includes approvals, findings, assignments and reviews
     view = kit.sections(["Needs you", "Activity", "Recurring"], key="view", counts={"Needs you": waiting},
                         default="Needs you" if waiting else "Activity")
     {"Needs you": needs_you, "Activity": activity, "Recurring": recurring}[view]()

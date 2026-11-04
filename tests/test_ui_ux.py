@@ -169,3 +169,20 @@ def test_reports_from_answers_say_when_they_need_rebuilding(seeded, ui):  # noqa
     assert not at.exception, [e.value for e in at.exception]
     assert "Reports from answers" in _texts(at) and "PDF briefing" in _texts(at)
     assert any("badge[" in m.value and "Needs rebuilding" in m.value for m in at.markdown)
+
+
+def test_work_and_the_bell_show_what_colleagues_handed_you(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    dana = lyst.guard.create_user("dana@northwind.test", "Dana")
+    lyst.guard.add_member(owner, "northwind", dana.user_id, "admin")
+    t = next(x for x in lyst.runtime.list(owner, "northwind") if x["status"] == "done" and "decline" in x["title"])
+    lyst.collab.assign(dana, "northwind", "task", t["id"], owner.user_id, note="Check the EMEA numbers")
+    lyst.collab.comment(dana, "northwind", "task", t["id"], "@avery@northwind.test does this match the ledger?")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/work.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Assigned to you" in body and "Check the EMEA numbers" in body and "from Dana" in body
+    assert any(lb.startswith("Notifications · ") for lb in _popovers(at.sidebar))
