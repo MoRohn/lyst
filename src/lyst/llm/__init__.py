@@ -187,7 +187,10 @@ class LLMClient:
         start, end = text.find("{"), text.rfind("}")
         if start < 0 or end < start:
             raise LLMUnavailable("model did not return JSON")
-        return json.loads(text[start: end + 1])
+        try:
+            return json.loads(text[start: end + 1])
+        except ValueError as exc:
+            raise LLMUnavailable(f"model returned malformed JSON: {str(exc)[:80]}") from exc
 
     def status(self) -> dict:
         if not self.gateway:

@@ -597,7 +597,7 @@ def design_dashboard(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 {"role": "user", "content": json.dumps({"metrics": [{"name": sp.name, "title": sp.title, "description": sp.description}
                                                                     for sp in specs], "dimension": args.get("dimension")})
                  + "\n" + untrusted("user_request", q)},
-            ], purpose="studio_design", task_id=ctx.task_id, workload="structured", max_tokens=400)
+            ], purpose="studio_design", task_id=ctx.task_id, workload="structured", max_tokens=700)
             allowed = {sp.name for sp in specs}
             narrative = {k: str(out[k])[:200] for k in ("question", "subtitle", "purpose") if isinstance(out.get(k), str)}
             if isinstance(out.get("kpi_order"), list) and set(out["kpi_order"]) == allowed:
@@ -1214,7 +1214,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 {"role": "system", "content": "Rewrite the answer and findings as two short executive sentences. "
                  "Use only numbers given. Do not add numbers."},
                 {"role": "user", "content": json.dumps({"answer": answer, "findings": findings})},
-            ], purpose="deliver", task_id=ctx.task_id, max_tokens=300, workload="chat")
+            ], purpose="deliver", task_id=ctx.task_id, max_tokens=600, workload="chat")
             if not unbacked_numbers(text, allowed):
                 answer, narrative_by = text.strip(), "model (numbers verified)"
         except LLMUnavailable:

@@ -184,3 +184,29 @@ def test_audit_chain_is_verified_at_startup(tmp_path, monkeypatch):
         assert obs.AUDIT_CHAIN._value.get() == 0
     finally:
         app.close()
+
+
+def test_a_truncated_reasoning_answer_is_retried_with_a_larger_budget(seeded):
+    """A reasoning model can spend the whole token budget before the JSON: the gateway retries once with more room."""
+    from lyst.llm import LLMClient
+
+    lyst, owner = seeded
+    budgets = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        budgets.append(body["max_tokens"])
+        if body["max_tokens"] < 1000:
+            return httpx.Response(200, json={"choices": [{"message": {"content": '{"question": "What moved', "reasoning": "..."},
+                                                          "finish_reason": "length"}], "usage": {"prompt_tokens": 50, "completion_tokens": 400}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"question": "What moved margin?", "subtitle": "Monthly"}'},
+                                                      "finish_reason": "stop"}], "usage": {"prompt_tokens": 50, "completion_tokens": 30}})
+
+    client = LLMClient(lyst.settings.llm, lyst.stores, transport=httpx.MockTransport(handler), credentials=lyst.credentials)
+    lyst.credentials.connect(owner, scope_kind="installation", scope_id=None, provider="openrouter", name="OpenRouter", secret="or-test-key-000001",
+                             test_first=False)
+    lyst.stores.control.execute("UPDATE workspaces SET allow_external_llm = true WHERE id = 'northwind'")
+    out = client.chat_json("northwind", [{"role": "user", "content": "name it"}], purpose="studio_design", workload="structured", max_tokens=400)
+    assert out == {"question": "What moved margin?", "subtitle": "Monthly"} and budgets == [400, 1200]
+    outcomes = [r["outcome"] for r in lyst.stores.control.query("SELECT outcome FROM llm_calls ORDER BY id")]
+    assert outcomes[-2:] == ["truncated", "ok"]

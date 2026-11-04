@@ -349,6 +349,7 @@ class Gateway:
         last_error = "no models to try"
         for model in models:
             in_flight_budget_retried = False
+            length_retried = False
             attempt = 0
             while attempt < self.MAX_TRIES:
                 attempt += 1
@@ -390,9 +391,20 @@ class Gateway:
                     rec.input_tokens = usage.get("prompt_tokens")
                     rec.output_tokens = usage.get("completion_tokens")
                     rec.cost_usd = usage.get("cost")
+                    choice = (data.get("choices") or [{}])[0]
+                    msg = choice.get("message") or {}
+                    content = msg.get("content") or ""
+                    # A reasoning model can spend the whole budget before the answer, or stop mid-JSON: one retry with a
+                    # larger budget on the same model, recorded as "truncated", rather than a cut-off answer.
+                    if choice.get("finish_reason") == "length" and not length_retried and (json_mode or not content.strip()):
+                        length_retried = True
+                        rec.outcome = "truncated"
+                        self.on_call(rec)
+                        max_tokens = min(4096, (max_tokens or 1024) * 3)
+                        attempt -= 1
+                        continue
                     self.on_call(rec)
-                    msg = (data.get("choices") or [{}])[0].get("message") or {}
-                    return CallResult(msg.get("content") or "", data.get("model") or model, rec.provider,
+                    return CallResult(content, data.get("model") or model, rec.provider,
                                       rec.input_tokens, rec.output_tokens, rec.cost_usd, tries_total,
                                       lease.queue_ms, latency, data)
                 self.on_call(rec)
