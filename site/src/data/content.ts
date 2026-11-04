@@ -93,7 +93,7 @@ export const capabilities: {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Approved monitors', 'Automatic investigation', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
+    items: ['Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
     status: 'available',
   },
   {
@@ -180,7 +180,7 @@ export const workflow = {
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
-    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, then watch the metric or repeat the analysis in one click.' },
+    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
   ],
 };
 
