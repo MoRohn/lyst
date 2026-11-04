@@ -267,6 +267,12 @@ where they point, with Mark all read and "What to tell me about".
   data and definition change, with verified repair and every version kept.
 * **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
+* **Turns a request into a living project spec.** The spec records the objective, stakeholders, the approved
+  metrics and datasets it uses (never invented ones), deliverables, deadlines, scope limits, assumptions and the
+  approvals it needs. Each requirement has a priority and acceptance criteria, and is met only by linked evidence
+  (a verified task, an existing report, a current dashboard), by hand with a note, or waived by an admin with a
+  reason. A project cannot complete while a must-have is open. Revisions keep the work that is still valid, flag
+  changed requirements with their old wording, record dropped ones, and keep every version readable.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
