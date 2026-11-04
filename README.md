@@ -241,7 +241,7 @@ where they point, with Mark all read and "What to tell me about".
   counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown and PDF
   text. Lyst returns a plan before anything loads: the tables it found, whether a total row adds up, and what
   needs a look. You choose what to keep and what to call it. Document text becomes searchable so answers can cite
-  it, macros and embedded code never run, and unsupported files (legacy Office, password-protected, images)
+  it, and unsupported files (legacy Office, password-protected, images)
   are refused in plain words. Through the API today; the review screen in Add data is on the way
   ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
