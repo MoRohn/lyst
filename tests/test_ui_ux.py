@@ -293,7 +293,7 @@ def test_work_shows_what_lyst_prepared_ahead(seeded, ui):  # noqa: F811
     lyst.stores.control.execute("UPDATE schedules SET next_run_at = ? WHERE id = ?",
                                 [datetime.now(UTC) + timedelta(minutes=30), s["schedule_id"]])
     lyst.anticipation.set_settings(owner, "northwind", {"level": 2})
-    assert lyst.anticipation.cycle("northwind")["prepared"] == 1
+    assert lyst.anticipation.cycle("northwind")["prepared"] >= 1  # earlier answers may add next steps too
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/work.py")
@@ -308,3 +308,13 @@ def test_work_shows_what_lyst_prepared_ahead(seeded, ui):  # noqa: F811
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert "checks the data and definitions an upcoming run needs" in _texts(at)
+
+
+def test_next_steps_sit_under_their_answer_not_in_work(seeded, ui):  # noqa: F811
+    from lyst.ui import anticipate  # noqa: PLC0415
+
+    assert not anticipate._wants_person({"kind": "next_best_action", "verdict": "blocked"})
+    assert anticipate._wants_person({"kind": "early_warning", "verdict": "verified"})
+    assert not anticipate._wants_person({"kind": "early_warning", "verdict": "unverified"})
+    assert anticipate._wants_person({"kind": "recurring_prep", "verdict": "blocked", "status": "surfaced"})
+    assert not anticipate._wants_person({"kind": "recurring_prep", "verdict": "ready", "status": "prepared"})

@@ -15,7 +15,8 @@ from lyst.ui.components import md
 
 VERDICT = {"ready": ("Ready", "ok"), "blocked": ("Blocked", "bad"), "warn": ("Check first", "warn"),
            "warning": ("Check first", "warn"), "stale": ("Out of date", "warn")}
-ACTION = {"run_now": "Run now", "dismiss": "Dismiss", "snooze": "Later"}
+ACTION = {"run_now": "Run now", "dismiss": "Dismiss", "snooze": "Later", "watch": "Watch it", "schedule": "Repeat it"}
+NEXT = "next_best_action"  # shown under the answer it came from, not in Work
 LEVELS = {"off": "Off", "suggest": "Suggest", "prepare": "Prepare", "investigate": "Investigate", "automate": "Automate"}
 LEVEL_TEXT = {"off": "Lyst only does what it is asked.",
               "suggest": "Lyst notices what is coming up and suggests it; it prepares nothing.",
@@ -29,12 +30,20 @@ def _ctx():
     return client(), workspace()
 
 
-def items(status: str = "open") -> list[dict]:
+def items(status: str = "open", **params) -> list[dict]:
     api, ws = _ctx()
     try:
-        return api.get(f"/v1/workspaces/{ws}/anticipations", status=status)
+        return api.get(f"/v1/workspaces/{ws}/anticipations", status=status, **params)
     except APIError:
         return []
+
+
+def _wants_person(a: dict) -> bool:
+    if a.get("kind") == NEXT:
+        return False
+    if a.get("kind") == "early_warning":
+        return a.get("verdict") == "verified"
+    return a.get("status") == "surfaced" or a.get("verdict") not in (None, "ready")
 
 
 def _act(a: dict, action: str) -> None:
@@ -46,7 +55,10 @@ def _act(a: dict, action: str) -> None:
                     {"dismiss": "Dismissed", "snooze": "Hidden until tomorrow", "useful": "Thanks, noted",
                      "not_useful": "Thanks, Lyst will suggest less like this", "incorrect": "Thanks, noted as wrong"}
                     .get(action))
-    if r and r.get("task_id"):
+    if r and r.get("needs_approval"):
+        st.toast("Proposed. It starts once an admin approves it.", icon=":material/approval:")
+        st.rerun()
+    elif r and r.get("task_id"):
         st.session_state.task_id = r["task_id"]
         st.switch_page("app_pages/analyst.py", query_params={"task": r["task_id"]})
     elif r:
@@ -89,7 +101,7 @@ def rows(found: list[dict], *, key: str) -> None:
         meta = " · ".join(x for x in ((a.get("reasons") or [None])[0],
                                       f"needed {kit.when(a['needed_at'])}" if a.get("needed_at") else None) if x)
         ids = [x["id"] if isinstance(x, dict) else x for x in a.get("actions") or []]
-        acts = [(ACTION[x], x) for x in ("run_now", "snooze") if x in ids] + [("Why", "why")]
+        acts = [(ACTION[x], x) for x in ("run_now", "watch", "schedule", "snooze") if x in ids][:2] + [("Why", "why")]
         hit = kit.row(a.get("objective") or a.get("kind", "").replace("_", " "), meta, status=status, actions=acts,
                       key=f"{key}{a['id']}", divider=i < len(found) - 1)
         if hit == "why":
@@ -100,7 +112,7 @@ def rows(found: list[dict], *, key: str) -> None:
 
 def coming_up() -> None:
     """Work › Recurring: what Lyst sees coming and has checked or prepared."""
-    found = items()
+    found = [a for a in items() if a.get("kind") != NEXT and not _wants_person(a)]
     if not found:
         return
     kit.label(f"Coming up · {len(found)}")
@@ -108,12 +120,23 @@ def coming_up() -> None:
 
 
 def prepared_for_you() -> list[dict]:
-    """Work › Needs you: only what wants a person (blocked or needing a look); ready work waits in Coming up."""
-    return [a for a in items() if a.get("status") == "surfaced" or a.get("verdict") not in (None, "ready")]
+    """Work › Needs you: only what wants a person (blocked, needing a look, a verified early warning); ready work and
+    unverified warnings wait in Coming up."""
+    return [a for a in items() if _wants_person(a)]
+
+
+def next_steps(task_id: str) -> None:
+    """Under an answer: what Lyst suggests doing next with it (a follow-up question, watching, repeating)."""
+    found = items(subject=task_id)
+    found = [a for a in found if a.get("kind") == NEXT]
+    if not found:
+        return
+    kit.label("Next steps")
+    rows(found[:3], key=f"nx{task_id}")
 
 
 def home_line() -> None:
-    blocked = [a for a in items() if a.get("verdict") == "blocked"]
+    blocked = [a for a in items() if a.get("verdict") == "blocked" and a.get("kind") != NEXT]
     if blocked:
         a = blocked[0]
         c = st.columns([6, 1.2], vertical_alignment="center")
