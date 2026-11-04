@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import model, policy, recurring
+from . import earlywarning, model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -49,7 +49,7 @@ class AnticipationService:
         self.runtime = runtime
         self.semantic = semantic
         self.connections = connections
-        self.anticipators = [recurring]
+        self.anticipators = [recurring, nextaction, earlywarning]
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0
         self._local = threading.local()
@@ -100,7 +100,8 @@ class AnticipationService:
         rows = db.query(f"SELECT id, task_id, level_required, status FROM anticipations WHERE status IN {model.OPEN}")
         n = 0
         for r in rows:
-            if level == 0 or r["level_required"] > level or (level < policy.OPERATIONS["prepare"] and r["status"] == "candidate"):
+            if (level == 0 or r["level_required"] > level or (level < policy.OPERATIONS["prepare"] and r["status"] == "candidate")
+                    or (level < policy.OPERATIONS["investigate"] and r["status"] == "preparing")):
                 model.transition(db, r["id"], "withdrawn", actor=actor_id, detail={"reason": f"anticipation level set to {level}"})
                 n += 1
             if r["task_id"] and (level == 0 or level < policy.OPERATIONS["investigate"]):
@@ -156,18 +157,68 @@ class AnticipationService:
                     cand["_ctx"] = ctx
                     prep = mod.prepare(self, ws, cand, now, automate=s.allows("automate"))   # prepare + verify
                     policy.charge(db, "prepare", prep["resources"]["compute_ms"], now)
-                    cand["scores"].update(_after(prep["verdict"]))
-                    score = combine(cand["scores"], self.learned(ws, cand["kind"]))
-                    model.set_prepared(db, stored["id"], verdict=prep["verdict"], prepared=prep["prepared"],
-                                       verification=prep["verification"], resources=prep["resources"], reasons=prep["reasons"])
-                    db.execute("UPDATE anticipations SET scores = ?, score = ? WHERE id = ?",
-                               [json.dumps(cand["scores"]), score, stored["id"]])
-                    out["prepared"] += 1
-                    if prep["verdict"] in SURFACE_VERDICTS and score >= SURFACE_MIN_SCORE:
-                        out["surfaced"] += self._surface(ws, s, model.get(db, stored["id"]), now)
+                    self._apply(ws, s, mod, stored["id"], cand["scores"], prep, now, out)
+            for mod in self.anticipators:                                   # investigations that were running
+                if not hasattr(mod, "resume"):
+                    continue
+                for r in db.query(f"SELECT * FROM anticipations WHERE status = 'preparing' AND kind IN ({', '.join('?' for _ in mod.KINDS)})",
+                                  list(mod.KINDS)):
+                    a = model.row(r)
+                    prep = mod.resume(self, ws, a, now)
+                    if prep is not None:
+                        self._apply(ws, s, mod, a["id"], a["scores"], prep, now, out)
         finally:
             self._local.busy = False
         return out
+
+    def _apply(self, ws: str, s: policy.Settings, mod, aid: str, scores: dict[str, float], prep: dict[str, Any], now: datetime,
+               out: dict[str, Any]) -> None:
+        """Record what preparation produced: drop (say nothing), pending (a background task is verifying it), or a verdict,
+        re-scored with what preparation learned, and pushed when the anticipator says that verdict is worth it."""
+        db = self._db(ws)
+        if prep["verdict"] == "drop":   # verification showed it would not help: say nothing
+            model.transition(db, aid, "suppressed", detail={"reason": prep["reasons"][-1], "checks": prep["verification"]["checks"]})
+            return
+        if prep["verdict"] == "pending":
+            db.execute("UPDATE anticipations SET prepared = ?, verification = ?, resources = ? WHERE id = ?",
+                       [json.dumps(prep["prepared"], default=str), json.dumps(prep["verification"], default=str),
+                        json.dumps(prep["resources"]), aid])
+            model.transition(db, aid, "preparing", detail={"task_id": prep["task_id"]}, task_id=prep["task_id"])
+            return
+        scores = {**scores, **prep.get("scores", {})}   # what preparation learned about value and evidence
+        a = model.get(db, aid)
+        score = combine(scores, self.learned(ws, a["kind"]))
+        model.set_prepared(db, aid, verdict=prep["verdict"], prepared=prep["prepared"], verification=prep["verification"],
+                           resources=prep["resources"], reasons=prep["reasons"])
+        db.execute("UPDATE anticipations SET scores = ?, score = ? WHERE id = ?", [json.dumps(scores), score, aid])
+        out["prepared"] += 1
+        if prep["verdict"] in getattr(mod, "SURFACE", SURFACE_VERDICTS) and score >= SURFACE_MIN_SCORE:
+            out["surfaced"] += self._surface(ws, s, model.get(db, aid), now, mod)
+
+    # -- services the anticipators use ----------------------------------------------------------------------------------
+
+    def level(self, ws: str) -> int:
+        return policy.load(self._db(ws)).level
+
+    def admit(self, ws: str, operation: str, now: datetime | None = None) -> str | None:
+        """Admit and charge one ``operation`` against today's budget; the reason when it does not fit."""
+        db = self._db(ws)
+        reason = policy.admit(db, policy.load(db), operation, now)
+        if reason is None:
+            policy.charge(db, operation, 0, now)
+        return reason
+
+    def submit_background(self, actor: Principal, ws: str, question: str, *, deadline_at: datetime | None = None) -> str:
+        """A read-only investigation at maintenance priority: never takes the last worker, and the supervisor fails it cleanly
+        when it cannot start before ``deadline_at``."""
+        try:
+            from .. import operations  # noqa: PLC0415
+
+            prio = operations.priority_for("maintenance")
+        except (ImportError, AttributeError, KeyError):
+            prio = None
+        return self.runtime.submit(actor, ws, question, kind="investigation", autonomy="autonomous", priority=prio,
+                                   deadline_at=deadline_at)
 
     def _expire(self, db, now: datetime) -> int:
         rows = db.query(f"SELECT id FROM anticipations WHERE status IN {model.OPEN} AND valid_until IS NOT NULL AND valid_until < ?", [now])
@@ -175,15 +226,15 @@ class AnticipationService:
             model.transition(db, r["id"], "expired", detail={"at": now.isoformat()})
         return len(rows)
 
-    def _surface(self, ws: str, s: policy.Settings, a: dict[str, Any], now: datetime) -> int:
+    def _surface(self, ws: str, s: policy.Settings, a: dict[str, Any], now: datetime, mod=None) -> int:
         db = self._db(ws)
         reason = policy.admit(db, s, "surface", now)
         if reason:
             model.event(db, a["id"], "held", detail={"reason": reason})
             return 0
-        problems = [c["detail"] for c in (a["verification"] or {}).get("checks", []) if c["status"] == "block"]
+        summary = mod.summary(a) if hasattr(mod, "summary") else " ".join(a["reasons"][:3])
         fid = notices.raise_notice(self.stores, ws, source=f"anticipate:{a['id']}", kind=f"anticipation.{a['kind']}",
-                                   label=a["objective"], summary=(a["reasons"][0] + " Before it runs: " + "; ".join(problems) + ".")[:900],
+                                   label=a["objective"], summary=summary[:900],
                                    priority=round(a["score"] / 10, 2), dedupe_key=f"anticipate|{a['id']}|{a['revision']}",
                                    recipients=set(a["audience"]))
         policy.charge(db, "surface", 0, now)
@@ -204,7 +255,7 @@ class AnticipationService:
         return actor.user_id in a["audience"] or self.guard.can(actor, ws, "workspace.admin")
 
     def list(self, actor: Principal, ws: str, *, status: str = "open", kind: str | None = None, limit: int = 50,
-             now: datetime | None = None) -> list[dict[str, Any]]:
+             now: datetime | None = None, subject_id: str | None = None) -> list[dict[str, Any]]:
         """The activity center: prepared work, warnings and suggestions for this person, highest value first."""
         self.guard.require(actor, ws, "workspace.read")
         now = now or datetime.now(UTC)
@@ -214,6 +265,9 @@ class AnticipationService:
         if kind:
             sql += " AND kind = ?"
             params.append(kind)
+        if subject_id:
+            sql += " AND subject_id = ?"
+            params.append(subject_id)
         rows = [model.row(r) for r in self._db(ws).query(sql + " ORDER BY score DESC, created_at DESC", params)]
         out = []
         for a in rows:
@@ -258,11 +312,12 @@ class AnticipationService:
         if action in offered:
             if a["status"] not in model.OPEN:
                 raise ValueError(f"this suggestion is {a['status']}")
-            task_id = self._run(actor, ws, a, action)
-            model.transition(db, aid, "accepted", actor=actor.user_id, detail={"action": action, "task_id": task_id, "note": note},
+            done = self._run(actor, ws, a, action)
+            task_id = done.get("task_id")
+            model.transition(db, aid, "accepted", actor=actor.user_id, detail={"action": action, **done, "note": note},
                              outcome="accepted", decided_by=actor.user_id, decided_at=now, task_id=task_id)
-            self.guard.audit(actor, ws, "anticipation.accept", aid, "ok", {"action": action, "task_id": task_id})
-            return {"id": aid, "status": "accepted", "task_id": task_id}
+            self.guard.audit(actor, ws, "anticipation.accept", aid, "ok", {"action": action, **done})
+            return {"id": aid, "status": "accepted", **done}
         if action == "dismiss":
             self.guard.require(actor, ws, "workspace.read")
             model.transition(db, aid, "dismissed", actor=actor.user_id, detail={"note": note}, outcome="dismissed",
@@ -281,21 +336,11 @@ class AnticipationService:
             return {"id": aid, "status": a["status"], "feedback": action}
         raise ValueError(f"unknown action {action}; this item offers {', '.join(offered) or 'no actions'} and {', '.join(USER_ACTIONS)}")
 
-    def _run(self, actor: Principal, ws: str, a: dict[str, Any], action: str) -> str | None:
-        if a["kind"] == "recurring_prep" and action == "run_now":
-            sched = self.stores.control.query("SELECT request, workspace_id FROM schedules WHERE id = ?", [a["subject_id"]])
-            if not sched or sched[0]["workspace_id"] != ws:
-                raise KeyError(a["subject_id"])
-            req = json.loads(sched[0]["request"])
-            return self.runtime.submit(actor, ws, req["question"], kind="analysis", workflow=req.get("workflow"))
+    def _run(self, actor: Principal, ws: str, a: dict[str, Any], action: str) -> dict[str, Any]:
+        for mod in self.anticipators:
+            if a["kind"] in getattr(mod, "KINDS", ()):
+                return mod.run(self, actor, ws, a, action)
         raise ValueError(f"{action} is not available for {a['kind']}")
-
-
-def _after(verdict: str) -> dict[str, float]:
-    return {"blocked": {"value": 0.9, "evidence": 0.9, "interruption": 1.0},
-            "ready_with_warnings": {"value": 0.7, "evidence": 0.85},
-            "ready": {"value": 0.5, "evidence": 0.9}}[verdict]
-
 
 def _aware(ts):
     return ts if ts is None or ts.tzinfo else ts.replace(tzinfo=UTC)
