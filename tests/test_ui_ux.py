@@ -281,3 +281,30 @@ def test_study_it_runs_discovery_without_crashing(seeded, ui):  # noqa: F811
     from lyst.ui.onboarding import _count  # noqa: PLC0415
 
     assert _count(out.get("new_proposals")) >= 0 and _count([1, 2]) == 2 and _count(None) == 0
+
+
+def test_work_shows_what_lyst_prepared_ahead(seeded, ui):  # noqa: F811
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    s = lyst.runtime.create_schedule(owner, "northwind", "Monthly finance review",
+                                     "Review revenue and operating margin for the latest month", 2592000)
+    lyst.runtime.decide(owner, s["approval_id"], True)
+    lyst.stores.control.execute("UPDATE schedules SET next_run_at = ? WHERE id = ?",
+                                [datetime.now(UTC) + timedelta(minutes=30), s["schedule_id"]])
+    lyst.anticipation.set_settings(owner, "northwind", {"level": 2})
+    assert lyst.anticipation.cycle("northwind")["prepared"] == 1
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/work.py")
+    at.query_params["view"] = "recurring"  # ready work waits in Coming up; only what wants a person is in Needs you
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Monthly finance review" in body and any(b.label == "Run now" for b in at.button)
+    assert any("badge[" in m.value and "Ready" in m.value for m in at.markdown)
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "checks the data and definitions an upcoming run needs" in _texts(at)

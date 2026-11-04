@@ -226,6 +226,8 @@ def _waiting(ws: str) -> int:
         n += sum(1 for i in api.get(f"/v1/workspaces/{ws}/inbox") if i["read_status"] == "unread")
         n += len(api.get(f"/v1/workspaces/{ws}/assignments", mine=True, status="open"))
         n += len(api.get(f"/v1/workspaces/{ws}/reviews", status="pending", for_me=True))
+        n += sum(1 for a in api.get(f"/v1/workspaces/{ws}/anticipations")
+                 if a.get("status") == "surfaced" or a.get("verdict") not in (None, "ready"))
     except APIError:
         pass
     return n
