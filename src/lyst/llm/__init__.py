@@ -173,8 +173,15 @@ class LLMClient:
                 span.set_attribute("lyst.purpose", purpose)
                 sel = self.selection(workspace_id)
                 self._local.tier = sel.route_tier if sel else None
-                r = self.gateway.complete(messages, models=self.models(workspace_id), workload=workload, tenant=workspace_id,
-                                          pool=pool, json_mode=json_mode, max_tokens=max_tokens)
+                models = self.models(workspace_id)
+                reasoning_for = None
+                if policy.is_quick(workload, max_tokens):
+                    span.set_attribute("lyst.quick", True)
+                    if sel is not None and sel.mode == "auto":
+                        models = policy.quick_order(models, self.gateway.reasoning_refused)
+                    reasoning_for = lambda model, _w: policy.quick_reasoning(model, "quick")  # noqa: E731
+                r = self.gateway.complete(messages, models=models, workload=workload, tenant=workspace_id,
+                                          pool=pool, json_mode=json_mode, max_tokens=max_tokens, reasoning_for=reasoning_for)
                 span.set_attribute("lyst.model", r.model)
                 return r.text
         except GatewayError as exc:

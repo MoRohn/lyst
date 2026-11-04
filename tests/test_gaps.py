@@ -264,4 +264,7 @@ def test_an_empty_model_reply_never_replaces_the_computed_answer(seeded):
                              test_first=False)
     lyst.stores.control.execute("UPDATE workspaces SET allow_external_llm = true WHERE id = 'northwind'")
     r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
-    assert r["answer"].startswith("Operating margin was 32.5%") and r["supporting"]["narrative_by"] == "template (model returned no wording)"
+    # the gateway now treats an empty reply as a failed attempt (every model is tried first); the engine's own guard
+    # still covers a reply that has text but no words
+    by = r["supporting"]["narrative_by"]
+    assert r["answer"].startswith("Operating margin was 32.5%") and by.startswith("template (") and ("empty reply" in by or "no wording" in by), by

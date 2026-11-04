@@ -41,6 +41,18 @@ refreshes when the stored release is over a day old (in the background, when Set
 on **Refresh models and prices from OpenRouter** in Settings › Installation, which writes the changes
 ("Balanced added …", "… price changed …") to the credential history.
 
+**Quick calls.** Mapping a question to a metric (`classify`), extraction, JSON layouts (`structured`) and
+short chat calls (an output limit of 1,024 tokens or less, such as rewording computed findings) run with
+the model's thinking off, or at its lowest effort when it always thinks, using the reasoning details in
+the catalog. Walking a level, models that cannot think less go last. If a provider refuses the lower
+setting the catalog listed, Lyst remembers that for the process and moves to the next model, or retries
+a pinned model without the setting. Interactive calls whose workload sets no routing prefer fast
+endpoints, as chat does. Long answers and reasoning keep each model's default.
+
+**Empty replies.** A reply with no text, for example a model that spent its answer on thinking and
+stopped, is a failed attempt (`empty` in `llm_calls`). The next model in the walk is tried, and with
+none left the call fails, so the computed answer stands.
+
 **Who chooses.** An installation administrator sets the default level, an optional pinned model, and
 the highest level a workspace may choose. A workspace admin picks a level and optionally one specific
 model from the ~250 OpenRouter models Lyst can use (any provider), within that ceiling. A workspace
@@ -105,3 +117,10 @@ catalog-priced cost on a recorded call. Live, 2026-11-04, against a copy of the 
 its OpenRouter key: the catalog refreshed (453 models, 251 usable); an Economy call went to Claude Haiku
 5.5 and OpenRouter reported $0.00025 for 204 in / 459 out, exactly the catalog price; a pinned Claude
 Opus 5.5 call reported $0.002864 for 136 in / 116 out, again exactly the catalog price.
+
+Quick calls, live, 2026-11-04, on a fresh copy of the local installation (Balanced level, which starts with
+Mistral Large 4, a model that thinks by default). This is one cold run of each version, so it shows the
+size of the change, not a benchmark. Before: the first question took 23.6 s. The 600-token wording call
+spent its budget thinking, was cut off, and was retried at 1,800 tokens (5.2 s + 17.1 s). After: 5.4 s.
+Mistral's provider refused `effort: none` (1.0 s), and DeepSeek V4 Pro answered with thinking off
+(2.9 s). Later questions took 1.3 s and 2.9 s.

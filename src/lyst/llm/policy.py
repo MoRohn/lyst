@@ -41,6 +41,53 @@ WORKLOAD_ROUTING: dict[str, dict] = {
     "embed": {"max_tokens": 0},
 }
 
+# what a call made while a person waits prefers when its workload sets no routing of its own
+INTERACTIVE_LATENCY = {"preferred_max_latency": {"p50": 2, "p90": 5}}
+
+# Short, structured steps (mapping a question to a metric, extracting fields, a layout as JSON, rewording computed
+# findings in a few hundred tokens) gain nothing from a model's default thinking and wait seconds for it, or spend
+# the whole output budget on it and have to be retried. They run with reasoning off, or at the lowest effort a
+# model that always reasons accepts. Long answers and reasoning keep the model's default.
+QUICK_WORKLOADS = ("classify", "extract", "structured")
+QUICK_MAX_TOKENS = 1024
+
+
+def is_quick(workload: str, max_tokens: int | None = None) -> bool:
+    return workload in QUICK_WORKLOADS or (workload in ("chat", "agent") and max_tokens is not None
+                                          and max_tokens <= QUICK_MAX_TOKENS)
+
+
+def quick_order(models: list[str], refused: set[str] | frozenset = frozenset()) -> list[str]:
+    """For a quick call walking a tier: models whose thinking can be lowered (or that do not think by default)
+    first, in tier order; models that always think at a high effort, or whose provider refused a lower setting,
+    after them."""
+    def slow(model: str) -> bool:
+        if model in refused:
+            return True
+        info = (catalog.find(model) or {}).get("reasoningInfo")
+        return bool(info and (info.get("mandatory") or info.get("defaultOn")) and quick_reasoning(model, "classify") is None)
+    return sorted(models, key=slow)
+
+
+def quick_reasoning(model: str, workload: str) -> dict | None:
+    """The OpenRouter ``reasoning`` setting for a quick call on this model, from the catalog's reasoning info.
+    ``workload`` is the call's workload, or "quick" for a short chat call (``is_quick``)."""
+    if workload not in (*QUICK_WORKLOADS, "quick"):
+        return None
+    m = catalog.find(model)
+    info = (m or {}).get("reasoningInfo")
+    if not info:
+        return None  # no reasoning, or a model the catalog does not describe: send nothing
+    efforts = info.get("efforts") or []
+    lowest = next((e for e in ("minimal", "low") if e in efforts), None)
+    if info.get("mandatory"):
+        return {"effort": lowest} if lowest else None
+    if not info.get("defaultOn"):
+        return None
+    if "none" in efforts:
+        return {"effort": "none"}
+    return {"effort": lowest} if lowest else {"enabled": False}
+
 
 @dataclass(frozen=True)
 class PoolLimits:
