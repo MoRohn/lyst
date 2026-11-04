@@ -31,7 +31,7 @@ FORMATS = ("auto", "csv", "tsv", "parquet", "json")
 @register
 class HttpFileConnector(Connector):
     manifest = Manifest(
-        kind="http_file", label="File at a URL (CSV, Parquet, JSON)",
+        kind="http_file", label="File at a URL (CSV, Parquet, JSON)", auth="token",
         fields=(Field("url", "File URL (https)"),
                 Field("format", "Format: auto, csv, tsv, parquet or json", required=False, default="auto"),
                 Field("records_key", "JSON only: key holding the list (empty: the body is the list)", required=False),
@@ -84,7 +84,11 @@ class HttpFileConnector(Connector):
         try:
             with c.stream("GET", url, headers=self._headers()) as r:
                 if r.status_code != 200:
-                    raise ConnectorError(f"{url} returned {r.status_code}")
+                    category = {401: "auth", 403: "permission", 404: "not_found", 429: "rate_limit"}.get(
+                        r.status_code, "source" if r.status_code >= 500 else None)
+                    retry_after = r.headers.get("retry-after")
+                    raise ConnectorError(f"{url} returned {r.status_code}", category=category,
+                                         retry_after=float(retry_after) if retry_after and retry_after.isdigit() else None)
                 declared = int(r.headers.get("content-length") or 0)
                 if declared > limit:
                     raise ConnectorError(f"the file is {declared / 1e6:.0f} MB; the limit is LYST_HTTP_FILE_MAX_MB={limit / 1e6:.0f}")

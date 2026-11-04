@@ -653,3 +653,33 @@ WORKSPACE.append((
     ALTER TABLE metrics ADD COLUMN replaced_by VARCHAR
     """,
 ))
+
+# Connector operations: every test, discovery and sync as an event with its normalized failure category, and the
+# connection's own health state (last success, last failure, consecutive failures).
+CONTROL.append((
+    13,
+    """
+    CREATE TABLE connection_events (
+        id VARCHAR PRIMARY KEY,
+        connection_id VARCHAR NOT NULL,
+        workspace_id VARCHAR NOT NULL,
+        action VARCHAR NOT NULL,
+        source_table VARCHAR,
+        outcome VARCHAR NOT NULL,
+        category VARCHAR,
+        message VARCHAR,
+        attempts INTEGER NOT NULL DEFAULT 1,
+        retried JSON,
+        ms INTEGER,
+        details JSON,
+        actor VARCHAR,
+        occurred_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX connection_events_by_connection ON connection_events (connection_id, occurred_at);
+    ALTER TABLE connections ADD COLUMN last_success_at TIMESTAMPTZ;
+    ALTER TABLE connections ADD COLUMN last_failure_at TIMESTAMPTZ;
+    ALTER TABLE connections ADD COLUMN failure_category VARCHAR;
+    ALTER TABLE connections ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE connection_syncs ADD COLUMN last_schema JSON
+    """,
+))

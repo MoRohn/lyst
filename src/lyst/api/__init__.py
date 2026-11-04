@@ -613,6 +613,18 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         L(request).connections.delete(user, ws, cid)
         return {"ok": True}
 
+    @app.get("/v1/workspaces/{ws}/connections/health")
+    def connections_health(request: Request, ws: str, user: User):
+        return L(request).connections.health(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/connections/{cid}/health")
+    def connection_health(request: Request, ws: str, cid: str, user: User):
+        return L(request).connections.health(user, ws, cid)[0]
+
+    @app.get("/v1/workspaces/{ws}/connections/{cid}/events")
+    def connection_events(request: Request, ws: str, cid: str, user: User, limit: int = 50):
+        return L(request).connections.events(user, ws, cid, limit=min(max(limit, 1), 500))
+
     @app.get("/v1/workspaces/{ws}/connections/{cid}/tables")
     def discover(request: Request, ws: str, cid: str, user: User):
         return L(request).connections.discover(user, ws, cid)
