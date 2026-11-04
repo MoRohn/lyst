@@ -103,15 +103,23 @@ Lyst could not apply is stated, and such an answer is never marked Verified. Fro
 P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
 any drift reported.
 
+On an answer whose metric has a driver model, **What if…? Explore** opens sliders for each driver, shows base →
+scenario marked Better or Worse, where the starting figures come from, **How sensitive is it?** and **Save this
+scenario**. Saved scenarios live in Data › Saved analyses › Scenarios with Explore, Open and Re-run.
+
 Decisions get the same care. Lyst tells an analytical question apart from a decision that needs authority,
 compares options on weighted criteria and constraints under uncertainty, finds where the leading option would
 change, and allocates budgets with an exact solver. It says "insufficient evidence" or "no clear winner" rather
 than claim one. A **decision record** goes from analyzed to submitted to approved or rejected by a person, who
-may pick a different option, and is later reviewed against what actually happened. Nothing is executed.
+may pick a different option, and is later reviewed against what actually happened. Nothing is executed. Editors
+start one with **Compare options** on an answer, and records are listed in Work › Activity › Decisions.
 
-<p align="center">
-  <img src="docs/images/what-if.png" alt="A what-if answer: operating margin from 36.03% to 35.96% under the stated assumptions, labelled hypothetical, with the assumed labor share and the observed inputs as evidence" width="80%">
-</p>
+<table>
+  <tr>
+    <td width="45%"><img src="docs/images/what-if.png" alt="A what-if answer labelled hypothetical, with the assumed labor share, observed inputs as evidence, and What if and Compare options under the answer"><br><b>A what-if answer</b>: hypothetical, with its inputs</td>
+    <td width="55%"><img src="docs/images/what-if-explore.png" alt="The What if explorer: driver sliders, operating margin 36.0% to 34.9% marked Worse, what moves it most, worst/base/best cases and a 90% range from 2,000 simulations"><br><b>What if…?</b>: move the drivers, see what moves it most</td>
+  </tr>
+</table>
 
 ### Dashboards from a sentence
 
@@ -263,6 +271,11 @@ where they point, with Mark all read and "What to tell me about".
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
+* **Guards its own quality.** Every change runs the evaluation bank against a checked-in baseline in CI, and a
+  check that stopped passing, a much slower case, heavier resource use or a missing case fails the run. Runs
+  report completion, correctness, evidence and efficiency by category. Model routing is measured: a model whose
+  recent calls for a kind of work mostly failed moves behind the healthy ones in its level (never promoted, and a
+  pinned model is never reordered), and a model registry shows prices, context and measured performance.
 * **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
   drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
   name a winner only when the difference is statistically significant, and otherwise recommend the simplest
