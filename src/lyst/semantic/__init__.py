@@ -65,6 +65,17 @@ class MetricSpec(BaseModel):
     format: Literal["number", "currency", "percent"] = "number"
     higher_is_better: bool = True
     synonyms: list[str] = Field(default_factory=list)
+    # semantic-layer metadata: who answers for the number, what one row of the dataset is, and its currency
+    owner: str | None = None
+    grain: list[str] = Field(default_factory=list)
+    currency: str | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def _currency(cls, v: str | None) -> str | None:
+        if v is not None and not re.fullmatch(r"[A-Z]{3}", v):
+            raise ValueError("currency must be an ISO 4217 code such as USD")
+        return v
 
     @field_validator("name", "dataset")
     @classmethod
@@ -189,7 +200,7 @@ class SemanticService:
         if not schema:
             raise ValueError(f"dataset {spec.dataset} does not exist")
         known = {c["name"] for c in json.loads(schema[0]["schema"])}
-        missing = spec.columns() - known
+        missing = (spec.columns() | set(spec.grain)) - known
         if missing:
             raise ValueError(f"{spec.dataset} has no column(s): {', '.join(sorted(missing))}")
         compile_metric(spec)  # raises on an invalid definition
@@ -202,7 +213,9 @@ class SemanticService:
                 [spec.name, version, spec.model_dump_json(), note, actor.user_id],
             )
             if cur:
-                c.execute("UPDATE metrics SET current_version = ? WHERE name = ?", [version, spec.name])
+                # a new definition of a retired metric brings it back into use
+                c.execute("UPDATE metrics SET current_version = ?, status = 'approved', replaced_by = NULL WHERE name = ?",
+                          [version, spec.name])
             else:
                 c.execute(
                     "INSERT INTO metrics (name, current_version, owner) VALUES (?, ?, ?)",
@@ -246,6 +259,119 @@ class SemanticService:
             "SELECT term, definition, maps_to_metric, status, source FROM glossary ORDER BY term"
         )
 
+    # -- lifecycle and history -------------------------------------------------------------
+
+    def history(self, actor: Principal, workspace_id: str, name: str) -> list[dict[str, Any]]:
+        """Every version of a metric, newest first, with what changed against the version before it."""
+        self.guard.require(actor, workspace_id, "metric.read", name)
+        rows = self.stores.workspace(workspace_id).query(
+            "SELECT version, spec, note, created_by, created_at FROM metric_versions WHERE name = ? ORDER BY version", [name])
+        if not rows:
+            raise KeyError(name)
+        out, prev = [], None
+        for r in rows:
+            spec = json.loads(r["spec"])
+            changes = [] if prev is None else _diff(prev, spec)
+            out.append({"version": r["version"], "note": r["note"], "created_by": r["created_by"], "created_at": r["created_at"],
+                        "changes": changes, "summary": "first definition" if prev is None else
+                        ("; ".join(c["text"] for c in changes) or "no change to the definition"),
+                        "sql": compile_metric(MetricSpec.model_validate(spec))})
+            prev = spec
+        return list(reversed(out))
+
+    def deprecate(self, actor: Principal, workspace_id: str, name: str, *, replaced_by: str | None = None, note: str = "") -> dict[str, Any]:
+        """Retire a metric from use. Requests that name it resolve to its replacement, or are told it was retired."""
+        self.guard.require(actor, workspace_id, "metric.define", name)
+        db = self.stores.workspace(workspace_id)
+        if not db.scalar("SELECT count(*) FROM metrics WHERE name = ?", [name]):
+            raise KeyError(name)
+        if replaced_by:
+            if replaced_by == name or not db.scalar("SELECT count(*) FROM metrics WHERE name = ? AND status = 'approved'", [replaced_by]):
+                raise ValueError(f"{replaced_by} is not an approved metric")
+        db.execute("UPDATE metrics SET status = 'deprecated', replaced_by = ? WHERE name = ?", [replaced_by, name])
+        self.guard.audit(actor, workspace_id, "metric.deprecate", name, "ok", {"replaced_by": replaced_by, "note": note})
+        return {"name": name, "status": "deprecated", "replaced_by": replaced_by}
+
+    def deprecated(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
+        self.guard.require(actor, workspace_id, "metric.read")
+        return self.stores.workspace(workspace_id).query(
+            "SELECT m.name, m.replaced_by, v.spec FROM metrics m JOIN metric_versions v ON v.name = m.name "
+            "AND v.version = m.current_version WHERE m.status = 'deprecated' ORDER BY m.name")
+
+    def audit(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
+        """Problems in the semantic layer itself, each with a severity, the items involved and a suggested fix:
+        duplicate definitions, the same measure computed from two sources, synonyms that make requests ambiguous,
+        glossary terms pointing at missing or retired metrics or left undefined, metrics reading columns their
+        dataset no longer has, and definitions missing an owner, a description or a currency."""
+        self.guard.require(actor, workspace_id, "metric.read")
+        db = self.stores.workspace(workspace_id)
+        metrics = self.metrics(actor, workspace_id)
+        issues: list[dict[str, Any]] = []
+        by_expr: dict[tuple, list[str]] = {}
+        by_measure: dict[str, list[MetricSpec]] = {}
+        for m in metrics:
+            by_expr.setdefault((m.dataset, value_expr(m), tuple(sorted(_cond(f) for f in m.filters))), []).append(m.name)
+            measure_key = value_expr(m.model_copy(update={"dataset": "x"})) + "|" + "|".join(sorted(_cond(f) for f in m.filters))
+            by_measure.setdefault(measure_key, []).append(m)
+        for names in by_expr.values():
+            if len(names) > 1:
+                issues.append({"severity": "high", "kind": "duplicate_definition", "items": sorted(names),
+                               "text": f"{' and '.join(sorted(names))} compute the same number the same way",
+                               "fix": "deprecate one and point it at the other, or add synonyms instead of a second metric"})
+        for group in by_measure.values():
+            sources = sorted({m.dataset for m in group})
+            if len(sources) > 1:
+                issues.append({"severity": "medium", "kind": "conflicting_source", "items": sorted(m.name for m in group),
+                               "text": f"the same calculation is defined on {', '.join(sources)}; answers will differ if the sources disagree",
+                               "fix": "choose the authoritative source and deprecate the other definition"})
+        phrases: dict[str, set[str]] = {}
+        for m in metrics:
+            for p in {m.name.replace("_", " "), m.title.lower(), *[s.lower() for s in m.synonyms]}:
+                phrases.setdefault(p.strip(), set()).add(m.name)
+        for phrase, names in sorted(phrases.items()):
+            if len(names) > 1:
+                issues.append({"severity": "medium", "kind": "ambiguous_term", "items": sorted(names),
+                               "text": f"'{phrase}' names {' and '.join(sorted(names))}, so a request using it is asked to choose",
+                               "fix": "keep the synonym on one metric only"})
+        approved = {m.name for m in metrics}
+        retired = {r["name"]: r["replaced_by"] for r in db.query("SELECT name, replaced_by FROM metrics WHERE status = 'deprecated'")}
+        for g in self.glossary(actor, workspace_id):
+            target = g["maps_to_metric"]
+            if target and target in retired:
+                issues.append({"severity": "medium", "kind": "term_points_to_retired_metric", "items": [g["term"], target],
+                               "text": f"the glossary maps '{g['term']}' to {target}, which is retired"
+                                       + (f" in favour of {retired[target]}" if retired[target] else ""),
+                               "fix": f"map '{g['term']}' to {retired[target]}" if retired[target] else "map the term to an approved metric"})
+            elif target and target not in approved:
+                issues.append({"severity": "high", "kind": "term_points_to_missing_metric", "items": [g["term"], target],
+                               "text": f"the glossary maps '{g['term']}' to {target}, which does not exist", "fix": "fix the mapping"})
+            if re.search(r"not defined|tbd|to be defined|todo", g["definition"], re.I):
+                issues.append({"severity": "low", "kind": "undefined_term", "items": [g["term"]],
+                               "text": f"'{g['term']}' has no agreed definition yet", "fix": "write the definition or remove the term"})
+            if not g.get("source"):
+                issues.append({"severity": "low", "kind": "missing_provenance", "items": [g["term"]],
+                               "text": f"'{g['term']}' does not say where its definition comes from", "fix": "add the source document or owner"})
+        schemas = {r["name"]: {c["name"] for c in json.loads(r["schema"])} for r in db.query(
+            "SELECT d.name, v.schema FROM datasets d JOIN dataset_versions v ON v.dataset = d.name AND v.version = d.current_version")}
+        for m in metrics:
+            if m.dataset not in schemas:
+                issues.append({"severity": "high", "kind": "missing_dataset", "items": [m.name], "text": f"{m.name} reads {m.dataset}, which no longer exists",
+                               "fix": "redefine the metric on its new source"})
+                continue
+            gone = sorted((m.columns() | set(m.grain)) - schemas[m.dataset])
+            if gone:
+                issues.append({"severity": "high", "kind": "stale_definition", "items": [m.name],
+                               "text": f"{m.name} reads {', '.join(gone)}, no longer in the current version of {m.dataset}",
+                               "fix": "redefine the metric on the new columns, or restore them upstream"})
+            missing = [f for f, ok in (("a description", bool(m.description)), ("an owner", bool(m.owner)),
+                                       ("a currency", m.format != "currency" or bool(m.currency))) if not ok]
+            if missing:
+                issues.append({"severity": "low", "kind": "incomplete_definition", "items": [m.name],
+                               "text": f"{m.name} has no {' or '.join(x.split(' ', 1)[1] for x in missing)}",
+                               "fix": "add " + ", ".join(missing)})
+        order = {"high": 0, "medium": 1, "low": 2}
+        return sorted(issues, key=lambda i: (order[i["severity"]], i["kind"], i["items"]))
+
     def resolve(self, actor: Principal, workspace_id: str, text: str) -> dict[str, Any]:
         """Find the approved metric(s) a request refers to.
 
@@ -257,9 +383,21 @@ class SemanticService:
         for m in metrics:
             for p in {m.name.replace("_", " "), m.title.lower(), *[s.lower() for s in m.synonyms]}:
                 phrases.setdefault(p.strip(), set()).add(m.name)
+        approved = {m.name for m in metrics}
+        retired = self.deprecated(actor, workspace_id)
+        successor = {r["name"]: r["replaced_by"] for r in retired if r["replaced_by"] in approved}
         for g in self.glossary(actor, workspace_id):
-            if g["maps_to_metric"]:
-                phrases.setdefault(g["term"], set()).add(g["maps_to_metric"])
+            target = g["maps_to_metric"]
+            target = target if target in approved else successor.get(target)
+            if target:
+                phrases.setdefault(g["term"], set()).add(target)
+        for r in retired:
+            # a retired metric's words lead to its replacement, unless an approved metric already uses them
+            if r["replaced_by"] in approved:
+                old = MetricSpec.model_validate_json(r["spec"])
+                for p in {old.name.replace("_", " "), old.title.lower(), *[s.lower() for s in old.synonyms]}:
+                    if p.strip() not in phrases:
+                        phrases[p.strip()] = {r["replaced_by"]}
         hits: list[tuple[str, set[str]]] = []
         for phrase in sorted(phrases, key=len, reverse=True):
             if any(f" {variant} " in lowered for variant in (phrase, phrase + "s", phrase + "es")):
@@ -278,6 +416,26 @@ class SemanticService:
                 chosen.append(name)
                 matched[name] = phrase
         return {"metrics": chosen, "ambiguous": ambiguous, "matched": matched}
+
+
+def _diff(a: dict[str, Any], b: dict[str, Any]) -> list[dict[str, Any]]:
+    """Field-level changes between two stored metric specs, in plain words."""
+    out = []
+    for key in sorted(set(a) | set(b)):
+        va, vb = a.get(key), b.get(key)
+        if va == vb or (not va and not vb):
+            continue
+        label = key.replace("_", " ")
+        if key in ("measure", "numerator", "denominator", "filters"):
+            text = f"{label} changed"
+        elif isinstance(va, list) or isinstance(vb, list):
+            added = sorted(set(map(str, vb or [])) - set(map(str, va or [])))
+            removed = sorted(set(map(str, va or [])) - set(map(str, vb or [])))
+            text = f"{label}: " + ", ".join([*(f"+{x}" for x in added), *(f"-{x}" for x in removed)])
+        else:
+            text = f"{label}: {va!r} → {vb!r}"
+        out.append({"field": key, "before": va, "after": vb, "text": text})
+    return out
 
 
 __all__ = ["Filter", "Measure", "MetricSpec", "SemanticService", "compile_metric", "value_expr"]

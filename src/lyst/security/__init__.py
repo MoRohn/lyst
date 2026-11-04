@@ -32,6 +32,7 @@ PERMISSIONS: dict[str, str] = {
     "data.ingest": "editor",
     "metric.read": "viewer",
     "metric.define": "admin",
+    "contract.define": "admin",
     "glossary.write": "admin",
     "memory.write": "editor",
     "memory.promote": "admin",

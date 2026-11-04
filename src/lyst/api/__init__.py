@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from .. import observability as obs
 from ..app import Lyst
 from ..connectors import ConnectorError, manifests
+from ..contracts import ContractSpec
 from ..data.sqlguard import QueryRejected
 from ..secrets import MasterKeyMissing, ReauthRequired, SecretUnavailable
 from ..secrets import providers as credential_providers
@@ -152,6 +153,16 @@ class RowPolicyIn(BaseModel):
 class MemberIn(BaseModel):
     email: str
     role: str
+
+
+class ContractIn(BaseModel):
+    spec: ContractSpec
+    note: str = ""
+
+
+class DeprecateIn(BaseModel):
+    replaced_by: str | None = None
+    note: str = ""
 
 
 class EntityIn(BaseModel):
@@ -639,6 +650,73 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def set_term(request: Request, ws: str, body: Term, user: User):
         L(request).semantic.set_term(user, ws, body.term, body.definition, body.maps_to_metric, body.source)
         return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/metrics/{name}/lineage")
+    def metric_lineage(request: Request, ws: str, name: str, user: User):
+        return L(request).catalog.explain_metric(user, ws, name)
+
+    @app.get("/v1/workspaces/{ws}/metrics/{name}/history")
+    def metric_history(request: Request, ws: str, name: str, user: User):
+        return L(request).semantic.history(user, ws, name)
+
+    @app.post("/v1/workspaces/{ws}/metrics/{name}/deprecate")
+    def deprecate_metric(request: Request, ws: str, name: str, body: DeprecateIn, user: User):
+        return L(request).semantic.deprecate(user, ws, name, replaced_by=body.replaced_by, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/semantic/audit")
+    def semantic_audit(request: Request, ws: str, user: User):
+        return L(request).semantic.audit(user, ws)
+
+    # -- catalog and contracts ----------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/catalog")
+    def catalog_overview(request: Request, ws: str, user: User):
+        return L(request).catalog.overview(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/catalog/discover")
+    def catalog_discover(request: Request, ws: str, user: User):
+        return L(request).catalog.discover(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/catalog/relationships")
+    def catalog_relationships(request: Request, ws: str, user: User):
+        return L(request).catalog.relationships(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/catalog/search")
+    def catalog_search(request: Request, ws: str, q: str, user: User, limit: int = 20):
+        return L(request).catalog.search(user, ws, q, limit=min(max(limit, 1), 100))
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/insights")
+    def dataset_insights(request: Request, ws: str, name: str, user: User):
+        return L(request).catalog.insights(user, ws, name)
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/impact")
+    def dataset_impact(request: Request, ws: str, name: str, user: User, columns: str | None = None):
+        return L(request).catalog.impact(user, ws, name, [c for c in (columns or "").split(",") if c] or None)
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/contract")
+    def get_contract(request: Request, ws: str, name: str, user: User):
+        return L(request).contracts.get(user, ws, name) or {"dataset": name, "active": None, "versions": [], "status": None}
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/contract/draft")
+    def draft_contract(request: Request, ws: str, name: str, user: User):
+        return L(request).contracts.draft(user, ws, name)
+
+    @app.post("/v1/workspaces/{ws}/datasets/{name}/contract")
+    def define_contract(request: Request, ws: str, name: str, body: ContractIn, user: User):
+        return L(request).contracts.define(user, ws, name, body.spec, note=body.note)
+
+    @app.delete("/v1/workspaces/{ws}/datasets/{name}/contract")
+    def retire_contract(request: Request, ws: str, name: str, user: User):
+        L(request).contracts.retire(user, ws, name)
+        return {"ok": True}
+
+    @app.post("/v1/workspaces/{ws}/datasets/{name}/contract/check")
+    def check_contract(request: Request, ws: str, name: str, user: User):
+        return L(request).contracts.check(user, ws, name)
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/contract/checks")
+    def contract_checks(request: Request, ws: str, name: str, user: User):
+        return L(request).contracts.checks(user, ws, name)
 
     # -- analyst and work -------------------------------------------------------------------
 

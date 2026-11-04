@@ -618,3 +618,38 @@ WORKSPACE.append((
     ALTER TABLE query_history ADD COLUMN step INTEGER
     """,
 ))
+
+WORKSPACE.append((
+    9,
+    """
+    CREATE TABLE dataset_insights (
+        dataset VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        insights JSON NOT NULL,
+        computed_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (dataset, version)
+    );
+    CREATE TABLE data_contracts (
+        dataset VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        spec JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (dataset, version)
+    );
+    CREATE TABLE contract_checks (
+        id VARCHAR PRIMARY KEY,
+        dataset VARCHAR NOT NULL,
+        contract_version INTEGER NOT NULL,
+        dataset_version INTEGER NOT NULL,
+        outcome VARCHAR NOT NULL,
+        results JSON NOT NULL,
+        impacted JSON NOT NULL,
+        checked_by VARCHAR NOT NULL,
+        checked_at TIMESTAMPTZ DEFAULT now()
+    );
+    ALTER TABLE metrics ADD COLUMN replaced_by VARCHAR
+    """,
+))

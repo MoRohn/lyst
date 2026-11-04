@@ -37,7 +37,7 @@ def test_mcp_tools_run_under_the_callers_roles(seeded):
     vtok = lyst.guard.issue_token(viewer)
     with TestClient(create_app(lyst, start_workers=False)) as c:
         tools = _call(c, tok, "tools/list")["result"]["tools"]
-        assert {t["name"] for t in tools} == {"ask", "workspaces", "datasets", "metrics", "query", "findings", "task"}
+        assert {t["name"] for t in tools} == {"ask", "workspaces", "datasets", "metrics", "query", "findings", "task", "search", "metric_lineage"}
         ws = _result(_call(c, tok, "tools/call", {"name": "workspaces", "arguments": {}}))
         assert ws["result"][0]["id"] == "northwind" if "result" in ws else ws[0]["id"] == "northwind"
         m = _result(_call(c, tok, "tools/call", {"name": "metrics", "arguments": {"workspace": "northwind"}}))
