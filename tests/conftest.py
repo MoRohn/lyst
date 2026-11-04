@@ -11,14 +11,12 @@ from lyst.config import load_settings
 
 @pytest.fixture(autouse=True)
 def _isolated_secrets(tmp_path, monkeypatch):
-    """Tests never touch the real credential store, and never see a secret cached by another test."""
-    from lyst.security.vault import STORE
-
+    """Tests never touch the real credential store, a mounted secret or a developer's own provider key."""
     monkeypatch.setenv("LYST_KEYRING", "0")
     monkeypatch.setenv("LYST_SECRETS_DIR", str(tmp_path / "no-secrets"))
-    STORE.forget()
+    for k in ("LYST_OPENROUTER_API_KEY", "LYST_OPENBAO_URL", "LYST_OIDC_ISSUER", "LYST_DEV_INSECURE_KEYFILE"):
+        monkeypatch.delenv(k, raising=False)
     yield
-    STORE.forget()
 
 
 @pytest.fixture

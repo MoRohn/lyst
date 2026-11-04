@@ -122,8 +122,8 @@ class SyncResult:
 
 
 class ConnectionService:
-    def __init__(self, stores: Stores, guard: Guard, data) -> None:
-        self.stores, self.guard, self.data = stores, guard, data
+    def __init__(self, stores: Stores, guard: Guard, data, credentials=None) -> None:
+        self.stores, self.guard, self.data, self.credentials = stores, guard, data, credentials
 
     @staticmethod
     def _split(kind: str, values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
@@ -139,34 +139,50 @@ class ConnectionService:
         return config, secrets
 
     def _connector(self, kind: str, config: dict[str, Any], secrets: dict[str, str]) -> Connector:
-        from ..security.vault import STORE  # noqa: PLC0415
+        return CONNECTORS[kind](config, secrets)
 
-        resolved = {k: STORE.reference(v) for k, v in secrets.items()}  # "secret:NAME" -> the OS credential store
-        return CONNECTORS[kind](config, resolved)
+    def _resolve_secrets(self, ws: str, credential_id: str | None, inline: dict[str, str]) -> dict[str, str]:
+        """The connector worker is the only consumer that sees a connection's secrets, for the duration of the call."""
+        if credential_id and self.credentials is not None:
+            got = self.credentials.connector_secrets(credential_id, workspace=ws)
+            return {**inline, **got}
+        return inline
 
     def create(self, actor: Principal, ws: str, *, kind: str, name: str, values: dict[str, Any]) -> dict[str, Any]:
         self.guard.require(actor, ws, "data.ingest", name)
+        values = dict(values)
+        credential_id = values.pop("credential_id", None) or None
         config, secrets = self._split(kind, values)
+        secrets = {k: v for k, v in secrets.items() if v not in (None, "")}
+        if credential_id:  # a credential connected in Settings supplies the secret (and host fields) instead of the form
+            mapped = self.credentials.connector_secrets(credential_id, workspace=ws)
+            for k, v in mapped.items():
+                (secrets if any(f.name == k and f.secret for f in CONNECTORS[kind].manifest.fields) else config)[k] = v
+            secrets = {k: v for k, v in secrets.items() if v not in (None, "")}
         result = self._connector(kind, config, secrets).test()  # raises on failure: nothing untestable is saved
+        if not credential_id and secrets and self.credentials is not None:
+            credential_id = self.credentials.store_connector_secrets(actor, ws, kind, name, secrets)
+            secrets = {}
         cid = "c_" + uuid.uuid4().hex[:10]
         self.stores.control.execute(
-            "INSERT INTO connections (id, workspace_id, kind, name, config, secrets, status, last_tested_at, created_by) "
-            "VALUES (?, ?, ?, ?, ?, ?, 'ok', now(), ?)",
-            [cid, ws, kind, name, json.dumps(config), json.dumps(secrets), actor.user_id])
-        self.guard.audit(actor, ws, "connection.create", cid, "ok", {"kind": kind, "name": name})
-        return {"id": cid, "kind": kind, "name": name, "test": result}
+            "INSERT INTO connections (id, workspace_id, kind, name, config, secrets, status, last_tested_at, created_by, credential_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'ok', now(), ?, ?)",
+            [cid, ws, kind, name, json.dumps(config), json.dumps(secrets if self.credentials is None else {}), actor.user_id, credential_id])
+        self.guard.audit(actor, ws, "connection.create", cid, "ok", {"kind": kind, "name": name, "credential": credential_id})
+        return {"id": cid, "kind": kind, "name": name, "test": result, "credential_id": credential_id}
 
     def _load(self, actor: Principal, ws: str, cid: str) -> tuple[dict[str, Any], Connector]:
         rows = self.stores.control.query("SELECT * FROM connections WHERE id = ? AND workspace_id = ?", [cid, ws])
         if not rows:
             raise KeyError(cid)
         row = rows[0]
-        return row, self._connector(row["kind"], json.loads(row["config"]), json.loads(row["secrets"]))
+        secrets = self._resolve_secrets(ws, row.get("credential_id"), json.loads(row["secrets"]))
+        return row, self._connector(row["kind"], json.loads(row["config"]), secrets)
 
     def list(self, actor: Principal, ws: str) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "data.read")
         rows = self.stores.control.query(
-            "SELECT id, kind, name, config, status, last_tested_at, last_error, created_by, created_at FROM connections "
+            "SELECT id, kind, name, config, status, last_tested_at, last_error, created_by, created_at, credential_id FROM connections "
             "WHERE workspace_id = ? ORDER BY name", [ws])
         for r in rows:
             r["config"] = json.loads(r["config"])  # secrets are a separate column and never leave the service
@@ -186,6 +202,9 @@ class ConnectionService:
 
     def delete(self, actor: Principal, ws: str, cid: str) -> None:
         self.guard.require(actor, ws, "workspace.admin", cid)
+        cred = self.stores.control.scalar("SELECT credential_id FROM connections WHERE id = ? AND workspace_id = ?", [cid, ws])
+        if cred and self.credentials is not None:
+            self.credentials.delete_connector_secrets(actor, ws, cred)
         self.stores.control.execute("DELETE FROM connections WHERE id = ? AND workspace_id = ?", [cid, ws])
         self.guard.audit(actor, ws, "connection.delete", cid, "ok")
 

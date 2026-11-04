@@ -53,6 +53,8 @@ class Principal:
     user_id: str
     email: str
     kind: str = "user"  # user | agent | system
+    token_label: str | None = None       # how the session was issued: oidc, cli, dev, default
+    auth_age_seconds: float | None = None  # seconds since the session was issued (recent-auth checks)
 
 
 SYSTEM = Principal("system", "system@lyst.local", kind="system")
@@ -90,7 +92,7 @@ class Guard:
             raise AccessDenied("missing credentials")
         h = hash_token(token)
         rows = self.stores.control.query(
-            "SELECT u.id, u.email FROM api_tokens t JOIN users u ON u.id = t.user_id "
+            "SELECT u.id, u.email, t.label, epoch(now() - t.created_at) AS age FROM api_tokens t JOIN users u ON u.id = t.user_id "
             "WHERE t.token_hash = ? AND t.revoked_at IS NULL AND (t.expires_at IS NULL OR t.expires_at > now())",
             [h],
         )
@@ -98,7 +100,7 @@ class Guard:
             self.audit(Principal("anonymous", ""), None, "auth.token", None, "denied")
             raise AccessDenied("invalid or expired credentials")
         self.stores.control.execute("UPDATE api_tokens SET last_used_at = now() WHERE token_hash = ?", [h])
-        return Principal(rows[0]["id"], rows[0]["email"])
+        return Principal(rows[0]["id"], rows[0]["email"], token_label=rows[0]["label"], auth_age_seconds=float(rows[0]["age"] or 0))
 
     def user_from_oidc(self, subject: str, email: str, name: str) -> Principal:
         """Find or create the user a verified ID token describes. Email is the identity; the subject is kept."""
@@ -137,8 +139,12 @@ class Guard:
 
     def create_workspace(self, owner: Principal, workspace_id: str, name: str) -> None:
         def tx(c):
-            c.execute("INSERT INTO workspaces (id, name, allow_external_llm) VALUES (?, ?, ?)",
-                      [workspace_id, name, self.stores.settings.llm.external_default])
+            default = self.stores.settings.llm.external_default
+            if default is None:  # follow the installation: external use is on once OpenRouter is connected install-wide
+                default = self.stores.settings.llm.provider == "openrouter" and bool(c.execute(
+                    "SELECT count(*) FROM credentials WHERE provider = 'openrouter' AND scope_kind = 'installation' AND status = 'active'"
+                ).fetchall()[0][0])
+            c.execute("INSERT INTO workspaces (id, name, allow_external_llm) VALUES (?, ?, ?)", [workspace_id, name, default])
             c.execute(
                 "INSERT INTO memberships (workspace_id, user_id, role) VALUES (?, ?, 'owner')",
                 [workspace_id, owner.user_id],

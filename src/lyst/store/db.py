@@ -165,6 +165,10 @@ class Database:
 
     def backup_to(self, dest: Path) -> Path:
         """A consistent, still-encrypted copy of this database, taken on the writer thread in one snapshot."""
+        return self.copy_with_key(dest, self._key)
+
+    def copy_with_key(self, dest: Path, key: str | None) -> Path:
+        """A consistent copy sealed with ``key`` (None: plain). Master-key rotation copies with the new derived key."""
         if self._backup_dir is None:
             raise RuntimeError("this database was opened without a backup directory")
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -175,8 +179,8 @@ class Database:
         quoted = str(staging).replace("'", "''")
 
         def tx(c: duckdb.DuckDBPyConnection) -> None:
-            if self._key:
-                c.execute(f"ATTACH '{quoted}' AS lyst_backup (ENCRYPTION_KEY '{self._key}')")
+            if key:
+                c.execute(f"ATTACH '{quoted}' AS lyst_backup (ENCRYPTION_KEY '{key}')")
             else:
                 c.execute(f"ATTACH '{quoted}' AS lyst_backup")
             try:

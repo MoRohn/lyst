@@ -69,6 +69,9 @@ class Client:
     def patch(self, path: str, json: Any) -> Any:
         return self._do("PATCH", path, json=json)
 
+    def delete(self, path: str) -> Any:
+        return self._do("DELETE", path)
+
 
 def client() -> Client:
     return Client()

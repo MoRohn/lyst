@@ -190,6 +190,68 @@ CONTROL.append((
 ))
 
 CONTROL.append((
+    8,
+    """
+    CREATE TABLE secret_blobs (
+        ref VARCHAR PRIMARY KEY,
+        key_version INTEGER NOT NULL,
+        nonce BLOB NOT NULL,
+        ciphertext BLOB NOT NULL,
+        dek_nonce BLOB NOT NULL,
+        wrapped_dek BLOB NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE credentials (
+        id VARCHAR PRIMARY KEY,
+        scope_kind VARCHAR NOT NULL,
+        scope_id VARCHAR,
+        provider VARCHAR NOT NULL,
+        name VARCHAR NOT NULL,
+        secret_ref VARCHAR NOT NULL,
+        backend VARCHAR NOT NULL,
+        key_version INTEGER NOT NULL,
+        fields JSON NOT NULL,
+        owner_id VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        fingerprint VARCHAR,
+        last_test JSON,
+        last_used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        replaced_at TIMESTAMPTZ,
+        revoked_at TIMESTAMPTZ,
+        revoked_by VARCHAR
+    );
+    CREATE SEQUENCE credential_event_seq;
+    CREATE TABLE credential_events (
+        seq BIGINT PRIMARY KEY,
+        occurred_at VARCHAR NOT NULL,
+        actor VARCHAR NOT NULL,
+        action VARCHAR NOT NULL,
+        credential_id VARCHAR,
+        scope_kind VARCHAR NOT NULL,
+        scope_id VARCHAR,
+        outcome VARCHAR NOT NULL,
+        detail JSON,
+        prev_hash VARCHAR NOT NULL,
+        hash VARCHAR NOT NULL
+    );
+    CREATE TABLE installation_admins (
+        user_id VARCHAR PRIMARY KEY,
+        added_by VARCHAR NOT NULL,
+        added_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE installation_settings (
+        key VARCHAR PRIMARY KEY,
+        value VARCHAR,
+        set_by VARCHAR NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    ALTER TABLE connections ADD COLUMN credential_id VARCHAR
+    """,
+))
+
+CONTROL.append((
     7,
     """
     CREATE TABLE connections (

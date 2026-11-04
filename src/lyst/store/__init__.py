@@ -20,6 +20,10 @@ class Stores:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        if settings.setup_required:
+            from ..secrets.masterkey import MasterKeyMissing
+
+            raise MasterKeyMissing("no master encryption key: the engine is in setup mode")
         self.control = Database(
             settings.control_db,
             name="control",
@@ -70,6 +74,28 @@ class Stores:
                             "(or the keyfile) with this backup or it is unreadable."}
         (dest / "manifest.json").write_text(json.dumps(manifest, indent=1))
         return manifest
+
+    def database_files(self) -> list[tuple[str, Path]]:
+        """(database name, path) for every database on disk, opened or not."""
+        out = [("control", self.settings.control_db)]
+        wsdir = self.settings.home / "workspaces"
+        if wsdir.exists():
+            out += [(f"ws:{p.stem}", p) for p in sorted(wsdir.glob("*.duckdb"))]
+        return out
+
+    def rekey_copies(self, new_master: bytes, staging: Path) -> list[tuple[Path, Path]]:
+        """Copy every database into ``staging`` sealed with keys derived from ``new_master``. Nothing in place changes;
+        the caller swaps the files once every copy (and the secret re-wrap) has succeeded. Returns (live, copy) pairs."""
+        from .db import derive_key
+
+        staging.mkdir(parents=True, exist_ok=True)
+        pairs = []
+        for name, path in self.database_files():
+            db = self.control if name == "control" else self.workspace(name[3:])
+            target = staging / path.relative_to(self.settings.home)
+            db.copy_with_key(target, derive_key(new_master, name) if self.settings.encrypt else None)
+            pairs.append((path, target))
+        return pairs
 
     def prune(self, *, event_days: int = 90, audit_days: int = 400) -> dict[str, int]:
         """Retention: drop old operational rows; audit lines live longer. Returns rows removed per table."""

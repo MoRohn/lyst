@@ -16,6 +16,7 @@ from .llm import LLMClient
 from .memory import MemoryService
 from .monitoring import MonitorService
 from .runtime import TaskRuntime
+from .secrets import CredentialService, backend_from_env
 from .security import Guard
 from .semantic import SemanticService
 from .skills import SkillService
@@ -40,14 +41,20 @@ class Lyst:
     monitors: MonitorService
     studio: StudioService
     connections: ConnectionService
+    credentials: CredentialService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
         settings = settings or load_settings()
         stores = Stores(settings)
         guard = Guard(stores)
+        credentials = CredentialService(stores, guard, backend_from_env(stores, settings.master_key or b""))
+        credentials.redactor.install()
+        from .security.vault import anchor  # noqa: PLC0415
+
+        credentials.seed_from_anchors(anchor)
         data = DataService(stores, guard)
-        llm = LLMClient(settings.llm, stores)
+        llm = LLMClient(settings.llm, stores, credentials=credentials)
         knowledge = KnowledgeService(stores, guard, llm)
         semantic = SemanticService(stores, guard, knowledge)
         memory = MemoryService(stores, guard, llm)
@@ -61,10 +68,10 @@ class Lyst:
         services.runtime = runtime
         studio = StudioService(stores, guard, data, semantic, runtime, settings.home, knowledge)
         services.studio = studio
-        connections = ConnectionService(stores, guard, data)
+        connections = ConnectionService(stores, guard, data, credentials)
         services.connections = connections
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections)
+                   studio, connections, credentials)
 
     def close(self) -> None:
         self.runtime.stop()

@@ -4,16 +4,18 @@
 
 ```bash
 cp .env.example .env            # non-secret settings only
-printf '%s' "$(python -c 'import secrets;print(secrets.token_hex(32))')" > secrets/LYST_MASTER_KEY   # or your secret manager
-printf '%s' 'sk-or-...' > secrets/LYST_OPENROUTER_API_KEY
+python -c 'import secrets;print(secrets.token_hex(32))' > secrets/LYST_MASTER_KEY   # the trust anchor; keep a copy offline
 docker compose up -d --build    # engine (API + workers) on 127.0.0.1:8770, UI on :8501
 docker compose exec engine lyst token you@example.com --owner-of acme   # first owner token, until OIDC is on
 ```
 
-Secrets are mounted at `/run/secrets` (the Compose file uses Docker secrets from `./secrets/`, which is
-gitignored); with Kubernetes mount a Secret there, or point `LYST_SECRETS_DIR` elsewhere. On a single machine
-without containers, `lyst secret set NAME` stores a secret in the OS credential store instead. See
-`docs/SECURITY.md`, *Secrets*.
+Then open the UI, sign in with that token and connect the OpenRouter key under **Settings › Secrets &
+Connections › Installation**: it is tested, sealed and never shown again. (An unattended deployment may instead
+mount `secrets/LYST_OPENROUTER_API_KEY`; it is imported once as the installation credential.)
+
+The master key is mounted at `/run/secrets` (the Compose file uses Docker secrets from `./secrets/`, which is
+gitignored); with Kubernetes mount a Secret there, or point `LYST_SECRETS_DIR` elsewhere. Never put it in the
+data volume, the image or a backup. See `docs/SECURITY.md`, *Secrets and credentials*.
 
 Both containers run as a non-root user with a read-only root filesystem, no Linux capabilities and
 `no-new-privileges`. Only the engine mounts the data volume; the UI holds no data and reaches the engine over
@@ -23,6 +25,31 @@ plain HTTP on the internal network.
 The Compose file has not yet been run on this machine (Docker was not available while it was written); the
 image build and the services are checked in CI once it exists.
 
+## A workstation or a single server without containers
+
+`uv run lyst serve`, open the UI: with no master key anywhere the engine is in **setup mode** and the UI's
+first page initialises encryption from the engine host (loopback only), generating the key into the OS
+credential store and showing a recovery copy once. `lyst init` does the same from a terminal; `lyst init
+--recovery` restores a saved key on a rebuilt machine. Headless Linux without Secret Service: mount the key
+file or inject `LYST_MASTER_KEY` from your service manager (systemd `LoadCredential=` works well).
+
+## Enterprise: OpenBao
+
+Set `LYST_OPENBAO_URL` (and `LYST_OPENBAO_MOUNT`, `LYST_OPENBAO_PREFIX`, `LYST_OPENBAO_NAMESPACE` as needed) and
+give Lyst an AppRole (`LYST_OPENBAO_ROLE_ID` plus `LYST_OPENBAO_SECRET_ID` as a mounted secret) or a token
+(`LYST_OPENBAO_TOKEN`, mounted). Credentials are then kept in OpenBao's KV v2 engine; the master key may be
+served from `<prefix>/master-key`, or still mounted. Policy needed: read and write under
+`<mount>/data/<prefix>/*`, delete under `<mount>/metadata/<prefix>/*`, read `sys/health`. The same Settings
+page works unchanged.
+
+## Master-key rotation and recovery
+
+`lyst rotate-master-key` with the engine stopped: every database is copied under the new key and every stored
+secret re-wrapped, then the files are swapped and the credential store updated (for a mounted or injected key
+the new value is printed for the operator to place). Previous files stay as `*.pre-rotation` until removed.
+Backups taken before a rotation need the key they were taken with. Without the master key an installation is
+unrecoverable: that is the design, so keep the recovery copy where a compromised server cannot reach it.
+
 ## Dependencies from ai-analytics
 
 `dashkit` and `stkit` come from `github.com/MoRohn/ai-analytics` (pinned by commit in `pyproject.toml`). That
@@ -31,7 +58,9 @@ environment, or a mirror). A generated dashboard's `requirements.txt` carries th
 
 ## Sign-in
 
-Set the `LYST_OIDC_*` variables (`.env.example`) to any OIDC provider: Keycloak, Authentik, Dex, Zitadel or a
+Connect the sign-in provider in Settings › Secrets & Connections › Installation (issuer, client id, client
+secret), or set the `LYST_OIDC_*` variables (`.env.example`) with the client secret mounted as
+`LYST_OIDC_CLIENT_SECRET`. Any OIDC provider works: Keycloak, Authentik, Dex, Zitadel or a
 commercial IdP. Lyst uses the authorization code flow with PKCE, verifies the ID token against the provider's
 JWKS (issuer, audience, expiry, nonce), requires a verified email, optionally restricts email domains, and
 issues a session token that expires after `LYST_SESSION_HOURS` (12). Signing in creates the user but grants

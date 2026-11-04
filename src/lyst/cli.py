@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""lyst init-demo | serve | ui | token"""
+"""lyst init | init-demo | serve | ui | token | backup | restore | rotate-master-key | prune | eval"""
 
 from __future__ import annotations
 
@@ -23,10 +23,23 @@ def _write_token(home: Path, token: str, name: str = "dev-token") -> Path:
     return path
 
 
+def _ensure_master_key() -> None:
+    from .secrets import masterkey
+
+    if masterkey.resolve() is None:
+        if masterkey.keyring_available() is None:
+            sys.exit("No master encryption key: run the engine and open the interface on this machine to initialise it, or mount "
+                     "the key for an unattended deployment (docs/SECURITY.md).")
+        masterkey.provision_into_keyring()
+        print(f"Generated the master key into the {masterkey.keyring_available()} credential store (service 'lyst'). "
+              "Keep a recovery copy: `lyst init --show` prints it only on first generation, so export it from the store.", file=sys.stderr)
+
+
 def init_demo() -> None:
     from . import demo
     from .app import Lyst
 
+    _ensure_master_key()
     lyst = Lyst.build()
     try:
         if lyst.stores.control.scalar("SELECT count(*) FROM workspaces WHERE id = 'northwind'"):
@@ -57,33 +70,99 @@ def issue_token(email: str, name: str | None, hours: int | None, owner_of: str |
         lyst.close()
 
 
-def secret_cmd(action: str, name: str | None, from_stdin: bool) -> None:
+def init_cmd(recovery: bool, show: bool) -> None:
+    """Initialise encryption on this machine: generate the master key into the OS credential store (the browser's
+    setup page does the same). ``--recovery`` restores a saved key instead; ``--show`` prints the recovery copy."""
     import getpass
 
-    from .security.vault import KNOWN, STORE, is_secret_name
+    from .secrets import masterkey
 
-    if action in ("set", "delete") and not name:
-        sys.exit("name the secret, e.g. lyst secret set LYST_OPENROUTER_API_KEY")
-    if action == "set":
-        if not is_secret_name(name):
-            sys.exit(f"{name} does not look like a secret name (expected ..._API_KEY, ..._SECRET, ..._PASSWORD, ..._TOKEN, ..._KEY)")
-        if name == "LYST_MASTER_KEY" and from_stdin is False:
-            print("Paste a 64-character hex key, or press Enter to generate one.", file=sys.stderr)
-        value = sys.stdin.read().strip() if from_stdin else getpass.getpass(f"{name}: ")
-        if name == "LYST_MASTER_KEY" and not value:
-            import secrets as _s
-
-            value = _s.token_hex(32)
-            print("Generated a new master key. Back it up: without it the databases cannot be opened.", file=sys.stderr)
-        backend = STORE.set(name, value)
-        print(f"Stored {name} in the {backend} credential store (service 'lyst').")
-    elif action == "delete":
-        print(f"{'Removed' if STORE.delete(name) else 'Not found:'} {name}")
+    existing = masterkey.resolve()
+    if existing and not recovery:
+        print(f"A master key is already available (source: {existing.source}). Nothing to do.")
+        return
+    if recovery:
+        value = getpass.getpass("Paste the recovery copy of the master key (hex): ")
+        mk = masterkey.store_into_keyring(value)
+        print(f"Stored the master key in the {masterkey.keyring_available()} credential store (service 'lyst').")
+        return
+    if masterkey.keyring_available() is None:
+        sys.exit("This machine has no usable OS credential store. For an unattended deployment mount the key at "
+                 "$LYST_SECRETS_DIR/LYST_MASTER_KEY, serve it from OpenBao (LYST_OPENBAO_URL) or inject LYST_MASTER_KEY.")
+    mk = masterkey.provision_into_keyring()
+    print(f"Generated a master key and stored it in the {masterkey.keyring_available()} credential store (service 'lyst').")
+    if show:
+        print("Recovery copy (keep it offline; Lyst never stores it):", file=sys.stderr)
+        print(mk.key.hex())
     else:
-        names = tuple(KNOWN) + ((name,) if name and name not in KNOWN else ())
-        print(f"Credential store backend: {STORE.backend_name()}; mounted secrets dir: {STORE.secrets_dir}")
-        for row in STORE.status(names):
-            print(f"  {row['name']:<28} {'configured via ' + row['source'] if row['configured'] else 'not configured'}")
+        print("Run `lyst init --show` was not used: to keep a recovery copy, export it from the credential store now.", file=sys.stderr)
+
+
+def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = True, yes: bool = False) -> str:
+    """Root-key rotation with the engine stopped. Every database is copied under keys derived from the new master
+    key and every secret's data key is re-wrapped in the copy; only when all of that succeeded are the files
+    swapped and the anchor updated. A failure anywhere before the swap leaves the installation untouched."""
+    import secrets as rnd
+    import types
+
+    from .app import Lyst
+    from .secrets.backends import EmbeddedBackend
+    from .store.db import Database
+
+    settings = load_settings()
+    if settings.setup_required:
+        sys.exit("No master key is available; nothing to rotate.")
+    if settings.master_key_source not in ("keyring", "env", "file", "dev-keyfile") and update_anchor and not yes:
+        sys.exit(f"The master key comes from {settings.master_key_source}; rotate it there and rerun with --yes to re-key the files.")
+    new_key = new_key or rnd.token_bytes(32)
+    staging = settings.home / "backups" / ".rekey"
+    if staging.exists():
+        shutil.rmtree(staging)
+    lyst = Lyst.build(settings)
+    try:
+        old_version = lyst.credentials.backend.key_version if isinstance(lyst.credentials.backend, EmbeddedBackend) else None
+        pairs = lyst.stores.rekey_copies(new_key, staging)
+    finally:
+        lyst.close()
+    if old_version is not None:  # re-wrap the data keys inside the staged control copy, old files untouched
+        ctl = Database(staging / "control.duckdb", name="control", master_key=new_key, encrypt=settings.encrypt, allowed_dir=staging)
+        try:
+            EmbeddedBackend(types.SimpleNamespace(control=ctl), settings.master_key, old_version).rewrap_all(new_key, old_version + 1)
+        finally:
+            ctl.close()
+    # swap: old files stay beside the new ones as *.pre-rotation until the operator removes them
+    swapped = []
+    try:
+        for live, copy in pairs:
+            keep = live.with_name(live.name + ".pre-rotation")
+            if keep.exists():
+                keep.unlink()
+            wal = live.with_name(live.name + ".wal")
+            if wal.exists():
+                wal.unlink()
+            if live.exists():
+                live.rename(keep)
+            swapped.append((live, keep))
+            shutil.move(copy, live)
+        if update_anchor and settings.master_key_source == "keyring":
+            from .secrets import masterkey
+
+            masterkey.store_into_keyring(new_key.hex())
+    except Exception:
+        for live, keep in swapped:  # put the old files back
+            if live.exists():
+                live.unlink()
+            if keep.exists():
+                keep.rename(live)
+        raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    if update_anchor and settings.master_key_source == "keyring":
+        print("Rotated the master key; the credential store holds the new one. Previous database files are kept as *.pre-rotation.")
+    elif update_anchor:
+        print(f"Rotated the files. Place this new key at the anchor ({settings.master_key_source}) before the next start:", file=sys.stderr)
+        print(new_key.hex())
+    return new_key.hex()
 
 
 def backup(dest: Path) -> None:
@@ -104,6 +183,8 @@ def restore(src: Path, yes: bool) -> None:
     from .store.db import derive_key
 
     settings = load_settings()
+    if settings.setup_required:
+        sys.exit("No master key is available: restore needs the key the backup was taken with (lyst init --recovery).")
     manifest = json.loads((src / "manifest.json").read_text())
     for rel in manifest["files"]:
         name = "control" if rel == "control.duckdb" else "ws:" + Path(rel).stem
@@ -172,10 +253,11 @@ def main(argv: list[str] | None = None) -> None:
     tk.add_argument("--name", default=None)
     tk.add_argument("--hours", type=int, default=None, help="expiry; default never")
     tk.add_argument("--owner-of", default=None, help="also create this workspace with the user as owner")
-    sc = sub.add_parser("secret", help="store, list, check or delete a secret in the OS credential store")
-    sc.add_argument("action", choices=["set", "list", "check", "delete"])
-    sc.add_argument("name", nargs="?", help="e.g. LYST_OPENROUTER_API_KEY, LYST_MASTER_KEY, LYST_LLM_API_KEY, or PG_PASSWORD")
-    sc.add_argument("--stdin", action="store_true", help="read the value from standard input instead of a hidden prompt")
+    ini = sub.add_parser("init", help="initialise encryption: generate the master key into the OS credential store")
+    ini.add_argument("--recovery", action="store_true", help="restore a saved master key instead of generating one")
+    ini.add_argument("--show", action="store_true", help="print the recovery copy once")
+    rk = sub.add_parser("rotate-master-key", help="re-key every database and re-wrap every secret under a new master key (engine stopped)")
+    rk.add_argument("--yes", action="store_true")
     bk = sub.add_parser("backup", help="consistent, encrypted backup of every database plus artifacts and dashboards")
     bk.add_argument("dest")
     rs = sub.add_parser("restore", help="restore a backup into LYST_HOME (engine must be stopped)")
@@ -195,8 +277,10 @@ def main(argv: list[str] | None = None) -> None:
         serve()
     elif args.cmd == "token":
         issue_token(args.email, args.name, args.hours, args.owner_of)
-    elif args.cmd == "secret":
-        secret_cmd(args.action, args.name, args.stdin)
+    elif args.cmd == "init":
+        init_cmd(args.recovery, args.show)
+    elif args.cmd == "rotate-master-key":
+        rotate_master_key(yes=args.yes)
     elif args.cmd == "backup":
         backup(Path(args.dest))
     elif args.cmd == "restore":

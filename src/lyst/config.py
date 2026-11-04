@@ -3,13 +3,14 @@
 """Configuration. Everything comes from environment variables with safe local defaults.
 
 LYST_HOME            where databases, keys and artifacts live (default ./var)
-LYST_MASTER_KEY      hex master key for encryption at rest. A secret: read from a mounted secret file, the OS
-                     credential store (`lyst secret set LYST_MASTER_KEY`) or the environment, in that order
-                     (security/vault.py). Only when none holds it does development fall back to a 0600
-                     keyfile at $LYST_HOME/.lyst-key, with a warning.
+LYST_MASTER_KEY      hex master key for encryption at rest. Comes from a trust anchor outside Lyst's data: a mounted
+                     secret file, OpenBao, the OS credential store (setup mode or `lyst init` puts it there) or the
+                     environment (secrets/masterkey.py). With none, the engine starts in setup mode; it never
+                     generates a key beside the database (LYST_DEV_INSECURE_KEYFILE=1 allows a dev keyfile).
 LYST_ENCRYPT         "1" (default) encrypts every DuckDB file; "0" disables (tests only)
-LYST_OPENROUTER_API_KEY  an OpenRouter key (a secret: keychain, mounted file or environment); when present,
-                     OpenRouter is the provider (Acumane's rails)
+LYST_OPENROUTER_API_KEY  optional seed for unattended deployments (mounted file or environment): imported once as the
+                     installation's OpenRouter credential. Normally the key is entered in Settings › Secrets.
+LYST_OPENBAO_URL     enterprise: keep secrets (and optionally the master key) in OpenBao KV v2; see docs/SECURITY.md
 LYST_LLM_TIER        economy | balanced (default) | frontier: the model list a call walks
 LYST_LLM_MODEL       pin one model (an OpenRouter slug, or the local model's name)
 LYST_LLM_PROVIDER    openrouter | local; inferred when unset
@@ -18,14 +19,14 @@ LYST_LLM_API_KEY     optional bearer key for the local endpoint
 LYST_LLM_EXTERNAL    "1" marks a non-OpenRouter endpoint as external (data policy applies)
 LYST_EMBED_MODEL     embedding model at the same provider (e.g. openai/text-embedding-3-small on OpenRouter,
                      nomic-embed-text on Ollama); turns on semantic search over documents and memory
-LYST_EXTERNAL_LLM_DEFAULT  "1" lets new workspaces use an external provider (default: on with OpenRouter)
+LYST_EXTERNAL_LLM_DEFAULT  "1"/"0": whether new workspaces may use an external provider (default: on once the
+                     installation has connected OpenRouter in Settings › Secrets & Connections)
 LYST_API_URL         where the Streamlit UI finds the API (default http://127.0.0.1:8770)
 """
 
 from __future__ import annotations
 
 import os
-import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -38,26 +39,26 @@ class LLMSettings:
     external: bool = False
     provider: str | None = None  # "openrouter" | "local" | None
     tier: str = "balanced"
-    external_default: bool = False
+    external_default: bool | None = False   # None: on once the installation has connected OpenRouter
 
     @property
     def configured(self) -> bool:
+        """Static configuration only; whether a key exists is answered at call time by the secret store."""
         if self.provider == "openrouter":
-            return bool(self.api_key)
+            return True
         return bool(self.base_url and self.model)
 
 
 def llm_settings_from_env() -> LLMSettings:
     env = os.environ
-    key = secret("LYST_OPENROUTER_API_KEY")
-    provider = env.get("LYST_LLM_PROVIDER") or ("openrouter" if key else ("local" if env.get("LYST_LLM_BASE_URL") else None))
+    provider = env.get("LYST_LLM_PROVIDER") or ("local" if env.get("LYST_LLM_BASE_URL") else "openrouter")
     if provider == "openrouter":
         return LLMSettings(base_url=env.get("LYST_OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
-                           model=env.get("LYST_LLM_MODEL") or None, api_key=key, external=True,
+                           model=env.get("LYST_LLM_MODEL") or None, api_key=None, external=True,
                            provider="openrouter", tier=env.get("LYST_LLM_TIER", "balanced"),
-                           external_default=env.get("LYST_EXTERNAL_LLM_DEFAULT", "1") == "1")
+                           external_default=(env["LYST_EXTERNAL_LLM_DEFAULT"] == "1") if env.get("LYST_EXTERNAL_LLM_DEFAULT") else None)
     return LLMSettings(base_url=env.get("LYST_LLM_BASE_URL") or None, model=env.get("LYST_LLM_MODEL") or None,
-                       api_key=secret("LYST_LLM_API_KEY"), external=env.get("LYST_LLM_EXTERNAL", "0") == "1",
+                       api_key=anchor("LYST_LLM_API_KEY"), external=env.get("LYST_LLM_EXTERNAL", "0") == "1",
                        provider=provider, tier=env.get("LYST_LLM_TIER", "balanced"),
                        external_default=env.get("LYST_EXTERNAL_LLM_DEFAULT", "0") == "1")
 
@@ -65,8 +66,9 @@ def llm_settings_from_env() -> LLMSettings:
 @dataclass(frozen=True)
 class Settings:
     home: Path
-    master_key: bytes
+    master_key: bytes | None          # None: no trust anchor holds it yet (setup mode)
     encrypt: bool = True
+    master_key_source: str | None = None
     api_url: str = "http://127.0.0.1:8770"
     llm: LLMSettings = field(default_factory=LLMSettings)
     workers: int = 2
@@ -81,28 +83,16 @@ class Settings:
     def artifact_dir(self, workspace_id: str) -> Path:
         return self.home / "artifacts" / workspace_id
 
+    @property
+    def setup_required(self) -> bool:
+        return self.encrypt and self.master_key is None
 
-def _master_key(home: Path) -> bytes:
-    stored = secret("LYST_MASTER_KEY")
-    if stored:
-        key = bytes.fromhex(stored)
-        if len(key) < 32:
-            raise ValueError("LYST_MASTER_KEY must be at least 32 bytes of hex")
-        return key
-    path = home / ".lyst-key"
-    if path.exists():
-        return bytes.fromhex(path.read_text().strip())
-    import logging
 
-    logging.getLogger("lyst.config").warning(
-        "no LYST_MASTER_KEY in the credential store, a mounted secret or the environment: creating a development keyfile at %s. "
-        "For a real deployment run `lyst secret set LYST_MASTER_KEY`.", path)
-    home.mkdir(parents=True, exist_ok=True)
-    key = secrets.token_bytes(32)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "w") as fh:
-        fh.write(key.hex())
-    return key
+def _master_key(home: Path) -> tuple[bytes | None, str | None]:
+    from .secrets import masterkey
+
+    mk = masterkey.resolve(home)
+    return (mk.key, mk.source) if mk else (None, None)
 
 
 def load_env_file() -> Path | None:
@@ -122,27 +112,30 @@ def load_env_file() -> Path | None:
                     continue
                 if is_secret_name(k):
                     logging.getLogger("lyst.config").warning(
-                        "%s in %s ignored: store secrets with `lyst secret set %s` (OS credential store) or a mounted secret file",
-                        k, candidate, k)
+                        "%s in %s ignored: credentials are entered in Settings › Secrets & Connections (or mounted under "
+                        "$LYST_SECRETS_DIR for unattended deployments), never read from .env", k, candidate)
                     continue
                 os.environ.setdefault(k, v)
             return Path(candidate).resolve()
     return None
 
 
-def secret(name: str) -> str | None:
-    from .security.vault import STORE
+def anchor(name: str) -> str | None:
+    """A bootstrap value from a trust anchor (mounted file, OS credential store, environment). Never cached."""
+    from .security.vault import anchor as _anchor
 
-    return STORE.get(name)
+    return _anchor(name)
 
 
 def load_settings(home: str | Path | None = None) -> Settings:
     load_env_file()
     root = Path(home or os.environ.get("LYST_HOME", "var")).resolve()
     root.mkdir(parents=True, exist_ok=True)
+    key, source = _master_key(root)
     return Settings(
         home=root,
-        master_key=_master_key(root),
+        master_key=key,
+        master_key_source=source,
         encrypt=os.environ.get("LYST_ENCRYPT", "1") != "0",
         api_url=os.environ.get("LYST_API_URL", "http://127.0.0.1:8770"),
         llm=llm_settings_from_env(),

@@ -45,12 +45,29 @@ class OIDCSettings:
         env = os.environ
         if not env.get("LYST_OIDC_ISSUER"):
             return None
-        from .vault import STORE  # noqa: PLC0415
+        from .vault import anchor  # noqa: PLC0415
 
-        return cls(env["LYST_OIDC_ISSUER"].rstrip("/"), env["LYST_OIDC_CLIENT_ID"], STORE.get("LYST_OIDC_CLIENT_SECRET"),
+        return cls(env["LYST_OIDC_ISSUER"].rstrip("/"), env["LYST_OIDC_CLIENT_ID"], anchor("LYST_OIDC_CLIENT_SECRET"),
                    env["LYST_OIDC_REDIRECT_URL"],
                    tuple(d.strip().lower() for d in env.get("LYST_OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()),
                    int(env.get("LYST_SESSION_HOURS", "12")))
+
+
+def oidc_settings_from_credentials(credentials) -> OIDCSettings | None:
+    """A sign-in provider connected in Settings › Secrets (installation scope) instead of the environment."""
+    env = os.environ
+    got = credentials.use("oidc_client", purpose="sign-in", consumer="oidc")
+    if not got:
+        return None
+    secret, lease = got
+    c = credentials._get(lease.credential_id)  # noqa: SLF001 - same trust boundary
+    import json  # noqa: PLC0415
+
+    f = json.loads(c["fields"])
+    redirect = env.get("LYST_OIDC_REDIRECT_URL") or (env.get("LYST_PUBLIC_URL", "http://127.0.0.1:8770").rstrip("/") + "/auth/callback")
+    return OIDCSettings(f["issuer"].rstrip("/"), f["client_id"], secret, redirect,
+                        tuple(d.strip().lower() for d in env.get("LYST_OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()),
+                        int(env.get("LYST_SESSION_HOURS", "12")))
 
 
 class OIDCError(PermissionError):

@@ -3,6 +3,7 @@
 """Versioned HTTP API. The Streamlit UI is one client of it; nothing in the UI talks to DuckDB."""
 
 
+import asyncio
 import logging
 import os
 import time
@@ -11,6 +12,7 @@ from typing import Annotated, Any
 from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
@@ -19,8 +21,10 @@ from .. import observability as obs
 from ..app import Lyst
 from ..connectors import ConnectorError, manifests
 from ..data.sqlguard import QueryRejected
+from ..secrets import MasterKeyMissing, ReauthRequired, SecretUnavailable
+from ..secrets import providers as credential_providers
 from ..security import AccessDenied, Principal
-from ..security.oidc import OIDC, OIDCError, OIDCSettings
+from ..security.oidc import OIDC, OIDCError, OIDCSettings, oidc_settings_from_credentials
 from ..semantic import MetricSpec
 
 log = logging.getLogger("lyst.api")
@@ -97,6 +101,37 @@ class SyncIn(BaseModel):
     every_seconds: int | None = None
 
 
+class CredentialIn(BaseModel):
+    provider: str
+    name: str
+    secret: str = ""
+    fields: dict[str, Any] = {}
+    scope_kind: str = "installation"      # installation | workspace | user
+    scope_id: str | None = None           # the workspace id; the caller's own id for user scope
+    test_first: bool = True
+
+
+class ReplaceIn(BaseModel):
+    secret: str
+    fields: dict[str, Any] = {}
+
+
+class PolicyIn(BaseModel):
+    provider: str
+    workspace_override: bool | None = None
+    user_credentials: bool | None = None
+
+
+class InstallationPatch(BaseModel):
+    settings: dict[str, str | None] | None = None   # LYST_LLM_TIER, LYST_LLM_MODEL, LYST_EMBED_MODEL
+    policy: PolicyIn | None = None
+    add_admin: str | None = None                    # a user id
+
+
+class SetupIn(BaseModel):
+    recovery_key: str | None = None   # paste a saved master key to recover an installation; empty generates a new one
+
+
 class MemberIn(BaseModel):
     email: str
     role: str
@@ -128,10 +163,17 @@ class Correction(BaseModel):
 def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OIDC | None = None) -> FastAPI:
     obs.configure_logging()
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        app.state.lyst = lyst or Lyst.build()
-        settings = OIDCSettings.from_env()
+    async def _run_mcp(mcp, ready: asyncio.Event, stop: asyncio.Event) -> None:
+        # the session manager's cancel scope must be entered and exited by the same task, whether the engine starts
+        # with the process or later from the setup page
+        async with mcp.session_manager.run():
+            ready.set()
+            await stop.wait()
+
+    async def _bring_up(app: FastAPI) -> None:
+        """Open the stores and start everything. Raises MasterKeyMissing when no trust anchor holds the key."""
+        app.state.lyst = lyst or await run_in_threadpool(Lyst.build)
+        settings = OIDCSettings.from_env() or oidc_settings_from_credentials(app.state.lyst.credentials)
         app.state.oidc = oidc or (OIDC(settings) if settings else None)
         if start_workers:
             app.state.lyst.runtime.start(app.state.lyst.settings.workers)
@@ -148,19 +190,51 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
                                                          allowed_origins=[f"http://{h}" for h in hosts] + [f"https://{h}" for h in hosts]))
         app.mount("/mcp", mcp_app)
         app.state.mcp = mcp
+        ready, app.state.mcp_stop = asyncio.Event(), asyncio.Event()
+        app.state.mcp_task = asyncio.create_task(_run_mcp(mcp, ready, app.state.mcp_stop))
+        await ready.wait()
+        app.state.setup_reason = None
         log.info("lyst api ready", extra={"workers": len(app.state.lyst.runtime._threads),
                                           "oidc": bool(app.state.oidc), "model": bool(app.state.lyst.llm.info())})
-        async with mcp.session_manager.run():
+
+    async def _tear_down(app: FastAPI) -> None:
+        task = getattr(app.state, "mcp_task", None)
+        if task is not None:
+            app.state.mcp_stop.set()
+            await task
+            app.state.mcp_task = None
+        if app.state.lyst is not None:
+            if lyst is None:
+                app.state.lyst.close()
+            else:
+                app.state.lyst.runtime.stop()
+            app.state.lyst = None
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.lyst, app.state.oidc, app.state.setup_reason, app.state.mcp_task = None, None, None, None
+        try:
+            await _bring_up(app)
+        except MasterKeyMissing as exc:
+            app.state.setup_reason = str(exc)
+            log.warning("setup mode: no master encryption key; waiting for initialisation from the browser or an operator")
+        try:
             yield
-        if lyst is None:
-            app.state.lyst.close()
-        else:
-            app.state.lyst.runtime.stop()
+        finally:
+            await _tear_down(app)
 
     app = FastAPI(title="Lyst API", version="0.1.0", lifespan=lifespan)
 
     def L(request: Request) -> Lyst:
-        return request.app.state.lyst
+        built = request.app.state.lyst
+        if built is None:
+            raise HTTPException(503, {"error": "setup_required", "detail": "Lyst has no master encryption key yet; open the interface "
+                                                                           "on the engine host to initialise it."})
+        return built
+
+    def _loopback(request: Request) -> bool:
+        host = request.client.host if request.client else ""
+        return host in ("127.0.0.1", "::1", "localhost", "testclient")
 
     def me(request: Request) -> Principal:
         auth = request.headers.get("authorization", "")
@@ -199,6 +273,14 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     async def _denied(_: Request, exc: AccessDenied):
         return JSONResponse({"error": "forbidden", "detail": str(exc)}, status_code=403)
 
+    @app.exception_handler(ReauthRequired)
+    async def _reauth(_: Request, exc: ReauthRequired):
+        return JSONResponse({"error": "reauth_required", "detail": str(exc)}, status_code=401)
+
+    @app.exception_handler(SecretUnavailable)
+    async def _secret_unavailable(_: Request, exc: SecretUnavailable):
+        return JSONResponse({"error": "secret_unavailable", "detail": str(exc)}, status_code=503)
+
     @app.exception_handler(QueryRejected)
     async def _rejected(_: Request, exc: QueryRejected):
         return JSONResponse({"error": "query_rejected", "detail": str(exc)}, status_code=400)
@@ -217,14 +299,48 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     @app.get("/health")
     def health(request: Request) -> dict[str, Any]:
+        if request.app.state.lyst is None:
+            return {"status": "setup", "version": "0.1.0", "setup_required": True, "oidc": False}
         lyst = L(request)
         lyst.stores.control.scalar("SELECT 1")
         info = lyst.llm.info()
         queued = lyst.stores.control.scalar("SELECT count(*) FROM tasks WHERE status = 'queued'") or 0
         obs.QUEUE_DEPTH.set(queued)
-        return {"status": "ok", "version": "0.1.0", "encrypted": lyst.settings.encrypt,
+        return {"status": "ok", "version": "0.1.0", "encrypted": lyst.settings.encrypt, "setup_required": False,
                 "model": info.name if info else None, "workers": len(lyst.runtime._threads), "queued": queued,
                 "oidc": request.app.state.oidc is not None}
+
+    # -- first run: initialise encryption (loopback only, before any data exists) --------------
+
+    @app.get("/setup/status")
+    def setup_status(request: Request) -> dict[str, Any]:
+        from ..secrets import masterkey  # noqa: PLC0415
+
+        return {"setup_required": request.app.state.lyst is None, "reason": request.app.state.setup_reason,
+                "keyring": masterkey.keyring_available(), "loopback": _loopback(request),
+                "openbao": bool(os.environ.get("LYST_OPENBAO_URL"))}
+
+    @app.post("/setup/initialize")
+    async def setup_initialize(request: Request, body: SetupIn) -> dict[str, Any]:
+        """Generate the master key into the OS credential store (or restore a saved one) and start the engine.
+        The recovery copy is returned exactly once and never stored by Lyst."""
+        from ..secrets import masterkey  # noqa: PLC0415
+
+        if request.app.state.lyst is not None:
+            raise ValueError("Lyst is already initialised")
+        if not _loopback(request):
+            raise AccessDenied("initialise encryption from the machine that runs the engine (loopback only)")
+        fresh = not body.recovery_key
+        mk = masterkey.provision_into_keyring() if fresh else masterkey.store_into_keyring(body.recovery_key)
+        try:
+            await _bring_up(request.app)
+        except Exception as exc:
+            masterkey.remove_from_keyring()
+            await _tear_down(request.app)
+            sealed_elsewhere = (not fresh) or "encryption key" in str(exc).lower()
+            raise ValueError("the existing databases were sealed with a different master key; restore its recovery copy instead"
+                             if sealed_elsewhere else f"initialisation failed: {exc}") from exc
+        return {"initialised": True, "source": mk.source, "recovery_key": mk.key.hex() if fresh else None}
 
     @app.get("/metrics")
     def prometheus_metrics(request: Request):
@@ -289,6 +405,86 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def remove_member(request: Request, ws: str, user_id: str, user: User):
         L(request).guard.remove_member(user, ws, user_id)
         return {"ok": True}
+
+    # -- credentials: users manage connections, Lyst manages secrets ---------------------------
+
+    def _scope(user: Principal, scope_kind: str, scope_id: str | None) -> tuple[str, str | None]:
+        if scope_kind == "user":
+            return "user", user.user_id
+        if scope_kind == "installation":
+            return "installation", None
+        return "workspace", scope_id
+
+    @app.get("/v1/credentials/providers")
+    def credential_providers_list(user: User):
+        return [{"id": p.id, "label": p.label, "secret_label": p.secret_label, "scopes": list(p.scopes), "notes": p.notes,
+                 "short_lived": p.short_lived, "revocation_note": p.revocation_note,
+                 "fields": [{"name": n, "label": label, "required": req} for n, label, req in p.fields]}
+                for p in credential_providers.PROVIDERS.values()]
+
+    @app.get("/v1/credentials")
+    def credentials_list(request: Request, user: User, scope_kind: str = "installation", scope_id: str | None = None):
+        lyst = L(request)
+        kind, sid = _scope(user, scope_kind, scope_id)
+        return {"scope_kind": kind, "scope_id": sid, "credentials": lyst.credentials.list(user, scope_kind=kind, scope_id=sid),
+                "policy": lyst.credentials.policy()}
+
+    @app.post("/v1/credentials")
+    def credentials_connect(request: Request, body: CredentialIn, user: User):
+        kind, sid = _scope(user, body.scope_kind, body.scope_id)
+        return L(request).credentials.connect(user, scope_kind=kind, scope_id=sid, provider=body.provider, name=body.name,
+                                              secret=body.secret, fields=body.fields, test_first=body.test_first)
+
+    @app.post("/v1/credentials/{cid}/test")
+    def credentials_test(request: Request, cid: str, user: User):
+        return L(request).credentials.test(user, cid)
+
+    @app.post("/v1/credentials/{cid}/replace")
+    def credentials_replace(request: Request, cid: str, body: ReplaceIn, user: User):
+        return L(request).credentials.replace(user, cid, body.secret, fields=body.fields)
+
+    @app.delete("/v1/credentials/{cid}")
+    def credentials_revoke(request: Request, cid: str, user: User):
+        return L(request).credentials.revoke(user, cid)
+
+    @app.get("/v1/credentials/{cid}/history")
+    def credentials_history(request: Request, cid: str, user: User):
+        return L(request).credentials.history(user, cid)
+
+    @app.get("/v1/installation")
+    def installation(request: Request, user: User):
+        """Installation-wide state for its administrators: who they are, the policy, settings, the secret backend."""
+        from ..security import vault  # noqa: PLC0415
+
+        lyst = L(request)
+        c = lyst.credentials
+        if not c.is_installation_admin(user):
+            raise AccessDenied("installation settings are managed by installation administrators")
+        st = c.status()
+        return {"admins": st["admins"], "policy": c.policy(), "settings": c.settings_all(), "backend": st["backend"],
+                "audit": st["audit"], "active_credentials": st["active"],
+                "master_key_source": lyst.settings.master_key_source, "encrypted": lyst.settings.encrypt,
+                "anchors": vault.status(), "home": str(lyst.settings.home), "provider": lyst.settings.llm.provider,
+                "model": (lyst.llm.info().__dict__ if lyst.llm.info() else None),
+                "events": c.events(user, scope_kind="installation", limit=50)}
+
+    @app.patch("/v1/installation")
+    def installation_patch(request: Request, body: InstallationPatch, user: User):
+        lyst = L(request)
+        c = lyst.credentials
+        if body.settings:
+            for k, v in body.settings.items():
+                if k not in ("LYST_LLM_TIER", "LYST_LLM_MODEL", "LYST_EMBED_MODEL"):
+                    raise ValueError(f"{k} is not an installation setting")
+                if k == "LYST_LLM_TIER" and v not in (None, "", "economy", "balanced", "frontier"):
+                    raise ValueError("tier must be economy, balanced or frontier")
+                c.set_setting(user, k, v)
+        if body.policy:
+            c.set_policy(user, body.policy.provider, workspace_override=body.policy.workspace_override,
+                         user_credentials=body.policy.user_credentials)
+        if body.add_admin:
+            c.add_installation_admin(user, body.add_admin)
+        return {"policy": c.policy(), "settings": c.settings_all(), "admins": c.installation_admins()}
 
     # -- data -------------------------------------------------------------------------------
 
@@ -619,15 +815,20 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         lyst = L(request)
         role = lyst.guard.require(user, ws, "workspace.read")
         w = lyst.stores.control.query("SELECT * FROM workspaces WHERE id = ?", [ws])[0]
-        info = lyst.llm.info()
+        info = lyst.llm.info(ws)
         calls = lyst.stores.control.query(
             "SELECT count(*) AS calls, coalesce(sum(input_tokens), 0) AS input_tokens, "
             "coalesce(sum(output_tokens), 0) AS output_tokens FROM llm_calls WHERE workspace_id = ?", [ws])[0]
-        from ..security.vault import STORE  # noqa: PLC0415
+        credentials = None
+        if role == "owner":
+            c = lyst.credentials.resolve("openrouter", workspace=ws) if lyst.settings.llm.provider == "openrouter" else None
+            credentials = {"model_credential": {"scope": c["scope_kind"], "name": c["name"], "id": c["id"]} if c else None,
+                           "installation_admin": lyst.credentials.is_installation_admin(user),
+                           "policy": lyst.credentials.policy().get("openrouter")}
 
         return {"workspace": w, "role": role, "model": info.__dict__ if info else None, "llm_usage": calls,
                 "gateway": lyst.llm.status() if role in ("admin", "owner") else None,
-                "secrets": STORE.status() if role == "owner" else None,
+                "credentials": credentials, "model_ready": lyst.llm.allowed_for(ws), "provider": lyst.settings.llm.provider,
                 "encrypted": lyst.settings.encrypt, "home": str(lyst.settings.home) if role == "owner" else None}
 
     @app.patch("/v1/workspaces/{ws}/settings")

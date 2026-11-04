@@ -41,7 +41,7 @@ def _app(tmp_path, monkeypatch):
     monkeypatch.setenv("LYST_OPENROUTER_API_KEY", "sk-or-test")
     monkeypatch.setenv("LYST_EMBED_MODEL", "openai/text-embedding-3-small")
     app = Lyst.build(load_settings(tmp_path / "h"))
-    client = LLMClient(app.settings.llm, app.stores, transport=httpx.MockTransport(handler))
+    client = LLMClient(app.settings.llm, app.stores, transport=httpx.MockTransport(handler), credentials=app.credentials)
     app.services.llm = app.knowledge.llm = app.memory.llm = client
     app.llm = client
     owner = app.guard.create_user("o@x.test", "O")

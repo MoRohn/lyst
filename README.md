@@ -23,7 +23,7 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 153 tests
+uv run pytest                # 170 tests
 uv run lyst eval             # scores 19 analytical questions against independent answers
 ```
 
@@ -33,9 +33,10 @@ bridge reconciled exactly and every query listed. That story is planted in the d
 (`src/lyst/demo.py`) so the tests can check that Lyst recovers it.
 
 Configuration is environment variables (a `.env` file works for non-secret settings), listed at the top of
-`src/lyst/config.py`. Secrets come from the OS credential store, a mounted secret file or the orchestrator,
-never from `.env`: `lyst secret set LYST_MASTER_KEY` and `lyst secret set LYST_OPENROUTER_API_KEY`
-(see `docs/SECURITY.md`). The generated keyfile is for development only.
+`src/lyst/config.py`. Credentials are never configuration: the OpenRouter key, database passwords and API
+tokens are entered once in **Settings › Secrets & Connections**, tested, sealed with AES-256-GCM under a master
+key kept outside the database, and never shown again. On first start the UI initialises that master key into
+the machine's credential store (or an operator mounts it); see `docs/SECURITY.md`, *Secrets and credentials*.
 
 ## Repository layout
 

@@ -46,35 +46,62 @@ class ModelInfo:
 
 class LLMClient:
     def __init__(self, settings: LLMSettings, stores: Stores, *, transport: httpx.BaseTransport | None = None,
-                 gateway: Gateway | None = None):
+                 gateway: Gateway | None = None, credentials=None):
         self.settings = settings
         self.stores = stores
         self.gateway = gateway
+        self.credentials = credentials  # the broker; None only in unit tests that pass a static key
         self._local = threading.local()
         if self.gateway is None and settings.configured:
             self.gateway = Gateway(provider=settings.provider or "local", base_url=settings.base_url or "",
-                                   api_key=settings.api_key, http=httpx.Client(transport=transport),
-                                   on_call=self._record)
+                                   api_key=self._key_for, http=httpx.Client(transport=transport), on_call=self._record)
+
+    # -- keys come from the credential broker at call time, so a key connected in Settings works without a restart
+    def _key_for(self, tenant: str | None = None) -> str | None:
+        ws = None if tenant in (None, "platform") else tenant
+        if self.credentials is None:
+            return self.settings.api_key
+        provider = "openrouter" if self.settings.provider == "openrouter" else "local_llm"
+        got = self.credentials.use(provider, purpose="inference", workspace=ws, consumer="gateway")
+        if got:
+            return got[0]
+        return None if provider == "openrouter" else self.settings.api_key
+
+    def _setting(self, key: str, default: str | None = None) -> str | None:
+        import os  # noqa: PLC0415
+
+        v = self.credentials.setting(key) if self.credentials is not None else None
+        return v or os.environ.get(key) or default
+
+    def available_for(self, workspace_id: str | None = None) -> bool:
+        if self.gateway is None:
+            return False
+        if self.settings.provider == "openrouter":
+            if self.credentials is None:
+                return bool(self.settings.api_key)
+            return self.credentials.resolve("openrouter", workspace=workspace_id) is not None
+        return True
 
     @property
     def available(self) -> bool:
-        return self.gateway is not None
+        return self.available_for(None)
 
     def models(self) -> list[str]:
         if self.settings.provider == "openrouter":
-            return policy.attempts(self.settings.tier, self.settings.model)
+            return policy.attempts(self._setting("LYST_LLM_TIER", self.settings.tier), self._setting("LYST_LLM_MODEL", self.settings.model))
         return [self.settings.model] if self.settings.model else []
 
-    def info(self) -> ModelInfo | None:
-        if not self.settings.configured:
+    def info(self, workspace_id: str | None = None) -> ModelInfo | None:
+        if not self.available_for(workspace_id):
             return None
         models = self.models()
+        pinned = self._setting("LYST_LLM_MODEL", self.settings.model)
         return ModelInfo(models[0], self.settings.base_url or "", self.settings.external,
                          self.settings.provider or "local",
-                         policy.tier_of(self.settings.tier) if not self.settings.model else None, tuple(models))
+                         policy.tier_of(self._setting("LYST_LLM_TIER", self.settings.tier)) if not pinned else None, tuple(models))
 
     def allowed_for(self, workspace_id: str) -> bool:
-        if not self.available:
+        if not self.available_for(workspace_id):
             return False
         if not self.settings.external:
             return True
@@ -118,9 +145,7 @@ class LLMClient:
 
     @property
     def embed_model(self) -> str | None:
-        import os  # noqa: PLC0415
-
-        return os.environ.get("LYST_EMBED_MODEL") or None
+        return self._setting("LYST_EMBED_MODEL")
 
     def can_embed(self, workspace_id: str) -> bool:
         return bool(self.embed_model) and self.allowed_for(workspace_id)

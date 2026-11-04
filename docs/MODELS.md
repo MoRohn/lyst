@@ -8,7 +8,7 @@ alternative; with neither, Lyst runs on rules and templates and every number sti
 
 | Variable | Meaning |
 |---|---|
-| `LYST_OPENROUTER_API_KEY` | Turns OpenRouter on. A secret: `lyst secret set LYST_OPENROUTER_API_KEY` (OS credential store), a mounted file under `/run/secrets`, or an injected environment variable; never a `.env` file. Use a key of its own for Lyst |
+| OpenRouter key | Connected in **Settings › Secrets & Connections › Installation** (tested with `GET /key`, sealed, never shown again). Unattended deployments may mount `LYST_OPENROUTER_API_KEY` under `/run/secrets` as a one-time seed; never a `.env` file. Use a key of its own for Lyst |
 | `LYST_LLM_TIER` | `economy`, `balanced` (default) or `frontier`: the model list a call walks, copied from Acumane's published catalog (`src/lyst/llm/tiers.json`, catalog version 4) |
 | `LYST_LLM_MODEL` | Pin one slug; it is used alone |
 | `LYST_LLM_BASE_URL`, `LYST_LLM_MODEL` | A local server instead (Ollama `http://localhost:11434/v1`, llama.cpp, vLLM) |

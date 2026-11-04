@@ -58,9 +58,6 @@ def test_restore_refuses_a_backup_from_another_key(seeded, tmp_path, monkeypatch
 
     monkeypatch.setenv("LYST_MASTER_KEY", "cd" * 32)
     monkeypatch.setenv("LYST_HOME", str(tmp_path / "home3"))
-    from lyst.security.vault import STORE
-
-    STORE.forget()  # secrets are cached per process; a changed key needs a fresh read
     with pytest.raises(SystemExit, match="does not open with the current master key"):
         restore(dest, yes=True)
 

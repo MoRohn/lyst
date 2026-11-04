@@ -70,7 +70,7 @@ def test_openrouter_end_to_end_through_the_analyst(tmp_path, monkeypatch):
                                          "usage": {"prompt_tokens": 50, "completion_tokens": 9, "cost": 0.00002}})
 
     app = Lyst.build(load_settings(tmp_path / "h"))
-    app.services.llm = LLMClient(app.settings.llm, app.stores, transport=httpx.MockTransport(handler))
+    app.services.llm = LLMClient(app.settings.llm, app.stores, transport=httpx.MockTransport(handler), credentials=app.credentials)
     try:
         assert app.settings.llm.provider == "openrouter"
         owner = app.guard.create_user("o@x.test", "O")

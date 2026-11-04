@@ -327,10 +327,11 @@ class Gateway:
             body.update(extra)
         return body
 
-    def _headers(self) -> dict[str, str]:
+    def _headers(self, tenant: str = "platform") -> dict[str, str]:
         h = {}
-        if self.api_key:
-            h["Authorization"] = f"Bearer {self.api_key}"
+        key = self.api_key(tenant) if callable(self.api_key) else self.api_key
+        if key:
+            h["Authorization"] = f"Bearer {key}"
         if self.provider == "openrouter":
             h["HTTP-Referer"] = OPENROUTER_SITE
             h["X-Title"] = OPENROUTER_TITLE
@@ -357,7 +358,7 @@ class Gateway:
                 status, outcome, retry_after, resp = None, "error", None, None
                 rec = CallRecord(model, pool, workload, tenant, None, "error", lease.queue_ms, 0, tries_total)
                 try:
-                    resp = self.http.post(f"{self.base_url}/chat/completions", headers=self._headers(),
+                    resp = self.http.post(f"{self.base_url}/chat/completions", headers=self._headers(tenant),
                                           json=self._body(model, messages, workload, json_mode=json_mode,
                                                           max_tokens=max_tokens, reasoning_effort=reasoning_effort,
                                                           extra=extra),
@@ -422,7 +423,7 @@ class Gateway:
         rec = CallRecord(model, "background", "embed", tenant, None, "error", lease.queue_ms, 0, 1)
         outcome, retry_after = "error", None
         try:
-            resp = self.http.post(f"{self.base_url}/embeddings", headers=self._headers(),
+            resp = self.http.post(f"{self.base_url}/embeddings", headers=self._headers(tenant),
                                   json={"model": model, "input": texts, **({"usage": {"include": True}} if self.provider == "openrouter" else {})},
                                   timeout=self.timeout_s)
             rec.status = resp.status_code
@@ -449,10 +450,10 @@ class Gateway:
             self.admission.release(lease, outcome, retry_after if outcome == "throttled" else None)
             self.on_call(rec)
 
-    def key_status(self) -> dict[str, Any] | None:
+    def key_status(self, tenant: str = "platform") -> dict[str, Any] | None:
         """OpenRouter's view of this key: limit, usage and what remains (GET /api/v1/key)."""
         if self.provider != "openrouter":
             return None
-        resp = self.http.get(f"{self.base_url}/key", headers=self._headers(), timeout=10)
+        resp = self.http.get(f"{self.base_url}/key", headers=self._headers(tenant), timeout=10)
         resp.raise_for_status()
         return resp.json().get("data", {})
