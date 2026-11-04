@@ -99,7 +99,7 @@ export const capabilities: {
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Databases, APIs and files today, with more sources on the way.',
+    text: 'Databases, APIs and files today. Every connection reports its health in plain words and checks schema changes against its contract.',
     items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files by URL', 'Local files and documents', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },

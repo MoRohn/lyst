@@ -7,6 +7,8 @@ import answerLight from '../assets/product/analyst-answer-light.png';
 import answerDark from '../assets/product/analyst-answer-dark.png';
 import homeLight from '../assets/product/home-light.png';
 import homeDark from '../assets/product/home-dark.png';
+import trustLight from '../assets/product/data-trust-light.png';
+import trustDark from '../assets/product/data-trust-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -33,6 +35,17 @@ const views: View[] = [
       { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '33%', y: '19%' },
       { icon: 'Layers', text: 'Summary, Detail or Method', x: '66%', y: '24.6%' },
       { icon: 'ListChecks', text: 'What it means, what to do', x: '72%', y: '78.6%' },
+    ],
+  },
+  {
+    id: 'trust',
+    tab: 'Data trust',
+    img: trustLight,
+    dark: trustDark,
+    alt: 'A dataset in Lyst, “P&L from the ledger”, with “Before you rely on it · 3”: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look), what depends on it, and how it connects to other data.',
+    callouts: [
+      { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '45%', y: '60.5%' },
+      { icon: 'Network', text: 'What depends on it', x: '30%', y: '73.5%' },
     ],
   },
   {
