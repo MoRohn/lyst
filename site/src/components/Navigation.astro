@@ -1,0 +1,285 @@
+---
+import Logo from './Logo.astro';
+import Icon from './Icon.astro';
+import { nav, stage } from '../config/site';
+---
+
+<header class="nav" data-nav>
+  <div class="container nav-inner">
+    <a href="#top" class="brand" aria-label="Lyst, back to top">
+      <Logo id="nav-logo" height={26} label="Lyst" />
+    </a>
+
+    <nav class="links" aria-label="Primary">
+      <ul>
+        {nav.slice(0, 4).map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+        <li><a href="#early-access">Early Access</a></li>
+      </ul>
+    </nav>
+
+    <div class="actions">
+      <a class="btn btn-sm cta" href={stage.primaryHref}>{stage.primaryCta}</a>
+      <button
+        class="menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        data-menu-toggle
+      >
+        <span class="sr-only">Open menu</span>
+        <span class="bars" aria-hidden="true"><span></span><span></span></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="mobile" id="mobile-menu" data-menu hidden>
+    <nav aria-label="Mobile">
+      <ul>
+        {
+          nav.map((item) => (
+            <li>
+              <a href={item.href} data-menu-link>
+                {item.label}
+                <Icon name="ArrowRight" size={18} />
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <a class="btn btn-teal" href={stage.primaryHref} data-menu-link>{stage.primaryCta}</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--nav-h);
+    background: rgb(248 249 247 / 0.82);
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s var(--ease), background-color 0.3s var(--ease);
+  }
+
+  .nav.scrolled {
+    border-bottom-color: var(--line);
+    background: rgb(248 249 247 / 0.92);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    gap: var(--space-5);
+  }
+
+  .brand {
+    display: inline-flex;
+    border-radius: 6px;
+    padding: 4px 2px;
+  }
+
+  .links ul {
+    display: flex;
+    gap: clamp(1rem, 0.2rem + 1.6vw, 2.25rem);
+    list-style: none;
+  }
+
+  .links a {
+    position: relative;
+    font-size: 0.9063rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-decoration: none;
+    padding: 0.4rem 0;
+    transition: color 0.2s var(--ease);
+  }
+
+  .links a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--teal-dark);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s var(--ease);
+  }
+
+  .links a:hover,
+  .links a[aria-current='true'] {
+    color: var(--ink);
+  }
+
+  .links a:hover::after,
+  .links a[aria-current='true']::after {
+    transform: scaleX(1);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .menu-toggle {
+    display: none;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+    cursor: pointer;
+    place-items: center;
+  }
+
+  .bars {
+    position: relative;
+    display: block;
+    width: 18px;
+    height: 10px;
+  }
+
+  .bars span {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1.5px;
+    border-radius: 2px;
+    background: var(--ink);
+    transition: transform 0.25s var(--ease), top 0.25s var(--ease);
+  }
+
+  .bars span:first-child {
+    top: 0;
+  }
+
+  .bars span:last-child {
+    top: 8.5px;
+  }
+
+  [aria-expanded='true'] .bars span:first-child {
+    top: 4.25px;
+    transform: rotate(45deg);
+  }
+
+  [aria-expanded='true'] .bars span:last-child {
+    top: 4.25px;
+    transform: rotate(-45deg);
+  }
+
+  .mobile {
+    position: fixed;
+    inset: var(--nav-h) 0 0 0;
+    z-index: 49;
+    background: var(--offwhite);
+    padding: var(--space-5) var(--gutter) var(--space-7);
+    overflow-y: auto;
+    animation: menu-in 0.25s var(--ease);
+  }
+
+  .mobile[hidden] {
+    display: none;
+  }
+
+  .mobile ul {
+    list-style: none;
+    margin-bottom: var(--space-6);
+  }
+
+  .mobile li a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 1.25rem;
+    font-weight: 550;
+    letter-spacing: -0.015em;
+    text-decoration: none;
+  }
+
+  .mobile li a :global(svg) {
+    color: var(--slate);
+  }
+
+  .mobile .btn {
+    width: 100%;
+  }
+
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+
+  @media (max-width: 880px) {
+    .links {
+      display: none;
+    }
+
+    .menu-toggle {
+      display: grid;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .cta {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-nav]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const menu = document.querySelector<HTMLElement>('[data-menu]');
+
+  if (header && toggle && menu) {
+    const label = toggle.querySelector('.sr-only');
+    const setOpen = (open: boolean) => {
+      toggle.setAttribute('aria-expanded', String(open));
+      if (label) label.textContent = open ? 'Close menu' : 'Open menu';
+      menu.hidden = !open;
+      document.documentElement.style.overflow = open ? 'hidden' : '';
+      if (open) menu.querySelector<HTMLElement>('a')?.focus();
+    };
+
+    toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+    menu.querySelectorAll('[data-menu-link]').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menu.hidden) {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+    window.matchMedia('(min-width: 881px)').addEventListener('change', (e) => e.matches && setOpen(false));
+
+    const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Highlight the section in view.
+    const links = [...header.querySelectorAll<HTMLAnchorElement>('.links a')];
+    const targets = links
+      .map((a) => document.querySelector<HTMLElement>(a.hash))
+      .filter((el): el is HTMLElement => Boolean(el));
+    const spy = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          links.forEach((a) => a.setAttribute('aria-current', String(a.hash === '#' + entry.target.id)));
+        });
+      },
+      { rootMargin: '-45% 0px -50% 0px' },
+    );
+    targets.forEach((t) => spy.observe(t));
+  }
+</script>

@@ -1,0 +1,136 @@
+---
+import Icon from './Icon.astro';
+import { problem } from '../data/content';
+---
+
+<section class="section problem" aria-labelledby="problem-title">
+  <div class="container grid">
+    <div class="head" data-reveal>
+      <p class="eyebrow">{problem.eyebrow}</p>
+      <h2 id="problem-title" class="h2">{problem.headline}</h2>
+    </div>
+
+    <ul class="points">
+      {
+        problem.points.map((p, i) => (
+          <li data-reveal style={`--reveal-delay:${i}`}>
+            <span class="ic"><Icon name={p.icon} size={18} /></span>
+            <div>
+              <h3>{p.title}</h3>
+              <p>{p.text}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="closing" data-reveal>
+      <span class="rule" aria-hidden="true"></span>
+      {problem.closing}
+    </p>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(2rem, 1rem + 4vw, 6rem);
+    align-items: start;
+  }
+
+  .head {
+    position: sticky;
+    top: calc(var(--nav-h) + 2rem);
+  }
+
+  .points {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--line);
+  }
+
+  .points li {
+    display: flex;
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-4) var(--space-5) 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .points li:nth-child(odd) {
+    border-right: 1px solid var(--line);
+  }
+
+  .points li:nth-child(even) {
+    padding-left: var(--space-5);
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--white);
+    color: var(--slate);
+  }
+
+  h3 {
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+
+  .points p {
+    margin-top: 0.3rem;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  .closing {
+    grid-column: 2;
+    display: flex;
+    gap: var(--space-4);
+    font-size: var(--step-1);
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  .rule {
+    flex: none;
+    width: 3px;
+    border-radius: 2px;
+    background: linear-gradient(var(--teal-dark), var(--teal));
+  }
+
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .head {
+      position: static;
+    }
+
+    .closing {
+      grid-column: 1;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .points {
+      grid-template-columns: 1fr;
+    }
+
+    .points li:nth-child(odd) {
+      border-right: 0;
+    }
+
+    .points li:nth-child(even) {
+      padding-left: 0;
+    }
+  }
+</style>

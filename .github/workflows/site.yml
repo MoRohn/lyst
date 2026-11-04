@@ -1,0 +1,101 @@
+# Builds, tests and deploys the Lyst website in site/ to GitHub Pages.
+# One-time setup (repository owner): Settings → Pages → Source: "GitHub Actions".
+# This workflow never changes repository settings itself.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/site.yml']
+  pull_request:
+    paths: ['site/**', '.github/workflows/site.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: site
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: site/.nvmrc
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+      - run: npm ci
+      - run: npx astro check
+      - name: Waitlist service tests
+        working-directory: site/waitlist
+        run: uv run pytest
+      - run: npx playwright install --with-deps chromium
+      - name: Browser tests (all build variants, real waitlist service)
+        run: npm test
+      - run: npm run build:fast
+      - run: node scripts/check-links.mjs dist --offline
+      - run: npm run test:secrets
+      - run: npm run licenses
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: site/test-results
+          retention-days: 7
+
+  build:
+    name: Build for Pages
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: site/.nvmrc
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - id: pages
+        uses: actions/configure-pages@v5
+      - run: npm ci
+      - name: Build
+        env:
+          # configure-pages reports the live origin and base path, so the same build works for
+          # https://USER.github.io/REPO/ and for a custom domain set in the Pages settings.
+          # Repository variables (Settings → Secrets and variables → Actions → Variables) override them.
+          PUBLIC_SITE_URL: ${{ vars.LYST_SITE_URL || steps.pages.outputs.origin }}
+          PUBLIC_BASE_PATH: ${{ vars.LYST_BASE_PATH || steps.pages.outputs.base_path || '/' }}
+          PUBLIC_LAUNCH_MODE: ${{ vars.LYST_LAUNCH_MODE || 'stealth' }}
+          PUBLIC_WAITLIST_ENDPOINT: ${{ vars.LYST_WAITLIST_ENDPOINT }}
+          PUBLIC_CONTACT_EMAIL: ${{ vars.LYST_CONTACT_EMAIL }}
+          PUBLIC_GITHUB_URL: ${{ vars.LYST_GITHUB_URL }}
+        run: npm run build
+      - run: npm run test:secrets -- dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

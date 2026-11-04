@@ -1,0 +1,129 @@
+---
+import Logo from './Logo.astro';
+import { footer } from '../data/content';
+import { site, stage } from '../config/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="footer dark" aria-labelledby="footer-title">
+  <h2 id="footer-title" class="sr-only">Site footer</h2>
+  <div class="container">
+    <div class="top">
+      <div class="brand">
+        <Logo id="footer-logo" tone="light" height={28} label="Lyst" />
+        <p>{footer.description}</p>
+        <p class="stage"><span class="status status-dev">{stage.status}</span></p>
+      </div>
+
+      <nav aria-label="Footer">
+        <h3>Explore</h3>
+        <ul>
+          <li><a href="#product">Product</a></li>
+          <li><a href="#demos">Demonstrations</a></li>
+          <li><a href="#capabilities">Capabilities</a></li>
+          <li><a href="#open-source">Open source</a></li>
+          <li><a href="#early-access">Early access</a></li>
+          <li><a href="#design-partners">Design partners</a></li>
+        </ul>
+      </nav>
+
+      <div class="col">
+        <h3>Project</h3>
+        <ul>
+          {site.githubUrl && <li><a href={site.githubUrl} rel="noopener">GitHub repository</a></li>}
+          {site.contactEmail && <li><a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a></li>}
+          <li><a href="https://www.apache.org/licenses/LICENSE-2.0" rel="license noopener">Apache License 2.0</a></li>
+        </ul>
+      </div>
+
+      <div class="col privacy" id="privacy">
+        <h3>Privacy</h3>
+        <p>{footer.privacy}</p>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <p>© {year} {site.copyrightHolder}. Lyst is open-source software licensed under Apache-2.0.</p>
+      <p>Product previews on this page are illustrative and use synthetic data.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    padding: var(--space-8) 0 var(--space-6);
+    font-size: 0.875rem;
+  }
+
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 2fr) minmax(0, 2fr) minmax(0, 4fr);
+    gap: var(--space-6);
+    padding-bottom: var(--space-7);
+    border-bottom: 1px solid var(--d-line);
+  }
+
+  .brand p {
+    max-width: 22rem;
+    margin-top: var(--space-4);
+    color: var(--d-muted);
+  }
+
+  .brand .stage {
+    margin-top: var(--space-4);
+  }
+
+  h3 {
+    margin-bottom: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--d-muted);
+  }
+
+  ul {
+    list-style: none;
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  a {
+    color: var(--d-ink);
+    text-decoration: none;
+    text-underline-offset: 3px;
+  }
+
+  a:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--teal);
+  }
+
+  .privacy p {
+    color: var(--d-muted);
+    line-height: 1.6;
+  }
+
+  .bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding-top: var(--space-5);
+    font-size: 0.8125rem;
+    color: #8593a0;
+  }
+
+  @media (max-width: 960px) {
+    .top {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .top {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

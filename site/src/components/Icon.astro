@@ -1,0 +1,41 @@
+---
+/**
+ * Lucide icon rendered to inline SVG at build time (no client JS).
+ * Usage: <Icon name="Database" />  — names are lucide's PascalCase exports.
+ */
+import * as lucide from 'lucide';
+
+interface Props {
+  name: string;
+  size?: number;
+  class?: string;
+  strokeWidth?: number;
+  label?: string;
+}
+
+const { name, size = 20, class: className = 'icon', strokeWidth = 1.75, label } = Astro.props;
+type Node = [string, Record<string, string>];
+const node = (lucide as unknown as Record<string, Node[] | undefined>)[name];
+if (!node) throw new Error(`Unknown lucide icon: ${name}`);
+const body = node
+  .map(([tag, attrs]) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ')}/>`)
+  .join('');
+---
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width={strokeWidth}
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class={className}
+  aria-hidden={label ? undefined : 'true'}
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  focusable="false"
+  set:html={body}
+/>

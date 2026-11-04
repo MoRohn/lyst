@@ -1,0 +1,97 @@
+---
+import Icon from './Icon.astro';
+import { enterprise } from '../data/content';
+import { stage } from '../config/site';
+---
+
+<section class="section ent" aria-labelledby="ent-title">
+  <div class="container">
+    <div class="section-head" data-reveal>
+      <p class="eyebrow">{enterprise.eyebrow}</p>
+      <h2 id="ent-title" class="h2">{enterprise.headline}</h2>
+      <p class="lede">{stage.enterpriseNote}</p>
+    </div>
+
+    <ul class="grid">
+      {
+        enterprise.items.map((it, i) => (
+          <li data-reveal style={`--reveal-delay:${i % 4}`}>
+            <span class="ic"><Icon name={it.icon} size={18} /></span>
+            <h3>{it.title}</h3>
+            <p>{it.text}</p>
+            <span class="goal">Design goal</span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .grid li {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-5);
+    background: var(--offwhite);
+    transition: background-color 0.25s var(--ease), opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  }
+
+  .grid li:hover {
+    background: var(--white);
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: var(--space-5);
+    border-radius: 9px;
+    background: var(--graphite);
+    color: var(--teal);
+  }
+
+  h3 {
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+
+  .grid p {
+    margin-top: 0.35rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+
+  .goal {
+    margin-top: auto;
+    padding-top: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: 0.6563rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  @media (max-width: 1000px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 540px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,34 @@
+---
+import Base from '../layouts/Base.astro';
+import Logo from '../components/Logo.astro';
+import { withBase } from '../lib/url';
+---
+
+<Base title="Page not found | Lyst" description="This page does not exist." path="/404">
+  <main id="main" class="nf">
+    <Logo id="nf-logo" height={30} />
+    <h1>This page doesn’t exist.</h1>
+    <p>The address may be mistyped, or the page may have moved.</p>
+    <a class="btn" href={withBase('/')}>Back to Lyst</a>
+  </main>
+</Base>
+
+<style>
+  .nf {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 1.25rem;
+    min-height: 100vh;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: var(--step-3);
+  }
+
+  p {
+    color: var(--muted);
+  }
+</style>

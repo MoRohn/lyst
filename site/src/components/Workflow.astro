@@ -1,0 +1,146 @@
+---
+import Icon from './Icon.astro';
+import { workflow } from '../data/content';
+---
+
+<section class="section wf" id="how-it-works" aria-labelledby="wf-title-h">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <p class="eyebrow">{workflow.eyebrow}</p>
+      <h2 id="wf-title-h" class="h2">{workflow.headline}</h2>
+    </div>
+
+    <ol class="steps">
+      {
+        workflow.steps.map((s, i) => (
+          <li data-reveal style={`--reveal-delay:${i * 2}`}>
+            <div class="node">
+              <span class="ic"><Icon name={s.icon} size={20} /></span>
+            </div>
+            <span class="n">Step {i + 1}</span>
+            <h3>{s.title}</h3>
+            <p>{s.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .steps {
+    list-style: none;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-5);
+    counter-reset: step;
+  }
+
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 12.5%;
+    right: 12.5%;
+    height: 2px;
+    background: linear-gradient(to right, var(--teal-dark), var(--teal));
+    opacity: 0.35;
+  }
+
+  .steps li {
+    position: relative;
+    text-align: center;
+    padding-inline: var(--space-2);
+  }
+
+  .node {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    margin: 0 auto var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--offwhite);
+    box-shadow: 0 0 0 6px var(--offwhite);
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--white);
+    border: 1px solid var(--line);
+    color: var(--teal-dark);
+    transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+  }
+
+  .steps li:hover .ic {
+    background: var(--teal-dark);
+    color: var(--white);
+  }
+
+  .steps li:last-child .ic {
+    background: var(--teal-dark);
+    border-color: var(--teal-dark);
+    color: var(--white);
+  }
+
+  .n {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal-dark);
+  }
+
+  h3 {
+    margin-top: 0.4rem;
+    font-size: var(--step-1);
+    letter-spacing: -0.02em;
+  }
+
+  .steps p {
+    max-width: 16rem;
+    margin: 0.4rem auto 0;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  @media (max-width: 860px) {
+    .steps {
+      grid-template-columns: 1fr;
+      gap: var(--space-6);
+    }
+
+    .steps::before {
+      top: 28px;
+      bottom: 28px;
+      left: 28px;
+      right: auto;
+      width: 2px;
+      height: auto;
+      background: linear-gradient(var(--teal-dark), var(--teal));
+    }
+
+    .steps li {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      column-gap: var(--space-5);
+      text-align: left;
+      padding: 0;
+    }
+
+    .node {
+      grid-row: span 3;
+      margin: 0;
+    }
+
+    .steps p {
+      margin: 0.3rem 0 0;
+    }
+  }
+</style>

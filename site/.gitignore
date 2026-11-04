@@ -6,10 +6,13 @@ dist/
 !.env.example
 test-results/
 playwright-report/
-reports/lighthouse/*.html
+reports/lighthouse/*
+!reports/lighthouse/summary.json
 waitlist/.venv/
 waitlist/data/
 waitlist/**/__pycache__/
 *.duckdb
 *.duckdb.wal
 .DS_Store
+dist-*/
+.waitlist-test/

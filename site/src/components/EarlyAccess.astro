@@ -1,0 +1,626 @@
+---
+import Icon from './Icon.astro';
+import { earlyAccess } from '../data/content';
+import { site, stage } from '../config/site';
+
+const endpoint = site.waitlistEndpoint.replace(/\/$/, '');
+const configured = Boolean(endpoint);
+const mailto = site.contactEmail
+  ? `mailto:${site.contactEmail}?subject=${encodeURIComponent('Lyst design partner')}`
+  : '';
+const CONSENT_VERSION = '2026-11-04';
+---
+
+<section class="section access" id="early-access" aria-labelledby="ea-title">
+  <div class="container">
+    <div class="card" data-reveal>
+      <div class="intro">
+        <p class="eyebrow">{earlyAccess.eyebrow}</p>
+        <h2 id="ea-title" class="h2">{stage.accessHeadline}</h2>
+        <p class="lede">{earlyAccess.body}</p>
+        <ul class="what">
+          <li><Icon name="Sparkles" size={16} /> Product previews</li>
+          <li><Icon name="Send" size={16} /> Release updates</li>
+          <li><Icon name="Users" size={16} /> A say in what’s next</li>
+        </ul>
+      </div>
+
+      <div class="form-wrap">
+        {
+          configured ? (
+            <form
+              class="form"
+              data-waitlist
+              data-endpoint={`${endpoint}/v1/registrations`}
+              data-consent-version={CONSENT_VERSION}
+              novalidate
+            >
+              <div class="field">
+                <label for="ea-email">
+                  Work email <span class="req">Required</span>
+                </label>
+                <input
+                  id="ea-email"
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  inputmode="email"
+                  maxlength="254"
+                  required
+                  aria-describedby="ea-email-err"
+                  placeholder="you@company.com"
+                />
+                <p class="err" id="ea-email-err" data-err-for="email" />
+              </div>
+
+              <div class="row">
+                <div class="field">
+                  <label for="ea-role">
+                    Role <span class="opt">Optional</span>
+                  </label>
+                  <select id="ea-role" name="role">
+                    <option value="">Select a role</option>
+                    {earlyAccess.roles.map((r) => <option value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="ea-org">
+                    Organization <span class="opt">Optional</span>
+                  </label>
+                  <input id="ea-org" name="organization" type="text" autocomplete="organization" maxlength="120" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="ea-interest">
+                  Most interested in <span class="opt">Optional</span>
+                </label>
+                <select id="ea-interest" name="interest">
+                  <option value="">Select a use case</option>
+                  {earlyAccess.interests.map((r) => <option value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              <div class="hp" aria-hidden="true">
+                <label for="ea-website">Leave this field empty</label>
+                <input id="ea-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+              </div>
+
+              <div class="field consent">
+                <input id="ea-consent" name="consent" type="checkbox" required aria-describedby="ea-consent-err" />
+                <label for="ea-consent">{earlyAccess.consent}</label>
+                <p class="err" id="ea-consent-err" data-err-for="consent" />
+              </div>
+
+              <button class="btn btn-teal submit" type="submit">
+                <span data-label>Join Early Access</span>
+                <Icon name="ArrowRight" size={16} class="arrow" />
+              </button>
+
+              <div class="status-msg" role="status" aria-live="polite" data-status />
+            </form>
+          ) : (
+            <div class="closed" data-waitlist-closed>
+              <Icon name="Mail" size={22} />
+              <h3>Early-access registration is not open on this site yet.</h3>
+              <p>
+                No sign-up form is shown because no registration service is connected, so nothing you type here could be
+                saved.
+                {site.contactEmail ? (
+                  <>
+                    {' '}
+                    To be added to the list, email <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>.
+                  </>
+                ) : site.githubUrl ? (
+                  <>
+                    {' '}
+                    Follow progress on <a href={site.githubUrl}>GitHub</a> in the meantime.
+                  </>
+                ) : (
+                  ' Please check back soon.'
+                )}
+              </p>
+            </div>
+          )
+        }
+      </div>
+    </div>
+
+    <div class="partner" id="design-partners" data-reveal>
+      <div>
+        <h3>{earlyAccess.partner.title}</h3>
+        <p>{earlyAccess.partner.text}</p>
+      </div>
+      {
+        configured ? (
+          <details class="partner-flow" data-partner>
+            <summary class="btn btn-ghost">
+              Apply as a design partner
+              <Icon name="ArrowRight" size={16} class="arrow" />
+            </summary>
+            <form
+              class="form compact"
+              data-waitlist
+              data-kind="design_partner"
+              data-endpoint={`${endpoint}/v1/registrations`}
+              data-consent-version={CONSENT_VERSION}
+              novalidate
+            >
+              <div class="row">
+                <div class="field">
+                  <label for="dp-email">
+                    Work email <span class="req">Required</span>
+                  </label>
+                  <input id="dp-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="dp-email-err" />
+                  <p class="err" id="dp-email-err" data-err-for="email" />
+                </div>
+                <div class="field">
+                  <label for="dp-org">
+                    Organization <span class="req">Required</span>
+                  </label>
+                  <input id="dp-org" name="organization" type="text" autocomplete="organization" maxlength="120" required aria-describedby="dp-org-err" />
+                  <p class="err" id="dp-org-err" data-err-for="organization" />
+                </div>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label for="dp-role">
+                    Role <span class="opt">Optional</span>
+                  </label>
+                  <select id="dp-role" name="role">
+                    <option value="">Select a role</option>
+                    {earlyAccess.roles.map((r) => <option value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="dp-size">
+                    Analytics team size <span class="opt">Optional</span>
+                  </label>
+                  <select id="dp-size" name="team_size">
+                    <option value="">Select a size</option>
+                    {['1–5', '6–20', '21–100', '100+'].map((r) => <option value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label for="dp-msg">
+                  What would you want Lyst to take on? <span class="opt">Optional</span>
+                </label>
+                <textarea id="dp-msg" name="message" rows="3" maxlength="1000" />
+              </div>
+              <div class="hp" aria-hidden="true">
+                <label for="dp-website">Leave this field empty</label>
+                <input id="dp-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+              </div>
+              <div class="field consent">
+                <input id="dp-consent" name="consent" type="checkbox" required aria-describedby="dp-consent-err" />
+                <label for="dp-consent">
+                  I agree that Lyst may contact me about the design partner program. I can ask for my data to be deleted at any time.
+                </label>
+                <p class="err" id="dp-consent-err" data-err-for="consent" />
+              </div>
+              <button class="btn submit" type="submit">
+                <span data-label>Send application</span>
+              </button>
+              <div class="status-msg" role="status" aria-live="polite" data-status />
+            </form>
+          </details>
+        ) : mailto ? (
+          <a class="btn btn-ghost" href={mailto}>
+            Contact us about partnering
+            <Icon name="ArrowRight" size={16} class="arrow" />
+          </a>
+        ) : (
+          <p class="partner-closed">Design partner applications open with early-access registration.</p>
+        )
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .card {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: clamp(2rem, 1rem + 4vw, 5rem);
+    padding: clamp(1.5rem, 1rem + 3vw, 4rem);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background:
+      radial-gradient(ellipse 60% 80% at 0% 0%, rgb(85 184 168 / 0.12), transparent 60%),
+      var(--white);
+    box-shadow: var(--shadow);
+  }
+
+  .what {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+    margin-top: var(--space-6);
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+
+  .what li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .what :global(svg) {
+    color: var(--teal-dark);
+  }
+
+  .form {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .field {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+  }
+
+  .req,
+  .opt {
+    font-size: 0.75rem;
+    font-weight: 450;
+    color: var(--muted);
+  }
+
+  input[type='email'],
+  input[type='text'],
+  select,
+  textarea {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--white);
+    font-size: 1rem;
+    transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  }
+
+  select {
+    appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23586471' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 88px;
+  }
+
+  input::placeholder {
+    color: #8a96a1;
+  }
+
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--slate);
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    border-color: var(--teal-dark);
+    box-shadow: 0 0 0 3px rgb(37 126 116 / 0.18);
+  }
+
+  [aria-invalid='true'] {
+    border-color: var(--bad) !important;
+  }
+
+  .err {
+    min-height: 0;
+    font-size: 0.8125rem;
+    color: var(--bad);
+  }
+
+  .err:empty {
+    display: none;
+  }
+
+  .consent {
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    column-gap: 0.65rem;
+  }
+
+  .consent input {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0;
+    accent-color: var(--teal-dark);
+  }
+
+  .consent label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  .consent .err {
+    grid-column: 2;
+  }
+
+  .submit {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .hp {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .status-msg {
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  .status-msg[data-tone] {
+    padding: 0.8rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.9063rem;
+    line-height: 1.5;
+  }
+
+  .status-msg[data-tone='ok'] {
+    background: var(--good-wash);
+    color: #155c3a;
+  }
+
+  .status-msg[data-tone='error'] {
+    background: var(--bad-wash);
+    color: #8f2d26;
+  }
+
+  .closed {
+    display: grid;
+    gap: var(--space-3);
+    align-content: center;
+    height: 100%;
+    padding: var(--space-6);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--offwhite);
+  }
+
+  .closed :global(svg) {
+    color: var(--teal-dark);
+  }
+
+  .closed h3 {
+    font-size: var(--step-1);
+  }
+
+  .closed p {
+    color: var(--muted);
+  }
+
+  .partner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+    margin-top: var(--space-5);
+    padding: var(--space-5) clamp(1.5rem, 1rem + 3vw, 4rem);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+
+  .partner > div {
+    max-width: 40rem;
+  }
+
+  .partner h3 {
+    font-size: var(--step-1);
+    letter-spacing: -0.015em;
+  }
+
+  .partner p {
+    margin-top: 0.35rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .partner-flow {
+    flex: 0 1 auto;
+  }
+
+  .partner-flow[open] {
+    flex: 1 1 100%;
+  }
+
+  .partner-flow summary {
+    list-style: none;
+  }
+
+  .partner-flow summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .partner-flow[open] summary {
+    margin-bottom: var(--space-5);
+  }
+
+  .partner-flow[open] summary :global(svg) {
+    transform: rotate(90deg);
+  }
+
+  .partner-closed {
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 900px) {
+    .card {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .row {
+      grid-template-columns: 1fr;
+    }
+
+    .partner-flow,
+    .partner-flow summary,
+    .partner > .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  type Fields = Record<string, string | boolean>;
+
+  const messages: Record<string, string> = {
+    email_required: 'Enter your work email address.',
+    email_invalid: 'Enter a valid email address, like name@company.com.',
+    organization_required: 'Enter your organization.',
+    consent_required: 'Please confirm you agree to be contacted.',
+  };
+
+  function setError(form: HTMLFormElement, name: string, message: string) {
+    const input = form.elements.namedItem(name) as HTMLInputElement | null;
+    const slot = form.querySelector<HTMLElement>(`[data-err-for="${name}"]`);
+    if (input) input.setAttribute('aria-invalid', message ? 'true' : 'false');
+    if (slot) slot.textContent = message;
+  }
+
+  function validate(form: HTMLFormElement): string | null {
+    let first: string | null = null;
+    const email = form.elements.namedItem('email') as HTMLInputElement;
+    const consent = form.elements.namedItem('consent') as HTMLInputElement;
+    const org = form.elements.namedItem('organization') as HTMLInputElement | null;
+    const value = email.value.trim();
+    const emailErr = !value ? messages.email_required : /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) ? '' : messages.email_invalid;
+    setError(form, 'email', emailErr);
+    if (emailErr) first ??= 'email';
+    if (org?.required) {
+      const orgErr = org.value.trim() ? '' : messages.organization_required;
+      setError(form, 'organization', orgErr);
+      if (orgErr) first ??= 'organization';
+    }
+    const cErr = consent.checked ? '' : messages.consent_required;
+    setError(form, 'consent', cErr);
+    if (cErr) first ??= 'consent';
+    return first;
+  }
+
+  function status(form: HTMLFormElement, tone: 'ok' | 'error', text: string) {
+    const el = form.querySelector<HTMLElement>('[data-status]')!;
+    el.dataset.tone = tone;
+    el.textContent = text;
+  }
+
+  document.querySelectorAll<HTMLFormElement>('form[data-waitlist]').forEach((form) => {
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const label = button.querySelector<HTMLElement>('[data-label]')!;
+    const idle = label.textContent ?? '';
+    let busy = false;
+
+    form.addEventListener('input', (e) => {
+      const t = e.target as HTMLInputElement;
+      if (t.getAttribute('aria-invalid') === 'true') setError(form, t.name, '');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (busy) return;
+      const invalid = validate(form);
+      if (invalid) {
+        (form.elements.namedItem(invalid) as HTMLElement).focus();
+        return;
+      }
+
+      const data = new FormData(form);
+      const payload: Fields = {
+        kind: form.dataset.kind ?? 'early_access',
+        email: String(data.get('email') ?? '').trim(),
+        consent: data.get('consent') === 'on',
+        consent_version: form.dataset.consentVersion ?? '',
+        website: String(data.get('website') ?? ''),
+      };
+      for (const key of ['role', 'organization', 'interest', 'team_size', 'message']) {
+        const v = data.get(key);
+        if (typeof v === 'string' && v.trim()) payload[key] = v.trim();
+      }
+
+      busy = true;
+      button.setAttribute('aria-disabled', 'true');
+      label.textContent = 'Sending…';
+      const ctrl = new AbortController();
+      const timeout = window.setTimeout(() => ctrl.abort(), 12000);
+
+      try {
+        const res = await fetch(form.dataset.endpoint!, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(payload),
+          signal: ctrl.signal,
+          credentials: 'omit',
+          mode: 'cors',
+        });
+        const body = (await res.json().catch(() => ({}))) as { message?: string; errors?: Record<string, string> };
+        if (res.ok) {
+          form.querySelectorAll<HTMLElement>('input, select, textarea, button').forEach((el) => el.setAttribute('disabled', ''));
+          status(
+            form,
+            'ok',
+            body.message ??
+              'Thank you. You’re on the early-access list. We’ll be in touch with previews and release updates.',
+          );
+        } else if (res.status === 422 && body.errors) {
+          let first: string | null = null;
+          for (const [field, code] of Object.entries(body.errors)) {
+            setError(form, field, messages[code] ?? 'Please check this field.');
+            first ??= field;
+          }
+          if (first) (form.elements.namedItem(first) as HTMLElement | null)?.focus();
+          status(form, 'error', 'Some details need attention before we can add you.');
+        } else if (res.status === 429) {
+          status(form, 'error', 'Too many attempts from this connection. Please wait a few minutes and try again.');
+        } else {
+          status(form, 'error', 'We couldn’t save your registration just now. Nothing was stored. Please try again later.');
+        }
+      } catch {
+        status(form, 'error', 'We couldn’t reach the registration service. Nothing was stored. Please check your connection and try again.');
+      } finally {
+        window.clearTimeout(timeout);
+        busy = false;
+        button.removeAttribute('aria-disabled');
+        label.textContent = idle;
+      }
+    });
+  });
+</script>

@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import Navigation from '../components/Navigation.astro';
+import Hero from '../components/Hero.astro';
+import Problem from '../components/Problem.astro';
+import ValuePillars from '../components/ValuePillars.astro';
+import UseCases from '../components/UseCases.astro';
+import Capabilities from '../components/Capabilities.astro';
+import OpenSource from '../components/OpenSource.astro';
+import Enterprise from '../components/Enterprise.astro';
+import Workflow from '../components/Workflow.astro';
+import EarlyAccess from '../components/EarlyAccess.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Base>
+  <Navigation />
+  <main id="main" tabindex="-1">
+    <Hero />
+    <Problem />
+    <ValuePillars />
+    <UseCases />
+    <Capabilities />
+    <OpenSource />
+    <Enterprise />
+    <Workflow />
+    <EarlyAccess />
+  </main>
+  <Footer />
+</Base>
+
+<script>
+  // Scroll reveals: progressive enhancement only. Content is visible without JS
+  // (the .js class gates the hidden state) and with reduced motion.
+  const items = document.querySelectorAll<HTMLElement>('[data-reveal]');
+  if (!('IntersectionObserver' in window)) {
+    items.forEach((el) => el.classList.add('is-visible'));
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+    );
+    items.forEach((el) => io.observe(el));
+  }
+</script>

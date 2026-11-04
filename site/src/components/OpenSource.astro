@@ -1,0 +1,230 @@
+---
+import Icon from './Icon.astro';
+import { openSource, architecture } from '../data/content';
+import { site } from '../config/site';
+---
+
+<section class="section dark os" id="open-source" aria-labelledby="os-title">
+  <div class="container">
+    <div class="grid">
+      <div class="copy">
+        <div data-reveal>
+          <p class="eyebrow">{openSource.eyebrow}</p>
+          <h2 id="os-title" class="h2">{openSource.headline}</h2>
+          <p class="lede">{openSource.lede}</p>
+        </div>
+        <ul class="principles">
+          {
+            openSource.principles.map((p, i) => (
+              <li data-reveal style={`--reveal-delay:${i % 2}`}>
+                <Icon name={p.icon} size={18} />
+                <div>
+                  <h3>{p.title}</h3>
+                  <p>{p.text}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+        {
+          site.githubUrl && (
+            <a class="btn btn-ghost repo" href={site.githubUrl} rel="noopener">
+              <Icon name="Code" size={16} />
+              View the source on GitHub
+            </a>
+          )
+        }
+      </div>
+
+      <figure class="arch" data-reveal aria-labelledby="arch-cap">
+        <div class="layers">
+          {
+            architecture.map((l, i) => (
+              <div class={`layer ${l.tone}`} style={`--i:${i}`}>
+                <span class="layer-name">{l.layer}</span>
+                <ul>
+                  {l.items.map((it) => <li>{it}</li>)}
+                </ul>
+              </div>
+            ))
+          }
+        </div>
+        <figcaption id="arch-cap">
+          A simplified view of how Lyst fits into your environment. Models and data sources are your choice; commercial
+          systems connect optionally.
+        </figcaption>
+      </figure>
+    </div>
+    <p class="attribution">{openSource.attribution}</p>
+  </div>
+</section>
+
+<style>
+  .os {
+    overflow: hidden;
+  }
+
+  .os::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: linear-gradient(to bottom, #000, transparent 70%);
+    -webkit-mask-image: linear-gradient(to bottom, #000, transparent 70%);
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: clamp(2.5rem, 1rem + 5vw, 6rem);
+    align-items: center;
+  }
+
+  .principles {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-5) var(--space-6);
+    margin-top: var(--space-7);
+  }
+
+  .principles li {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  .principles li > :global(svg) {
+    flex: none;
+    margin-top: 2px;
+    color: var(--teal);
+  }
+
+  .principles h3 {
+    font-size: 0.9688rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .principles p {
+    margin-top: 0.15rem;
+    font-size: 0.875rem;
+    color: var(--d-muted);
+  }
+
+  .repo {
+    margin-top: var(--space-6);
+  }
+
+  .arch {
+    margin: 0;
+  }
+
+  .layers {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--d-line);
+    border-radius: var(--radius-lg);
+    background: rgb(22 29 37 / 0.8);
+    box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.6);
+  }
+
+  .layer {
+    position: relative;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--d-line);
+    border-radius: var(--radius);
+    background: var(--d-surface-2);
+  }
+
+  .layer + .layer::before {
+    content: '';
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    width: 1px;
+    height: 10px;
+    background: #3a4654;
+  }
+
+  .layer.teal {
+    border-color: rgb(85 184 168 / 0.55);
+    background: linear-gradient(180deg, rgb(37 126 116 / 0.35), rgb(37 126 116 / 0.18));
+  }
+
+  .layer.muted {
+    background: transparent;
+    border-style: dashed;
+  }
+
+  .layer-name {
+    display: block;
+    margin-bottom: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--d-muted);
+  }
+
+  .teal .layer-name {
+    color: var(--teal);
+  }
+
+  .layer ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .layer li {
+    padding: 0.25rem 0.6rem;
+    border: 1px solid #2f3b47;
+    border-radius: 6px;
+    background: rgb(16 21 27 / 0.6);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--d-ink);
+  }
+
+  .teal li {
+    border-color: rgb(85 184 168 / 0.4);
+  }
+
+  figcaption {
+    margin-top: var(--space-4);
+    font-size: 0.8125rem;
+    color: var(--d-muted);
+  }
+
+  .attribution {
+    max-width: 60rem;
+    margin-top: var(--space-8);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--d-line);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: #8593a0;
+  }
+
+  @media (max-width: 960px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .principles {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

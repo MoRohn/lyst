@@ -1,0 +1,93 @@
+{
+  "mobile": {
+    "median": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "LCP_ms": 805,
+      "CLS": 0.049,
+      "TBT_ms": 0,
+      "FCP_ms": 805
+    },
+    "runs": [
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 808,
+        "CLS": 0.049,
+        "TBT_ms": 0,
+        "FCP_ms": 808
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 805,
+        "CLS": 0.049,
+        "TBT_ms": 0,
+        "FCP_ms": 805
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 800,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 800
+      }
+    ]
+  },
+  "desktop": {
+    "median": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100,
+      "LCP_ms": 216,
+      "CLS": 0,
+      "TBT_ms": 0,
+      "FCP_ms": 216
+    },
+    "runs": [
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 216,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 216
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 216,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 216
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 216,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 216
+      }
+    ]
+  },
+  "url": "http://localhost:4399/",
+  "lighthouse": "13.6.0",
+  "date": "2026-11-04T10:02:31.571Z"
+}

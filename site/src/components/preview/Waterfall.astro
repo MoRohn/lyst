@@ -1,0 +1,156 @@
+---
+/** Opex bridge Q2 → Q3, drawn at build time from demo data. */
+import { opexRows, opexTotals } from '../../data/demos';
+import { scale } from '../../lib/format';
+
+const W = 560;
+const H = 210;
+const m = { t: 16, r: 8, b: 44, l: 44 };
+const min = 11800;
+const max = 13900;
+const y = scale(min, max, H - m.b, m.t);
+
+const deltas = [...opexRows]
+  .map((r) => ({ label: r.category, delta: r.q3 - r.q2 }))
+  .sort((a, b) => b.delta - a.delta);
+
+type Bar = { label: string; from: number; to: number; kind: 'total' | 'up' | 'down'; value: number };
+const bars: Bar[] = [{ label: 'Q2', from: min, to: opexTotals.q2, kind: 'total', value: opexTotals.q2 }];
+let run = opexTotals.q2;
+for (const d of deltas) {
+  bars.push({ label: d.label, from: run, to: run + d.delta, kind: d.delta >= 0 ? 'up' : 'down', value: d.delta });
+  run += d.delta;
+}
+bars.push({ label: 'Q3', from: min, to: opexTotals.q3, kind: 'total', value: opexTotals.q3 });
+
+const slot = (W - m.l - m.r) / bars.length;
+const bw = Math.min(40, slot * 0.62);
+const ticks = [12000, 12500, 13000, 13500];
+const shortLabel: Record<string, string> = {
+  'Cloud infrastructure': 'Cloud',
+  'Contract services': 'Contract',
+  'Marketing programs': 'Marketing',
+  Personnel: 'People',
+  'Travel & events': 'Travel',
+  'Facilities & other': 'Facilities',
+};
+const fmt = (b: Bar) =>
+  b.kind === 'total' ? `$${(b.value / 1000).toFixed(2)}M` : `${b.value > 0 ? '+' : '−'}${Math.abs(b.value)}`;
+---
+
+<figure class="waterfall">
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby="wf-title wf-desc">
+    <title id="wf-title">Operating expense bridge, Q2 to Q3 2026 (sample data)</title>
+    <desc id="wf-desc">
+      Operating expenses rose from $12.40M in Q2 to $13.68M in Q3. Cloud infrastructure added $620K, contract services
+      $410K, marketing $280K, personnel $60K and travel $60K; facilities fell $150K.
+    </desc>
+    {
+      ticks.map((t) => (
+        <g>
+          <line x1={m.l} x2={W - m.r} y1={y(t)} y2={y(t)} class="grid" />
+          <text x={m.l - 8} y={y(t) + 3.5} class="tick" text-anchor="end">
+            {`$${(t / 1000).toFixed(1)}M`}
+          </text>
+        </g>
+      ))
+    }
+    {
+      bars.map((b, i) => {
+        const x = m.l + i * slot + (slot - bw) / 2;
+        const top = y(Math.max(b.from, b.to));
+        const h = Math.max(1.5, Math.abs(y(b.from) - y(b.to)));
+        const next = bars[i + 1];
+        return (
+          <g class={`bar ${b.kind}`} style={`--i:${i}`}>
+            <rect x={x} y={top} width={bw} height={h} rx="2.5" />
+            {next && next.kind !== 'total' && (
+              <line class="link" x1={x + bw} x2={x + slot} y1={y(b.to)} y2={y(b.to)} />
+            )}
+            <text x={x + bw / 2} y={top - 6} text-anchor="middle" class="val">
+              {fmt(b)}
+            </text>
+            <text x={x + bw / 2} y={H - m.b + 16} text-anchor="middle" class="lbl">
+              {shortLabel[b.label] ?? b.label}
+            </text>
+          </g>
+        );
+      })
+    }
+    <text x={m.l} y={H - 6} class="note">USD · y-axis starts at $11.8M · sample data</text>
+  </svg>
+</figure>
+
+<style>
+  .waterfall {
+    margin: 0;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  .grid {
+    stroke: var(--line);
+    stroke-width: 1;
+  }
+
+  .tick,
+  .note {
+    font-size: 10px;
+    fill: var(--muted);
+  }
+
+  .note {
+    font-size: 9.5px;
+  }
+
+  .lbl {
+    font-size: 10.5px;
+    fill: var(--ink-2);
+  }
+
+  .val {
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar rect {
+    transform-box: fill-box;
+    transform-origin: bottom;
+  }
+
+  .total rect {
+    fill: var(--graphite);
+  }
+
+  .up rect {
+    fill: var(--teal-dark);
+  }
+
+  .down rect {
+    fill: var(--teal);
+    fill-opacity: 0.55;
+  }
+
+  .link {
+    stroke: var(--line-strong);
+    stroke-dasharray: 2 2;
+  }
+
+  :global([data-stage-panel].is-active) .bar rect {
+    animation: grow 0.6s var(--ease) both;
+    animation-delay: calc(var(--i) * 60ms);
+  }
+
+  @keyframes grow {
+    from {
+      transform: scaleY(0);
+    }
+  }
+</style>

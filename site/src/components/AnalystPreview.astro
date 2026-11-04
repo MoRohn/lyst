@@ -1,0 +1,1055 @@
+---
+/**
+ * Hero centerpiece: an illustrative, step-through walkthrough of one analytical task.
+ * Everything is pre-rendered from src/data/demos.ts. The script only switches
+ * which stage is visible; nothing is generated or fetched at runtime.
+ */
+import Icon from './Icon.astro';
+import Logo from './Logo.astro';
+import Waterfall from './preview/Waterfall.astro';
+import {
+  opexQuestion,
+  opexDatasets,
+  opexSql,
+  opexRows,
+  opexTotals,
+  opexDrivers,
+  opexFindings,
+  opexEvidence,
+  opexSteps,
+} from '../data/demos';
+import { sql } from '../lib/highlight';
+import { pct, thousands } from '../lib/format';
+
+const maxDriver = Math.max(...opexDrivers.map((d) => Math.abs(d.delta)));
+const totalDelta = opexTotals.q3 - opexTotals.q2;
+---
+
+<div class="preview" data-preview aria-roledescription="interactive product walkthrough">
+  <div class="win-top">
+    <div class="crumbs">
+      <Logo variant="mark" id="pv-mark" height={18} label="Lyst" />
+      <span class="crumb">Finance</span>
+      <Icon name="ChevronRight" size={14} class="sep" />
+      <span class="crumb now">Opex variance, Q3</span>
+    </div>
+    <span class="chip illustrative"><Icon name="Info" size={13} /> Illustrative preview · sample data</span>
+  </div>
+
+  <div class="win-body">
+    <aside class="side" aria-hidden="true">
+      <span class="side-i on"><Icon name="ListChecks" size={17} /></span>
+      <span class="side-i"><Icon name="Database" size={17} /></span>
+      <span class="side-i"><Icon name="Workflow" size={17} /></span>
+      <span class="side-i"><Icon name="Library" size={17} /></span>
+      <span class="side-i end"><Icon name="History" size={17} /></span>
+    </aside>
+
+    <div class="work">
+      <div class="ask">
+        <span class="avatar" aria-hidden="true">You</span>
+        <p><span class="sr-only">Request: </span>{opexQuestion}</p>
+      </div>
+
+      <div class="run">
+        <div class="steps" role="tablist" aria-label="Walkthrough stages" aria-orientation="vertical">
+          {
+            opexSteps.map((s, i) => (
+              <button
+                type="button"
+                role="tab"
+                class="step"
+                id={`pv-tab-${s.id}`}
+                aria-controls={`pv-panel-${s.id}`}
+                aria-selected={i === 0 ? 'true' : 'false'}
+                tabindex={i === 0 ? 0 : -1}
+                data-step={i}
+              >
+                <span class="state" aria-hidden="true">
+                  <span class="n">{i + 1}</span>
+                  <Icon name="Check" size={12} strokeWidth={2.5} class="tick" />
+                </span>
+                <span class="label">
+                  <span class="long">{s.label}</span>
+                  <span class="short">{s.short}</span>
+                </span>
+              </button>
+            ))
+          }
+        </div>
+
+        <div class="stage">
+          <section
+            class="panel is-active"
+            id="pv-panel-discover"
+            role="tabpanel"
+            aria-labelledby="pv-tab-discover"
+            data-stage-panel
+          >
+            <header class="p-head">
+              <Icon name="Search" size={15} />
+              <p class="p-title">Found 4 candidate datasets, selected 3</p>
+            </header>
+            <ul class="datasets">
+              {
+                opexDatasets.map((d) => (
+                  <li class:list={['ds', { unused: !d.used }]}>
+                    <Icon name="Table2" size={15} />
+                    <div class="ds-main">
+                      <code>{d.name}</code>
+                      <span>{d.why}</span>
+                    </div>
+                    <span class="ds-meta">{d.source}</span>
+                    <span class="ds-rows num">{d.rows}</span>
+                    <span class="ds-use">{d.used ? 'Selected' : 'Not needed'}</span>
+                  </li>
+                ))
+              }
+            </ul>
+            <p class="p-foot">Context: “operating expenses” resolved to account type <code>OPEX</code> from the finance glossary.</p>
+          </section>
+
+          <section class="panel" id="pv-panel-query" role="tabpanel" aria-labelledby="pv-tab-query" data-stage-panel>
+            <header class="p-head">
+              <Icon name="SquareTerminal" size={15} />
+              <p class="p-title">DuckDB · opex_by_category.sql</p>
+              <span class="tag">Read-only</span>
+            </header>
+            <pre class="code" tabindex="0"><code set:html={sql(opexSql)} /></pre>
+            <p class="p-foot"><Icon name="CircleCheck" size={14} /> 6 rows returned from 48,212 ledger rows.</p>
+          </section>
+
+          <section class="panel" id="pv-panel-variance" role="tabpanel" aria-labelledby="pv-tab-variance" data-stage-panel>
+            <header class="p-head">
+              <Icon name="Table2" size={15} />
+              <p class="p-title">Quarter-over-quarter variance <span class="unit">USD thousands</span></p>
+            </header>
+            <div class="table-wrap" tabindex="0" role="region" aria-label="Variance table">
+              <table class="data-table">
+                <thead>
+                  <tr><th scope="col">Category</th><th scope="col">Q2</th><th scope="col">Q3</th><th scope="col">Change</th><th scope="col">%</th></tr>
+                </thead>
+                <tbody>
+                  {
+                    [...opexRows]
+                      .sort((a, b) => b.q3 - b.q2 - (a.q3 - a.q2))
+                      .map((r) => {
+                        const d = r.q3 - r.q2;
+                        return (
+                          <tr>
+                            <th scope="row">{r.category}</th>
+                            <td class="num">{thousands(r.q2)}</td>
+                            <td class="num">{thousands(r.q3)}</td>
+                            <td class:list={['num', d > 0 ? 'neg' : 'pos']}>{d > 0 ? '+' : '−'}{thousands(Math.abs(d))}</td>
+                            <td class:list={['num', d > 0 ? 'neg' : 'pos']}>{pct((d / r.q2) * 100)}</td>
+                          </tr>
+                        );
+                      })
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row">Total opex</th>
+                    <td class="num">{thousands(opexTotals.q2)}</td>
+                    <td class="num">{thousands(opexTotals.q3)}</td>
+                    <td class="num neg">+{thousands(totalDelta)}</td>
+                    <td class="num neg">{pct((totalDelta / opexTotals.q2) * 100)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel" id="pv-panel-drivers" role="tabpanel" aria-labelledby="pv-tab-drivers" data-stage-panel>
+            <header class="p-head">
+              <Icon name="ScanSearch" size={15} />
+              <p class="p-title">Potential drivers, ranked by contribution</p>
+            </header>
+            <ol class="drivers">
+              {
+                opexDrivers.map((d) => (
+                  <li>
+                    <div class="dr-top">
+                      <span class="dr-label">{d.label}</span>
+                      <span class:list={['num', 'dr-val', d.delta > 0 ? 'neg' : 'pos']}>
+                        {d.delta > 0 ? '+' : '−'}${Math.abs(d.delta)}K
+                      </span>
+                    </div>
+                    <span class="dr-bar" aria-hidden="true">
+                      <span class:list={[d.delta < 0 && 'down']} style={`--w:${(Math.abs(d.delta) / maxDriver) * 100}%`} />
+                    </span>
+                    <p>{d.note}</p>
+                  </li>
+                ))
+              }
+            </ol>
+          </section>
+
+          <section class="panel" id="pv-panel-findings" role="tabpanel" aria-labelledby="pv-tab-findings" data-stage-panel>
+            <header class="p-head">
+              <Icon name="ChartNoAxesCombined" size={15} />
+              <p class="p-title">Operating expense bridge, Q2 → Q3</p>
+            </header>
+            <Waterfall />
+            <ul class="findings">
+              {opexFindings.map((f) => <li><Icon name="ArrowRight" size={14} />{f}</li>)}
+            </ul>
+          </section>
+
+          <section class="panel" id="pv-panel-evidence" role="tabpanel" aria-labelledby="pv-tab-evidence" data-stage-panel>
+            <header class="p-head">
+              <Icon name="FileCheck" size={15} />
+              <p class="p-title">Summary and evidence</p>
+            </header>
+            <div class="summary">
+              <p>
+                Opex rose <strong>$1.28M (+10.3%)</strong>, mainly from a cloud warehouse tier change
+                <sup>Q2</sup> and two new implementation vendors<sup>D1</sup>.
+                <strong>Next step:</strong> review the warehouse commitment before the Q4 renewal and confirm vendor end dates.
+              </p>
+            </div>
+            <ul class="evidence">
+              {
+                opexEvidence.map((e) => (
+                  <li>
+                    <span class="ref">{e.ref}</span>
+                    <code>{e.label}</code>
+                    <span>{e.detail}</span>
+                  </li>
+                ))
+              }
+            </ul>
+            <p class="p-foot"><Icon name="RotateCcw" size={14} /> Every figure can be re-run from the cited queries.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="ctl" data-prev aria-label="Previous stage">
+          <Icon name="ChevronLeft" size={18} />
+        </button>
+        <div class="progress" aria-hidden="true"><span data-progress></span></div>
+        <p class="count" aria-live="polite" data-count>Stage 1 of {opexSteps.length}</p>
+        <button type="button" class="ctl play" data-play aria-label="Play walkthrough" aria-pressed="false">
+          <Icon name="Play" size={16} class="i-play" />
+          <Icon name="Pause" size={16} class="i-pause" />
+        </button>
+        <button type="button" class="ctl next" data-next>
+          <span>Next</span>
+          <Icon name="ChevronRight" size={18} />
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .preview {
+    --pv-pad: clamp(0.75rem, 0.4rem + 1.2vw, 1.25rem);
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    font-size: 0.8125rem;
+    text-align: left;
+  }
+
+  .win-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 0.6rem var(--pv-pad);
+    border-bottom: 1px solid var(--line);
+    background: #fbfcfb;
+  }
+
+  .crumbs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .crumbs :global(.sep) {
+    color: var(--line-strong);
+  }
+
+  .crumb.now {
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .illustrative {
+    background: var(--teal-wash);
+    border-color: #cfe7e1;
+    color: var(--teal-deep);
+  }
+
+  .win-body {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.9rem 0;
+    border-right: 1px solid var(--line);
+    background: #fbfcfb;
+    color: #8a96a1;
+  }
+
+  .side-i {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .side-i.on {
+    background: var(--teal-wash);
+    color: var(--teal-deep);
+  }
+
+  .side-i.end {
+    margin-top: auto;
+  }
+
+  .work {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: var(--pv-pad);
+    gap: var(--space-4);
+  }
+
+  .ask {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--offwhite);
+  }
+
+  .ask p {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.4;
+  }
+
+  .avatar {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--graphite);
+    color: var(--white);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .run {
+    display: grid;
+    grid-template-columns: 188px 1fr;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .steps {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .steps::before {
+    content: '';
+    position: absolute;
+    left: 17px;
+    top: 18px;
+    bottom: 18px;
+    width: 1px;
+    background: var(--line);
+  }
+
+  .step {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 36px;
+    padding: 0.35rem 0.5rem 0.35rem 0.45rem;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
+  }
+
+  .step:hover {
+    background: var(--subtle);
+    color: var(--ink);
+  }
+
+  .state {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 50%;
+    background: var(--white);
+    font-size: 0.625rem;
+    font-weight: 600;
+  }
+
+  .state :global(.tick) {
+    display: none;
+  }
+
+  .step.done .state {
+    border: 0;
+    background: var(--teal-dark);
+    color: var(--white);
+  }
+
+  .step.done .n {
+    display: none;
+  }
+
+  .step.done .state :global(.tick) {
+    display: block;
+  }
+
+  .step[aria-selected='true'] {
+    background: var(--teal-wash);
+    color: var(--ink);
+  }
+
+  .step[aria-selected='true'] .state {
+    border: 1.5px solid var(--teal-dark);
+    color: var(--teal-deep);
+  }
+
+  .step[aria-selected='true'] .state::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1px solid var(--teal);
+    opacity: 0;
+    animation: ring 1.8s var(--ease) infinite;
+  }
+
+  @keyframes ring {
+    0% {
+      opacity: 0.7;
+      transform: scale(0.8);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.3);
+    }
+  }
+
+  .short {
+    display: none;
+  }
+
+  .stage {
+    display: grid;
+    min-width: 0;
+  }
+
+  .panel {
+    min-width: 0;
+    padding: 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--white);
+  }
+
+  :global(.js) .panel {
+    grid-area: 1 / 1;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 0.35s var(--ease),
+      transform 0.35s var(--ease),
+      visibility 0s linear 0.35s;
+  }
+
+  :global(.js) .panel.is-active {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.35s var(--ease),
+      transform 0.35s var(--ease),
+      visibility 0s;
+  }
+
+  :global(html:not(.js)) .panel + .panel {
+    margin-top: var(--space-3);
+  }
+
+  .p-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--teal-dark);
+  }
+
+  .p-head .p-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+
+  .unit {
+    margin-left: 0.4rem;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .tag {
+    margin-left: auto;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    background: var(--subtle);
+    color: var(--ink-2);
+    font-size: 0.6875rem;
+    font-weight: 500;
+  }
+
+  .p-foot {
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .p-foot :global(svg) {
+    display: inline-block;
+    margin-right: 0.3rem;
+    vertical-align: -2px;
+    color: var(--teal-dark);
+  }
+
+  .datasets {
+    list-style: none;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .ds {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--teal-dark);
+  }
+
+  .ds-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .ds-main code {
+    color: var(--ink);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .ds-main span,
+  .ds-meta {
+    color: var(--muted);
+    font-size: 0.6875rem;
+  }
+
+  .ds-rows {
+    color: var(--ink-2);
+    font-size: 0.6875rem;
+  }
+
+  .ds-use {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--teal-deep);
+  }
+
+  .ds.unused {
+    color: var(--slate);
+    background: var(--offwhite);
+    border-style: dashed;
+  }
+
+  .ds.unused .ds-use {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .code {
+    max-height: 260px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .data-table th[scope='row'] {
+    font-weight: 500;
+    text-align: left;
+    padding-left: 0;
+    color: var(--ink);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.75rem;
+  }
+
+  .data-table tfoot th[scope='row'] {
+    font-weight: 600;
+  }
+
+  .drivers {
+    list-style: none;
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .dr-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .dr-val {
+    font-weight: 600;
+  }
+
+  .dr-bar {
+    display: block;
+    height: 6px;
+    margin: 0.35rem 0 0.35rem;
+    border-radius: 3px;
+    background: var(--subtle);
+    overflow: hidden;
+  }
+
+  .dr-bar span {
+    display: block;
+    width: var(--w);
+    height: 100%;
+    border-radius: 3px;
+    background: var(--teal-dark);
+    transform-origin: left;
+  }
+
+  .dr-bar span.down {
+    background: var(--teal);
+    opacity: 0.6;
+  }
+
+  :global(.js) .panel.is-active .dr-bar span {
+    animation: bar 0.7s var(--ease) both;
+  }
+
+  @keyframes bar {
+    from {
+      transform: scaleX(0);
+    }
+  }
+
+  .drivers p {
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .findings {
+    list-style: none;
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .findings li {
+    display: flex;
+    gap: 0.45rem;
+    align-items: baseline;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+
+  .findings :global(svg) {
+    flex: none;
+    color: var(--teal-dark);
+    transform: translateY(2px);
+  }
+
+  .summary {
+    padding: 0.8rem 0.9rem;
+    border-left: 2px solid var(--teal-dark);
+    border-radius: 0 8px 8px 0;
+    background: var(--offwhite);
+    color: var(--ink);
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
+  sup {
+    margin-left: 1px;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--teal-dark);
+  }
+
+  .evidence {
+    list-style: none;
+    display: grid;
+    margin-top: 0.75rem;
+  }
+
+  .evidence li {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 13rem) 1fr;
+    gap: 0.6rem;
+    align-items: center;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .evidence code {
+    color: var(--ink);
+    font-size: 0.7188rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ref {
+    display: inline-grid;
+    place-items: center;
+    height: 20px;
+    border-radius: 4px;
+    background: var(--teal-wash);
+    color: var(--teal-deep);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--line);
+  }
+
+  .ctl {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--ink);
+    font-size: 0.8125rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease), border-color 0.2s var(--ease);
+  }
+
+  .ctl:hover {
+    border-color: var(--line-strong);
+    background: var(--offwhite);
+  }
+
+  .ctl:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .ctl.next {
+    padding: 0 0.6rem 0 0.9rem;
+    border-color: var(--graphite);
+    background: var(--graphite);
+    color: var(--white);
+  }
+
+  .ctl.next:hover {
+    background: #222a34;
+  }
+
+  .play :global(.i-pause),
+  .play[aria-pressed='true'] :global(.i-play) {
+    display: none;
+  }
+
+  .play[aria-pressed='true'] :global(.i-pause) {
+    display: block;
+  }
+
+  .progress {
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--subtle);
+    overflow: hidden;
+  }
+
+  .progress span {
+    display: block;
+    width: calc(100% / 6);
+    height: 100%;
+    background: var(--teal-dark);
+    transition: width 0.4s var(--ease);
+  }
+
+  .count {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  :global(html:not(.js)) .controls,
+  :global(html:not(.js)) .steps {
+    display: none;
+  }
+
+  :global(html:not(.js)) .run {
+    grid-template-columns: 1fr;
+  }
+
+  @media (max-width: 860px) {
+    .run {
+      grid-template-columns: 1fr;
+    }
+
+    .steps {
+      flex-direction: row;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      margin-inline: calc(var(--pv-pad) * -1);
+      padding-inline: var(--pv-pad);
+    }
+
+    .steps::-webkit-scrollbar {
+      display: none;
+    }
+
+    .steps::before {
+      display: none;
+    }
+
+    .step {
+      width: auto;
+      flex: none;
+      padding-right: 0.7rem;
+      border: 1px solid var(--line);
+    }
+
+    .long {
+      display: none;
+    }
+
+    .short {
+      display: inline;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .win-body {
+      grid-template-columns: 1fr;
+    }
+
+    .side {
+      display: none;
+    }
+
+    .illustrative {
+      font-size: 0.6875rem;
+    }
+
+    .crumb:not(.now),
+    .crumbs :global(.sep) {
+      display: none;
+    }
+
+    .ds {
+      grid-template-columns: auto 1fr auto;
+    }
+
+    .ds-meta,
+    .ds-rows {
+      display: none;
+    }
+
+    .evidence li {
+      grid-template-columns: 2.25rem 1fr;
+    }
+
+    .evidence li span:last-child {
+      grid-column: 2;
+    }
+
+    .count {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  const AUTOPLAY_MS = 3200;
+
+  document.querySelectorAll<HTMLElement>('[data-preview]').forEach((root) => {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const panels = [...root.querySelectorAll<HTMLElement>('[data-stage-panel]')];
+    const prev = root.querySelector<HTMLButtonElement>('[data-prev]')!;
+    const next = root.querySelector<HTMLButtonElement>('[data-next]')!;
+    const play = root.querySelector<HTMLButtonElement>('[data-play]')!;
+    const count = root.querySelector<HTMLElement>('[data-count]')!;
+    const bar = root.querySelector<HTMLElement>('[data-progress]')!;
+    const nextLabel = next.querySelector('span')!;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let current = 0;
+    let timer: number | undefined;
+    let touched = false;
+
+    const show = (i: number, focus = false) => {
+      current = Math.max(0, Math.min(tabs.length - 1, i));
+      tabs.forEach((t, j) => {
+        const on = j === current;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        t.classList.toggle('done', j < current);
+      });
+      panels.forEach((p, j) => {
+        const on = j === current;
+        p.classList.toggle('is-active', on);
+        p.toggleAttribute('inert', !on);
+      });
+      if (focus) tabs[current].focus();
+      // Keep the active chip visible in the horizontal stepper on small screens.
+      // Only the stepper scrolls, never the page.
+      const list = tabs[current].parentElement!;
+      if (list.scrollWidth > list.clientWidth) {
+        const t = tabs[current];
+        const left = t.offsetLeft - (list.clientWidth - t.offsetWidth) / 2;
+        list.scrollTo({ left, behavior: reduced.matches ? 'auto' : 'smooth' });
+      }
+      prev.disabled = current === 0;
+      const last = current === tabs.length - 1;
+      nextLabel.textContent = last ? 'Replay' : 'Next';
+      next.setAttribute('aria-label', last ? 'Replay walkthrough from the start' : 'Next stage');
+      count.textContent = `Stage ${current + 1} of ${tabs.length}`;
+      bar.style.width = `${((current + 1) / tabs.length) * 100}%`;
+    };
+
+    const stop = () => {
+      window.clearInterval(timer);
+      timer = undefined;
+      play.setAttribute('aria-pressed', 'false');
+      play.setAttribute('aria-label', 'Play walkthrough');
+    };
+
+    const start = () => {
+      if (current === tabs.length - 1) show(0);
+      play.setAttribute('aria-pressed', 'true');
+      play.setAttribute('aria-label', 'Pause walkthrough');
+      window.clearInterval(timer);
+      timer = window.setInterval(() => {
+        if (current >= tabs.length - 1) return stop();
+        show(current + 1);
+      }, AUTOPLAY_MS);
+    };
+
+    const userAction = (fn: () => void) => () => {
+      touched = true;
+      stop();
+      fn();
+    };
+
+    tabs.forEach((t, i) => t.addEventListener('click', userAction(() => show(i))));
+    prev.addEventListener('click', userAction(() => show(current - 1)));
+    next.addEventListener('click', userAction(() => show(current === tabs.length - 1 ? 0 : current + 1)));
+    play.addEventListener('click', () => {
+      touched = true;
+      if (timer) stop();
+      else start();
+    });
+
+    root.querySelector('[role="tablist"]')!.addEventListener('keydown', (e) => {
+      const ev = e as KeyboardEvent;
+      const map: Record<string, number> = {
+        ArrowDown: current + 1,
+        ArrowRight: current + 1,
+        ArrowUp: current - 1,
+        ArrowLeft: current - 1,
+        Home: 0,
+        End: tabs.length - 1,
+      };
+      if (ev.key in map) {
+        ev.preventDefault();
+        touched = true;
+        stop();
+        show(map[ev.key], true);
+      }
+    });
+
+    // Pause when the page is hidden or the preview scrolls away; begin once, gently, when first seen.
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return stop();
+        if (!touched && !reduced.matches && !timer && current === 0) start();
+      },
+      { threshold: 0.45 },
+    );
+    io.observe(root);
+    document.addEventListener('visibilitychange', () => document.hidden && stop());
+
+    show(0);
+  });
+</script>

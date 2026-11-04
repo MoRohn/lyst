@@ -1,0 +1,818 @@
+---
+import Icon from './Icon.astro';
+import {
+  marginTrend,
+  marginBridge,
+  processStages,
+  invoiceMatchWeekly,
+  weeklyKpis,
+  weeklyRevenue,
+  weeklySql,
+  weeklyPython,
+} from '../data/demos';
+import { scale } from '../lib/format';
+import { sql, python } from '../lib/highlight';
+
+const cases = [
+  {
+    id: 'finance',
+    icon: 'Landmark',
+    tab: 'Financial Intelligence',
+    question: 'What’s driving our operating margin decline?',
+    summary: 'Lyst decomposes the margin change, isolates the drivers and drafts an explanation an executive can act on.',
+    steps: ['Profiled revenue, COGS and freight tables', 'Built a month-by-month margin bridge', 'Tested mix and price effects separately', 'Drafted an executive summary with sources'],
+  },
+  {
+    id: 'operations',
+    icon: 'Gauge',
+    tab: 'Operational Intelligence',
+    question: 'Where are our biggest process inefficiencies?',
+    summary: 'Lyst compares every process stage with its target, flags anomalies and recommends where to intervene first.',
+    steps: ['Mapped procure-to-pay events by stage', 'Compared cycle times with targets', 'Detected a shift in invoice matching', 'Ranked recommendations by impact'],
+  },
+  {
+    id: 'engineering',
+    icon: 'FileCode2',
+    tab: 'Analytical Engineering',
+    question: 'Build a weekly performance dashboard.',
+    summary: 'Lyst writes the SQL model, validates it in Python, generates the dashboard and schedules the refresh.',
+    steps: ['Wrote a DuckDB SQL model', 'Validated it with Python checks', 'Generated the dashboard', 'Scheduled a weekly refresh'],
+  },
+];
+
+// ---- Finance: margin trend line
+const LW = 600, LH = 160, lm = { t: 14, r: 12, b: 24, l: 34 };
+const lx = scale(0, marginTrend.values.length - 1, lm.l, LW - lm.r);
+const ly = scale(14, 19, LH - lm.b, lm.t);
+const linePath = marginTrend.values.map((v, i) => `${i ? 'L' : 'M'}${lx(i).toFixed(1)} ${ly(v).toFixed(1)}`).join('');
+const areaPath = `${linePath}L${lx(marginTrend.values.length - 1)} ${LH - lm.b}L${lx(0)} ${LH - lm.b}Z`;
+const maxPts = Math.max(...marginBridge.map((b) => Math.abs(b.pts)));
+
+// ---- Operations: stage bars
+const maxDays = 7;
+
+// ---- Ops anomaly sparkline
+const SW = 260, SH = 56;
+const sx = scale(0, invoiceMatchWeekly.length - 1, 4, SW - 4);
+const sy = scale(0, 8, SH - 6, 6);
+const spark = invoiceMatchWeekly.map((v, i) => `${i ? 'L' : 'M'}${sx(i).toFixed(1)} ${sy(v).toFixed(1)}`).join('');
+
+// ---- Engineering: revenue sparkline
+const RW = 300, RH = 70;
+const rx = scale(0, weeklyRevenue.length - 1, 2, RW - 2);
+const ry = scale(4.1, 4.9, RH - 4, 6);
+const rev = weeklyRevenue.map((v, i) => `${i ? 'L' : 'M'}${rx(i).toFixed(1)} ${ry(v).toFixed(1)}`).join('');
+const revArea = `${rev}L${rx(weeklyRevenue.length - 1)} ${RH}L${rx(0)} ${RH}Z`;
+---
+
+<section class="section usecases" id="demos" aria-labelledby="uc-title">
+  <div class="container">
+    <div class="section-head" data-reveal>
+      <p class="eyebrow">Product demonstrations</p>
+      <h2 id="uc-title" class="h2">From question to finished work.</h2>
+      <p class="lede">Three illustrative assignments, shown with synthetic data, of the work Lyst is being built to complete.</p>
+    </div>
+
+    <div class="uc" data-tabs data-reveal>
+      <div class="tablist" role="tablist" aria-label="Demonstrations">
+        {
+          cases.map((c, i) => (
+            <button
+              type="button"
+              role="tab"
+              id={`uc-tab-${c.id}`}
+              aria-controls={`uc-panel-${c.id}`}
+              aria-selected={i === 0 ? 'true' : 'false'}
+              tabindex={i === 0 ? 0 : -1}
+            >
+              <Icon name={c.icon} size={18} />
+              <span>{c.tab}</span>
+            </button>
+          ))
+        }
+        <span class="indicator" aria-hidden="true"></span>
+      </div>
+
+      <div class="panels">
+        {
+          cases.map((c, i) => (
+            <div
+              class:list={['panel', { 'is-active': i === 0 }]}
+              id={`uc-panel-${c.id}`}
+              role="tabpanel"
+              aria-labelledby={`uc-tab-${c.id}`}
+              tabindex="0"
+              hidden={i !== 0}
+            >
+              <div class="brief">
+                <p class="q">
+                  <span class="q-label">Assignment</span>“{c.question}”
+                </p>
+                <p class="summary">{c.summary}</p>
+                <ol class="did">
+                  {c.steps.map((s) => (
+                    <li>
+                      <Icon name="Check" size={14} strokeWidth={2.25} />
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div class="deliverable">
+                <div class="d-top">
+                  <span>{c.id === 'engineering' ? 'Weekly performance' : c.id === 'finance' ? 'Executive brief' : 'Process review'}</span>
+                  <span class="chip">Sample data</span>
+                </div>
+
+                {c.id === 'finance' && (
+                  <div class="d-body fin">
+                    <div class="kpi-row">
+                      <div>
+                        <span class="k-label">Operating margin, Sep</span>
+                        <span class="k-val num">14.8%</span>
+                        <span class="k-delta neg num">−3.6 pt since Jan</span>
+                      </div>
+                    </div>
+                    <svg viewBox={`0 0 ${LW} ${LH}`} class="chart" role="img" aria-label="Operating margin fell from 18.4% in January to 14.8% in September (sample data).">
+                      {[15, 16, 17, 18, 19].map((t) => (
+                        <g>
+                          <line x1={lm.l} x2={LW - lm.r} y1={ly(t)} y2={ly(t)} class="grid" />
+                          <text x={lm.l - 6} y={ly(t) + 3.5} text-anchor="end" class="tick">{t}%</text>
+                        </g>
+                      ))}
+                      <path d={areaPath} class="area" />
+                      <path d={linePath} class="line" pathLength="1" />
+                      {marginTrend.months.map((mo, i) => (
+                        <text x={lx(i)} y={LH - 6} text-anchor="middle" class="tick">{mo}</text>
+                      ))}
+                      <circle cx={lx(marginTrend.values.length - 1)} cy={ly(marginTrend.values.at(-1)!)} r="3.5" class="end" />
+                    </svg>
+                    <div class="bridge">
+                      <h3>Margin bridge, Jan → Sep <span>percentage points</span></h3>
+                      <ul>
+                        {marginBridge.map((b) => (
+                          <li>
+                            <span class="b-label">{b.label}</span>
+                            <span class="b-track" aria-hidden="true">
+                              <span class:list={['b-bar', b.pts > 0 ? 'up' : 'down']} style={`--w:${(Math.abs(b.pts) / maxPts) * 50}%`} />
+                            </span>
+                            <span class:list={['num', 'b-val', b.pts > 0 ? 'pos' : 'neg']}>{b.pts > 0 ? '+' : '−'}{Math.abs(b.pts).toFixed(1)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p class="exec">
+                      <strong>Summary.</strong> Margin fell 3.6 points, mostly from a shift toward lower-margin products and higher
+                      freight rates. Discounting added 0.9 points and is the most controllable lever.
+                    </p>
+                  </div>
+                )}
+
+                {c.id === 'operations' && (
+                  <div class="d-body ops">
+                    <h3>Median cycle time by stage <span>days · target marked</span></h3>
+                    <ul class="stages">
+                      {processStages.map((s) => (
+                        <li class:list={[{ flag: s.flag }]}>
+                          <span class="s-label">
+                            {s.stage}
+                            {s.flag && <Icon name="TriangleAlert" size={13} label="Above target" />}
+                          </span>
+                          <span class="s-track" aria-hidden="true">
+                            <span class="s-bar" style={`--w:${(s.actual / maxDays) * 100}%`} />
+                            <span class="s-target" style={`--x:${(s.target / maxDays) * 100}%`} />
+                          </span>
+                          <span class="num s-val">{s.actual.toFixed(1)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div class="anomaly">
+                      <div>
+                        <span class="a-title"><Icon name="CircleAlert" size={14} /> Anomaly · invoice match wait</span>
+                        <p>Shifted up from week 36, concentrated at one site. 62% of exceptions are PO and receipt quantity mismatches.</p>
+                      </div>
+                      <svg viewBox={`0 0 ${SW} ${SH}`} class="spark" role="img" aria-label="Weekly invoice match time, rising from about 2 days to about 7 days after week 36 (sample data).">
+                        <rect x={sx(8) - 6} y="0" width={sx(12) - sx(8) + 12} height={SH} class="band" rx="4" />
+                        <path d={spark} class="line" />
+                      </svg>
+                    </div>
+                    <ol class="recs">
+                      <li><span>1</span>Auto-route approvals under a set threshold to cut approval time.</li>
+                      <li><span>2</span>Fix the quantity-mismatch rule at the affected site.</li>
+                      <li><span>3</span>Monitor invoice-match time weekly with an alert above 3 days.</li>
+                    </ol>
+                  </div>
+                )}
+
+                {c.id === 'engineering' && (
+                  <div class="d-body eng">
+                    <ol class="pipeline" aria-label="Pipeline">
+                      <li><Icon name="Database" size={14} />orders</li>
+                      <li><Icon name="FileCode2" size={14} />SQL model</li>
+                      <li><Icon name="ShieldCheck" size={14} />6 checks</li>
+                      <li><Icon name="LayoutDashboard" size={14} />Dashboard</li>
+                      <li><Icon name="Clock" size={14} />Mon 07:00</li>
+                    </ol>
+                    <div class="eng-grid">
+                      <div class="codes">
+                        <pre class="code" tabindex="0" aria-label="SQL model"><code set:html={sql(weeklySql)} /></pre>
+                        <pre class="code" tabindex="0" aria-label="Python validation"><code set:html={python(weeklyPython)} /></pre>
+                      </div>
+                      <div class="dash">
+                        <div class="kpis">
+                          {weeklyKpis.map((k) => (
+                            <div class="kpi">
+                              <span class="k-label">{k.label}</span>
+                              <span class="k-val num">{k.value}</span>
+                              <span class:list={['k-delta', 'num', k.good ? 'pos' : 'neg']}>{k.delta} WoW</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div class="rev">
+                          <span class="k-label">Revenue, last 12 weeks</span>
+                          <svg viewBox={`0 0 ${RW} ${RH}`} class="spark" role="img" aria-label="Weekly revenue rising from $4.21M to $4.82M over 12 weeks (sample data).">
+                            <path d={revArea} class="area" />
+                            <path d={rev} class="line" />
+                          </svg>
+                        </div>
+                        <p class="sched"><Icon name="Calendar" size={14} /> Refreshes every Monday at 07:00 and posts to the team channel.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .uc {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .tablist {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-bottom: 1px solid var(--line);
+    background: #fbfcfb;
+  }
+
+  .tablist button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 56px;
+    padding: 0.9rem 1rem;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.9375rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
+  }
+
+  .tablist button + button {
+    border-left: 1px solid var(--line);
+  }
+
+  .tablist button:hover {
+    color: var(--ink);
+    background: var(--white);
+  }
+
+  .tablist button[aria-selected='true'] {
+    color: var(--ink);
+    background: var(--white);
+  }
+
+  .tablist button[aria-selected='true'] :global(svg) {
+    color: var(--teal-dark);
+  }
+
+  .indicator {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: calc(100% / 3);
+    height: 2px;
+    background: var(--teal-dark);
+    transform: translateX(calc(var(--tab, 0) * 100%));
+    transition: transform 0.35s var(--ease);
+  }
+
+  .panel {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: clamp(1.5rem, 1rem + 2.5vw, 3.5rem);
+    padding: clamp(1.25rem, 0.75rem + 2.5vw, 3rem);
+  }
+
+  .panel[hidden] {
+    display: none;
+  }
+
+  .panel.is-active {
+    animation: fade 0.45s var(--ease);
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  .q {
+    font-size: var(--step-2);
+    font-weight: 560;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+
+  .q-label {
+    display: block;
+    margin-bottom: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal-dark);
+  }
+
+  .summary {
+    margin-top: var(--space-4);
+    color: var(--muted);
+  }
+
+  .did {
+    list-style: none;
+    display: grid;
+    gap: 0.55rem;
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--line);
+    font-size: 0.9063rem;
+    color: var(--ink-2);
+  }
+
+  .did li {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+  }
+
+  .did :global(svg) {
+    flex: none;
+    color: var(--teal-dark);
+    transform: translateY(2px);
+  }
+
+  .deliverable {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--offwhite);
+    font-size: 0.8125rem;
+  }
+
+  .d-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--line);
+    font-weight: 600;
+  }
+
+  .d-body {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .d-body h3 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .d-body h3 span {
+    margin-left: 0.35rem;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .k-label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .k-val {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 1.375rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .k-delta {
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .chart,
+  .spark {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .grid {
+    stroke: var(--line);
+  }
+
+  .tick {
+    font-size: 9.5px;
+    fill: var(--muted);
+  }
+
+  .line {
+    fill: none;
+    stroke: var(--teal-dark);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .area {
+    fill: var(--teal);
+    fill-opacity: 0.12;
+  }
+
+  .end {
+    fill: var(--white);
+    stroke: var(--teal-dark);
+    stroke-width: 2;
+  }
+
+  .panel.is-active .chart .line {
+    stroke-dasharray: 1;
+    animation: draw 1.1s var(--ease) both;
+  }
+
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .bridge ul,
+  .stages {
+    list-style: none;
+    display: grid;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+  }
+
+  .bridge li,
+  .stages li {
+    display: grid;
+    grid-template-columns: 10.5rem 1fr 2.5rem;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .b-label,
+  .s-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--ink-2);
+    font-size: 0.75rem;
+  }
+
+  .b-track,
+  .s-track {
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--subtle);
+  }
+
+  .b-track::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -3px;
+    bottom: -3px;
+    width: 1px;
+    background: var(--line-strong);
+  }
+
+  .b-bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: var(--w);
+    border-radius: 4px;
+  }
+
+  .b-bar.down {
+    right: 50%;
+    background: var(--bad);
+    opacity: 0.8;
+  }
+
+  .b-bar.up {
+    left: 50%;
+    background: var(--good);
+    opacity: 0.85;
+  }
+
+  .b-val,
+  .s-val {
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .exec {
+    padding: 0.75rem 0.85rem;
+    border-left: 2px solid var(--teal-dark);
+    border-radius: 0 8px 8px 0;
+    background: var(--white);
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  .s-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--w);
+    border-radius: 4px;
+    background: #9fb0bc;
+  }
+
+  .flag .s-bar {
+    background: var(--bad);
+    opacity: 0.85;
+  }
+
+  .flag .s-label {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .flag .s-label :global(svg) {
+    color: var(--bad);
+  }
+
+  .s-target {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    left: var(--x);
+    width: 2px;
+    border-radius: 1px;
+    background: var(--graphite);
+  }
+
+  .anomaly {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid #efd3cf;
+    border-radius: 8px;
+    background: var(--bad-wash);
+  }
+
+  .a-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    color: var(--bad);
+  }
+
+  .anomaly p {
+    margin-top: 0.3rem;
+    color: var(--ink-2);
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .anomaly .line {
+    stroke: var(--bad);
+  }
+
+  .band {
+    fill: var(--bad);
+    fill-opacity: 0.1;
+  }
+
+  .recs {
+    list-style: none;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .recs li {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+    color: var(--ink-2);
+  }
+
+  .recs span {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--graphite);
+    color: var(--white);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .pipeline {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+  }
+
+  .pipeline li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--white);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .pipeline li :global(svg) {
+    color: var(--teal-dark);
+  }
+
+  .pipeline li + li::before {
+    content: '';
+    width: 10px;
+    height: 1px;
+    margin-left: -0.75rem;
+    margin-right: 0.15rem;
+    background: var(--line-strong);
+  }
+
+  .eng-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .codes {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .codes .code {
+    font-size: 0.6875rem;
+    line-height: 1.6;
+  }
+
+  .dash {
+    display: grid;
+    gap: 0.6rem;
+    align-content: start;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .kpi {
+    padding: 0.55rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+
+  .kpi .k-val {
+    font-size: 1.0625rem;
+  }
+
+  .sched {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    color: var(--muted);
+    font-size: 0.6875rem;
+  }
+
+  .sched :global(svg) {
+    flex: none;
+    color: var(--teal-dark);
+  }
+
+  @media (max-width: 960px) {
+    .panel {
+      grid-template-columns: 1fr;
+    }
+
+    .eng-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .tablist button {
+      flex-direction: column;
+      gap: 0.3rem;
+      min-height: 64px;
+      padding: 0.6rem 0.4rem;
+      font-size: 0.75rem;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .bridge li,
+    .stages li {
+      grid-template-columns: 7.5rem 1fr 2.25rem;
+    }
+
+    .anomaly {
+      grid-template-columns: 1fr;
+    }
+
+    .chart .tick {
+      font-size: 17px;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
+    const list = root.querySelector<HTMLElement>('[role="tablist"]')!;
+    const tabs = [...list.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls')!)!);
+
+    const select = (i: number, focus = false) => {
+      tabs.forEach((t, j) => {
+        const on = i === j;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        panels[j].hidden = !on;
+        panels[j].classList.toggle('is-active', on);
+      });
+      list.style.setProperty('--tab', String(i));
+      if (focus) tabs[i].focus();
+    };
+
+    tabs.forEach((t, i) => t.addEventListener('click', () => select(i)));
+    list.addEventListener('keydown', (e) => {
+      const current = tabs.findIndex((t) => t.getAttribute('aria-selected') === 'true');
+      const keys: Record<string, number> = {
+        ArrowRight: (current + 1) % tabs.length,
+        ArrowLeft: (current - 1 + tabs.length) % tabs.length,
+        Home: 0,
+        End: tabs.length - 1,
+      };
+      if (e.key in keys) {
+        e.preventDefault();
+        select(keys[e.key], true);
+      }
+    });
+  });
+</script>

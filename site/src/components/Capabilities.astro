@@ -1,0 +1,211 @@
+---
+import Icon from './Icon.astro';
+import { capabilities, statusLabel } from '../data/content';
+import { stage } from '../config/site';
+---
+
+<section class="section caps" id="capabilities" aria-labelledby="caps-title">
+  <div class="container">
+    <div class="head">
+      <div data-reveal>
+        <p class="eyebrow">Capabilities</p>
+        <h2 id="caps-title" class="h2">One Analyst. An expanding universe of capabilities.</h2>
+      </div>
+      <div class="legend" data-reveal>
+        <p>{stage.capabilityNote}</p>
+        <ul aria-label="Status legend">
+          <li><span class="status status-dev">{statusLabel.dev}</span></li>
+          <li><span class="status status-planned">{statusLabel.planned}</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <ul class="grid">
+      {
+        capabilities.map((c, i) => (
+          <li class="cap" data-reveal style={`--reveal-delay:${i % 3}`}>
+            <div class="cap-top">
+              <span class="ic"><Icon name={c.icon} size={20} /></span>
+              <span class={`status status-${c.status}`}>{statusLabel[c.status]}</span>
+            </div>
+            <h3>{c.title}</h3>
+            <p>{c.text}</p>
+            <ul class="items" aria-label={`${c.title} includes`}>
+              {c.items.map((it) => <li>{it}</li>)}
+            </ul>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .head {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: var(--space-6);
+    align-items: end;
+    margin-bottom: clamp(2.5rem, 2rem + 2vw, 4rem);
+  }
+
+  .head h2 {
+    max-width: 38rem;
+  }
+
+  .legend p {
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .legend ul {
+    list-style: none;
+    display: flex;
+    gap: var(--space-5);
+    margin-top: var(--space-3);
+  }
+
+  .grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    overflow: hidden;
+  }
+
+  .cap {
+    position: relative;
+    padding: clamp(1.25rem, 1rem + 1.2vw, 2rem);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    transition: background-color 0.3s var(--ease), opacity 0.7s var(--ease), transform 0.7s var(--ease);
+  }
+
+  .cap:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .cap:nth-last-child(-n + 3) {
+    border-bottom: 0;
+  }
+
+  .cap::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 2px;
+    width: 100%;
+    background: var(--teal-dark);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s var(--ease);
+  }
+
+  .cap:hover {
+    background: #fcfdfc;
+  }
+
+  .cap:hover::before {
+    transform: scaleX(1);
+  }
+
+  .cap-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-5);
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--teal-dark);
+    background: var(--offwhite);
+    transition: background-color 0.3s var(--ease), color 0.3s var(--ease), border-color 0.3s var(--ease);
+  }
+
+  .cap:hover .ic {
+    background: var(--teal-dark);
+    border-color: var(--teal-dark);
+    color: var(--white);
+  }
+
+  h3 {
+    font-size: var(--step-1);
+    letter-spacing: -0.02em;
+  }
+
+  .cap > p {
+    margin-top: 0.35rem;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .items {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.4rem;
+    margin-top: var(--space-4);
+  }
+
+  .items li {
+    padding: 0.1rem 0.5rem;
+    border-radius: 5px;
+    background: var(--subtle);
+    color: var(--ink-2);
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  @media (max-width: 960px) {
+    .head {
+      grid-template-columns: 1fr;
+    }
+
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cap:nth-child(3n) {
+      border-right: 1px solid var(--line);
+    }
+
+    .cap:nth-child(2n) {
+      border-right: 0;
+    }
+
+    .cap:nth-last-child(-n + 3) {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cap:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+
+    .cap {
+      border-right: 0 !important;
+    }
+
+    .cap:nth-last-child(-n + 2) {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cap:last-child {
+      border-bottom: 0;
+    }
+  }
+</style>

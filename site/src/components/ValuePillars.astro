@@ -1,0 +1,169 @@
+---
+import Icon from './Icon.astro';
+import { pillars } from '../data/content';
+---
+
+<section class="section pillars" id="product" aria-labelledby="pillars-title">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <p class="eyebrow">{pillars.eyebrow}</p>
+      <h2 id="pillars-title" class="h2">{pillars.headline}</h2>
+      <p class="lede">{pillars.lede}</p>
+    </div>
+
+    <ol class="flow">
+      {
+        pillars.items.map((p, i) => (
+          <li class="pillar" data-reveal style={`--reveal-delay:${i * 2}`}>
+            <div class="top">
+              <span class="ic"><Icon name={p.icon} size={22} /></span>
+              <span class="idx">0{i + 1}</span>
+            </div>
+            <h3>{p.title}</h3>
+            <p>{p.text}</p>
+            <ul class="detail">
+              {p.detail.map((d) => <li>{d}</li>)}
+            </ul>
+            {i < pillars.items.length - 1 && (
+              <span class="connector" aria-hidden="true">
+                <Icon name="ArrowRight" size={16} />
+              </span>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .flow {
+    list-style: none;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(1rem, 0.5rem + 2vw, 2.5rem);
+  }
+
+  .flow::before {
+    content: '';
+    position: absolute;
+    top: 46px;
+    left: 8%;
+    right: 8%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--line-strong) 12%, var(--line-strong) 88%, transparent);
+  }
+
+  .pillar {
+    position: relative;
+    padding: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    transition:
+      border-color 0.25s var(--ease),
+      box-shadow 0.25s var(--ease),
+      transform 0.25s var(--ease),
+      opacity 0.7s var(--ease);
+  }
+
+  .pillar:hover {
+    border-color: #c6dcd7;
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
+
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: var(--teal-wash);
+    color: var(--teal-deep);
+  }
+
+  .idx {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  h3 {
+    font-size: var(--step-2);
+    letter-spacing: -0.025em;
+  }
+
+  .pillar > p {
+    margin-top: var(--space-3);
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .detail {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px dashed var(--line);
+  }
+
+  .detail li {
+    padding: 0.15rem 0.55rem;
+    border-radius: 5px;
+    background: var(--offwhite);
+    border: 1px solid var(--line);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+
+  .connector {
+    position: absolute;
+    z-index: 1;
+    top: 32px;
+    right: calc(-1 * clamp(1rem, 0.5rem + 2vw, 2.5rem) / 2 - 14px);
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--offwhite);
+    color: var(--teal-dark);
+  }
+
+  @media (max-width: 860px) {
+    .flow {
+      grid-template-columns: 1fr;
+    }
+
+    .flow::before {
+      top: 8%;
+      bottom: 8%;
+      left: 46px;
+      right: auto;
+      width: 1px;
+      height: auto;
+      background: var(--line-strong);
+    }
+
+    .connector {
+      top: auto;
+      right: auto;
+      bottom: -22px;
+      left: 32px;
+      transform: rotate(90deg);
+    }
+  }
+</style>

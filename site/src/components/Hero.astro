@@ -1,0 +1,194 @@
+---
+import Icon from './Icon.astro';
+import AnalystPreview from './AnalystPreview.astro';
+import { hero } from '../data/content';
+import { stage } from '../config/site';
+---
+
+<section class="hero" id="top" aria-labelledby="hero-title">
+  <div class="backdrop" aria-hidden="true"></div>
+  <div class="container">
+    <div class="copy">
+      <p class="badge">
+        <span class="pulse" aria-hidden="true"></span>
+        {stage.badge}
+        <span class="sep" aria-hidden="true"></span>
+        <span class="note">{stage.heroNote}</span>
+      </p>
+      <h1 id="hero-title">{hero.headline}</h1>
+      <p class="sub">{hero.sub}</p>
+      <div class="ctas">
+        <a class="btn btn-teal" href={stage.primaryHref}>
+          {stage.primaryCta}
+          <Icon name="ArrowRight" size={16} class="arrow" />
+        </a>
+        <a class="btn btn-ghost" href="#product">{hero.secondaryCta}</a>
+      </div>
+      <ul class="stack" aria-label="Built with">
+        {hero.stack.map((s) => <li>{s}</li>)}
+      </ul>
+    </div>
+
+    <div class="visual">
+      <AnalystPreview />
+      <p class="caption">
+        Illustrative walkthrough of the intended Lyst experience, using synthetic data. It is pre-rendered and does not run
+        live AI inference.
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding: clamp(3rem, 2rem + 5vw, 6.5rem) 0 clamp(3.5rem, 2rem + 5vw, 6rem);
+    overflow: hidden;
+  }
+
+  .backdrop {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 760px;
+    background-image:
+      linear-gradient(to right, rgb(21 26 33 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(21 26 33 / 0.045) 1px, transparent 1px);
+    background-size: 56px 56px;
+    background-position: center top;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+  }
+
+  .copy {
+    max-width: 52rem;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.3rem 0.85rem 0.3rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--teal-deep);
+  }
+
+  .badge .note {
+    font-weight: 450;
+    color: var(--muted);
+  }
+
+  .badge .sep {
+    width: 1px;
+    height: 12px;
+    background: var(--line);
+  }
+
+  .pulse {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+  }
+
+  .pulse::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--teal);
+    animation: pulse 2.4s var(--ease) infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      opacity: 0.8;
+      transform: scale(0.6);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.4);
+    }
+  }
+
+  h1 {
+    margin-top: var(--space-5);
+    font-size: var(--step-4);
+    font-weight: 620;
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+  }
+
+  .sub {
+    max-width: 38rem;
+    margin: var(--space-5) auto 0;
+    font-size: var(--step-1);
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  .ctas {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+  }
+
+  .stack {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 0;
+    margin-top: var(--space-6);
+    list-style: none;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  .stack li + li::before {
+    content: '·';
+    margin: 0 0.85rem;
+    color: var(--line-strong);
+  }
+
+  .visual {
+    max-width: 1080px;
+    margin: clamp(2.75rem, 2rem + 3vw, 4.5rem) auto 0;
+  }
+
+  .caption {
+    margin-top: var(--space-4);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    .badge .sep,
+    .badge .note {
+      display: none;
+    }
+
+    .ctas .btn {
+      flex: 1 1 100%;
+    }
+  }
+</style>

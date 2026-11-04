@@ -49,18 +49,21 @@ export const site = {
   license: 'Apache-2.0',
 } as const;
 
+const github = httpsUrl(clean(env.PUBLIC_GITHUB_URL)).replace(/\/$/, '');
+
 /** Stage-dependent labels. Switching PUBLIC_LAUNCH_MODE changes all of them at once. */
 export const stage =
   mode === 'public'
     ? {
         badge: 'Open-source release',
         heroNote: 'Now available as open source. Self-host it on your own infrastructure.',
-        primaryCta: 'Get Early Access',
+        primaryCta: 'Get Lyst',
         status: 'Released',
         capabilityNote:
           'Each capability carries its current status. Planned items are on the public roadmap and are not yet released.',
         enterpriseNote: 'Items marked as design goals are architectural commitments still being implemented.',
         accessHeadline: 'Meet the next generation of analytical work.',
+        primaryHref: github || '#early-access',
       }
     : {
         badge: 'Private Preview',
@@ -72,6 +75,7 @@ export const stage =
         enterpriseNote:
           'These are architectural design goals that guide how Lyst is being built, not certifications or finished features.',
         accessHeadline: 'Meet the next generation of analytical work.',
+        primaryHref: '#early-access',
       };
 
 export const nav = [
