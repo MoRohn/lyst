@@ -1481,9 +1481,13 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                  "Use only numbers given. Do not add numbers."},
                 {"role": "user", "content": json.dumps({"answer": answer, "findings": findings})},
             ], purpose="deliver", task_id=ctx.task_id, max_tokens=600, workload="chat")
+            text = (text or "").strip()
             bad = unbacked_numbers(text, allowed)
-            if not bad:
-                answer, narrative_by = text.strip(), "model (numbers verified)"
+            if len(text) < 20 or not any(ch.isalpha() for ch in text):
+                # a thinking model can spend its budget and answer nothing: the computed answer stands
+                narrative_by = "template (model returned no wording)"
+            elif not bad:
+                answer, narrative_by = text, "model (numbers verified)"
             else:  # the computed answer stands; say why the model's wording was not used, without quoting it
                 narrative_by = "template (model wording dropped: unverified numbers " + ", ".join(f"{b:g}" for b in bad[:4]) + ")"
         except LLMUnavailable as exc:

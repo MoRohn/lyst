@@ -245,3 +245,23 @@ def test_model_summary_may_reuse_any_number_lyst_wrote(seeded):
     r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
     assert r["supporting"]["narrative_by"] == "model (numbers verified)", r["supporting"]["narrative_by"]
     assert r["answer"] == text
+
+
+def test_an_empty_model_reply_never_replaces_the_computed_answer(seeded):
+    from lyst.llm import LLMClient
+
+    lyst, owner = seeded
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        content = "{}" if body.get("response_format") else ""
+        return httpx.Response(200, json={"choices": [{"message": {"content": content, "reasoning": "thinking..."}, "finish_reason": "stop"}],
+                                         "usage": {}})
+
+    client = LLMClient(lyst.settings.llm, lyst.stores, transport=httpx.MockTransport(handler), credentials=lyst.credentials)
+    lyst.services.llm = lyst.llm = client
+    lyst.credentials.connect(owner, scope_kind="installation", scope_id=None, provider="openrouter", name="OpenRouter", secret="or-test-key-000001",
+                             test_first=False)
+    lyst.stores.control.execute("UPDATE workspaces SET allow_external_llm = true WHERE id = 'northwind'")
+    r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
+    assert r["answer"].startswith("Operating margin was 32.5%") and r["supporting"]["narrative_by"] == "template (model returned no wording)"
