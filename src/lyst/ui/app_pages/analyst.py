@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, collab, kit, onboarding
+from lyst.ui import anticipate, collab, decisions, kit, onboarding, scenarios
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -351,6 +351,27 @@ def act_bar(task: str, t: dict, r: dict) -> None:
         how_it_ran(task)
 
 
+def explore_row(task: str, t: dict, r: dict) -> None:
+    """From an answer to a choice: move its drivers (What if…?) or weigh options (Compare options)."""
+    if r.get("status") != "complete":
+        return
+    metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec") or {}
+    models = scenarios.models_for(metric["name"]) if metric.get("name") else []
+    editor = st.session_state.get("role") in ("editor", "admin", "owner")
+    if not models and not editor:
+        return
+    c = st.columns([2, 2, 4])
+    if models and c[0].button(f"What if…? Explore {kit.lower(metric.get('title') or metric['name'])}", type="tertiary",
+                              icon=":material/tune:", key=f"wi_{task}", width="stretch"):
+        st.session_state.pop(f"sc_prev_{models[0]}", None)
+        scenarios.explore(models[0])
+    if editor and c[1].button("Compare options", type="tertiary", icon=":material/balance:", key=f"dec_{task}",
+                              width="stretch"):
+        decisions.new(task_id=task, question="")
+    if (did := st.session_state.pop("open_decision", None)):
+        decisions.detail(did)
+
+
 def task_view(task: str) -> None:
     top = st.columns([6, 1.4], vertical_alignment="center")
     if top[1].button("New question", icon=":material/add:", type="tertiary", width="stretch"):
@@ -380,6 +401,7 @@ def task_view(task: str) -> None:
         r = t["result"]
         answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
         act_bar(task, t, r)
+        explore_row(task, t, r)
         anticipate.next_steps(task)
         metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
         if metric:

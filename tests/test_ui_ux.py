@@ -318,3 +318,27 @@ def test_next_steps_sit_under_their_answer_not_in_work(seeded, ui):  # noqa: F81
     assert not anticipate._wants_person({"kind": "early_warning", "verdict": "unverified"})
     assert anticipate._wants_person({"kind": "recurring_prep", "verdict": "blocked", "status": "surfaced"})
     assert not anticipate._wants_person({"kind": "recurring_prep", "verdict": "ready", "status": "prepared"})
+
+
+def test_what_if_and_decisions_are_reachable_where_people_work(seeded, ui):  # noqa: F811
+    from lyst.ui.scenarios import delta, fmt  # noqa: PLC0415
+
+    assert fmt(0.3539, "percent") == "35.4%" and fmt(9148122.0, "currency") == "$9.15M"
+    assert delta({"format": "percent", "delta": -0.0064}) == "-0.6 pts"
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "saved analyses"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Quarterly P&L drivers" in _texts(at) and any(b.label == "Explore" for b in at.button)
+    rows = [b for b in at.button if b.label == "Explore"]
+    rows[0].click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any("change" in s.label for s in at.slider)  # one slider per driver, in the explorer dialog
+    at.switch_page("app_pages/work.py")
+    at.query_params["view"] = "activity"
+    at.run()
+    at.get("button_group")[-1].set_value("Decisions").run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(b.label == "Compare options" for b in at.button)
