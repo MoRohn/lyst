@@ -207,10 +207,14 @@ where they point, with Mark all read and "What to tell me about".
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
-  and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas (running and queued tasks,
-  monthly model spend and tokens, time per task). Calendar schedules ("Mondays at 8:00, New York time") stay
-  correct across daylight saving, run once after downtime and never overlap, and a supervisor flags stalled
-  steps, stale approvals and overdue schedules without ever killing work. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
+  and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
+  full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
+  continues without model wording), and a cap on any one task's time that holds across pauses and restarts.
+  Calendar schedules ("every Monday at 08:00 Europe/London") stay at local time across daylight saving, run once
+  after downtime and record what they missed, never double a run still going, and tell the owner when a run
+  finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
+  admins get an operations report (queues, failures, run times, spend against budget). See
+  [docs/OPERATIONS.md](docs/OPERATIONS.md).
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
   citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
 * **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
