@@ -153,3 +153,19 @@ def test_sources_show_health_and_the_action_to_take(seeded, ui, tmp_path, monkey
     assert not at.exception, [e.value for e in at.exception]
     assert "CRM export" in _texts(at) and "feeds 1 dataset" in _texts(at)
     assert any("badge[" in m.value and "Healthy" in m.value for m in at.markdown)
+
+
+def test_reports_from_answers_say_when_they_need_rebuilding(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    t = next(x for x in lyst.runtime.list(owner, "northwind") if x["status"] == "done" and "decline" in x["title"])
+    lyst.artifacts.build(owner, lyst.runtime.get(owner, t["id"]), "pdf")
+    spec = lyst.semantic.get(owner, "northwind", "operating_margin")
+    lyst.semantic.define(owner, "northwind", spec.model_copy(update={"description": "Operating income over revenue."}))
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "dashboards"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Reports from answers" in _texts(at) and "PDF briefing" in _texts(at)
+    assert any("badge[" in m.value and "Needs rebuilding" in m.value for m in at.markdown)
