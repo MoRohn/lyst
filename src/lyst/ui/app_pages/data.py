@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit, onboarding, reports
+from lyst.ui import kit, onboarding, reports, transforms
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -150,6 +150,8 @@ def dataset_detail(d: dict) -> None:
                             if hits else "Nothing approved reads those columns.")
     else:
         contract(name)
+    if view == "Overview":
+        transforms.panel(d.get("source"))
 
 
 def contract(name: str) -> None:
@@ -245,6 +247,9 @@ def sync(conn: dict) -> None:
 
 
 def datasets(catalog: list[dict]) -> None:
+    if catalog and editor and st.button("Build a dataset from data Lyst has", type="tertiary",
+                                        icon=":material/join_inner:", key="tf_open"):
+        transforms.build()
     if not catalog:
         if kit.empty(":material/database:", "No data yet", "Upload a CSV or Parquet file, or connect a database, and "
                      "Lyst can answer questions about it.", action="Add data" if editor else None, key="ds_empty"):
