@@ -48,14 +48,15 @@ understanding and wording, never the numbers.
 
 ## A tour of the interface
 
-One navigation with five areas, light and dark themes, and a "What these words mean" glossary in the sidebar.
+One navigation with five areas, light and dark themes, and in the sidebar a search box across data, metrics,
+saved work and documents, plus a "What these words mean" glossary.
 
 | Area | What you do there |
 |---|---|
 | **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card guides the first run, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
 | **Work** | What needs you (approvals), what Lyst is doing and finished, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed |
-| **Data** | Datasets and their sources, dashboards, saved analyses, and guarded SQL. **Add data** uploads a file or connects a source |
-| **Brain** | What Lyst knows about the business: approved metrics and business terms, documents it can cite, and what it remembers and how far to trust it |
+| **Data** | Datasets with a trust chip each, their sources, dashboards, saved analyses, and guarded SQL. **Add data** uploads a file or connects a source |
+| **Brain** | What Lyst knows about the business: approved metrics and business terms with their health and lineage, documents it can cite, and what it remembers and how far to trust it |
 | **Settings** | Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, audit trail) and Advanced (skills, capabilities, evaluation runs) |
 
 <p align="center">
@@ -98,6 +99,34 @@ Every generated app is checked in a separate interpreter before it is offered.
 
 ![A generated dashboard: KPI cards, trend with forecast and breakdowns](docs/images/dash-overview-light.png)
 
+### Lyst knows your data
+
+Every dataset version is profiled on arrival. Lyst learns its grain, keys and column meaning, finds duplicates at
+the grain, outliers, concentrated missing values, time-series gaps and stale data, and ranks what to check
+before relying on it. Each dataset in Data carries a chip (**Trusted**, **N to fix**, **Contract broken**), and
+its Overview shows those risks, what depends on it, and how it connects to other data: key candidates, shared
+dimensions, and overlapping sources reconciled by their totals.
+
+* **Data contracts.** Lyst drafts a contract from the data (columns, types, allowed values, what identifies a
+  row). Once adopted, it is versioned and checked on every refresh. A breaking change upstream is flagged with
+  the metrics, dashboards and saved analyses it affects, and reaches the owners' inbox once.
+* **Metric lineage.** Each definition shows where its number comes from (source, freshness, contract), its
+  versions with field-level changes, and what uses it. Retiring a definition can name a replacement that
+  requests and terms then follow. A definitions health line in Brain lists duplicates, conflicting sources,
+  ambiguous synonyms and stale definitions, each with its fix.
+* **Search** across datasets, columns, metrics, terms, saved analyses, dashboards, documents and earlier
+  answers, filtered by what you may see. Each result opens where it lives.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/dataset-trust.png" alt="A dataset's Overview: three risks to check before relying on it, ranked Fix first and Worth a look"><br><b>Before you rely on it</b>: ranked risks found in the data</td>
+    <td width="50%"><img src="docs/images/dataset-contract.png" alt="The contract Lyst drafted for a dataset: columns, types, required flags and allowed values"><br><b>Contract</b>: drafted from the data, adopted in one click</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/images/metric-lineage.png" alt="A metric definition: how it is calculated, where the number comes from, versions and retirement" width="60%"><br><b>Definition</b>: where the number comes from, versions and retirement</td>
+  </tr>
+</table>
+
 ## What Lyst does
 
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
@@ -116,7 +145,10 @@ Every generated app is checked in a separate interpreter before it is offered.
 * **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
   a sandbox with adversarial cases, and registers it only after another role approves.
 * **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
-  with incremental syncs. A versioned API and an MCP server at `/mcp` expose the same capabilities.
+  with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
+  and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
+  health, and added, removed or retyped columns are caught on every sync. A versioned API and an MCP server at
+  `/mcp` expose the same capabilities.
 
 The [capability matrix](docs/CAPABILITY_MATRIX.md) lists each capability with its state and the test that proves
 it, and [known gaps](docs/GAPS.md) lists what is missing.
@@ -199,7 +231,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 
 ## Documents
 
-[Architecture](docs/ARCHITECTURE.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
+[Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
 [Performance](docs/PERFORMANCE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
