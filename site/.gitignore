@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.*
+!.env.example
+test-results/
+playwright-report/
+reports/lighthouse/*.html
+waitlist/.venv/
+waitlist/data/
+waitlist/**/__pycache__/
+*.duckdb
+*.duckdb.wal
+.DS_Store

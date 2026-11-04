@@ -1,0 +1,54 @@
+[project]
+name = "lyst"
+version = "0.1.0"
+description = "Lyst: a governed, mostly autonomous AI analyst. DuckDB-first, open-source core."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+  "duckdb>=2.0,<3",
+  "fastapi>=0.162,<1",
+  "uvicorn>=0.54,<1",
+  "pydantic>=2.14,<3",
+  "httpx>=0.28,<1",
+  "sqlglot>=30.29,<31",
+  "pandas>=3.1,<4",
+  "pyarrow>=26",
+  "numpy>=2.5",
+  "scipy>=1.18",
+  "statsmodels>=0.15",
+  "python-multipart>=0.0.33",
+  "pytz>=2025.2",
+]
+
+[project.optional-dependencies]
+ui = ["streamlit==1.66.1", "plotly>=6"]
+
+[project.scripts]
+lyst = "lyst.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.4", "ruff>=0.14", "pip-licenses>=5"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lyst"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "S608", "E501", "S603", "S404", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/lyst/analytics/*" = ["ALL"]
+"tests/*" = ["S105", "S106", "S108"]

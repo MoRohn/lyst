@@ -1,0 +1,48 @@
+import json
+
+import httpx
+
+from lyst.analyst.engine import unbacked_numbers
+from lyst.config import LLMSettings
+from lyst.llm import LLMClient
+
+
+def test_unbacked_numbers():
+    assert unbacked_numbers("Margin fell to 32.5% from 36.0%.", [0.325, 0.36]) == []
+    assert unbacked_numbers("Margin fell to 31.2%.", [0.325]) == [0.312]
+    assert unbacked_numbers("Revenue was $25.41M.", [25_410_000.0]) == []
+
+
+def test_external_model_is_blocked_until_allowed_and_then_redacted(seeded):
+    lyst, owner = seeded
+    sent = []
+
+    def handler(request: httpx.Request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}], "usage": {}})
+
+    client = LLMClient(LLMSettings("https://llm.example/v1", "m", None, external=True), lyst.stores,
+                       transport=httpx.MockTransport(handler))
+    assert not client.allowed_for("northwind")
+    lyst.stores.control.execute("UPDATE workspaces SET allow_external_llm = true WHERE id = 'northwind'")
+    assert client.allowed_for("northwind")
+    client.chat("northwind", [{"role": "user", "content": "email avery@northwind.test"}], purpose="t")
+    assert "avery@northwind.test" not in sent[0]["messages"][0]["content"]
+    assert lyst.stores.control.scalar("SELECT count(*) FROM llm_calls WHERE external") == 1
+
+
+def test_model_narrative_with_invented_numbers_is_rejected(seeded):
+    lyst, owner = seeded
+
+    def handler(request: httpx.Request):
+        body = json.loads(request.content)
+        if body.get("response_format"):
+            return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "Margin collapsed by 47.3%."}}]})
+
+    lyst.services.llm = LLMClient(LLMSettings("http://localhost:11434/v1", "local"), lyst.stores,
+                                  transport=httpx.MockTransport(handler))
+    from .conftest import ask
+
+    r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
+    assert "47.3" not in r["answer"] and r["supporting"]["narrative_by"] == "template"
