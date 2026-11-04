@@ -271,11 +271,13 @@ where they point, with Mark all read and "What to tell me about".
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
-* **Guards its own quality.** Every change runs the evaluation bank against a checked-in baseline in CI, and a
-  check that stopped passing, a much slower case, heavier resource use or a missing case fails the run. Runs
-  report completion, correctness, evidence and efficiency by category. Model routing is measured: a model whose
-  recent calls for a kind of work mostly failed moves behind the healthy ones in its level (never promoted, and a
-  pinned model is never reordered), and a model registry shows prices, context and measured performance.
+* **Guards its own quality.** Every pull request runs Lyst's evaluation suite (21 real questions with
+  independently computed answers, including what-if and adversarial cases) against a recorded baseline. A change
+  that makes an answer wrong, slower, or more expensive in queries, steps, model calls or tokens fails the build,
+  and a planted-defect test proves the gate catches it. Runs report quality by dimension (completion, correctness,
+  evidence, efficiency) and by category. Model routing learns from Lyst's own call records: a model that keeps
+  failing a kind of work moves behind healthy ones (pinned models are never reordered), and a model registry shows
+  each model's context, prices and reasoning settings beside its measured performance.
 * **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
   drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
   name a winner only when the difference is statistically significant, and otherwise recommend the simplest
@@ -437,7 +439,7 @@ Prefix each with `uv run` in a checkout. Ports move with `LYST_PORT` and `LYST_U
 
 ```bash
 uv run pytest                        # the full suite; the PostgreSQL connector test uses a local server
-uv run lyst eval                     # 19 analytical questions scored against independently computed answers
+uv run lyst eval --baseline docs/quality/eval-baseline.json   # 21 questions scored against independent answers and the baseline
 uv run ruff check src tests scripts  # lint
 uv run python scripts/licenses.py    # regenerate docs/SBOM.md and fail on a disallowed license
 ```
