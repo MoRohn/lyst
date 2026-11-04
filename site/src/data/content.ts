@@ -180,7 +180,7 @@ export const workflow = {
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
-    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers, artifacts, and next steps.' },
+    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, then watch the metric or repeat the analysis in one click.' },
   ],
 };
 
