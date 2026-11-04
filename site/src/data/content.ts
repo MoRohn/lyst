@@ -72,28 +72,28 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Event impact'],
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Your fiscal calendar'],
     status: 'available',
   },
   {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Source reconciliation', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Authoritative sources, reconciled', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'Verified derived datasets', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
+    items: ['Interactive Dash dashboards', 'Datasets built from a sentence, verified', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
     status: 'available',
   },
   {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Approved monitors', 'Automatic investigation', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
+    items: ['Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
     status: 'available',
   },
   {
@@ -123,7 +123,7 @@ export const openSource = {
     { icon: 'Server', title: 'Self-hostable', text: 'Deploy on a laptop, a server or your cloud.' },
     { icon: 'Cpu', title: 'Model choice, with real costs', text: 'Economy, Balanced or Frontier levels with automatic fallback, or a local model. Cost per call is shown.' },
     { icon: 'Eye', title: 'Transparent execution', text: 'Every query and calculation can be inspected.' },
-    { icon: 'Puzzle', title: 'Extensible integrations', text: 'Add connectors and skills as plain code.' },
+    { icon: 'Puzzle', title: 'Extensible integrations', text: 'A Python SDK, MCP, an event stream and signed webhooks, plus connectors and skills as plain code.' },
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
   ],
   attribution:
@@ -133,7 +133,7 @@ export const openSource = {
 export const architecture = [
   {
     layer: 'Your team',
-    items: ['Analyst workspace', 'Python API', 'Scheduled runs'],
+    items: ['Analyst workspace', 'Python SDK', 'MCP', 'Event stream and signed webhooks'],
     tone: 'ink',
   },
   {
@@ -163,10 +163,10 @@ export const enterprise = {
   headline: 'Built for serious analytical work.',
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
-    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person. Decisions are recorded, approved and later checked against what happened.', status: 'available' as Status },
+    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Any figure traces to its step, query, definition version, dataset version and source, and can be reproduced.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. Decisions are recorded and later checked against what happened.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
-    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, and row and column policies decide what each person sees. Reports stay private, go to named people or are published.', status: 'available' as Status },
+    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging, plus encrypted backups that run while Lyst is up and are checked before any restore.', status: 'available' as Status },
@@ -180,7 +180,7 @@ export const workflow = {
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
-    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, then watch the metric or repeat the analysis in one click.' },
+    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
   ],
 };
 
