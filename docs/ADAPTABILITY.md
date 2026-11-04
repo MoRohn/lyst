@@ -82,3 +82,47 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
 - E3. "Why this method" uses each capability's description; the planner's own reasons (intent rules, workflow
   reuse) are in the plan output but not yet surfaced as a sentence.
 - E4. No UI yet; the "How this ran" dialog is the natural home for `explain` (UX thread's placement).
+
+## 3. Classification and policy-aware execution
+
+**Built and verified** (`src/lyst/governance.py`, `tests/test_governance.py`):
+
+- **Four levels and three tags.** public, internal, confidential, restricted; tags personal, financial,
+  regulated. Only administrators classify, with a reason, and every change is kept
+  (`classification_events`). An unknown legacy label is treated as internal, never as public. Discovery only
+  *suggests* a level, from the catalog's measurements (personal-data columns suggest confidential plus the
+  personal tag).
+- **A versioned data policy per workspace** (`data_policies`). For each level, the lowest role that may read it
+  (default: restricted needs admin). The most sensitive level whose results may go to an external model
+  (default confidential: aggregates and definitions only, never rows; restricted never). The most sensitive
+  level whose results may be exported as files (default confidential). Roles must rise with sensitivity.
+- **Enforced in the services, not the prompt.**
+  - `DataService.query` calls `check_read` before running. A refusal names the dataset, its level and who to
+    ask. It is audited with the rule (`policy.read`), and the query log records it with the datasets involved.
+  - `LLMClient.chat` calls `model_gate`. If the task has read data above the external-model ceiling, nothing is
+    sent, the answer is worded by Lyst's templates, and a `policy` event on the task says why ("How this ran"
+    and `explain?q=actions` show it).
+  - `ArtifactService.build` calls `check_export`, so no file is written from results above the export ceiling.
+- **The query log knows what each task read.** `query_history.datasets` (workspace migration 31) is how a task's
+  sensitivity is known before anything leaves.
+- **Policy diagnostics.** `POST /v1/workspaces/{ws}/policy/check` answers ahead of time whether work over given
+  datasets or metrics would be allowed, narrowed (hidden columns, row filters, no external model) or refused,
+  for `analyze`, `export` or `external_model`. Members get the outcome and who to ask. Administrators also get
+  the rule, the levels and the hidden column names.
+- **Scenario D.** A viewer querying restricted salaries is refused in the data service with a plain
+  explanation. An analysis over it fails with the same reason, and other data is unaffected. For the owner,
+  restricted results never reach an external model or a file, while confidential results still do under the
+  defaults.
+
+**Open**
+
+- G1. Retention per level (how long query results, artifacts and memory derived from restricted data are kept) is
+  not enforced yet; the storage roll-ups and backups threads own retention mechanics.
+- G2. Masking (showing a hashed or partial value instead of hiding a column) is not built. Column policies hide
+  or show.
+- G3. Network destinations (webhooks, HTTP connectors) are not yet checked against the classification of what
+  they would carry.
+- G4. Embeddings for document search are still governed by the workspace's external-model switch, not by
+  document classification.
+- G5. No UI yet: per the UX thread, classification belongs on the dataset dialog (Data) and the data policy in
+  Settings › Workspace.

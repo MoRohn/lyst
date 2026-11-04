@@ -17,6 +17,24 @@ class AcceptIn(BaseModel):
     edits: dict[str, Any] | None = None
 
 
+class ClassifyIn(BaseModel):
+    level: str
+    tags: list[str] = []
+    reason: str
+
+
+class DataPolicyIn(BaseModel):
+    read_min_role: dict[str, str] | None = None
+    external_model_max: str | None = None
+    export_max: str | None = None
+
+
+class PolicyCheckIn(BaseModel):
+    datasets: list[str] = []
+    metrics: list[str] = []
+    purpose: str = "analyze"
+
+
 class ProfileIn(BaseModel):
     domains: list[str] | None = None
     terminology: dict[str, Any] | None = None
@@ -69,6 +87,37 @@ def register(app: FastAPI, L, User) -> None:  # noqa: N803 - the names match the
     @app.get("/v1/artifacts/{artifact_id}/evidence")
     def artifact_evidence(request: Request, artifact_id: str, user: User):
         return L(request).evidence.for_artifact(user, artifact_id)
+
+    # -- classification and data policy ---------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/classifications")
+    def classifications(request: Request, ws: str, user: User):
+        return L(request).governance.classifications(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/classifications/suggestions")
+    def classification_suggestions(request: Request, ws: str, user: User):
+        lyst = L(request)
+        return lyst.governance.suggest(user, ws, lambda name: lyst.catalog.insights(user, ws, name))
+
+    @app.put("/v1/workspaces/{ws}/datasets/{name}/classification")
+    def classify_dataset(request: Request, ws: str, name: str, body: ClassifyIn, user: User):
+        return L(request).governance.classify(user, ws, name, body.level, tags=body.tags, reason=body.reason)
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/classification")
+    def classification_history(request: Request, ws: str, name: str, user: User):
+        return L(request).governance.classification_history(user, ws, name)
+
+    @app.get("/v1/workspaces/{ws}/data-policy")
+    def data_policy(request: Request, ws: str, user: User):
+        return L(request).governance.policy(user, ws)
+
+    @app.put("/v1/workspaces/{ws}/data-policy")
+    def set_data_policy(request: Request, ws: str, body: DataPolicyIn, user: User):
+        return L(request).governance.set_policy(user, ws, body.model_dump())
+
+    @app.post("/v1/workspaces/{ws}/policy/check")
+    def policy_check(request: Request, ws: str, body: PolicyCheckIn, user: User):
+        return L(request).governance.evaluate(user, ws, datasets=body.datasets, metrics=body.metrics, purpose=body.purpose)
 
     @app.get("/v1/workspaces/{ws}/profile")
     def business_profile(request: Request, ws: str, user: User, history: bool = False):

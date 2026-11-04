@@ -56,6 +56,8 @@ class LLMClient:
         self.credentials = credentials  # the broker; None only in unit tests that pass a static key
         self.catalog = None  # ModelCatalog when the provider is OpenRouter (set by Lyst.build)
         self._local = threading.local()
+        # called with (workspace_id, task_id) before an external call; a returned reason means do not send (governance)
+        self.gates: list = []
         if self.gateway is None and settings.configured:
             self.gateway = Gateway(provider=settings.provider or "local", base_url=settings.base_url or "",
                                    api_key=self._key_for, http=httpx.Client(transport=transport), on_call=self._record)
@@ -164,6 +166,10 @@ class LLMClient:
         self._local.task_id, self._local.purpose = task_id, purpose  # read by _record on this thread
         self._local.step = obs.step_seq.get() if task_id else None
         self._local.user_id = self._owner_of(task_id)
+        for gate in self.gates:
+            reason = gate(workspace_id, task_id)
+            if reason:
+                raise LLMUnavailable(f"policy: {reason}")
         if not self.allowed_for(workspace_id):
             raise LLMUnavailable("no model is allowed for this workspace")
         if workspace_id and workspace_id != "platform":

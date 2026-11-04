@@ -20,6 +20,7 @@ from .data import DataService
 from .deliverables import ArtifactService
 from .ingest import IngestService
 from .evidence import EvidenceService
+from .governance import GovernanceService
 from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
@@ -63,6 +64,7 @@ class Lyst:
     ingest: IngestService | None = None
     anticipation: AnticipationService | None = None
     evidence: EvidenceService | None = None
+    governance: GovernanceService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -127,8 +129,12 @@ class Lyst:
         data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
         semantic.after_change.append(anticipation.after_definition)
         runtime.periodic.append(anticipation.tick_all)
+        governance = GovernanceService(stores, guard, external_model=lambda: bool(llm.settings.external), runtime=runtime)
+        data.access_checks.append(governance.check_read)
+        llm.gates.append(governance.model_gate)
+        artifacts.before_build.append(governance.check_export)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, anticipation=anticipation, ingest=ingest, transforms=transforms,
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, anticipation=anticipation, connections=connections, semantic=semantic, services=services, ingest=ingest, transforms=transforms, governance=governance,
                    evidence=EvidenceService(stores, guard, runtime, artifacts))
 
     def close(self) -> None:
