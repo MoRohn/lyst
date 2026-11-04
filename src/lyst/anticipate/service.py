@@ -53,6 +53,9 @@ class AnticipationService:
         self.collab = None  # set by the composition root; health foresight files definition fixes as reviews
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0
+        self._dirty: dict[str, float] = {}   # workspace -> when an event asked for a fresh look
+        self._last_cycle: dict[str, float] = {}
+        self.min_gap = float(os.environ.get("LYST_ANTICIPATE_MIN_GAP", "30"))
         self._local = threading.local()
 
     # -- helpers --------------------------------------------------------------------------------------------------------
@@ -121,22 +124,43 @@ class AnticipationService:
 
     # -- the cycle ------------------------------------------------------------------------------------------------------
 
+    # events that can change what is worth anticipating; anything else is ignored
+    WATCH = ("dataset.version_created", "task.completed", "task.failed", "approval.decided", "metric.defined", "metric.deprecated",
+             "contract.checked", "connection.synced", "connection.created", "connection.deleted", "member.added", "member.removed",
+             "schedule.created", "assignment.created", "assignment.completed", "skill.registered", "monitor.created")
+
+    def on_event(self, event: dict[str, Any]) -> None:
+        """Unified event model subscriber: mark the workspace for an early cycle. Cheap and never raises; the cycle itself runs
+        on the worker tick, at most once per ``min_gap`` seconds per workspace, so a burst of events costs one cycle."""
+        if event.get("type") in self.WATCH and event.get("workspace_id"):
+            self._dirty.setdefault(event["workspace_id"], time.monotonic())
+
     def tick_all(self, now: datetime | None = None, *, force: bool = False) -> int:
-        """Worker-tick entry: every workspace at most once per ``every`` seconds."""
-        if not force and time.monotonic() - self._last_tick < self.every:
+        """Worker-tick entry. Workspaces an event marked are cycled within ``min_gap`` seconds; every workspace is cycled at
+        least once per ``every`` seconds as a fallback, so nothing depends on continuous polling."""
+        mono = time.monotonic()
+        full = force or mono - self._last_tick >= self.every
+        due = [ws for ws in list(self._dirty) if mono - self._last_cycle.get(ws, -1e9) >= self.min_gap]
+        if not full and not due:
             return 0
-        self._last_tick = time.monotonic()
-        prune = time.monotonic() - getattr(self, "_last_prune", -1e9) > 86400
+        prune = full and mono - getattr(self, "_last_prune", -1e9) > 86400
         if prune:
-            self._last_prune = time.monotonic()
+            self._last_prune = mono
+        if full:
+            self._last_tick = mono
+            targets = [w["id"] for w in self.stores.control.query("SELECT id FROM workspaces")]
+        else:
+            targets = due
         n = 0
-        for w in self.stores.control.query("SELECT id FROM workspaces"):
+        for ws in targets:
+            self._dirty.pop(ws, None)
+            self._last_cycle[ws] = mono
             try:
                 if prune:
-                    learning.prune(self._db(w["id"]), now)
-                n += self.cycle(w["id"], now)["anticipated"]
+                    learning.prune(self._db(ws), now)
+                n += self.cycle(ws, now)["anticipated"]
             except Exception:  # noqa: BLE001 - one workspace never stops the others
-                log.exception("anticipation cycle failed for %s", w["id"])
+                log.exception("anticipation cycle failed for %s", ws)
         return n
 
     def cycle(self, ws: str, now: datetime | None = None) -> dict[str, Any]:

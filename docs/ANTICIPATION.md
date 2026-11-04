@@ -27,8 +27,13 @@ definitions, from its compiled workflow, the metrics its question names and the 
 **prioritize** (score, weighted by what people did with earlier items of the same family) -> **prepare** and **verify** (read-only checks with a verdict) -> **surface** (only blockers are
 pushed; ready work waits in the activity center) -> **learn** (accepted work that completes, and people's judgements, re-weight future ranking).
 
-It runs on the worker tick at most every `LYST_ANTICIPATE_EVERY` seconds (default 300), and right after a dataset
-version or a definition changes so prepared work is re-checked at once. Everything is deterministic and local: no model
+It subscribes to the unified event model (`lyst.events.subscribers`): a relevant event (a new dataset version, a task
+finishing, an approval, a definition, contract or connection change, a membership change, a new schedule, assignment,
+skill or monitor) brings its workspace's next cycle forward to the next worker tick, at most once per
+`LYST_ANTICIPATE_MIN_GAP` seconds (30), so a burst costs one cycle. Every workspace is still cycled at least every
+`LYST_ANTICIPATE_EVERY` seconds (300) as a fallback, and in-process hooks re-check prepared work right after an ingest or
+a definition change. Anticipation's own acceptances and level changes are events too (`anticipation.accepted`,
+`anticipation.settings_changed`). Everything is deterministic and local: no model
 call, no network request, except a level-4 refresh of an already-configured connection.
 
 ### Autonomy levels
@@ -252,7 +257,6 @@ dependencies. Level 3 here started no investigation because no warning reached t
 | N4 | Attention: digest delivery for held items, per-person budgets on background compute | Planned |
 | N5 | Learning per person (today per workspace family), time saved measured against manual runs, satisfaction prompts | Planned |
 | N6 | Capability gaps: model-drafted candidates for methods without a template (needs a configured model), connector and data-type gaps, benchmarking candidates against each other | Planned |
-| N7 | Consume the unified event model (CONTROL 40) instead of after-ingest hooks once it is merged | Planned |
 | N8 | Use the operations calendar (`schedule_next`) for later occurrences; submit investigation tasks at maintenance priority with a deadline (operations is merged; the model-budget check already uses it) | Planned |
 | N11 | Cycle cost grows with finished analyses and monitored metrics; cache series between cycles when the dataset version is unchanged | Planned |
 | N10 | Early warning that leads a 3-sigma monitor on fast declines without raising false positives (sequential tests such as CUSUM calibrated per metric) | Planned |
