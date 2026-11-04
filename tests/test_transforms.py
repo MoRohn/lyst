@@ -142,3 +142,16 @@ def test_transform_routes(seeded):
         assert c.post(f"/v1/workspaces/{WS}/transforms", json={"name": "bad", "sql": "SELECT month, revenue FROM pnl_ledger",
                                                                "key": ["month"]}, headers=h).status_code == 400
         assert c.post(f"/v1/workspaces/{WS}/transforms/ledger_clean/retire", headers=h).json()["status"] == "retired"
+
+
+def test_derived_datasets_inherit_the_strictest_input_classification(seeded):
+    lyst, owner = seeded
+    db = lyst.stores.workspace(WS)
+    db.execute("UPDATE datasets SET classification = 'confidential' WHERE name = 'pnl'")
+    db.execute("UPDATE datasets SET classification = 'public' WHERE name = 'demand'")
+    lyst.transforms.define(owner, WS, "revenue_per_ticket", "SELECT p.month, sum(p.revenue) / max(d.tickets) AS rpt FROM pnl p "
+                           "JOIN (SELECT month, sum(tickets) AS tickets FROM demand GROUP BY month) d ON p.month = d.month GROUP BY p.month")
+    assert db.scalar("SELECT classification FROM datasets WHERE name = 'revenue_per_ticket'") == "confidential"
+    db.execute("UPDATE datasets SET classification = 'restricted' WHERE name = 'revenue_per_ticket'")  # raised by hand: stays
+    lyst.transforms.run(owner, WS, "revenue_per_ticket", full=True)
+    assert db.scalar("SELECT classification FROM datasets WHERE name = 'revenue_per_ticket'") == "restricted"

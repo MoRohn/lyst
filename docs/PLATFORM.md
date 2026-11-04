@@ -190,6 +190,7 @@ Built in `src/lyst/transforms.py`, with `data_model` assets in `assets.py`; work
 * **Follows its inputs**: an input's new version re-runs it (chains in order, no cycles); `incremental_column`
   appends only newer rows. A failed run keeps the last good version, marks the transformation failed with the reason,
   and its asset reads broken with "needs a person"; a new definition version recovers it.
+* A derived dataset takes the strictest classification of its inputs (public < internal < confidential < restricted; unknown counts as internal); a level raised by hand stays.
 * Refused: a key that repeats, a join that multiplies rows, a name that is already an ordinary dataset, cycles, and
   definitions by someone who sees only some rows of an input (the result would be silently partial).
 * REST: `/v1/workspaces/{ws}/transforms` (list, define), `/transforms/design`, `/transforms/preview`,

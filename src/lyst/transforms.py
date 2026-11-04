@@ -43,6 +43,7 @@ from .store import Stores
 log = logging.getLogger("lyst.transforms")
 _NAME = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 MAX_ROWS = 50_000_000
+CLASSIFICATION_RANK = {"public": 0, "internal": 1, "confidential": 2, "restricted": 3}
 _running = threading.local()
 
 
@@ -308,6 +309,7 @@ class TransformService:
                 raise ValueError(f"the transformation {name} failed: {msg}") from None
             return {"id": rid, "outcome": "failed", "error": msg}
         db.execute("UPDATE transforms SET status = 'active', last_error = NULL, last_run_at = now() WHERE name = ?", [name])
+        self._inherit_classification(ws, name, inputs)
         db.execute("INSERT INTO transform_runs (id, name, version, trigger, outcome, mode, rows, dataset_version, checks, ms, actor) "
                    "VALUES (?, ?, ?, ?, 'ok', ?, ?, ?, ?, ?, ?)",
                    [rid, name, t["version"], trigger, mode, result["rows"], result["version"], json.dumps(checks),
@@ -318,6 +320,19 @@ class TransformService:
                                       source="transform")
         self._register(actor, ws, name)
         return {"id": rid, "outcome": "ok", "mode": mode, "rows": result["rows"], "dataset_version": result["version"], "checks": checks}
+
+    def _inherit_classification(self, ws: str, name: str, inputs: list[str]) -> None:
+        """A derived dataset is never classified looser than its strictest input (an unknown level counts as internal);
+        a level someone raised by hand stays."""
+        db = self._db(ws)
+        levels = [r["classification"] for r in db.query(f"SELECT classification FROM datasets WHERE name IN ({', '.join('?' * len(inputs))})",
+                                                         inputs)] if inputs else []
+        if not levels:
+            return
+        strictest = max(levels, key=lambda c: CLASSIFICATION_RANK.get(c, CLASSIFICATION_RANK["internal"]))
+        current = db.scalar("SELECT classification FROM datasets WHERE name = ?", [name])
+        if CLASSIFICATION_RANK.get(strictest, 1) > CLASSIFICATION_RANK.get(current, 1):
+            db.execute("UPDATE datasets SET classification = ?, updated_at = now() WHERE name = ?", [strictest, name])
 
     def _register(self, actor: Principal, ws: str, name: str, failed: str | None = None) -> None:
         if self.assets is not None:
