@@ -223,7 +223,9 @@ where they point, with Mark all read and "What to tell me about".
   Calendar schedules ("every Monday at 08:00 Europe/London") stay at local time across daylight saving, run once
   after downtime and record what they missed, never double a run still going, and tell the owner when a run
   finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
-  admins get an operations report (queues, failures, run times, spend against budget). See
+  admins get an operations report (queues, failures, run times, spend against budget). On screen, Settings ›
+  Workspace › **Usage & limits** shows spend, tokens and tasks against the limits; Work › **Recurring** shows each
+  schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
   [docs/OPERATIONS.md](docs/OPERATIONS.md).
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
   citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
@@ -234,6 +236,19 @@ where they point, with Mark all read and "What to tell me about".
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
+  verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
+  columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
+  query's inputs, joins and grouping are explained. With a model configured, it can be designed from a sentence
+  (the model sees names, types and relationships, never rows). It reruns when an input gets a new version, keeps
+  the last good version if a run fails, and carries lineage to every input.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/recurring.png" alt="Work, Recurring: a daily schedule and a Monday 08:00 America/New_York schedule, both awaiting approval"><br><b>Recurring</b>: calendar schedules with their next run</td>
+    <td width="50%"><img src="docs/images/usage-limits.png" alt="Settings, Usage and limits: model spend, tokens and tasks against the limits"><br><b>Usage & limits</b>: spend and work against the limits</td>
+  </tr>
+</table>
 
 The [capability matrix](docs/CAPABILITY_MATRIX.md) lists each capability with its state and the test that proves
 it, and [known gaps](docs/GAPS.md) lists what is missing.
