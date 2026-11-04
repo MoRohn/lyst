@@ -28,17 +28,16 @@ const textFill = tone === 'light' ? colors.offwhite : colors.graphite;
   class={className}
 >
   <defs>
-    <linearGradient id={`${id}-s`} x1="10" y1="3" x2="10" y2="28.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color={colors.tealDark}></stop>
-      <stop offset="1" stop-color={colors.tealDeep}></stop>
+    <linearGradient id={`${id}-s`} x1="9" y1="1" x2="9" y2="31" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color={colors.stemTop}></stop>
+      <stop offset="1" stop-color={colors.stemBottom}></stop>
     </linearGradient>
-    <linearGradient id={`${id}-f`} x1="6" y1="24.5" x2="29" y2="24.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color={colors.tealMid}></stop>
-      <stop offset="1" stop-color={colors.teal}></stop>
+    <linearGradient id={`${id}-f`} x1="3" y1="27" x2="29" y2="25" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color={colors.footStart}></stop>
+      <stop offset="1" stop-color={colors.footEnd}></stop>
     </linearGradient>
   </defs>
-  <path d={mark.stem} fill={`url(#${id}-s)`}></path>
   <path d={mark.foot} fill={`url(#${id}-f)`}></path>
-  <path d={mark.seam} fill={colors.tealDeep} fill-opacity=".35"></path>
+  <path d={mark.stem} fill={`url(#${id}-s)`}></path>
   {variant === 'lockup' && <path transform={lockup.transform} d={lockup.wordmark} fill={textFill}></path>}
 </svg>

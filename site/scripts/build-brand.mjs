@@ -16,7 +16,8 @@ const load = (weight) => {
   const buf = readFileSync(fontFile(weight));
   return opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 };
-const semibold = load(700);
+const semibold = load(800); // wordmark weight
+const heading = load(600);
 const regular = load(400);
 
 const C = {
@@ -24,10 +25,12 @@ const C = {
   deep: '#10151B',
   offwhite: '#F8F9F7',
   slate: '#586471',
-  teal: '#5BC0B0',
-  tealDark: '#2A8277',
-  tealDeep: '#1F6E66',
-  tealMid: '#46A99B',
+  teal: '#55B8A8',
+  tealDark: '#257E74',
+  stemTop: '#0B6B64',
+  stemBottom: '#034440',
+  footStart: '#12A79B',
+  footEnd: '#7FD4C2',
   border: '#DFE4E7',
 };
 
@@ -35,16 +38,17 @@ const C = {
 // Drawn on a 32 × 32 grid.
 const mark = {
   viewBox: '0 0 32 32',
-  stem: 'M6 3h8v17.5L6 28.5z',
-  foot: 'M6 28.5 14 20.5h15l-4 8z',
-  seam: 'M6 28.5 14 20.5v3.2L9.2 28.5z',
+  // Traced from the supplied logo (brand/lyst-logo-original.png): a dark panel with a chamfered
+  // top, folded open onto a lighter parallelogram foot.
+  stem: 'M2.8 10.6Q2.8 9.4 3.8 8.7L14.8.7Q16.2-.2 16.2 1.5V19.3Q16.2 20.6 15.2 21.4L3.6 31.3Q2.8 32 2.8 30.9Z',
+  foot: 'M3.4 31.8 15.2 21.4H28.5Q29.6 21.4 29 22.3L23.6 31Q23 31.8 22 31.8Z',
 };
 const markDefs = (id) => `<defs>
-  <linearGradient id="${id}s" x1="10" y1="3" x2="10" y2="28.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.tealDark}"/><stop offset="1" stop-color="${C.tealDeep}"/></linearGradient>
-  <linearGradient id="${id}f" x1="6" y1="24.5" x2="29" y2="24.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.tealMid}"/><stop offset="1" stop-color="${C.teal}"/></linearGradient>
+  <linearGradient id="${id}s" x1="9" y1="1" x2="9" y2="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.stemTop}"/><stop offset="1" stop-color="${C.stemBottom}"/></linearGradient>
+  <linearGradient id="${id}f" x1="3" y1="27" x2="29" y2="25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.footStart}"/><stop offset="1" stop-color="${C.footEnd}"/></linearGradient>
 </defs>`;
 const markShapes = (id) =>
-  `<path d="${mark.stem}" fill="url(#${id}s)"/><path d="${mark.foot}" fill="url(#${id}f)"/><path d="${mark.seam}" fill="${C.tealDeep}" fill-opacity=".35"/>`;
+  `<path d="${mark.foot}" fill="url(#${id}f)"/><path d="${mark.stem}" fill="url(#${id}s)"/>`;
 
 // ---- Wordmark
 function textPath(font, text, size, tracking = 0) {
@@ -76,14 +80,14 @@ const wmView = { x: 0, y: -ascent, w: Math.ceil(wm.width + 1), h: Math.ceil(asce
 // Logo lockup: mark scaled to cap height + descender region, gap, wordmark.
 function lockup(textColor, id = 'lm') {
   const h = 32;
-  const scale = (h / ascent) * 0.78; // wordmark cap height ≈ 78% of mark height
+  const scale = (h / ascent) * 0.68; // wordmark cap height ≈ 73% of mark height (as in the original)
   const wmW = wmView.w * scale;
-  const gap = 9;
-  const baseline = 3 + ascent * scale + (28.5 - 3 - ascent * scale); // align baseline with foot bottom
-  const width = Math.ceil(32 + gap + wmW);
+  const gap = 3.6;
+  const baseline = 29.4; // a little above the foot's bottom edge, as in the original
+  const width = Math.ceil(29.6 + gap + wmW);
   const height = Math.ceil(Math.max(32, baseline + descent * scale + 1));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Lyst">${markDefs(id)}${markShapes(id)}<path transform="translate(${32 + gap} ${baseline.toFixed(2)}) scale(${scale.toFixed(4)})" d="${wm.d}" fill="${textColor}"/></svg>`;
-  return { svg, width, height, wmTransform: `translate(${32 + gap} ${baseline.toFixed(2)}) scale(${scale.toFixed(4)})` };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Lyst">${markDefs(id)}${markShapes(id)}<path transform="translate(${29.6 + gap} ${baseline.toFixed(2)}) scale(${scale.toFixed(4)})" d="${wm.d}" fill="${textColor}"/></svg>`;
+  return { svg, width, height, wmTransform: `translate(${29.6 + gap} ${baseline.toFixed(2)}) scale(${scale.toFixed(4)})` };
 }
 
 const markSvg = (id = 'mk') =>
@@ -130,10 +134,10 @@ await sharp(Buffer.from(markSvg('p32').replace('<svg ', '<svg width="64" height=
 // ---- Social card 1200 × 630
 {
   const W = 1200, H = 630;
-  const t1 = textPath(semibold, 'Your Analyst. Multiplied.', 76, -2);
+  const t1 = textPath(heading, 'Your Analyst. Multiplied.', 76, -2);
   const t2a = textPath(regular, 'The open-source AI Analyst built to turn business questions', 28);
   const t2b = textPath(regular, 'into verified insights and completed analytical work.', 28);
-  const t3 = textPath(semibold, 'PYTHON  ·  DUCKDB  ·  OPEN SOURCE  ·  SELF-HOSTED', 17, 1.4);
+  const t3 = textPath(heading, 'PYTHON  ·  DUCKDB  ·  OPEN SOURCE  ·  SELF-HOSTED', 17, 1.4);
   const s = 56 / 32;
   const logoScale = 1.55;
   // Decorative chart on the right edge, faint grid + bars (synthetic, illustrative only)
