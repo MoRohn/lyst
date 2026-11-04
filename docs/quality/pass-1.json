@@ -1,0 +1,33 @@
+{
+  "pass": 1,
+  "date": "2026-11-04",
+  "base": "main@6134237",
+  "tests": {"suite": "pytest", "passed": null, "failed": null, "note": "filled from the CI run of the PR that carries this file"},
+  "gates": {
+    "critical_security_unresolved": 0,
+    "critical_data_integrity_unresolved": 0,
+    "golden_eval": {"passed": 19, "cases": 19},
+    "cross_tenant_isolation": "pass (route sweep, tests/test_tenant_isolation.py)",
+    "interrupted_task_recovery": "verified in fault-injection tests (R1-R3, test_h_resume_after_interruption)",
+    "secret_leakage": "no observed exposure in tests/test_secret_leakage.py (connector paths only)",
+    "performance_regressions": "none measured; submit p95 300 ms at 100 users exceeds the suggested 200 ms (P1, open)",
+    "primary_ui_journeys": "not yet evaluated end to end"
+  },
+  "findings": [
+    {"id": "Q1", "severity": "high", "status": "verified_fixed", "evidence": "CI run on PR #6"},
+    {"id": "R1", "severity": "critical", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_a_step_longer_than_the_lease_is_not_run_twice"},
+    {"id": "R2", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_cancel_during_the_last_step_is_not_overwritten_by_done"},
+    {"id": "R3", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_a_task_that_keeps_killing_its_worker_is_abandoned"},
+    {"id": "S-DB1", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_a_write_that_times_out_in_the_queue_is_withdrawn_not_applied_later"},
+    {"id": "T1", "severity": "medium", "status": "verified_fixed", "evidence": "tests/test_tenant_isolation.py"},
+    {"id": "C1", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_secret_leakage.py"},
+    {"id": "U1", "severity": "critical", "status": "verified_fixed", "evidence": "tests/test_ui_identity.py and a Playwright run from the LAN address before and after"},
+    {"id": "A1", "severity": "medium", "status": "confirmed_open", "evidence": "scripts/bench_large.py answer text; engine owned by the build thread"},
+    {"id": "P1", "severity": "medium", "status": "confirmed_open", "evidence": "scripts/load_test.py --users 100"},
+    {"id": "H1", "severity": "low", "status": "partially_resolved", "evidence": "design note"}
+  ],
+  "measurements": {
+    "load_100_users": {"tasks": 100, "failures": 0, "submit_ms_p95": 299.8, "e2e_s_p95": 11.25, "tasks_per_second": 8.58},
+    "large_5m_rows": {"ingest_s": 0.66, "sql_group_by_s": 0.033, "analyst_value_s": 0.16, "peak_rss_mb": 1440, "matches_independent_calc": true}
+  }
+}
