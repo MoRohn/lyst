@@ -19,6 +19,7 @@ from .security import Guard
 from .semantic import SemanticService
 from .skills import SkillService
 from .store import Stores
+from .studio import StudioService
 
 
 @dataclass
@@ -36,6 +37,7 @@ class Lyst:
     artifacts: ArtifactService
     knowledge: KnowledgeService
     monitors: MonitorService
+    studio: StudioService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -55,7 +57,9 @@ class Lyst:
         runtime.monitors = monitors
         services.monitors = monitors
         services.runtime = runtime
-        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors)
+        studio = StudioService(stores, guard, data, semantic, runtime, settings.home, knowledge)
+        services.studio = studio
+        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors, studio)
 
     def close(self) -> None:
         self.runtime.stop()

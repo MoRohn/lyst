@@ -22,6 +22,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .. import studio as studio_mod
 from ..analytics import drivers, timeseries
 from ..data import DataService
 from ..llm import LLMClient, LLMUnavailable
@@ -44,6 +45,7 @@ class Services:
     knowledge: Any = None  # knowledge.KnowledgeService
     monitors: Any = None  # monitoring.MonitorService
     runtime: Any = None  # runtime.TaskRuntime (for approvals raised by capabilities)
+    studio: Any = None  # studio.StudioService
 
 
 # ------------------------------------------------------------------------------- helpers
@@ -203,6 +205,11 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     gap = foundry.detect_gap(text) if intent != "skill" else None
     if gap and resolved["metrics"]:
         intent = "gap"
+    refresh = re.match(r"^\s*refresh dashboard (db_[0-9a-f]+)\s*$", text, re.I)
+    if refresh:
+        intent = "refresh"
+    elif studio_mod.wants_dashboard(text) and resolved["metrics"]:
+        intent = "dashboard"
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
@@ -211,7 +218,9 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
             "filters": filters, "scenarios": prescriptive.wants_scenarios(text),
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
-            "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap}
+            "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
+            "refresh_dashboard": refresh.group(1) if refresh else None,
+            "refresh_every": studio_mod.refresh_interval(text)}
 
 
 # ------------------------------------------------------------------- 2. contextualize
@@ -273,7 +282,15 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
                             "Name the one you mean, or ask an admin to map the term in the glossary.")
-    if u["intent"] == "gap":
+    if u["intent"] == "refresh":
+        add("refresh_dashboard", "refresh", dashboard_id=u["refresh_dashboard"])
+    elif u["intent"] == "dashboard":
+        if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "data.ingest"):
+            add("design_dashboard", "design", metrics=u["metrics"], dimension=u.get("by"), every_seconds=u.get("refresh_every"))
+            add("build_dashboard", "dashboard", after=["design"])
+        else:
+            blockers.append("Building a dashboard needs the editor role or above; ask an editor to request it.")
+    elif u["intent"] == "gap":
         if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "skill.propose"):
             add("propose_capability", "proposal", gap=u["gap"], metric=u["metrics"][0])
         else:
@@ -509,6 +526,30 @@ def forecast_metric(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     f = timeseries.forecast(y, horizon=int(args.get("horizon", 6)), grain="month")
     return _clean({"method": f.method, "level": f.level, "backtest_mape": f.backtest_mape,
                    "backtest_points": f.backtest_points, "table": _frame_records(f.table)})
+
+
+@capability(REGISTRY, "design_dashboard", agent="lead_analyst", phase="plan", permission="data.read",
+            description="Design a reporting dashboard: governed metrics, dimension, grain, verified SQL, refresh cadence.")
+def design_dashboard(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    title = None
+    m = re.search(r"(?:called|named|titled)\s+[\"']?([^\"'\.]+)", ctx.outputs["understand"]["question"], re.I)
+    if m:
+        title = m.group(1).strip()
+    d = ctx.services.studio.design(ctx.actor, ctx.workspace_id, args["metrics"], dimension=args.get("dimension"), title=title,
+                                   every_seconds=args.get("every_seconds"))
+    return _clean(d)
+
+
+@capability(REGISTRY, "build_dashboard", agent="software_engineer", phase="execute", permission="data.ingest", mutating=True,
+            description="Materialise extracts, generate the Streamlit app and README, verify by headless render, propose the refresh schedule.")
+def build_dashboard(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    return _clean(ctx.services.studio.build(ctx.actor, ctx.workspace_id, ctx.outputs["design"], task_id=ctx.task_id))
+
+
+@capability(REGISTRY, "refresh_dashboard", agent="operations", phase="execute", permission="task.control", mutating=True,
+            description="Re-run a dashboard's governed queries, rewrite its extracts, re-check and re-render it.")
+def refresh_dashboard(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    return _clean(ctx.services.studio.refresh(ctx.actor, ctx.workspace_id, args["dashboard_id"], task_id=ctx.task_id))
 
 
 @capability(REGISTRY, "run_skill", agent="software_engineer", phase="execute", permission="data.query",
@@ -759,6 +800,26 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if pl["blockers"]:
         answer = " ".join(pl["blockers"])
         status = "needs_input"
+    elif u["intent"] == "dashboard":
+        db_ = o["dashboard"]
+        d = o["design"]
+        ok = db_["status"] == "published"
+        answer = (f"Built {db_['title']}: {len(d['metrics'])} governed metric(s) by {d['dimension']}, {len(db_['files'])} files, "
+                  + ("verified by a headless render." if ok else "but verification failed, so it is not published."))
+        findings = [f"{m['title']} v{m['version']}: {m['series_rows']} monthly rows, {m['breakdown_rows']} by {d['dimension']}" for m in d["metrics"]]
+        findings += [("✓ " if c["passed"] else "✕ ") + f"{c['name']}: {c['detail']}" for c in db_["checks"]]
+        if db_.get("schedule"):
+            findings.append(f"Refresh every {d['every_seconds'] // 3600} h proposed; it starts once an admin approves it in Work › Approvals.")
+            actions.append("Approve the refresh schedule in Work › Approvals.")
+        actions.append(f"Run it with `streamlit run {db_['path']}/app.py`, or download the bundle from Build › Dashboards.")
+        assumptions.append("The app reads only the Parquet extracts beside it; Lyst refreshes them, the app never touches a database.")
+        tables.append({"title": "Files", "columns": ["file"], "rows": [[f] for f in db_["files"]]})
+        status = "complete" if ok else "unverified"
+    elif u["intent"] == "refresh":
+        rf = o["refresh"]
+        answer = f"Dashboard {rf['dashboard_id']} refreshed: {rf['status']}."
+        findings = [("✓ " if c["passed"] else "✕ ") + f"{c['name']}: {c['detail']}" for c in rf["checks"]]
+        status = "complete" if rf["status"] == "published" else "unverified"
     elif u["intent"] == "gap":
         pr = o["proposal"]
         if pr["status"] == "exists":

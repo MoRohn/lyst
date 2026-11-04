@@ -9,7 +9,40 @@ from lyst.ui.client import APIError, client, workspace
 
 api, ws = client(), workspace()
 st.markdown("## Build")
-tabs = st.tabs(["Skills", "Capabilities", "Evaluation"])
+tabs = st.tabs(["Dashboards", "Skills", "Capabilities", "Evaluation"])
+
+with tabs[0]:
+    st.caption("Ask the Analyst to \"create an automated <metric> reporting dashboard by <dimension>, refreshed weekly\". "
+               "Lyst designs it on governed metrics, verifies the SQL, writes a standalone Streamlit app that reads only its "
+               "extracts, renders it headlessly, and proposes the refresh schedule for approval.")
+    dbs = api.get(f"/v1/workspaces/{ws}/dashboards")
+    if not dbs:
+        st.caption("No dashboards yet.")
+    for d in dbs:
+        with st.container(border=True):
+            head = st.columns([5, 1, 1, 1], vertical_alignment="center")
+            head[0].markdown(f"**{d['title']}**  ·  refreshed {str(d['last_refresh_at'])[:16]}  ·  {d['refresh_count']} refreshes")
+            head[1].badge(d["status"], color="green" if d["status"] == "published" else "orange")
+            if head[2].button("Refresh now", key=f"rf_{d['id']}", type="tertiary"):
+                try:
+                    api.post(f"/v1/workspaces/{ws}/dashboards/{d['id']}/refresh")
+                    st.rerun()
+                except APIError as e:
+                    st.error(str(e))
+            bundle = api.http.get(f"/v1/workspaces/{ws}/dashboards/{d['id']}/bundle", headers=api._h()).content
+            head[3].download_button("Bundle", bundle, file_name=f"{d['id']}.zip", mime="application/zip", key=f"bd_{d['id']}")
+            if st.toggle("Preview", key=f"pv_{d['id']}"):
+                man = api.get(f"/v1/workspaces/{ws}/dashboards/{d['id']}")
+                cols = st.columns(len(man["metrics"]))
+                for col, m in zip(cols, man["metrics"], strict=True):
+                    import io
+
+                    s_ = pd.read_parquet(io.BytesIO(api.http.get(
+                        f"/v1/workspaces/{ws}/dashboards/{d['id']}/files/{m['series_file']}", headers=api._h()).content)).sort_values("period")
+                    col.metric(m["title"], f"{s_['value'].iloc[-1]:,.4g}")
+                    col.line_chart(s_.set_index("period")["value"], height=160)
+                st.caption("Checks: " + "; ".join(("✓ " if c["passed"] else "✕ ") + c["name"] for c in man["checks"]))
+                st.code("streamlit run <bundle>/app.py", language="bash")
 
 EXAMPLE_SOURCE = '''def run(df, top=1):
     if df.empty:
@@ -25,7 +58,7 @@ EXAMPLE_TESTS = json.dumps([{"name": "two regions", "columns": ["region", "reven
                                                               "table": [{"region": "A", "revenue": 75.0},
                                                                         {"region": "B", "revenue": 25.0}]}}], indent=1)
 
-with tabs[0]:
+with tabs[1]:
     st.caption("A skill is a Python function `run(df, **params) -> dict` over a governed query. It runs in a sandbox, "
                "must pass its own tests and Lyst's adversarial cases, and is registered only after an owner who did "
                "not propose it approves. Then the analyst plans with it whenever a request matches its trigger phrases.")
@@ -81,13 +114,13 @@ with tabs[0]:
                 except (APIError, ValueError) as e:
                     st.error(str(e))
 
-with tabs[1]:
+with tabs[2]:
     caps = pd.DataFrame(api.get("/v1/capabilities"))
     st.dataframe(caps, hide_index=True, width="stretch",
                  column_config={"mutating": st.column_config.CheckboxColumn(),
                                 "requires_approval": st.column_config.CheckboxColumn()})
 
-with tabs[2]:
+with tabs[3]:
     st.caption("Evaluation runs score Lyst's answers against independently computed expectations. "
                "Run `uv run lyst eval` to add one.")
     runs = api.get(f"/v1/workspaces/{ws}/evals")

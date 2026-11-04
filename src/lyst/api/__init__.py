@@ -476,6 +476,28 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         L(request).skills.retire(user, ws, name)
         return {"ok": True}
 
+    @app.get("/v1/workspaces/{ws}/dashboards")
+    def dashboards(request: Request, ws: str, user: User):
+        return L(request).studio.list(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/dashboards/{dashboard_id}")
+    def dashboard_manifest(request: Request, ws: str, dashboard_id: str, user: User):
+        return L(request).studio.manifest(user, ws, dashboard_id)
+
+    @app.get("/v1/workspaces/{ws}/dashboards/{dashboard_id}/bundle")
+    def dashboard_bundle(request: Request, ws: str, dashboard_id: str, user: User):
+        data = L(request).studio.bundle(user, ws, dashboard_id)
+        return Response(data, media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{dashboard_id}.zip"'})
+
+    @app.get("/v1/workspaces/{ws}/dashboards/{dashboard_id}/files/{filename}")
+    def dashboard_file(request: Request, ws: str, dashboard_id: str, filename: str, user: User):
+        return Response(L(request).studio.extract(user, ws, dashboard_id, filename), media_type="application/octet-stream")
+
+    @app.post("/v1/workspaces/{ws}/dashboards/{dashboard_id}/refresh")
+    def dashboard_refresh(request: Request, ws: str, dashboard_id: str, user: User):
+        return L(request).studio.refresh(user, ws, dashboard_id)
+
     @app.post("/v1/tasks/{task_id}/artifacts/{kind}")
     def make_artifact(request: Request, task_id: str, kind: str, user: User):
         lyst = L(request)

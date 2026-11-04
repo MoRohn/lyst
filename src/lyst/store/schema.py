@@ -400,4 +400,22 @@ WORKSPACE: list[Migration] = [
         )
         """,
     ),
+    (
+        4,
+        """
+        CREATE TABLE dashboards (
+            id VARCHAR PRIMARY KEY,
+            title VARCHAR NOT NULL,
+            design JSON NOT NULL,
+            path VARCHAR NOT NULL,
+            status VARCHAR NOT NULL,
+            created_by VARCHAR NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            last_refresh_at TIMESTAMPTZ,
+            refresh_count INTEGER NOT NULL DEFAULT 0,
+            schedule_id VARCHAR,
+            checks JSON
+        )
+        """,
+    ),
 ]

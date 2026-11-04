@@ -109,6 +109,15 @@ are ranked (size of the move, direction against "higher is better", relative siz
 monitor, period and kind, written to each owner's and admin's inbox, and POSTed to the workspace webhook
 with redacted text.
 
+## The Studio
+
+`studio.py`: "create an automated <metrics> reporting dashboard by <dimension>, refreshed weekly" designs on
+governed metrics, runs the compiled SQL through the guard, writes Parquet extracts, generates a standalone
+Streamlit app (it reads only its extracts, Acumane's arch-runtime rule) and a README with every definition,
+verifies by compiling and rendering headlessly with Streamlit's `AppTest`, and proposes a refresh schedule.
+The refresh is an ordinary task (`refresh dashboard <id>`) that rebuilds into a staging folder and only
+replaces the published extracts when every check passes; otherwise the dashboard is marked stale.
+
 ## Security model
 
 * **Identity**: bearer API tokens, stored as SHA-256 hashes. OIDC is not built yet (Phase 2 remainder); the

@@ -48,7 +48,8 @@
 | Build | Capability Foundry: a request for a method Lyst lacks drafts a skill (template, or a configured model against a fixed contract), runs the static check, sandbox tests, adversarial cases and a benchmark, requests registration, and runs it after approval | Tested | New scenario E, `test_foundry.py` |
 | Build | Evaluation harness: question bank, independent expected values, stored scored runs, `lyst eval` | Tested | `test_evals.py` (15/15 on the demo bank) |
 | Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |
-| Deliverables | PDF, slides, generated dashboards | Planned (Phase 6) | — |
+| Studio | Dashboard from a sentence: governed metrics, verified SQL, Parquet extracts, generated standalone Streamlit app and README, headless render check, approval-gated refresh schedule that re-runs through the runtime, stale-on-failure with old extracts kept, bundle download | Tested | New scenario B, `test_studio.py` |
+| Deliverables | PDF, slides | Planned | — |
 | Ops | Tracing, backup automation, load tests | Planned (Phase 7) | — |
 | Proactive | Approved monitors: robust-z shift, forecast-interval deviation, data-quality checks; automatic deep investigation; priority ranking; dedupe; inbox and https webhook notifications | Tested | Scenario D, `test_monitoring.py` |
 | Models | Local model exercised end to end | Not yet: no local model is installed on the dev machine | — |
