@@ -122,7 +122,12 @@ def result(t: dict) -> None:
             st.rerun()
 
 
+# the open task lives in the URL too, so a reload, a bookmark or a shared link returns to the same work
+if not st.session_state.get("task_id") and (q_tid := st.query_params.get("task")):
+    st.session_state.task_id = q_tid
 tid = st.session_state.get("task_id")
+if tid and st.query_params.get("task") != tid:
+    st.query_params["task"] = tid
 if tid:
     try:
         task = api.get(f"/v1/tasks/{tid}")

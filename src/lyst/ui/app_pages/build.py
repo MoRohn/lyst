@@ -10,9 +10,58 @@ from lyst.ui.components import md
 
 api, ws = client(), workspace()
 st.markdown("## Build")
-tabs = st.tabs(["Dashboards", "Skills", "Capabilities", "Evaluation"])
+tabs = st.tabs(["Workflows", "Dashboards", "Skills", "Capabilities", "Evaluation"])
 
 with tabs[0]:
+    st.caption("When an analysis finishes verified, Lyst compiles what it did into a workflow: the request with its period "
+               "as an input, the exact plan, the checks it must pass and the data and definitions it depends on. Asking a "
+               "matching question again, or running it here, reuses that verified plan. A changed schema or metric "
+               "definition marks it stale; the next verified run compiles a new version.")
+    flows = api.get(f"/v1/workspaces/{ws}/workflows")
+    if not flows:
+        st.caption("No workflows yet. Ask the Analyst a question; a verified answer becomes one.")
+    for w in flows:
+        d = w["definition"]
+        grain = (d["inputs"].get("period") or {}).get("grain")
+        with st.container(border=True):
+            head = st.columns([6, 1], vertical_alignment="center")
+            head[0].markdown(f"**{md(w['title'])}**")
+            head[1].badge("Ready" if w["status"] == "active" else "Stale",
+                          color="green" if w["status"] == "active" else "orange",
+                          icon=":material/verified:" if w["status"] == "active" else ":material/sync_problem:")
+            st.caption(f"{md(d['purpose'])} · verified {w['verified_runs']}× · reused {w['runs']}× · v{w['version']}"
+                       + (f" · input: a {grain}" if grain else ""))
+            if w["status"] == "stale":
+                st.caption(f"Stale: {md(w.get('invalid_reason') or '')}. The next verified answer to this question recompiles it.")
+            else:
+                row = st.columns([2, 1, 1, 4], vertical_alignment="bottom")
+                period = row[0].text_input("Period", key=f"wp_{w['id']}", placeholder=f"last {grain}" if grain else "",
+                                           disabled=not grain, label_visibility="collapsed")
+                if row[1].button("Run", key=f"wr_{w['id']}", type="primary", icon=":material/play_arrow:"):
+                    try:
+                        st.session_state.task_id = api.post(f"/v1/workspaces/{ws}/workflows/{w['id']}/run",
+                                                            {"period": period.strip() or None})["task_id"]
+                        st.switch_page("app_pages/analyst.py")
+                    except APIError as e:
+                        st.error(str(e))
+                if row[2].button("Retire", key=f"wx_{w['id']}", type="tertiary"):
+                    try:
+                        api.post(f"/v1/workspaces/{ws}/workflows/{w['id']}/retire")
+                        st.rerun()
+                    except APIError as e:
+                        st.error(str(e))
+            with st.expander("Definition", icon=":material/account_tree:"):
+                st.markdown("**Plan**  " + " → ".join(f"`{x['capability']}`" for x in d["steps"]))
+                st.markdown("**Must pass**  " + ", ".join(f"`{c}`" for c in d["validation"]["required_checks"])
+                            + f" · verification {d['validation']['intensity']}")
+                st.markdown("**Depends on**  " + ", ".join(
+                    [f"`{n}` schema {fp}" for n, fp in w["deps"]["datasets"].items()]
+                    + [f"`{n}` v{v}" for n, v in w["deps"]["metrics"].items()]))
+                st.markdown("**Needs**  " + ", ".join(f"`{p}`" for p in w["permissions"]))
+                st.caption(f"Compiled from task {w['source_task']}; last verified by {w['last_verified_task']}.")
+
+
+with tabs[1]:
     st.caption("Ask the Analyst to \"create an automated <metric> reporting dashboard by <dimension>, refreshed weekly\". "
                "Lyst designs it on governed metrics, verifies the SQL, writes a standalone Dash app (Streamlit on request) that "
                "reads only its extracts, checks every page and callback, and proposes the refresh schedule for approval.")
@@ -31,8 +80,9 @@ with tabs[0]:
                     st.rerun()
                 except APIError as e:
                     st.error(str(e))
-            bundle = api.http.get(f"/v1/workspaces/{ws}/dashboards/{d['id']}/bundle", headers=api._h()).content
-            head[3].download_button("Bundle", bundle, file_name=f"{d['id']}.zip", mime="application/zip", key=f"bd_{d['id']}")
+            def bundle(did=d["id"]) -> bytes:  # fetched on click, not on every rerun
+                return api.http.get(f"/v1/workspaces/{ws}/dashboards/{did}/bundle", headers=api._h()).content
+            head[3].download_button("Bundle", bundle, on_click="ignore", file_name=f"{d['id']}.zip", mime="application/zip", key=f"bd_{d['id']}")
             with head[4].popover("Retire", icon=":material/archive:"):
                 st.caption("Stops refreshes and hides it; the bundle stays downloadable.")
                 if st.button("Retire this dashboard", key=f"rt_{d['id']}"):
@@ -70,7 +120,7 @@ EXAMPLE_TESTS = json.dumps([{"name": "two regions", "columns": ["region", "reven
                                                               "table": [{"region": "A", "revenue": 75.0},
                                                                         {"region": "B", "revenue": 25.0}]}}], indent=1)
 
-with tabs[1]:
+with tabs[2]:
     st.caption("A skill is a Python function `run(df, **params) -> dict` over a governed query. It runs in a sandbox, "
                "must pass its own tests and Lyst's adversarial cases, and is registered only after an owner who did "
                "not propose it approves. Then the analyst plans with it whenever a request matches its trigger phrases.")
@@ -126,13 +176,13 @@ with tabs[1]:
                 except (APIError, ValueError) as e:
                     st.error(str(e))
 
-with tabs[2]:
+with tabs[3]:
     caps = pd.DataFrame(api.get("/v1/capabilities"))
     st.dataframe(caps, hide_index=True, width="stretch",
                  column_config={"mutating": st.column_config.CheckboxColumn(),
                                 "requires_approval": st.column_config.CheckboxColumn()})
 
-with tabs[3]:
+with tabs[4]:
     st.caption("Evaluation runs score Lyst's answers against independently computed expectations. "
                "Run `uv run lyst eval` to add one.")
     runs = api.get(f"/v1/workspaces/{ws}/evals")

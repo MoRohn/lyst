@@ -82,6 +82,12 @@ def answer(r: dict[str, Any]) -> None:
             top[1].badge("Verified", color="green", icon=":material/verified:")
         elif level:
             top[1].badge(level.capitalize(), color="orange", icon=":material/warning:")
+        wf = (r.get("supporting") or {}).get("workflow") or {}
+        if wf.get("used"):
+            st.caption(f":material/bolt: Ran the verified workflow “{md(wf['used']['title'])}” "
+                       f"(v{wf['used']['version']}, verified {wf['used']['verified_runs']}×) instead of planning from scratch.")
+        elif (wf.get("compiled") or {}).get("created"):
+            st.caption(":material/library_add_check: Verified, so Lyst saved this as a reusable workflow (Build › Workflows).")
         if r.get("evidence"):
             st.markdown("**Evidence**")
             st.markdown(bullets(r["evidence"]))
