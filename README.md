@@ -48,19 +48,32 @@ understanding and wording, never the numbers.
 
 ## A tour of the interface
 
-One navigation with five areas, light and dark themes, and in the sidebar a search box across data, metrics,
-saved work and documents, plus a "What these words mean" glossary.
+One navigation with five areas and one design system behind every screen: a single set of tokens for type,
+spacing, motion and colour drives Streamlit's widgets, Lyst's own components and every chart, in light and dark,
+with reduced motion honoured. Every screen is checked by an automated render with WCAG 2.2 AA accessibility
+scanning, and text and status colours meet 4.5:1 contrast in both themes. The sidebar holds **Search or go to**
+(⌘K), notifications, and a "What these words mean" glossary.
 
 | Area | What you do there |
 |---|---|
 | **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card follows the workspace's real set-up state and shows the top suggestions from your data to accept or dismiss, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
 | **Work** | What needs you (approvals), what Lyst is doing and finished, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed |
-| **Data** | Datasets with a trust chip each, their sources, dashboards, saved analyses, and guarded SQL. **Add data** uploads a file or connects a source |
-| **Brain** | What Lyst knows about the business: approved metrics and business terms with their health and lineage, documents it can cite, and what it remembers and how far to trust it |
-| **Settings** | Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, audit trail) and Advanced (skills, capabilities, evaluation runs) |
+| **Data** | Every dataset is a card with its size, freshness, the shape of its columns and the live trend of the measure it feeds; open one for a profile of every column. Sources, dashboards, saved analyses, and a SQL workspace with the schema beside the editor, results kept while you explore, and a first chart drawn for you. **Add data** uploads a file, connects a source, or proposes connections from an API description |
+| **Brain** | What Lyst knows about the business: every approved metric with its latest value, whether the change is good or bad, its twelve-month trend, and a lineage view from source file to dataset to definition; business terms, documents it can cite, and what it remembers and how far to trust it |
+| **Settings** | Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs) |
 
 <p align="center">
-  <img src="docs/images/home.png" alt="Home: the ask box, and the Get started card with set-up steps and suggestions from the data to accept or dismiss" width="80%">
+  <img src="docs/images/home.png" alt="Home: the ask box with Speak, the Get started card with its set-up steps, and the first metric tiles" width="80%">
+</p>
+
+### ⌘K: ask or go anywhere
+
+Press Ctrl/⌘+K anywhere to ask a question, jump to any section, reopen a recent question, find a dataset or
+metric, see which analyst specializations match (with their honest maturity level), or switch workspace.
+Breakdown answers show their split as a chart.
+
+<p align="center">
+  <img src="docs/images/palette.png" alt="The Ctrl/Cmd+K palette for 'margin': Ask Lyst, matching metrics, a saved analysis and an earlier answer, and three matching specializations with their maturity" width="80%">
 </p>
 
 ### Every answer: Summary, Detail, Method, and a Brief
@@ -272,8 +285,10 @@ where they point, with Mark all read and "What to tell me about".
   talking without stopping the analysis. Audio is not kept unless an administrator turns that on, and transcripts
   are redacted. Speech uses the browser by default; OpenRouter speech-to-text and text-to-speech are available
   once an admin allows external audio, and an NVIDIA PersonaPlex server on your own GPU can add full-duplex
-  conversation (Lyst never bundles its weights, and that path has not yet been verified on real hardware). The
-  voice screens are on the way ([docs/VOICE.md](docs/VOICE.md)).
+  conversation (Lyst never bundles its weights, and that path has not yet been verified on real hardware). On
+  screen: **Speak** beside the ask box (push-to-talk or hands-free, using the browser's own speech, and talking
+  over Lyst stops it), and Settings › **Voice** for your mode, reading aloud and speaking style, the workspace's
+  rules, and every engine with its honest support label ([docs/VOICE.md](docs/VOICE.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -394,7 +409,9 @@ where they point, with Mark all read and "What to tell me about".
   every endpoint that returns records, explaining where the records sit, how pages link, how to fetch only what
   changed, and which credential the API expects. Each draft is tested against the live API without loading any
   data (the token is used once and never stored, and samples are masked), then approved by an admin other than the
-  person who drafted it. Drafts are settings for Lyst's reviewed REST connector, never generated code.
+  person who drafted it. Drafts are settings for Lyst's reviewed REST connector, never generated code. On screen:
+  **Add data › From an API description**, then Data › Sources › **Proposed connections**, where each draft
+  explains itself and offers **Run a dry test**, **Approve and connect** or **Reject**.
 * **Speaks to the rest of your stack.** Every change in a workspace, from a new dataset version to a finished
   analysis, a contract check or an approval, becomes one event with a stable id. Stream the events, or have them
   delivered as signed webhooks with retries, dead-lettering and replay; webhooks never reach private network
@@ -428,6 +445,10 @@ where they point, with Mark all read and "What to tell me about".
   </tr>
   <tr>
     <td colspan="2" align="center"><img src="docs/images/build-dataset.png" alt="Build a dataset: a query by month and region, run and checked: rows, one row per key, revenue and COGS add up to their source" width="70%"><br><b>Build a dataset</b>: checked before it is saved</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/settings-voice.png" alt="Settings, Voice: talk by pressing Speak, read answers aloud, speaking style, the workspace's voice rules, and each speech engine with its support label"><br><b>Settings › Voice</b>: your mode, the workspace's rules, honest engine labels</td>
+    <td width="50%"><img src="docs/images/proposed-connection.png" alt="A proposed connection for /purchase-orders: why Lyst proposes it this way, its fields, the incremental column, and a dry test"><br><b>Proposed connection</b>: drafted from an API description, tested dry</td>
   </tr>
 </table>
 
