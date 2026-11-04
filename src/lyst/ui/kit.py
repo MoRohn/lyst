@@ -164,6 +164,18 @@ def when(ts: Any) -> str:
     if t.tzinfo is None:
         t = t.replace(tzinfo=UTC)
     secs = (datetime.now(UTC) - t).total_seconds()
+    if secs < -60:  # a time ahead (a schedule's next run): 'in 5 min', 'in 3 h', 'tomorrow 08:00', '9 Nov'
+        ahead = -secs
+        if ahead < 3600:
+            return f"in {int(ahead // 60)} min"
+        if ahead < 6 * 3600:
+            return f"in {int(ahead // 3600)} h"
+        local, today = t.astimezone(), datetime.now(UTC).astimezone().date()
+        if local.date() == today:
+            return "today " + local.strftime("%H:%M")
+        if (local.date() - today).days == 1:
+            return "tomorrow " + local.strftime("%H:%M")
+        return local.strftime("%-d %b %H:%M")
     if secs < 60:
         return "just now"
     if secs < 3600:

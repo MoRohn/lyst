@@ -2,6 +2,8 @@
 # Copyright (C) 2026 Rohn Springfield
 """Work: everything Lyst is doing or has done for this workspace, in three views. What needs you comes first."""
 
+import datetime
+
 import streamlit as st
 
 from lyst.ui import collab, kit
@@ -15,6 +17,7 @@ TONE = {"green": "ok", "orange": "warn", "red": "bad", "blue": "run", "gray": "o
 SENSITIVITY = {4.0: "Big moves only", 3.0: "Notable moves", 2.0: "Any unusual move"}
 ACTIONS = {"schedule.activate": "Start a scheduled question", "monitor.activate": "Start watching a metric",
            "skill.register": "Add a new skill to Lyst"}
+WEEKDAYS = {"mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"}
 EVERY = {3600: "Hourly", 21600: "Every 6 hours", 86400: "Daily", 604800: "Weekly", 2592000: "Monthly"}
 
 
@@ -127,20 +130,41 @@ def recurring() -> None:
     if not scheds:
         st.caption("Nothing repeats on its own yet. Open any answer and choose Repeat it, or set one up here.")
     for i, s in enumerate(scheds):
-        kit.row(s["title"], f"{every(s['every_seconds'])} · next {kit.when(s['next_run_at']) or s['next_run_at']}",
-                status=("Active", "ok") if s["enabled"] else ("Awaiting approval", "wait"), key=f"s{s['id']}",
-                divider=i < len(scheds) - 1)
+        when = (s.get("cadence") or every(s["every_seconds"])).replace("every", "Every", 1)
+        meta = " · ".join(x for x in (
+            when, f"next {kit.when(s['next_run_at'])}" if s.get("next_run_at") else None,
+            f"last ran {kit.when(s['last_run_at'])}" if s.get("last_run_at") else None,
+            f"missed {s['missed']}" if s.get("missed") else None,
+            f"skipped {s['skipped']} (the last run was still going)" if s.get("skipped") else None) if x)
+        status = ("Awaiting approval", "wait") if not s["enabled"] else (("Missed runs", "warn") if s.get("missed")
+                                                                         else ("Active", "ok"))
+        hit = kit.row(s["title"], meta, status=status, key=f"s{s['id']}", divider=i < len(scheds) - 1,
+                      actions=[("Last result", "last")] if s.get("last_task_id") else [])
+        if hit == "last":
+            open_in_analyst(s["last_task_id"])
     if editor:
         with st.popover("Schedule a question", icon=":material/event_repeat:"):
-            with st.form("schedule", border=False):
-                title = st.text_input("Name", placeholder="Weekly margin review")
-                question = st.text_input("What to ask", placeholder="Why did operating margin change last week?")
-                ev = st.selectbox("How often", [86400, 604800, 2592000], format_func=EVERY.get)
-                if st.form_submit_button("Propose", type="primary") and title and question:
-                    if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/schedules",
-                                                    {"title": title, "question": question, "every_seconds": ev}),
-                                   "Proposed. It starts once an admin approves it."):
-                        st.rerun(scope="fragment")
+            title = st.text_input("Name", placeholder="Weekly margin review", key="sch_title")
+            question = st.text_input("What to ask", placeholder="Why did operating margin change last week?", key="sch_q")
+            how = st.segmented_control("When", ["At a set time", "Every so often"], default="At a set time",
+                                       key="sch_how", label_visibility="collapsed") or "At a set time"
+            if how == "At a set time":
+                c = st.columns(2)
+                at = c[0].time_input("At", value=datetime.time(8, 0), step=900, key="sch_at")
+                tz = c[1].text_input("Time zone", value=st.context.timezone or "UTC", key="sch_tz",
+                                     help="An IANA name, such as Europe/London or America/New_York.")
+                days = st.pills("On", list(WEEKDAYS), selection_mode="multi", default=["mon"], format_func=WEEKDAYS.get,
+                                key="sch_days")
+                body = {"at": at.strftime("%H:%M"), "weekdays": days or list(WEEKDAYS), "timezone": tz.strip() or "UTC",
+                        "overlap": "skip"}
+            else:
+                body = {"every_seconds": st.selectbox("How often", [86400, 604800, 2592000], format_func=EVERY.get,
+                                                      key="sch_ev")}
+            if st.button("Propose", type="primary", key="sch_go") and title and question:
+                if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/schedules",
+                                                {"title": title, "question": question, **body}),
+                               "Proposed. It starts once an admin approves it."):
+                    st.rerun(scope="fragment")
     kit.label("Watched metrics")
     if not mons:
         st.caption("No metric is watched yet. Lyst checks a watched metric on its own, investigates unusual moves "

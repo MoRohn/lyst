@@ -392,6 +392,70 @@ AUTONOMY = {"assist": "Lyst proposes; you run each step.", "delegate": "Lyst run
             "autonomous": "Lyst runs and acts within this workspace's policies.", "governed": "Every action waits for an approval."}
 
 
+QUOTA = {"max_running": ("Tasks running at once", 1, None), "max_queued": ("Tasks waiting at once", 1, None),
+         "monthly_spend_usd": ("Model spend a month (USD)", 0.0, None), "monthly_tokens": ("Model tokens a month", 0, None),
+         "task_budget_seconds": ("Longest a task may run (seconds)", 30, None)}
+
+
+def usage_and_limits() -> None:
+    """What this workspace uses this month against its limits, whether anything is blocked or stuck, and (for an
+    installation administrator) the limits themselves."""
+    try:
+        op = api.get(f"/v1/workspaces/{ws}/operations")
+    except APIError as e:
+        st.caption(str(e))
+        return
+    kit.label("Usage & limits")
+    me = next((u for u in op.get("usage") or [] if u["workspace_id"] == ws), {})
+    q, mm = me.get("quotas") or {}, me.get("model_month") or {}
+    if me.get("blocked"):
+        st.warning(md(me["blocked"]), icon=":material/block:")
+    spend, cap = mm.get("cost_usd") or 0.0, q.get("monthly_spend_usd")
+    toks, tcap = mm.get("tokens") or 0, q.get("monthly_tokens")
+    mine = next((w for w in op.get("workspaces") or [] if w["workspace_id"] == ws), {})
+    rows = [("Model spend this month", f"${spend:,.2f}" + (f" of ${cap:,.0f}" if cap else " · no limit"),
+             (spend / cap) if cap else None),
+            ("Model tokens this month", f"{toks:,}" + (f" of {tcap:,}" if tcap else " · no limit"),
+             (toks / tcap) if tcap else None),
+            ("Tasks now", f"{mine.get('running', 0)} running, {mine.get('queued', 0)} waiting"
+             + (f" · at most {q['max_running']} at once" if q.get("max_running") else ""), None)]
+    for i, (label, text, share) in enumerate(rows):
+        tone = None if share is None else (("Near the limit", "warn") if share >= 0.8 else ("Within limit", "ok"))
+        kit.row(label, text, status=tone, key=f"use{i}", divider=i < len(rows) - 1)
+    sup = op.get("supervisor") or {}
+    stuck = [x for x in sup.get("stalled") or [] if x.get("workspace_id") == ws]
+    late = [x for x in sup.get("stale_approvals") or [] if x.get("workspace_id") == ws]
+    overdue = [x for x in sup.get("overdue_schedules") or [] if x.get("workspace_id") == ws]
+    fails = sum((op.get("failures_24h") or {}).values())
+    notes = ([f"{len(stuck)} task{'s' * (len(stuck) != 1)} running past its time budget"] if stuck else []) + \
+            ([f"{len(late)} approval{'s' * (len(late) != 1)} waiting more than a day: "
+              + "; ".join(f"{x['summary']} ({x['waiting_hours']:.0f} h)" for x in late[:3])] if late else []) + \
+            ([f"{len(overdue)} schedule{'s' * (len(overdue) != 1)} late: "
+              + "; ".join(f"{x['title']} ({x['late_minutes']:.0f} min)" for x in overdue[:3])] if overdue else [])
+    if notes:
+        st.warning("\n".join(f"- {md(n)}" for n in notes), icon=":material/schedule:")
+    st.caption(f"Installation: {op.get('workers', '?')} workers · {fails} failed task{'s' * (fails != 1)} in the last "
+               f"24 h · checked {kit.when(op.get('generated_at'))}.")
+    try:
+        api.get("/v1/operations")  # only an installation administrator may read (and change) the limits
+        install_admin = True
+    except APIError:
+        install_admin = False
+    if not install_admin:
+        st.caption("Limits are set by the installation's administrators.")
+        return
+    with st.expander("Change the limits", icon=":material/tune:"):
+        st.caption("Empty means no limit. A full queue or an exhausted monthly budget stops new work with a clear "
+                   "message, and running work finishes.")
+        new = {}
+        for k, (label, lo, _) in QUOTA.items():
+            cur = q.get(k)
+            v = st.number_input(label, min_value=lo, value=cur, key=f"q_{k}", placeholder="No limit")
+            new[k] = None if v is None else (float(v) if isinstance(lo, float) else int(v))
+        if new != {k: q.get(k) for k in QUOTA} and st.button("Save limits", type="primary", key="q_save"):
+            kit.guarded(lambda: api.put(f"/v1/workspaces/{ws}/quotas", new), "Limits saved")
+
+
 def workspace_section() -> None:
     """How this workspace is governed: autonomy, notifications, members and the audit trail."""
     if admin:
@@ -412,6 +476,8 @@ def workspace_section() -> None:
             if w[1].form_submit_button("Save", width="stretch") and hook != (s["workspace"].get("webhook_url") or ""):
                 kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
                 st.rerun()
+    if admin:
+        usage_and_limits()
     try:
         people = api.get(f"/v1/workspaces/{ws}/members")
     except APIError as e:

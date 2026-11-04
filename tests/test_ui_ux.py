@@ -186,3 +186,30 @@ def test_work_and_the_bell_show_what_colleagues_handed_you(seeded, ui):  # noqa:
     body = _texts(at)
     assert "Assigned to you" in body and "Check the EMEA numbers" in body and "from Dana" in body
     assert any(lb.startswith("Notifications · ") for lb in _popovers(at.sidebar))
+
+
+def test_schedules_read_as_cadence_and_settings_show_usage(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    lyst.runtime.create_schedule(owner, "northwind", "Monday margin review", "Why did operating margin change?",
+                                 at="08:00", weekdays=["mon"], timezone="Europe/London")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/work.py")
+    at.query_params["view"] = "recurring"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Monday at 08:00" in _texts(at)
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Installation:" in _texts(at) and "Model spend this month" in _texts(at) and not at.get("metric")
+
+
+def test_times_ahead_read_as_times_ahead():
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    from lyst.ui.kit import when  # noqa: PLC0415
+
+    assert when((datetime.now(UTC) + timedelta(minutes=30)).isoformat()).startswith("in ")
+    assert when((datetime.now(UTC) - timedelta(minutes=30)).isoformat()) == "30 min ago"

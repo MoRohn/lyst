@@ -32,9 +32,17 @@ def open_task(tid: str | None) -> None:
 
 
 def submit(q: str) -> None:
-    out = kit.guarded(lambda: api.ask(ws, q))
-    if out:
-        open_task(out["task_id"])
+    try:
+        out = api.ask(ws, q)
+    except APIError as e:
+        if e.status == 429:  # the workspace's queue or monthly budget is full
+            st.warning("This workspace is at its limit right now, so Lyst could not start this. "
+                       f"{e} Try again shortly, or ask an administrator to raise the limit in Settings › Workspace.",
+                       icon=":material/hourglass_top:")
+        else:
+            st.error(str(e), icon=":material/error:")
+        return
+    open_task(out["task_id"])
 
 
 # the open task lives in the URL too, so a reload, a bookmark or a shared link returns to the same work
