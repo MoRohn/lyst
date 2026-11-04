@@ -365,7 +365,8 @@ def restore(src: Path, yes: bool) -> None:
     print(f"Restored {len(manifest['files'])} database(s) from {src} (taken {manifest['taken_at']}) into {settings.home}.")
 
 
-def run_eval(label: str) -> None:
+def run_eval(label: str, *, baseline: str | None = None, write_baseline: str | None = None,
+             json_out: str | None = None) -> None:
     import tempfile
 
     from . import demo, evals
@@ -390,7 +391,27 @@ def run_eval(label: str) -> None:
             if pr["median_gain"]:
                 print(f"productivity: median gain {pr['median_gain']:.0f}x over {pr['cases_with_baseline']} cases with a declared "
                       f"baseline ({pr['note']})")
-            sys.exit(0 if s["passed"] == s["cases"] else 1)
+            print("dimensions: " + ", ".join(f"{k} {v['passed']}/{v['checks']}" for k, v in s["dimensions"].items()))
+            print("categories: " + ", ".join(f"{k} {v['passed']}/{v['cases']}" for k, v in s["categories"].items()))
+            ok = s["passed"] == s["cases"]
+            if baseline:
+                cmp_ = evals.compare(s, json.loads(Path(baseline).read_text()))
+                for r in cmp_["regressions"]:
+                    print(f"REGRESSION  {r['kind']:<10} {r['case']}: {r['check']} ({r['detail']})")
+                for m in cmp_["missing"]:
+                    print(f"REGRESSION  missing    {m}: in the baseline but not run")
+                if cmp_["improvements"]:
+                    print(f"improved: {len(cmp_['improvements'])} check(s) now pass that failed in the baseline")
+                if cmp_["new"]:
+                    print(f"new cases (not in the baseline): {', '.join(cmp_['new'])}")
+                print("baseline: " + ("no regressions" if cmp_["ok"] else f"{len(cmp_['regressions']) + len(cmp_['missing'])} regression(s)"))
+                ok = ok and cmp_["ok"]
+            if write_baseline:
+                Path(write_baseline).write_text(json.dumps(evals.baseline_of(s), indent=1, sort_keys=True) + "\n")
+                print(f"baseline written to {write_baseline}")
+            if json_out:
+                Path(json_out).write_text(json.dumps(s, indent=1, default=str))
+            sys.exit(0 if ok else 1)
         finally:
             lyst.close()
 
@@ -424,6 +445,9 @@ def main(argv: list[str] | None = None) -> None:
     pr.add_argument("--audit-days", type=int, default=int(os.environ.get("LYST_RETENTION_DAYS_AUDIT", "400")))
     ev = sub.add_parser("eval", help="run the demo evaluation bank against a fresh demo workspace")
     ev.add_argument("--label", default="")
+    ev.add_argument("--baseline", help="compare with this baseline file; any regression fails the run")
+    ev.add_argument("--write-baseline", help="write this run as the new baseline (after reviewing it)")
+    ev.add_argument("--json", help="write the full scored run as JSON to this path")
     args = p.parse_args(argv)
     try:
         _dispatch(args)
@@ -459,7 +483,7 @@ def _dispatch(args) -> None:
         finally:
             lyst.close()
     elif args.cmd == "eval":
-        run_eval(args.label)
+        run_eval(args.label, baseline=args.baseline, write_baseline=args.write_baseline, json_out=args.json)
     elif args.cmd == "ui":
         app = Path(__file__).parent / "ui" / "app.py"
         settings = load_settings()

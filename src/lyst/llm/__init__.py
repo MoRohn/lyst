@@ -186,6 +186,13 @@ class LLMClient:
                 sel = self.selection(workspace_id)
                 self._local.tier = sel.route_tier if sel else None
                 models = self.models(workspace_id)
+                if sel is not None and sel.mode == "auto" and len(models) > 1:
+                    # measured routing: a model that mostly failed this workload recently goes behind the healthy ones
+                    from .scorecard import measured_order  # noqa: PLC0415
+
+                    models, demoted = measured_order(self.stores.control, workload, models)
+                    if demoted:
+                        span.set_attribute("lyst.demoted", ",".join(sorted(demoted)))
                 reasoning_for = None
                 if policy.is_quick(workload, max_tokens):
                     span.set_attribute("lyst.quick", True)
