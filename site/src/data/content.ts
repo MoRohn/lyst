@@ -100,7 +100,7 @@ export const capabilities: {
     icon: 'Cable',
     title: 'Connect',
     text: 'Databases, APIs and files today, with more sources on the way.',
-    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files and documents', 'MCP server', 'Warehouses and SaaS'],
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files by URL', 'Local files and documents', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
