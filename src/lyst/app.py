@@ -107,6 +107,9 @@ class Lyst:
         studio = StudioService(stores, guard, data, semantic, runtime, settings.home, knowledge)
         services.studio = studio
         connections = ConnectionService(stores, guard, data, credentials)
+        from .connectors.drafts import DraftService  # noqa: PLC0415
+
+        connections.drafts = DraftService(stores, guard, connections)
         services.connections = connections
         catalog = CatalogService(stores, guard, data, semantic, knowledge)
         contracts = ContractService(stores, guard, catalog, semantic)

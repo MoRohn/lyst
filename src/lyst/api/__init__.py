@@ -311,6 +311,22 @@ class AuthorityIn(BaseModel):
     note: str = ""
 
 
+class DraftIn(BaseModel):
+    name: str
+    openapi: dict[str, Any]
+    base_url: str | None = None
+
+
+class DraftEdit(BaseModel):
+    config: dict[str, Any] = {}
+    cursor_column: str | None = None
+
+
+class DraftToken(BaseModel):
+    token: str | None = None
+    note: str = ""
+
+
 class EntityIn(BaseModel):
     kind: str
     name: str
@@ -763,6 +779,34 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def delete_connection(request: Request, ws: str, cid: str, user: User):
         L(request).connections.delete(user, ws, cid)
         return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/connector-drafts")
+    def connector_drafts(request: Request, ws: str, user: User):
+        return L(request).connections.drafts.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/connector-drafts")
+    def create_connector_drafts(request: Request, ws: str, body: DraftIn, user: User):
+        return L(request).connections.drafts.create(user, ws, name=body.name, openapi=body.openapi, base_url=body.base_url)
+
+    @app.get("/v1/workspaces/{ws}/connector-drafts/{draft_id}")
+    def connector_draft(request: Request, ws: str, draft_id: str, user: User):
+        return L(request).connections.drafts.get(user, ws, draft_id)
+
+    @app.patch("/v1/workspaces/{ws}/connector-drafts/{draft_id}")
+    def edit_connector_draft(request: Request, ws: str, draft_id: str, body: DraftEdit, user: User):
+        return L(request).connections.drafts.edit(user, ws, draft_id, body.config, body.cursor_column)
+
+    @app.post("/v1/workspaces/{ws}/connector-drafts/{draft_id}/test")
+    def test_connector_draft(request: Request, ws: str, draft_id: str, body: DraftToken, user: User):
+        return L(request).connections.drafts.test(user, ws, draft_id, token=body.token)
+
+    @app.post("/v1/workspaces/{ws}/connector-drafts/{draft_id}/promote")
+    def promote_connector_draft(request: Request, ws: str, draft_id: str, body: DraftToken, user: User):
+        return L(request).connections.drafts.promote(user, ws, draft_id, token=body.token, note=body.note)
+
+    @app.post("/v1/workspaces/{ws}/connector-drafts/{draft_id}/reject")
+    def reject_connector_draft(request: Request, ws: str, draft_id: str, body: DraftToken, user: User):
+        return L(request).connections.drafts.reject(user, ws, draft_id, note=body.note)
 
     @app.get("/v1/workspaces/{ws}/connections/health")
     def connections_health(request: Request, ws: str, user: User):
@@ -1550,6 +1594,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .specialists import register as register_specialists  # noqa: PLC0415
 
     register_specialists(app, L, User)
+    # -- voice (voice/): settings, engines, sessions, turns, read-back, duplex stream --------------------------------
+    from .voice import routes as voice_routes  # noqa: PLC0415
+
+    voice_routes(app, L, User)
 
     return app
 

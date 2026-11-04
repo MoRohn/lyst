@@ -100,11 +100,27 @@ def frame(question: str) -> dict[str, Any]:
 
 
 def _triple(v: Any) -> tuple[float, float, float]:
-    if isinstance(v, dict):
-        b = float(v["base"])
-        return float(v.get("low", b)), b, float(v.get("high", b))
-    f = float(v)
-    return f, f, f
+    """A value as (low, likely, high): a number, {"low", "base" (or "likely"), "high"}, or [low, likely, high].
+    Anything else is a DecisionError (a 400), never a crash."""
+    try:
+        if isinstance(v, dict):
+            b = float(v["base"] if "base" in v else v["likely"])
+            return float(v.get("low", b)), b, float(v.get("high", b))
+        if isinstance(v, list | tuple):
+            if len(v) == 3:
+                return float(v[0]), float(v[1]), float(v[2])
+            if len(v) == 1:
+                f = float(v[0])
+                return f, f, f
+            raise DecisionError("a range is [low, likely, high]")
+        if isinstance(v, bool):
+            raise DecisionError("a value must be a number")
+        f = float(v)
+        return f, f, f
+    except (TypeError, ValueError, KeyError) as exc:
+        if isinstance(exc, DecisionError):
+            raise
+        raise DecisionError(f"{v!r} is not a number, [low, likely, high] or {{low, base, high}}") from exc
 
 
 def _validate_spec(spec: dict[str, Any]) -> tuple[list[dict], list[dict]]:

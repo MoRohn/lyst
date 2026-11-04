@@ -15,8 +15,8 @@ import healthLight from '../assets/product/health-light.png';
 import healthDark from '../assets/product/health-dark.png';
 import needsLight from '../assets/product/needsyou-light.png';
 import needsDark from '../assets/product/needsyou-dark.png';
-import whatifLight from '../assets/product/whatif-light.png';
-import whatifDark from '../assets/product/whatif-dark.png';
+import whatifLight from '../assets/product/explorer-light.png';
+import whatifDark from '../assets/product/explorer-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -50,11 +50,11 @@ const views: View[] = [
     tab: 'What if',
     img: whatifLight,
     dark: whatifDark,
-    alt: 'Lyst answering “What happens to operating margin if labor costs increase 6% while revenue grows 3%?”: operating margin would go from 36.03% to 35.96% and operating income from $9.04M to $9.30M, labelled as hypothetical figures, with the stated labor-share assumption and its plausible range, and evidence from observed P&L data.',
+    alt: 'The What if explorer in Lyst: sliders for revenue (+3%), COGS ratio, operating expenses (+6%) and labor share; operating margin 36.0% to 35.4% marked Worse and operating income $9.04M to $9.15M marked Better; what moves it most, worst, base and best cases, and a Monte Carlo range from 2,000 random combinations. All results labelled hypothetical.',
     callouts: [
-      { icon: 'FlaskConical', text: 'Labelled hypothetical', x: '60%', y: '21.5%' },
-      { icon: 'Info', text: 'Assumptions stated, with ranges', x: '63%', y: '35.5%' },
-      { icon: 'Database', text: 'Built on observed data', x: '62%', y: '50%' },
+      { icon: 'SlidersHorizontal', text: 'Move a driver, see the result', x: '62%', y: '11%' },
+      { icon: 'ArrowUpDown', text: 'Better or worse, at a glance', x: '55%', y: '48.5%' },
+      { icon: 'Dices', text: 'Worst, base, best and Monte Carlo', x: '58%', y: '90%' },
     ],
   },
   {

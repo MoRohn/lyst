@@ -25,7 +25,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 DEFAULT_MAX_PER_DAY = 3
-KINDS = ("recurring_prep", "next_best_action", "early_warning", "health_foresight")
+KINDS = ("recurring_prep", "next_best_action", "early_warning", "health_foresight", "capability_gap")
 HOLD = ("quiet_hours", "daily_cap")          # temporary: retried on a later cycle
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
