@@ -34,24 +34,70 @@ def metric_detail(m: dict, terms: list[dict]) -> None:
     with st.expander("How it's calculated", icon=":material/functions:"):
         st.caption(f"From the {m['dataset']} dataset, by {m['time_column']}; referred to as {m['name']}.")
         st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
-    lin = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/lineage/metric/{m['name']}"))
-    if lin and (lin.get("upstream") or lin.get("downstream")):
-        c = st.columns(2)
-        with c[0]:
-            kit.label("Depends on")
-            for x in lin.get("upstream", [])[:12]:
-                st.caption(f"{x.get('kind', '')} · {x.get('name', '')}")
-        with c[1]:
-            kit.label("Used by")
-            for x in lin.get("downstream", [])[:12]:
-                st.caption(f"{x.get('kind', '')} · {x.get('name', '')}")
+    lin = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/metrics/{m['name']}/lineage"))
+    if lin:
+        src = lin.get("dataset") or {}
+        fresh = src.get("freshness") or {}
+        origin = src.get("origin") or {}
+        kit.label("Where the number comes from")
+        st.markdown(md(f"{src.get('title', m['dataset'])}: {src.get('rows', 0):,} rows"
+                       + (f", data through {fresh['latest']}" if fresh.get("latest") else "")
+                       + (f", loaded from {origin.get('name') or origin.get('table') or origin.get('connection')}"
+                          if origin else "")
+                       + ({"pass": "; its data contract is kept", "warn": "; its data contract has warnings",
+                           "fail": "; its data contract is broken", "breaking": "; its data contract is broken"}
+                          .get((lin.get("contract") or {}).get("outcome"), "") if lin.get("contract") else "")
+                       + "."))
+        for qn in lin.get("quality") or []:
+            st.warning(md(qn.get("text") if isinstance(qn, dict) else qn), icon=":material/report:")
+        if st.button("Open the dataset", type="tertiary", icon=":material/database:", key=f"mds_{m['name']}"):
+            st.switch_page("app_pages/data.py", query_params={"dataset": src.get("name", m["dataset"])})
+    hist = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/metrics/{m['name']}/history")) or []
+    if hist:
+        with st.expander(f"Versions · {len(hist)}", icon=":material/history:"):
+            for h in hist:
+                st.markdown(md(f"**v{h['version']}** · {kit.when(h['created_at'])} · {h.get('summary') or ''}"
+                               + (f" ({h['note']})" if h.get("note") else "")))
+                for ch in h.get("changes") or []:
+                    st.caption(md(ch if isinstance(ch, str) else ch.get("text", str(ch))))
+    if admin:
+        with st.popover("Retire this definition", icon=":material/archive:"):
+            st.caption("Requests that name it go to its replacement, or are told it was retired.")
+            others = [x["name"] for x in api.get(f"/v1/workspaces/{ws}/metrics") if x["name"] != m["name"]]
+            rep = st.selectbox("Replaced by", [None] + others, format_func=lambda n: "Nothing" if n is None
+                               else n.replace("_", " "), key=f"dep_{m['name']}")
+            if st.button("Retire it", type="primary", key=f"depgo_{m['name']}"):
+                if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/metrics/{m['name']}/deprecate", {"replaced_by": rep}),
+                               "Retired"):
+                    st.rerun()
     if st.button(f"Ask about {kit.lower(m['title'])}", type="primary", icon=":material/arrow_outward:"):
         ask(f"What was {kit.lower(m['title'])} last quarter?")
+
+
+def tidy(metrics: list[dict]) -> None:
+    """The definitions' own health: ambiguous terms, missing owners or descriptions, undefined words. A business
+    reader sees one line; whoever maintains the definitions opens the list with the fix for each."""
+    try:
+        issues = api.get(f"/v1/workspaces/{ws}/semantic/audit")
+    except APIError:
+        return
+    if not issues:
+        st.caption(":material/check_circle: Every definition is unambiguous, owned and described.")
+        return
+    serious = [x for x in issues if x["severity"] in ("high", "medium")]
+    title = (f"{len(serious)} definition issue{'s' * (len(serious) != 1)} can change an answer"
+             if serious else f"{len(issues)} small gap{'s' * (len(issues) != 1)} in the definitions")
+    with st.expander(title, icon=":material/rule:" if not serious else ":material/warning:"):
+        for k, x in enumerate(sorted(issues, key=lambda x: {"high": 0, "medium": 1}.get(x["severity"], 2))):
+            tone = {"high": "bad", "medium": "warn"}.get(x["severity"], "off")
+            kit.row(x["text"], "Fix: " + x["fix"], status=(x["severity"].capitalize(), tone), key=f"aud{k}",
+                    divider=k < len(issues) - 1)
 
 
 def definitions() -> None:
     metrics = api.get(f"/v1/workspaces/{ws}/metrics")
     terms = api.get(f"/v1/workspaces/{ws}/glossary")
+    tidy(metrics)
     if not metrics:
         kit.empty(":material/menu_book:", "No approved metrics", "A metric is a governed definition (what revenue or margin "
                   "means here). Admins approve them; Lyst answers only from approved definitions.")
@@ -62,7 +108,8 @@ def definitions() -> None:
         kit.label(f"Metrics · {len(hits)}")
     for i, m in enumerate(hits):
         if kit.row(m["title"], m.get("description") or "No description yet", actions=[("Open", "open")],
-                   key=f"m{m['name']}", divider=i < len(hits) - 1):
+                   key=f"m{m['name']}", divider=i < len(hits) - 1) or st.query_params.get("metric") == m["name"]:
+            st.query_params.pop("metric", None)
             metric_detail(m, terms)
     tshown = [t for t in terms if not q or q.lower() in (t["term"] + t["definition"]).lower()]
     if tshown:

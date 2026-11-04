@@ -68,6 +68,52 @@ def make_pages(waiting: int = 0) -> list:
 
 
 pages = make_pages()
+
+KINDS = {"metric": ("Metric", ":material/functions:"), "dataset": ("Dataset", ":material/database:"),
+         "column": ("Column", ":material/view_column:"), "term": ("Business term", ":material/menu_book:"),
+         "workflow": ("Saved analysis", ":material/bolt:"), "dashboard": ("Dashboard", ":material/dashboard:"),
+         "analysis": ("Earlier answer", ":material/chat:"), "document": ("Document", ":material/description:")}
+
+
+def _destination(hit: dict) -> tuple[str, dict]:
+    """Where a search result lives in the five areas, as a page and the query that opens it."""
+    kind, name = hit["kind"], hit["name"]
+    if kind == "dataset":
+        return "app_pages/data.py", {"dataset": name}
+    if kind == "column":
+        return "app_pages/data.py", {"dataset": name.split(".")[0]}
+    if kind == "metric":
+        return "app_pages/brain.py", {"metric": name}
+    if kind == "term":
+        return "app_pages/brain.py", {}
+    if kind == "document":
+        return "app_pages/brain.py", {"view": "documents"}
+    if kind == "workflow":
+        return "app_pages/data.py", {"view": "saved analyses"}
+    if kind == "dashboard":
+        return "app_pages/data.py", {"view": "dashboards"}
+    return "app_pages/analyst.py", {"task": name}
+
+
+@st.dialog("Search", width="large")
+def search_dialog(q: str) -> None:
+    try:
+        hits = api.get(f"/v1/workspaces/{st.session_state.workspace}/catalog/search", q=q)["results"]
+    except APIError as e:
+        st.error(str(e))
+        return
+    if not hits:
+        st.caption(f"Nothing matches “{q}”. Ask it on Home instead: Lyst can answer questions it has no saved page for.")
+        return
+    st.caption(f"{len(hits)} result{'s' * (len(hits) != 1)} for “{q}”")
+    for i, h in enumerate(hits):
+        label, icon = KINDS.get(h["kind"], (h["kind"].capitalize(), None))
+        if kit.row(h["title"], f"{label} · {h.get('why') or ''}", actions=[("Open", "go")], key=f"sr{i}",
+                   divider=i < len(hits) - 1):
+            page, qp = _destination(h)
+            if page.endswith("analyst.py"):
+                st.session_state.task_id = qp["task"]
+            st.switch_page(page, query_params=qp)
 api = client()
 
 
@@ -197,4 +243,9 @@ with st.sidebar:
             st.rerun()
     with st.popover("What these words mean", icon=":material/help:", width="stretch"):
         st.markdown(GLOSSARY)
+    q = st.text_input("Search", placeholder="Search data, metrics, documents", label_visibility="collapsed",
+                      key="search_q", icon=":material/search:",
+                      on_change=lambda: st.session_state.update(_open_search=True))
+if st.session_state.pop("_open_search", False) and (q or "").strip():
+    search_dialog(q.strip())
 nav.run()
