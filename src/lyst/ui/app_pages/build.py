@@ -22,6 +22,7 @@ with tabs[0]:
         with st.container(border=True):
             head = st.columns([5, 1, 1, 1], vertical_alignment="center")
             head[0].markdown(f"**{d['title']}**  ·  refreshed {str(d['last_refresh_at'])[:16]}  ·  {d['refresh_count']} refreshes")
+            head[0].caption("Plotly Dash app" if (d.get("checks") and any(c["name"] == "dash_check" for c in d["checks"])) else "Streamlit app")
             head[1].badge(d["status"], color="green" if d["status"] == "published" else "orange")
             if head[2].button("Refresh now", key=f"rf_{d['id']}", type="tertiary"):
                 try:
