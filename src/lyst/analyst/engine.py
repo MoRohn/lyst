@@ -284,10 +284,14 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     for name in u["metrics"]:
         spec = s.semantic.get(ctx.actor, ctx.workspace_id, name)
         ds = catalog.get(spec.dataset, {})
-        md = _max_date(ctx, spec)
+        have = {col["name"] for col in ds.get("schema", [])}
+        missing = sorted(spec.columns() - have) if ds else []
+        # schema drift: a column the definition needs is gone from the current version; plan() blocks on it
+        md = _max_date(ctx, spec) if not missing else None
         anchor = anchor or md
         metrics.append({"spec": spec.model_dump(), "dataset_version": ds.get("version"),
-                        "dataset_rows": ds.get("row_count"), "max_date": md.isoformat() if md else None})
+                        "dataset_rows": ds.get("row_count"), "max_date": md.isoformat() if md else None,
+                        "missing_columns": missing})
     memory = s.memory.recall(ctx.actor, ctx.workspace_id, u["question"], limit=5)
     period = None
     if anchor:
@@ -328,6 +332,7 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     def add(cap: str, key: str, after: list[str] | None = None, **a):
         steps.append({"capability": cap, "key": key, "args": a, "after": after if after is not None else ["plan"]})
 
+    drift = [m for m in c.get("metrics", []) if m.get("missing_columns")]
     if u["ambiguous"]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
@@ -365,6 +370,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             add("quality_scan", "quality", dataset=u["dataset"])
         else:
             blockers.append("Name the dataset to profile. Available: " + ", ".join(c["datasets"]))
+    elif drift:
+        for m in drift:
+            blockers.append(f"The approved definition of {m['spec']['title'].lower()} needs column(s) "
+                            f"{', '.join(m['missing_columns'])}, which {m['spec']['dataset']} v{m['dataset_version']} no longer "
+                            "has. Lyst did not compute it on a changed schema. An admin can update the metric in "
+                            "Intelligence, or the data owner can restore the column.")
     elif not u["metrics"]:
         if not blockers:
             blockers.append("No approved metric matches this request. Approved metrics are listed in "
@@ -791,8 +802,15 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if c.get("period") and "current" in o:
         anchor = date.fromisoformat(c["period"]["anchor"])
         end = date.fromisoformat(c["period"]["end"])
+        to_date = bool(_TO_DATE.search(ctx.outputs["understand"]["question"])) or c["period"].get("grain") == "ytd"
+        # comparing a period the data covers only partly with a complete one manufactures a change; that is an
+        # error unless the person asked for period-to-date
         check("freshness", anchor >= end - pd.Timedelta(days=1),
-              f"data runs to {anchor.isoformat()}; the period ends {end.isoformat()} (exclusive)", "warning")
+              f"data runs to {anchor.isoformat()}; {c['period']['label']} ends {end.isoformat()} (exclusive), so it is "
+              "incomplete" + ("" if to_date else " and not comparable with a complete period"),
+              "warning" if to_date else "error")
+    for name, passed, detail, severity in _integrity(ctx):
+        check(name, passed, detail, severity)
     d = o.get("drivers")
     if d and "by_dimension" in d and "current" in o and "prior" in o:
         cur, prev = o["current"]["value"], o["prior"]["value"]
@@ -853,6 +871,72 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")
     return {"checks": checks, "status": status, "intensity": intensity}
+
+
+_TO_DATE = re.compile(r"\b(this|current) (quarter|month|year)\b|\b(ytd|year to date|so far|to date)\b", re.I)
+_CURRENCY_COL = re.compile(r"^(currency|ccy|currency_code|iso_currency|cur)$", re.I)
+
+
+def _integrity(ctx: Context) -> list[tuple[str, bool, str, str]]:
+    """Data problems that make a correct-looking number wrong (master prompt 4.1), checked inside the period
+    actually analysed: exact duplicate rows, several currencies summed together, and periods the data covers
+    only partly at the start. Checks a role cannot run (column policies) are left out, not failed."""
+    from ..data.sqlguard import QueryRejected  # noqa: PLC0415
+    from ..security import AccessDenied  # noqa: PLC0415
+
+    o = ctx.outputs
+    cur = o.get("current")
+    metrics = (o.get("contextualize") or {}).get("metrics") or []
+    if not cur or not metrics or "period" not in cur:
+        return []
+    spec = MetricSpec.model_validate(metrics[0]["spec"])
+    if not spec.time_column:
+        return []
+    out: list[tuple[str, bool, str, str]] = []
+    p = cur["period"]
+    tc, ds = f'"{spec.time_column}"', f'"{spec.dataset}"'
+    where = f"{tc} >= DATE '{p['start']}' AND {tc} < DATE '{p['end']}'"
+    schema = next((d["schema"] for d in ctx.services.data.catalog(ctx.actor, ctx.workspace_id) if d["name"] == spec.dataset), [])
+    cols = [col["name"] for col in schema]
+    try:
+        r = _query(ctx, f"SELECT count(*), (SELECT count(*) FROM (SELECT DISTINCT * FROM {ds} WHERE {where})) "
+                        f"FROM {ds} WHERE {where}")
+        n, distinct = r.rows[0]
+        if n:
+            dup = n - distinct
+            out.append(("duplicate_rows", dup == 0,
+                        f"{dup} of {n} rows in {p['label']} are exact duplicates of another row; totals would be "
+                        f"overstated" if dup else f"no exact duplicate rows among {n} in {p['label']}", "error"))
+    except (QueryRejected, AccessDenied):
+        pass
+    filtered = {f["column"] for f in (ctx.outputs["understand"].get("filters") or [])} | {
+        f.column for m in (spec.measure, spec.numerator, spec.denominator) if m for f in m.filters} | {
+        f.column for f in spec.filters}
+    for col in cols:
+        if _CURRENCY_COL.match(col) and col not in filtered:
+            try:
+                vals = [v for (v,) in _query(ctx, f'SELECT DISTINCT "{col}" FROM {ds} WHERE {where} ORDER BY 1').rows
+                        if v is not None]
+            except (QueryRejected, AccessDenied):
+                continue
+            out.append(("single_currency", len(vals) <= 1,
+                        f"{spec.title} adds amounts in {len(vals)} currencies ({', '.join(map(str, vals[:5]))}) in "
+                        f"{p['label']}; convert to one currency or ask by {col}" if len(vals) > 1
+                        else f"one currency ({vals[0] if vals else 'none'})", "error"))
+    try:
+        lo = _query(ctx, f"SELECT min({tc}) FROM {ds}").rows[0][0]
+    except (QueryRejected, AccessDenied):
+        lo = None
+    if lo is not None:
+        lo = pd.Timestamp(lo).date()
+        for key, sev in (("current", "error"), ("prior", "error"), ("year_ago", "warning")):
+            v = o.get(key)
+            if v and "period" in v and (v.get("rows_in_period") or 0):
+                start = date.fromisoformat(v["period"]["start"])
+                if lo > start:
+                    out.append((f"period_start:{key}", False, f"the data starts {lo.isoformat()}, after "
+                                f"{v['period']['label']} begins ({start.isoformat()}), so that period is incomplete", sev))
+    return out
 
 
 def _independent_recompute(ctx: Context, current: dict[str, Any]) -> dict[str, Any]:
@@ -1295,6 +1379,15 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if u.get("filters") and spec:
             assumptions.append("Filtered to " + ", ".join(f"{f['column']} = {f['value']}" for f in u["filters"]) + ".")
         status = "complete" if v["status"] != "failed" else "unverified"
+        # a number that failed verification is never presented first: the reason is (missing data already says so)
+        failed = [c for c in v["checks"] if not c["passed"] and c["severity"] == "error" and not c["name"].startswith("coverage")]
+        if status == "unverified" and answer and failed:
+            answer = f"Not verified: {failed[0]['detail']}. As computed, " + answer[0].lower() + answer[1:]
+            if any(c["name"] in ("duplicate_rows", "single_currency") or c["name"].startswith(("freshness", "period_start"))
+                   for c in failed):
+                implications.insert(0, "Do not use these figures for decisions until the data problem above is fixed.")
+                actions.insert(0, "Ask the dataset owner to fix the data (or ask Lyst for a period or split the data covers "
+                                  "cleanly), then run this again.")
 
     narrative_by = "template"
     template_answer = answer

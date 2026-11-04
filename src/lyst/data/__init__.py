@@ -66,7 +66,12 @@ class DataService:
         classification: str = "internal",
     ) -> dict[str, Any]:
         """Load a CSV or Parquet file as a new version of a dataset. Earlier versions stay."""
-        table = _read_table(content, filename)
+        try:
+            table = _read_table(content, filename)
+        except (pa.ArrowInvalid, pa.ArrowTypeError, UnicodeDecodeError) as exc:
+            # a corrupt or mis-typed file is the person's input to fix, said plainly (HTTP 400), never a server error
+            raise ValueError(f"{filename} could not be read: {str(exc).splitlines()[0][:200]}. Nothing was loaded; "
+                             "check the file's format, delimiter and encoding (UTF-8), then upload it again.") from exc
         return self.ingest_arrow(actor, workspace_id, name, table, source=filename, sha=hashlib.sha256(content).hexdigest(),
                                  title=title, description=description, classification=classification)
 
