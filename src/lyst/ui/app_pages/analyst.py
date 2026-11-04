@@ -174,7 +174,10 @@ def task_view(task: str) -> None:
     except APIError as e:
         top[0].error(str(e))
         return
-    top[0].html(f'<h1 class="lyst-title">{kit._esc(t["title"])}</h1>')
+    # the heading is the whole request (list titles are shortened); long requests use a smaller size
+    full = ((t.get("request") or {}).get("question") or t["title"]).strip()
+    size = "" if len(full) <= 90 else ' style="font-size:1.2rem;line-height:1.35"'
+    top[0].html(f'<h1 class="lyst-title"{size}>{kit._esc(full)}</h1>')
     if t["status"] in ACTIVE:
         progress(task)
         return
