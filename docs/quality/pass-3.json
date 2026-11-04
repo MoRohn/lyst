@@ -27,7 +27,7 @@
                 "7": "verified", "8": "measured", "9": "verified", "10": "verified"},
   "measurements": {
     "submit_single_ms_p50": 6.1,
-    "load_100_paced": {"tasks": 300, "submit_ms_p95": 31.0, "e2e_s_p95": 0.68},
+    "load_100_paced": {"people": 100, "rounds": 3, "submit_ms_p95": 31.0, "e2e_s_p95": 0.68},
     "load_100_burst": {"submit_ms_p95_range": [331, 444]},
     "workflows": {"on": {"model_calls": 9, "queries": 142}, "off": {"model_calls": 12, "queries": 160}, "tasks": 12},
     "live_model_first_call_s": [11.3, 14.3], "live_model_warm_call_s": [0.55, 0.73]
