@@ -213,3 +213,23 @@ def test_a_finished_task_reports_its_outcome_so_needs_input_is_never_shown_as_do
     assert task_state("done", "needs_input")[0] == "Needs your input"
     assert task_state("done", "unverified")[0] == "Not verified"
     assert task_state("done", "complete")[0] == "Done"
+
+
+def test_identical_findings_reuse_the_verified_wording_instead_of_calling_the_model_again(seeded):
+    lyst, owner = seeded
+    calls = []
+
+    def handler(request: httpx.Request):
+        body = json.loads(request.content)
+        calls.append("classify" if body.get("response_format") else "narrative")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "The decline is concentrated in one region."}}]})
+
+    lyst.services.llm = LLMClient(LLMSettings("http://localhost:11434/v1", "local"), lyst.stores,
+                                  transport=httpx.MockTransport(handler), credentials=lyst.credentials)
+    first = ask(lyst, owner, "Why did operating margin decline in Q3 2026?")["result"]
+    assert calls == ["narrative"] and first["supporting"]["narrative_by"] == "model (numbers verified)"
+    again = ask(lyst, owner, "Why did operating margin decline in Q3 2026?")["result"]
+    assert calls == ["narrative"]  # no second call
+    assert again["answer"] == first["answer"] and "reused" in again["supporting"]["narrative_by"]
+    other = ask(lyst, owner, "Why did operating margin decline in Q2 2026?")["result"]  # different findings: worded anew
+    assert calls == ["narrative", "narrative"] and "reused" not in other["supporting"]["narrative_by"]

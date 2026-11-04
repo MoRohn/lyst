@@ -11,6 +11,7 @@ is rejected (Acumane's ``unbackedClaims`` rule, ported).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -1300,7 +1301,17 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     template_answer = answer
     allowed: list[float] = []
     _collect_numbers({k: o.get(k) for k in o if k not in ("understand",)}, allowed)
-    if status == "complete" and ctx.services.llm.allowed_for(ctx.workspace_id) and findings:
+    narrative_key = hashlib.sha256(json.dumps({"answer": answer, "findings": findings}, sort_keys=True,
+                                              default=str).encode()).hexdigest()[:24]
+    reused = None
+    if status == "complete" and findings:
+        # the same answer and findings were already worded by a model and verified: reuse that wording
+        reused = ctx.services.semantic.stores.workspace(ctx.workspace_id).query(
+            "SELECT answer->>'$.answer' AS text FROM analyses WHERE evidence->>'$.narrative_key' = ? "
+            "AND starts_with(evidence->>'$.narrative_by', 'model') ORDER BY created_at DESC LIMIT 1", [narrative_key])
+    if reused and not unbacked_numbers(reused[0]["text"], allowed):
+        answer, narrative_by = reused[0]["text"], "model (numbers verified; reused for identical findings)"
+    elif status == "complete" and ctx.services.llm.allowed_for(ctx.workspace_id) and findings:
         try:
             text = ctx.services.llm.chat(ctx.workspace_id, [
                 {"role": "system", "content": "Rewrite the answer and findings as two short executive sentences. "
@@ -1384,6 +1395,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "assumptions": assumptions,
             "plan": [{"capability": s["capability"], "agent": s["agent"]} for s in pl["steps"]],
             "narrative_by": narrative_by,
+            "narrative_key": narrative_key,
             "workflow": {"used": u.get("workflow"), "strategy": pl.get("strategy", "planned"), "compiled": None},
             "reproduce": "Re-run each query in Supporting work against the dataset versions listed; the metric "
                          "definition version is pinned above.",
