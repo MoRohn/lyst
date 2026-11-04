@@ -1167,6 +1167,17 @@ WORKSPACE.append((
     )
     """,
 ))
+WORKSPACE.append((
+    41,
+    """
+    CREATE TABLE experiments (
+        id VARCHAR PRIMARY KEY,
+        name VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        question VARCHAR,
+        spec JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        decision JSON,
 
 # Living project specifications: requirements with acceptance criteria, traced to the tasks, artifacts, assets and
 # decisions that satisfy them; every revision is a version.
@@ -1182,6 +1193,25 @@ WORKSPACE.append((
         created_at TIMESTAMPTZ DEFAULT now(),
         updated_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE experiment_runs (
+        id VARCHAR PRIMARY KEY,
+        experiment_id VARCHAR NOT NULL,
+        method VARCHAR NOT NULL,
+        params JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        metrics JSON,
+        detail JSON,
+        inputs JSON NOT NULL,
+        environment JSON NOT NULL,
+        input_digest VARCHAR NOT NULL,
+        result_digest VARCHAR,
+        seconds DOUBLE,
+        error VARCHAR,
+        reproduces VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX experiment_runs_by_experiment ON experiment_runs (experiment_id)
     CREATE TABLE spec_versions (
         spec_id VARCHAR NOT NULL,
         version INTEGER NOT NULL,
