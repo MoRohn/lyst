@@ -29,12 +29,14 @@
 | Memory | Layers, trust, promotion, revocation, corrections | Built, partly tested | `memory.py`; promotion path untested |
 | UI | Six-area Streamlit app with live progress, light and dark themes | Checked by hand with Playwright screenshots | `docs/images/` |
 | API | Versioned FastAPI endpoints | Tested | `test_api.py` |
-| Identity | OIDC / SSO | Planned (Phase 2) | — |
+| Identity | OIDC sign-in (code flow + PKCE, JWKS verification, domain allow-list, expiring sessions, logout), member management | Tested against a stub provider | `test_auth.py` |
+| Ops | JSON logs with request and task ids, Prometheus `/metrics`, `/health` | Tested | `test_auth.py::test_metrics_and_request_ids` |
+| Ops | Dockerfile and Compose (non-root, read-only, no capabilities) | Written, not yet run (no Docker on the dev machine) | `docker-compose.yml` |
 | Connectors | PostgreSQL, warehouses, SaaS; connector SDK | Planned (Phase 4) | — |
 | Knowledge | Documents with citations, vector search | Planned (Phase 4) | — |
 | Build | Governed skills: static check, sandboxed tests with adversarial cases, approval by another role, registration, use in plans, retire | Tested | Scenario F, `test_skills.py` |
 | Build | Evaluation harness: question bank, independent expected values, stored scored runs, `lyst eval` | Tested | `test_evals.py` (15/15 on the demo bank) |
 | Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |
 | Deliverables | PDF, slides, generated dashboards | Planned (Phase 6) | — |
-| Ops | Metrics/tracing, backup automation, load tests | Planned (Phase 7) | — |
+| Ops | Tracing, backup automation, load tests | Planned (Phase 7) | — |
 | Models | Local model exercised end to end | Not yet: no local model is installed on the dev machine | — |

@@ -3,18 +3,26 @@
 """Versioned HTTP API. The Streamlit UI is one client of it; nothing in the UI talks to DuckDB."""
 
 
+import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
+from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
+from .. import observability as obs
 from ..app import Lyst
 from ..data.sqlguard import QueryRejected
 from ..security import AccessDenied, Principal
+from ..security.oidc import OIDC, OIDCError, OIDCSettings
 from ..semantic import MetricSpec
+
+log = logging.getLogger("lyst.api")
 
 MAX_UPLOAD = 200 * 1024 * 1024
 
@@ -61,18 +69,30 @@ class SkillIn(BaseModel):
     params: dict[str, Any] | None = None
 
 
+class MemberIn(BaseModel):
+    email: str
+    role: str
+
+
 class Correction(BaseModel):
     content: str
     analysis_id: str | None = None
     layer: str = "team"
 
 
-def create_app(lyst: Lyst | None = None, *, start_workers: bool = True) -> FastAPI:
+def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OIDC | None = None) -> FastAPI:
+    obs.configure_logging()
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.lyst = lyst or Lyst.build()
+        settings = OIDCSettings.from_env()
+        app.state.oidc = oidc or (OIDC(settings) if settings else None)
         if start_workers:
             app.state.lyst.runtime.start(app.state.lyst.settings.workers)
+        obs.WORKERS.set(len(app.state.lyst.runtime._threads))
+        log.info("lyst api ready", extra={"workers": len(app.state.lyst.runtime._threads),
+                                          "oidc": bool(app.state.oidc), "model": bool(app.state.lyst.llm.info())})
         yield
         if lyst is None:
             app.state.lyst.close()
@@ -80,6 +100,36 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True) -> FastA
             app.state.lyst.runtime.stop()
 
     app = FastAPI(title="Lyst API", version="0.1.0", lifespan=lifespan)
+
+    def L(request: Request) -> Lyst:
+        return request.app.state.lyst
+
+    def me(request: Request) -> Principal:
+        auth = request.headers.get("authorization", "")
+        token = auth[7:] if auth.lower().startswith("bearer ") else None
+        return L(request).guard.authenticate(token)
+
+    User = Annotated[Principal, Depends(me)]
+
+    @app.middleware("http")
+    async def _observe(request: Request, call_next):
+        rid = request.headers.get("x-request-id") or obs.new_request_id()
+        token = obs.request_id.set(rid)
+        start = time.perf_counter()
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            response.headers["X-Request-Id"] = rid
+            return response
+        finally:
+            route = getattr(request.scope.get("route"), "path", request.url.path)
+            if route not in ("/metrics", "/health"):
+                obs.HTTP_REQUESTS.labels(route, request.method, str(status)).inc()
+                obs.HTTP_LATENCY.labels(route).observe(time.perf_counter() - start)
+                if status >= 500:
+                    log.error("request failed", extra={"route": route, "status": status})
+            obs.request_id.reset(token)
 
     @app.exception_handler(AccessDenied)
     async def _denied(_: Request, exc: AccessDenied):
@@ -97,28 +147,80 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True) -> FastA
     async def _invalid(_: Request, exc: ValueError):
         return JSONResponse({"error": "invalid", "detail": str(exc)}, status_code=400)
 
-    def L(request: Request) -> Lyst:
-        return request.app.state.lyst
-
-    def me(request: Request) -> Principal:
-        auth = request.headers.get("authorization", "")
-        token = auth[7:] if auth.lower().startswith("bearer ") else None
-        return L(request).guard.authenticate(token)
-
-    User = Annotated[Principal, Depends(me)]
-
     @app.get("/health")
     def health(request: Request) -> dict[str, Any]:
         lyst = L(request)
         lyst.stores.control.scalar("SELECT 1")
         info = lyst.llm.info()
+        queued = lyst.stores.control.scalar("SELECT count(*) FROM tasks WHERE status = 'queued'") or 0
+        obs.QUEUE_DEPTH.set(queued)
         return {"status": "ok", "version": "0.1.0", "encrypted": lyst.settings.encrypt,
-                "model": info.name if info else None, "workers": len(lyst.runtime._threads)}
+                "model": info.name if info else None, "workers": len(lyst.runtime._threads), "queued": queued,
+                "oidc": request.app.state.oidc is not None}
+
+    @app.get("/metrics")
+    def prometheus_metrics(request: Request):
+        lyst = L(request)
+        obs.QUEUE_DEPTH.set(lyst.stores.control.scalar("SELECT count(*) FROM tasks WHERE status = 'queued'") or 0)
+        if lyst.llm.gateway:
+            obs.INFLIGHT.set(lyst.llm.gateway.admission.counts.total)
+        return Response(generate_latest(obs.REGISTRY), media_type=CONTENT_TYPE_LATEST)
+
+    # -- sign-in ----------------------------------------------------------------------------
+
+    @app.get("/auth/login")
+    def auth_login(request: Request, return_to: str | None = None):
+        o: OIDC | None = request.app.state.oidc
+        if not o:
+            raise HTTPException(404, "OIDC is not configured; use an API token")
+        ui = os.environ.get("LYST_UI_URL", "http://localhost:8501")
+        target = return_to if return_to and return_to.startswith(ui) else ui
+        return RedirectResponse(o.login_url(target), status_code=302)
+
+    @app.get("/auth/callback")
+    def auth_callback(request: Request, state: str, code: str):
+        o: OIDC | None = request.app.state.oidc
+        if not o:
+            raise HTTPException(404, "OIDC is not configured")
+        lyst = L(request)
+        try:
+            claims, return_to = o.complete(state, code)
+        except OIDCError as exc:
+            lyst.guard.audit(Principal("anonymous", ""), None, "auth.oidc", None, "denied", {"reason": str(exc)})
+            return PlainTextResponse(f"Sign-in failed: {exc}", status_code=403)
+        user = lyst.guard.user_from_oidc(claims["sub"], claims["email"].lower(), claims.get("name") or "")
+        token = lyst.guard.issue_token(user, "oidc", hours=o.settings.session_hours)
+        return RedirectResponse(return_to + ("&" if "?" in return_to else "?") + urlencode({"token": token}),
+                                status_code=302)
+
+    @app.post("/auth/logout")
+    def auth_logout(request: Request, user: User):
+        auth = request.headers.get("authorization", "")
+        L(request).guard.revoke_token(auth[7:])
+        return {"ok": True}
 
     @app.get("/v1/me")
     def whoami(request: Request, user: User):
         return {"user_id": user.user_id, "email": user.email,
                 "workspaces": L(request).guard.workspaces_for(user)}
+
+    @app.get("/v1/workspaces/{ws}/members")
+    def members(request: Request, ws: str, user: User):
+        return L(request).guard.members(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/members")
+    def add_member(request: Request, ws: str, body: MemberIn, user: User):
+        g = L(request).guard
+        target = g.user_by_email(body.email)
+        if not target:
+            raise KeyError(f"no user with email {body.email}; they must sign in once first")
+        g.add_member(user, ws, target.user_id, body.role)
+        return {"ok": True}
+
+    @app.delete("/v1/workspaces/{ws}/members/{user_id}")
+    def remove_member(request: Request, ws: str, user_id: str, user: User):
+        L(request).guard.remove_member(user, ws, user_id)
+        return {"ok": True}
 
     # -- data -------------------------------------------------------------------------------
 

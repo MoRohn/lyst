@@ -22,6 +22,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from .. import observability as obs
 from ..config import LLMSettings
 from ..security import redact
 from ..store import Stores
@@ -82,6 +83,9 @@ class LLMClient:
 
     def _record(self, r: CallRecord) -> None:
         cost = r.cost_usd if r.cost_usd is not None else policy.estimate_cost(r.model, r.input_tokens, r.output_tokens)
+        obs.MODEL_CALLS.labels(r.outcome, r.pool).inc()
+        if cost:
+            obs.MODEL_COST.inc(cost)
         self.stores.control.execute(
             "INSERT INTO llm_calls (id, workspace_id, task_id, model, purpose, external, input_tokens, output_tokens, "
             "latency_ms, outcome, pool, workload, provider, status, attempt, queue_ms, cost_usd) "

@@ -26,10 +26,29 @@ pages = [
 ]
 nav = st.navigation(pages, position="top")
 
+api = client()
 try:
-    me = client().get("/v1/me")
+    me = api.get("/v1/me")
 except APIError as e:
-    st.error(e if e.status else f"{e} Start it with `lyst serve`.", icon=":material/cloud_off:")
+    if e.status == 403:
+        health = {}
+        try:
+            health = api.get("/health")
+        except APIError:
+            pass
+        st.markdown("## Lyst")
+        if health.get("oidc"):
+            st.link_button("Sign in", f"{api.base}/auth/login", type="primary", icon=":material/login:")
+        else:
+            st.info("Sign-in is not configured on this engine. Paste an API token (an administrator issues one "
+                    "with `lyst token you@example.com`).")
+            with st.form("token"):
+                t = st.text_input("API token", type="password")
+                if st.form_submit_button("Continue") and t:
+                    st.session_state["token"] = t.strip()
+                    st.rerun()
+    else:
+        st.error(e if e.status else f"{e} Start it with `lyst serve`.", icon=":material/cloud_off:")
     st.stop()
 
 spaces = me["workspaces"]
@@ -45,5 +64,12 @@ with st.sidebar:
                  format_func=lambda i: next(w["name"] for w in spaces if w["id"] == i))
     role = next(w["role"] for w in spaces if w["id"] == st.session_state.workspace)
     st.caption(f"{me['email']} · {role}")
+    if st.button("Sign out", type="tertiary", icon=":material/logout:"):
+        try:
+            api.post("/auth/logout")
+        except APIError:
+            pass
+        st.session_state.pop("token", None)
+        st.rerun()
 st.session_state.role = role
 nav.run()

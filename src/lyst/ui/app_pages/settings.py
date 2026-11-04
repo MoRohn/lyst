@@ -47,6 +47,21 @@ if admin:
         g = s["gateway"]
         st.caption(f"Gateway now: {g['inflight']} calls in flight, waiting {g['waiting']}, refusals {g['refusals'] or 'none'}")
 
+if admin:
+    st.markdown("#### Members")
+    members = api.get(f"/v1/workspaces/{ws}/members")
+    st.dataframe(pd.DataFrame(members)[["email", "name", "role"]], hide_index=True, width="stretch")
+    with st.form("member"):
+        c2 = st.columns([3, 1, 1], vertical_alignment="bottom")
+        email = c2[0].text_input("Email (the person must have signed in once)")
+        role = c2[1].selectbox("Role", ["viewer", "editor", "admin", "owner"])
+        if c2[2].form_submit_button("Add") and email:
+            try:
+                api.post(f"/v1/workspaces/{ws}/members", {"email": email.strip().lower(), "role": role})
+                st.rerun()
+            except APIError as e:
+                st.error(str(e))
+
 st.markdown("#### Audit log")
 try:
     st.dataframe(pd.DataFrame(api.get(f"/v1/workspaces/{ws}/audit")), hide_index=True, width="stretch")

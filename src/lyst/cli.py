@@ -41,6 +41,20 @@ def init_demo() -> None:
         lyst.close()
 
 
+def issue_token(email: str, name: str | None, hours: int | None, owner_of: str | None) -> None:
+    from .app import Lyst
+
+    lyst = Lyst.build()
+    try:
+        user = lyst.guard.user_by_email(email) or lyst.guard.create_user(email.lower(), name or email.split("@")[0])
+        if owner_of:
+            lyst.guard.create_workspace(user, owner_of, owner_of.replace("_", " ").title())
+        token = lyst.guard.issue_token(user, "cli", hours=hours)
+        print(token)
+    finally:
+        lyst.close()
+
+
 def run_eval(label: str) -> None:
     import tempfile
 
@@ -68,6 +82,11 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("init-demo", help="create the demo workspace and a development token")
     sub.add_parser("serve", help="run the API and workers")
     sub.add_parser("ui", help="run the Streamlit interface")
+    tk = sub.add_parser("token", help="issue an API token for a user (creates the user if new)")
+    tk.add_argument("email")
+    tk.add_argument("--name", default=None)
+    tk.add_argument("--hours", type=int, default=None, help="expiry; default never")
+    tk.add_argument("--owner-of", default=None, help="also create this workspace with the user as owner")
     ev = sub.add_parser("eval", help="run the demo evaluation bank against a fresh demo workspace")
     ev.add_argument("--label", default="")
     args = p.parse_args(argv)
@@ -77,6 +96,8 @@ def main(argv: list[str] | None = None) -> None:
         from .api import main as serve
 
         serve()
+    elif args.cmd == "token":
+        issue_token(args.email, args.name, args.hours, args.owner_of)
     elif args.cmd == "eval":
         run_eval(args.label)
     elif args.cmd == "ui":

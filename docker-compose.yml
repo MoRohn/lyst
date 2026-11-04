@@ -1,0 +1,47 @@
+# Single-machine deployment: the engine (API + workers) owns the data volume; the UI only talks HTTP.
+# Copy .env.example to .env and set LYST_MASTER_KEY before the first start.
+services:
+  engine:
+    build: .
+    image: lyst:local
+    command: ["lyst", "serve"]
+    env_file: .env
+    environment:
+      LYST_HOST: 0.0.0.0
+      LYST_HOME: /var/lib/lyst
+    volumes:
+      - lyst-data:/var/lib/lyst
+    ports:
+      - "127.0.0.1:8770:8770"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8770/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  ui:
+    image: lyst:local
+    command: ["lyst", "ui"]
+    env_file: .env
+    environment:
+      LYST_API_URL: http://engine:8770
+      LYST_HOME: /tmp/lyst-ui   # the UI keeps no data; only a token file may land here
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      engine:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+volumes:
+  lyst-data:

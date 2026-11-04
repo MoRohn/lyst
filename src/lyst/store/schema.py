@@ -182,6 +182,16 @@ CONTROL.append((
     """,
 ))
 
+CONTROL.append((
+    5,
+    """
+    ALTER TABLE api_tokens ADD COLUMN expires_at TIMESTAMPTZ;
+    ALTER TABLE api_tokens ADD COLUMN last_used_at TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN subject VARCHAR;
+    ALTER TABLE users ADD COLUMN last_login_at TIMESTAMPTZ
+    """,
+))
+
 WORKSPACE: list[Migration] = [
     (
         1,

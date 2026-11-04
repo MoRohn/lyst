@@ -39,7 +39,7 @@ PERMISSIONS: dict[str, str] = {
     "approval.decide": "admin",
     "skill.propose": "editor",
     "skill.approve": "owner",
-    "workspace.admin": "owner",
+    "workspace.admin": "admin",
     "audit.read": "admin",
 }
 
@@ -73,26 +73,65 @@ class Guard:
         self.stores.control.execute("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", [uid, email, name])
         return Principal(uid, email)
 
-    def issue_token(self, user: Principal, label: str = "default") -> str:
+    def issue_token(self, user: Principal, label: str = "default", *, hours: int | None = None) -> str:
         token = "lyst_" + secrets.token_urlsafe(32)
         self.stores.control.execute(
-            "INSERT INTO api_tokens (token_hash, user_id, label) VALUES (?, ?, ?)",
-            [hash_token(token), user.user_id, label],
+            "INSERT INTO api_tokens (token_hash, user_id, label, expires_at) VALUES (?, ?, ?, "
+            "CASE WHEN ? IS NULL THEN NULL ELSE now() + to_hours(CAST(? AS BIGINT)) END)",
+            [hash_token(token), user.user_id, label, hours, hours or 0],
         )
         return token
+
+    def revoke_token(self, token: str) -> None:
+        self.stores.control.execute("UPDATE api_tokens SET revoked_at = now() WHERE token_hash = ?", [hash_token(token)])
 
     def authenticate(self, token: str | None) -> Principal:
         if not token:
             raise AccessDenied("missing credentials")
+        h = hash_token(token)
         rows = self.stores.control.query(
             "SELECT u.id, u.email FROM api_tokens t JOIN users u ON u.id = t.user_id "
-            "WHERE t.token_hash = ? AND t.revoked_at IS NULL",
-            [hash_token(token)],
+            "WHERE t.token_hash = ? AND t.revoked_at IS NULL AND (t.expires_at IS NULL OR t.expires_at > now())",
+            [h],
         )
         if not rows:
             self.audit(Principal("anonymous", ""), None, "auth.token", None, "denied")
-            raise AccessDenied("invalid credentials")
+            raise AccessDenied("invalid or expired credentials")
+        self.stores.control.execute("UPDATE api_tokens SET last_used_at = now() WHERE token_hash = ?", [h])
         return Principal(rows[0]["id"], rows[0]["email"])
+
+    def user_from_oidc(self, subject: str, email: str, name: str) -> Principal:
+        """Find or create the user a verified ID token describes. Email is the identity; the subject is kept."""
+        rows = self.stores.control.query("SELECT id, email FROM users WHERE email = ?", [email])
+        if rows:
+            self.stores.control.execute("UPDATE users SET subject = ?, last_login_at = now() WHERE id = ?",
+                                        [subject, rows[0]["id"]])
+            p = Principal(rows[0]["id"], rows[0]["email"])
+        else:
+            p = self.create_user(email, name or email.split("@")[0])
+            self.stores.control.execute("UPDATE users SET subject = ?, last_login_at = now() WHERE id = ?", [subject, p.user_id])
+        self.audit(p, None, "auth.oidc", subject, "ok")
+        return p
+
+    def user_by_email(self, email: str) -> Principal | None:
+        rows = self.stores.control.query("SELECT id, email FROM users WHERE email = ?", [email.lower()])
+        return Principal(rows[0]["id"], rows[0]["email"]) if rows else None
+
+    def members(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
+        self.require(actor, workspace_id, "workspace.read")
+        return self.stores.control.query(
+            "SELECT u.id AS user_id, u.email, u.name, m.role FROM memberships m JOIN users u ON u.id = m.user_id "
+            "WHERE m.workspace_id = ? ORDER BY m.role, u.email", [workspace_id])
+
+    def remove_member(self, actor: Principal, workspace_id: str, user_id: str) -> None:
+        self.require(actor, workspace_id, "workspace.admin")
+        owners = self.stores.control.scalar(
+            "SELECT count(*) FROM memberships WHERE workspace_id = ? AND role = 'owner' AND user_id <> ?",
+            [workspace_id, user_id])
+        if not owners:
+            raise ValueError("a workspace keeps at least one owner")
+        self.stores.control.execute("DELETE FROM memberships WHERE workspace_id = ? AND user_id = ?", [workspace_id, user_id])
+        self.audit(actor, workspace_id, "member.remove", user_id, "ok")
 
     # -- workspaces -------------------------------------------------------------------------
 
@@ -113,6 +152,10 @@ class Guard:
         self.require(actor, workspace_id, "workspace.admin")
         if role not in RANK:
             raise ValueError("unknown role")
+        if role == "owner" and self.role(actor, workspace_id) != "owner":
+            raise AccessDenied("only an owner can make another owner")
+        if not self.stores.control.scalar("SELECT count(*) FROM users WHERE id = ?", [user_id]):
+            raise KeyError(user_id)
         self.stores.control.execute(
             "INSERT OR REPLACE INTO memberships (workspace_id, user_id, role) VALUES (?, ?, ?)",
             [workspace_id, user_id, role],

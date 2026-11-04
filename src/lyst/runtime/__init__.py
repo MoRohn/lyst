@@ -24,6 +24,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from .. import observability as obs
 from ..analyst.engine import Services
 from ..analyst.registry import Context
 from ..security import AccessDenied, Principal
@@ -275,6 +276,16 @@ class TaskRuntime:
         return self.db.write(tx)
 
     def run_task(self, task_id: str) -> str:
+        ctx_token = obs.task_id.set(task_id)
+        try:
+            state = self._run_task(task_id)
+        finally:
+            obs.task_id.reset(ctx_token)
+        if state in ("done", "failed", "cancelled"):
+            obs.TASKS.labels(state).inc()
+        return state
+
+    def _run_task(self, task_id: str) -> str:
         t = self.db.query("SELECT * FROM tasks WHERE id = ?", [task_id])[0]
         owner = self.db.query("SELECT id, email FROM users WHERE id = ?", [t["created_by"]])[0]
         actor = Principal(owner["id"], owner["email"])
@@ -330,6 +341,7 @@ class TaskRuntime:
                 "idempotency_key) VALUES (?, ?, ?, ?, ?, ?, 'running', now(), ?)",
                 [task_id, seq, cap.phase, cap.name, cap.agent, json.dumps(args, default=str), f"{task_id}:{seq}"])
             output, error = None, None
+            step_start = time.perf_counter()
             for attempt in range(1, MAX_STEP_ATTEMPTS + 1):
                 try:
                     output = self.services.registry.run(cap.name, ctx, args)
@@ -340,7 +352,9 @@ class TaskRuntime:
                 except Exception as exc:  # transient or unknown: bounded retry
                     error = f"{type(exc).__name__}: {exc}"
                     log.exception("step %s of %s failed (attempt %d)", seq, task_id, attempt)
+            obs.STEP_SECONDS.labels(cap.name).observe(time.perf_counter() - step_start)
             if output is None:
+                log.warning("step failed", extra={"capability": cap.name, "seq": seq, "error": error})
                 self.db.execute("UPDATE task_steps SET status = 'failed', error = ?, finished_at = now() "
                                 "WHERE task_id = ? AND seq = ?", [error, task_id, seq])
                 return self._fail(task_id, f"{cap.name} failed: {error}")

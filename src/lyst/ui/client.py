@@ -21,6 +21,11 @@ class APIError(RuntimeError):
 def _token() -> str | None:
     if t := st.session_state.get("token"):
         return t
+    if t := st.query_params.get("token"):
+        # arriving from /auth/callback: keep the token in this session and drop it from the URL
+        st.session_state["token"] = t
+        del st.query_params["token"]
+        return t
     if t := os.environ.get("LYST_TOKEN"):
         return t
     home = Path(os.environ.get("LYST_HOME", "var"))
