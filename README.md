@@ -1,74 +1,207 @@
-# Lyst
+<p align="center">
+  <img src="site/brand/lyst-logo.svg" alt="Lyst" width="160">
+</p>
 
-Lyst is a governed, mostly autonomous AI analyst. You describe the question or the work; Lyst plans it, runs
-it on approved data definitions with SQL and Python, checks its own numbers, and returns a decision-ready
-answer with the evidence behind it. It is judged by completed, verifiable work, not by conversation.
+<p align="center">
+  <b>An AI analyst that does the work, checks its own numbers, and shows you the evidence.</b><br>
+  Self-hosted · Python 3.12+ · DuckDB · Streamlit · FastAPI · AGPL-3.0-only
+</p>
 
-* **Python 3.12+, Streamlit, FastAPI, DuckDB.** Open-source core, self-hosted, no managed database.
-* **Models through OpenRouter, on Acumane's rails.** Set `LYST_OPENROUTER_API_KEY` and every call goes
-  through Lyst's gateway: tiers, workload routing, admission, adaptive limits, retries with fallback, cost per
-  call ([details](docs/MODELS.md)). A local OpenAI-compatible server works too, and with no model at all Lyst
-  runs on rules and templates. Every number comes from a query either way.
-* Derived from Acumane's design (see [the audit](docs/ACUMANE_AUDIT.md)) but a separate product with its own
-  code, data, configuration and license. Dashboards are built in **Plotly Dash** on Lyst's own kit
-  (`src/lyst/dashkit`, vendored into every generated app so it runs anywhere), in the design language of Rohn's
-  Tableau dashboards.
+<p align="center">
+  <a href="https://github.com/MoRohn/lyst/actions/workflows/ci.yml"><img src="https://github.com/MoRohn/lyst/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://morohn.github.io/lyst/">Website</a> ·
+  <a href="docs/CAPABILITY_MATRIX.md">What works today</a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/SECURITY.md">Security</a>
+</p>
 
-![Lyst's Home answering why operating margin declined](docs/images/analyst-light.png)
+---
+
+You describe a question or a piece of work. Lyst plans it, runs it on approved data definitions with SQL and
+Python, verifies the result independently, and returns a decision-ready answer with every query, check and
+assumption behind it. It is judged by completed, verifiable work, not by conversation: every number comes from
+a query, whether or not a model is involved.
+
+![Lyst's Home answering why operating margin declined, with evidence, a trend chart and a driver table](docs/images/analyst-light.png)
 
 ## Quick start
 
+You need [uv](https://docs.astral.sh/uv/) on macOS or Linux.
+
 ```bash
+git clone https://github.com/MoRohn/lyst.git && cd lyst
 uv sync --all-extras
-uv run lyst start --demo     # one terminal: encryption, the Northwind demo, engine and interface; opens http://lyst.localhost:8501
-# (or separately: lyst init-demo, lyst serve on http://127.0.0.1:8770, lyst ui)
-uv run pytest                # 186 tests
-uv run lyst eval             # scores 19 analytical questions against independent answers
+uv run lyst start --demo
 ```
 
-Ask "Why did operating margin decline last quarter?" in the demo. Lyst finds that operating margin fell from
-36.0% in Q2 2026 to 32.5% in Q3 2026 and that EMEA's own margin drop (36.8% to 24.0%) explains it, with the
-bridge reconciled exactly and every query listed. That story is planted in the demo data
+One command initialises encryption (the master key goes into the OS credential store), seeds the Northwind
+demo workspace, starts the engine on `http://127.0.0.1:8770` and opens the interface at
+**http://lyst.localhost:8501**. Ctrl-C stops everything.
+
+Then ask: **"Why did operating margin decline last quarter?"** Lyst finds that operating margin fell from 36.0%
+in Q2 2026 to 32.5% in Q3 2026, that EMEA's own margin drop (36.8% to 24.0%) explains it, reconciles the
+bridge exactly, and saves the analysis as a reusable workflow. That story is planted in the demo data
 (`src/lyst/demo.py`) so the tests can check that Lyst recovers it.
 
-Configuration is environment variables (a `.env` file works for non-secret settings), listed at the top of
-`src/lyst/config.py`. Credentials are never configuration: the OpenRouter key, database passwords and API
-tokens are entered once in **Settings › Secrets & Connections**, tested, sealed with AES-256-GCM under a master
-key kept outside the database, and never shown again. On first start the UI initialises that master key into
-the machine's credential store (or an operator mounts it); see `docs/SECURITY.md`, *Secrets and credentials*.
+No model is needed to try it. With none configured, Lyst runs on rules and templates; adding one improves
+understanding and wording, never the numbers.
 
-## Repository layout
+## A tour of the interface
+
+One navigation, six areas, light and dark themes.
+
+| Area | What you do there |
+|---|---|
+| **Home** | Ask a question or describe the work, follow live progress, read the answer, continue where you left off |
+| **Work** | What Lyst is doing, what needs you (approvals), what finished, and what runs on its own (schedules, monitors) |
+| **Data** | Upload files or connect sources, preview and profile datasets, check quality, run guarded SQL |
+| **Intelligence** | Approved metrics and business terms, documents Lyst can cite, and what it remembers and how far to trust it |
+| **Build** | Verified workflows Lyst can rerun for any period, generated dashboards, and governed skills |
+| **Settings** | Inference (model level and costs), Secrets & Connections, members, autonomy and audit |
+
+### Every answer, four depths
+
+The same result reads four ways without rerunning anything. **Business**: the answer, evidence, implications
+and recommended actions. **Analyst**: adds tables, hypotheses, assumptions and sources. **Engineer**: adds the
+plan, every check and every query. **Executive**: the brief and the first thing to do. Limitations stay visible
+at every depth, and each answer exports as a PDF briefing, a deck, an Excel workbook or Markdown.
+
+<p align="center">
+  <img src="docs/images/analyst-dark.png" alt="The same answer in the dark theme, rerun from a verified workflow" width="49%">
+  <img src="docs/images/home.png" alt="Home: ask Lyst, suggested questions and recent work" width="49%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/work.png" alt="Work: running, done and stopped tasks"><br><b>Work</b>: needs you, activity and recurring runs</td>
+    <td width="50%"><img src="docs/images/data.png" alt="Data: datasets with rows, versions and classification"><br><b>Data</b>: datasets, connections and SQL</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/intelligence.png" alt="Intelligence: approved metrics and business terms"><br><b>Intelligence</b>: definitions, documents and memory</td>
+    <td><img src="docs/images/build.png" alt="Build: verified workflows ready to rerun"><br><b>Build</b>: workflows, dashboards and skills</td>
+  </tr>
+</table>
+
+### Dashboards from a sentence
+
+Build › New dashboard turns a request into a Plotly Dash app on Lyst's own kit (`src/lyst/dashkit`, vendored
+into each app so it runs anywhere with PyPI packages only): governed metrics, verified SQL, KPI cards, a trend
+with a forecast band, click-to-filter breakdowns, and a Data and method page. Every generated app is checked in
+a separate interpreter before it is offered.
+
+![A generated dashboard: KPI cards, trend with forecast and breakdowns](docs/images/dash-overview-light.png)
+
+## What Lyst does
+
+* **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
+  anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
+  that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
+  impact with stated assumptions.
+* **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
+  raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
+  model wording verified against the computed numbers.
+* **Gets faster with use.** A verified analysis compiles into a typed, versioned workflow. Matching requests
+  reuse it, and a changed schema or metric definition marks it out of date.
+* **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
+  budgets; approval-gated schedules and monitors with an inbox and webhooks.
+* **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
+  citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
+* **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
+  a sandbox with adversarial cases, and registers it only after another role approves.
+* **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
+  with incremental syncs. A versioned API and an MCP server at `/mcp` expose the same capabilities.
+
+The [capability matrix](docs/CAPABILITY_MATRIX.md) lists each capability with its state and the test that proves
+it, and [known gaps](docs/GAPS.md) lists what is missing.
+
+## Models
+
+Lyst calls models through OpenRouter on a gateway ported from Acumane's: workload routing, admission, adaptive
+limits, retries with fallback, and the cost of every call. Each workspace picks a level, built daily from
+OpenRouter's live catalog:
+
+| Level | Models | Use it for |
+|---|---|---|
+| **Economy** | Each provider's fast line (Claude Haiku, GPT mini, Gemini Flash Lite, …) | High volume, simple questions |
+| **Balanced** (default) | The mid lines (Claude Sonnet, Gemini Flash, Mistral Large, …) | Most work |
+| **Frontier** | The flagships (Claude Opus, the newest GPT, Gemini Pro, Grok) | Hard investigations |
+
+An administrator sets the default level and a ceiling; a workspace admin can also choose one specific model.
+Settings › Inference shows each level's models, OpenRouter's prices, the cost per call and per 1,000 calls, and
+30-day spend. Quick steps such as classification run with thinking off, and an empty reply fails over to the
+next model, so the computed answer always stands.
+
+A local OpenAI-compatible server (Ollama, llama.cpp, vLLM) works instead: set `LYST_LLM_BASE_URL` and
+`LYST_LLM_MODEL`. Details are in [docs/MODELS.md](docs/MODELS.md).
+
+## Security and secrets
+
+* **Credentials are never configuration.** The OpenRouter key, database passwords and API tokens are entered
+  once in **Settings › Secrets & Connections**, tested, sealed with AES-256-GCM envelope encryption, and never
+  shown again. `.env` files refuse secret-shaped names. OpenBao is supported for enterprises.
+* **The master key lives outside the data**: in the OS credential store (the Keychain on a Mac), a mounted
+  secret file, or OpenBao, and never beside the database. `lyst init` sets it up and `lyst rotate-master-key`
+  re-keys everything.
+* **Encrypted at rest.** Every workspace is its own encrypted DuckDB file with a derived key.
+* **Governed access.** Roles, workspace isolation, a read-only SQL guard with column and row policies,
+  redaction before text reaches an external model (dataset rows are never sent), OIDC sign-in, and a
+  hash-chained credential audit trail.
+
+The threat model, autonomy levels and residual risks are in [docs/SECURITY.md](docs/SECURITY.md).
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `lyst start [--demo] [--no-browser]` | Everything in one terminal: encryption, the engine and the interface |
+| `lyst init-demo` | Create the Northwind demo workspace and a development token |
+| `lyst serve` | Run the API and workers (`http://127.0.0.1:8770`) |
+| `lyst ui` | Run the Streamlit interface (`http://lyst.localhost:8501`, loopback only by default) |
+| `lyst token EMAIL [--owner-of WS]` | Issue an API token, optionally creating a workspace with that user as owner |
+| `lyst init [--recovery]` | Initialise encryption, or restore a saved master key |
+| `lyst rotate-master-key` | Re-key every database and re-wrap every secret (engine stopped) |
+| `lyst backup DEST` | Consistent, encrypted backup, also while the engine is running |
+| `lyst restore SRC` | Verified restore into `LYST_HOME` (engine stopped) |
+| `lyst prune` | Apply retention to events, calls, query history and notifications |
+| `lyst eval` | Score the analytical question bank against independent answers |
+
+Prefix each with `uv run` in a checkout. Ports move with `LYST_PORT` and `LYST_UI_PORT`, and data lives in
+`LYST_HOME` (default `./var`). Other settings are environment variables documented at the top of
+[`src/lyst/config.py`](src/lyst/config.py).
+
+## Development
+
+```bash
+uv run pytest                        # the full suite; the PostgreSQL connector test uses a local server
+uv run lyst eval                     # 19 analytical questions scored against independently computed answers
+uv run ruff check src tests scripts  # lint
+uv run python scripts/licenses.py    # regenerate docs/SBOM.md and fail on a disallowed license
+```
+
+CI runs all four on every pull request and every push to main.
 
 | Path | What |
 |---|---|
-| `src/lyst/` | The product: store, security, data, semantic, analyst, runtime, llm, api, ui |
-| `tests/` | Unit and acceptance tests (scenarios A, C, G, H) |
-| `docs/` | Architecture, DuckDB design, audit, capability matrix, SBOM, roadmap, decisions |
-| `scripts/licenses.py` | Regenerates `docs/SBOM.md` and fails on disallowed licenses |
-| `site/` | The marketing website (separate build; see its own README) |
+| `src/lyst/` | The product: store, security, secrets, data, semantic, analyst, runtime, llm, api, ui, dashkit |
+| `tests/` | Unit and acceptance tests, including the adversarial scenarios |
+| `docs/` | Architecture, models, security, capability matrix, excellence registers, decisions |
+| `scripts/` | License gate, load test and benchmarks |
+| `site/` | The marketing website (a separate build; see its README) |
 
-## What works today
-
-See the [capability matrix](docs/CAPABILITY_MATRIX.md) for each item and its test. In short: encrypted,
-workspace-scoped DuckDB storage with one writer per file; roles, audit and redaction; a read-only SQL guard;
-versioned metrics and a glossary; an analyst loop that answers value, breakdown, "why", trend, forecast,
-data-quality and SQL requests with validation and an evidence package; a durable task runtime with resume
-after a crash, approvals, budgets and schedules; a versioned API; and a six-area Streamlit interface
-(Home, Work, Data, Intelligence, Build, Settings) with light and dark themes.
-
-## What does not exist yet
-
-Connectors beyond PostgreSQL, SQLite, REST and files, a real model or embedding call (needs an OpenRouter key or a local model), and a
-Compose run on a Docker host. The [roadmap](docs/ROADMAP.md) orders them.
+To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose, non-root, read-only).
 
 ## Documents
 
-[Architecture](docs/ARCHITECTURE.md) · [Models](docs/MODELS.md) · [Connectors](docs/CONNECTORS.md) · [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) ·
-[Acumane audit](docs/ACUMANE_AUDIT.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
-[Deployment](docs/DEPLOYMENT.md) · [Security](docs/SECURITY.md) · [Performance](docs/PERFORMANCE.md) · [SBOM](docs/SBOM.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/decisions/)
+[Architecture](docs/ARCHITECTURE.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
+[Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
+[Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
+[Performance](docs/PERFORMANCE.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
+[Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
+[Decisions](docs/decisions/)
 
 ## License
 
 [GNU AGPL-3.0-only](LICENSE). If you run a modified Lyst as a network service, you must offer its users the
-modified source (AGPL section 13). Dependencies are all AGPL-compatible ([SBOM](docs/SBOM.md)). Vendored
-analytics in `src/lyst/analytics/` come from the same author's ai-analytics project and are relicensed with Lyst.
+modified source (AGPL section 13). Every dependency is AGPL-compatible ([SBOM](docs/SBOM.md)). Vendored analytics
+in `src/lyst/analytics/` come from the same author's ai-analytics project and are relicensed with Lyst.
