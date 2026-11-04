@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import math
 import re
 import uuid
@@ -32,6 +33,7 @@ from typing import Any
 from .security import RANK, Guard, Principal
 from .store import Stores
 
+log = logging.getLogger("lyst.knowledge")
 KINDS = ("business_unit", "team", "person", "system", "process", "dataset", "column", "metric", "analysis",
          "artifact", "document", "objective")
 _TOKEN = re.compile(r"[a-z][a-z0-9_]{2,}")
@@ -76,9 +78,10 @@ def extract_text(content: bytes, filename: str) -> str:
 
 
 class KnowledgeService:
-    def __init__(self, stores: Stores, guard: Guard) -> None:
+    def __init__(self, stores: Stores, guard: Guard, llm=None) -> None:
         self.stores = stores
         self.guard = guard
+        self.llm = llm  # optional: embeddings for semantic recall
 
     def _db(self, ws: str):
         return self.stores.workspace(ws)
@@ -206,10 +209,51 @@ class KnowledgeService:
                           [did, i, p, json.dumps(dict(Counter(tokens(p))))])
 
         db.write(tx)
+        embedded = self._embed_passages(ws, did, passages)
         self.upsert_entity(actor, ws, "document", did, description=title or filename, owner=actor.user_id,
                            attributes={"filename": filename, "classification": classification}, source="system")
-        self.guard.audit(actor, ws, "document.add", did, "ok", {"passages": len(passages)})
-        return {"id": did, "title": title or filename, "passages": len(passages)}
+        self.guard.audit(actor, ws, "document.add", did, "ok", {"passages": len(passages), "embedded": embedded})
+        return {"id": did, "title": title or filename, "passages": len(passages), "embedded": embedded}
+
+    def _embed_passages(self, ws: str, did: str, passages: list[str]) -> bool:
+        if not (self.llm and self.llm.can_embed(ws)):
+            return False
+        try:
+            vectors = self.llm.embed(ws, passages, purpose="embed_document")
+        except Exception as exc:  # noqa: BLE001 - keyword search still works
+            log.warning("embedding failed for %s: %s", did, exc)
+            return False
+        db = self._db(ws)
+
+        def tx(c):
+            for i, v in enumerate(vectors):
+                c.execute("INSERT OR REPLACE INTO passage_vectors (document_id, seq, model, vector) VALUES (?, ?, ?, ?)",
+                          [did, i, self.llm.embed_model, v])
+
+        db.write(tx)
+        return True
+
+    def reindex(self, actor: Principal, ws: str) -> dict[str, int]:
+        """Embed every passage that has no vector for the current model (after turning embeddings on)."""
+        self.guard.require(actor, ws, "data.ingest")
+        if not (self.llm and self.llm.can_embed(ws)):
+            raise ValueError("no embedding model is configured or allowed for this workspace")
+        db = self._db(ws)
+        rows = db.query("SELECT p.document_id, p.seq, p.text FROM passages p LEFT JOIN passage_vectors v ON v.document_id = p.document_id "
+                        "AND v.seq = p.seq AND v.model = ? WHERE v.document_id IS NULL ORDER BY p.document_id, p.seq", [self.llm.embed_model])
+        done = 0
+        for i in range(0, len(rows), 64):
+            chunk = rows[i:i + 64]
+            vectors = self.llm.embed(ws, [r["text"] for r in chunk], purpose="reindex")
+
+            def tx(c, chunk=chunk, vectors=vectors):
+                for r, v in zip(chunk, vectors, strict=True):
+                    c.execute("INSERT OR REPLACE INTO passage_vectors (document_id, seq, model, vector) VALUES (?, ?, ?, ?)",
+                              [r["document_id"], r["seq"], self.llm.embed_model, v])
+
+            db.write(tx)
+            done += len(chunk)
+        return {"embedded": done}
 
     def documents(self, actor: Principal, ws: str) -> list[dict[str, Any]]:
         role = self.guard.require(actor, ws, "workspace.read")
@@ -249,8 +293,35 @@ class KnowledgeService:
             if score > 0:
                 scored.append((score, r))
         scored.sort(key=lambda x: x[0], reverse=True)
+        best_kw = scored[0][0] if scored else 0.0
+        hybrid: dict[tuple[str, int], tuple[float, dict]] = {(r["document_id"], r["seq"]): (s / best_kw if best_kw else 0.0, r)
+                                                             for s, r in scored}
+        semantic = self._vector_search(ws, query, limit=limit * 2)
+        if semantic:
+            by_key = {(r["document_id"], r["seq"]): r for r in rows}
+            for (did, seq), sim in semantic.items():
+                if (did, seq) not in by_key:
+                    continue  # role-gated
+                kw, r = hybrid.get((did, seq), (0.0, by_key[(did, seq)]))
+                hybrid[(did, seq)] = (0.5 * kw + 0.5 * max(sim, 0.0), r)
+        ranked = sorted(hybrid.values(), key=lambda x: x[0], reverse=True)
         return [{"document_id": r["document_id"], "title": r["title"], "passage": r["seq"], "text": r["text"],
-                 "score": round(s, 4)} for s, r in scored[:limit]]
+                 "score": round(s, 4), "semantic": bool(semantic)} for s, r in ranked[:limit] if s > 0]
+
+    def _vector_search(self, ws: str, query: str, *, limit: int) -> dict[tuple[str, int], float]:
+        if not (self.llm and self.llm.can_embed(ws)):
+            return {}
+        db = self._db(ws)
+        if not db.scalar("SELECT count(*) FROM passage_vectors WHERE model = ?", [self.llm.embed_model]):
+            return {}
+        try:
+            qv = self.llm.embed(ws, [query], purpose="search")[0]
+        except Exception as exc:  # noqa: BLE001
+            log.warning("query embedding failed: %s", exc)
+            return {}
+        rows = db.query("SELECT document_id, seq, list_cosine_similarity(vector, ?::FLOAT[]) AS sim FROM passage_vectors "
+                        "WHERE model = ? ORDER BY sim DESC LIMIT ?", [qv, self.llm.embed_model, limit])
+        return {(r["document_id"], r["seq"]): float(r["sim"]) for r in rows if float(r["sim"]) >= 0.3}
 
     # -- consistency with earlier work ------------------------------------------------------
 

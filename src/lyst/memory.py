@@ -23,9 +23,10 @@ TRUST = ("observed", "user_validated", "approved")
 
 
 class MemoryService:
-    def __init__(self, stores: Stores, guard: Guard) -> None:
+    def __init__(self, stores: Stores, guard: Guard, llm=None) -> None:
         self.stores = stores
         self.guard = guard
+        self.llm = llm
 
     def remember(self, actor: Principal, workspace_id: str, layer: str, content: str, *,
                  provenance: dict[str, Any], trust: str = "observed", scope: str | None = None) -> str:
@@ -40,6 +41,15 @@ class MemoryService:
             "INSERT INTO memory (id, layer, scope, owner, content, provenance, trust) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [mid, layer, scope, actor.user_id, content, json.dumps(provenance, default=str), trust],
         )
+        if self.llm and self.llm.can_embed(workspace_id):
+            try:
+                v = self.llm.embed(workspace_id, [content], purpose="embed_memory")[0]
+                self.stores.workspace(workspace_id).execute(
+                    "INSERT OR REPLACE INTO memory_vectors (memory_id, model, vector) VALUES (?, ?, ?)", [mid, self.llm.embed_model, v])
+            except Exception as exc:  # noqa: BLE001 - keyword recall still works
+                import logging  # noqa: PLC0415
+
+                logging.getLogger("lyst.memory").warning("memory embedding failed: %s", exc)
         self.guard.audit(actor, workspace_id, "memory.write", mid, "ok", {"layer": layer, "trust": trust})
         return mid
 
@@ -70,10 +80,20 @@ class MemoryService:
         )
         scored = []
         rank = {"approved": 2, "user_validated": 1, "observed": 0}
+        sims: dict[str, float] = {}
+        if self.llm and self.llm.can_embed(workspace_id):
+            try:
+                qv = self.llm.embed(workspace_id, [text], purpose="recall")[0]
+                sims = {r["memory_id"]: float(r["sim"]) for r in self.stores.workspace(workspace_id).query(
+                    "SELECT memory_id, list_cosine_similarity(vector, ?::FLOAT[]) AS sim FROM memory_vectors WHERE model = ?",
+                    [qv, self.llm.embed_model])}
+            except Exception:  # noqa: BLE001
+                sims = {}
         for r in rows:
             overlap = len(words & set(re.findall(r"[a-z0-9]{3,}", r["content"].lower())))
-            if overlap:
-                scored.append((rank[r["trust"]], overlap, r))
+            sim = sims.get(r["id"], 0.0)
+            if overlap or sim >= 0.75:
+                scored.append((rank[r["trust"]], overlap + 3 * sim, r))
         scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
         out = []
         for _, _, r in scored[:limit]:

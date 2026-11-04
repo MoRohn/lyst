@@ -12,6 +12,7 @@ alternative; with neither, Lyst runs on rules and templates and every number sti
 | `LYST_LLM_TIER` | `economy`, `balanced` (default) or `frontier`: the model list a call walks, copied from Acumane's published catalog (`src/lyst/llm/tiers.json`, catalog version 4) |
 | `LYST_LLM_MODEL` | Pin one slug; it is used alone |
 | `LYST_LLM_BASE_URL`, `LYST_LLM_MODEL` | A local server instead (Ollama `http://localhost:11434/v1`, llama.cpp, vLLM) |
+| `LYST_EMBED_MODEL` | An embedding model at the same provider (OpenRouter slug or a local model name). Turns on semantic search over documents and memory; the same external-provider policy and redaction apply |
 | `LYST_EXTERNAL_LLM_DEFAULT` | Whether new workspaces may use an external provider (on by default with OpenRouter) |
 | `LYST_AI_*` | Admission limits, same names and defaults as Acumane's `AI_GATEWAY_*` |
 
@@ -54,7 +55,7 @@ template text (`unbacked_numbers`).
 * Waiters are served first-come, not round-robin by customer; the per-workspace limit still stops one
   workspace from taking the pool.
 * Not ported yet: the key-balance watch and admin alert emails (the `key_status` call exists, nothing
-  schedules it), streaming, embeddings, prompt caching hints, and the load-test stub.
+  schedules it), streaming, prompt caching hints.
 
 ## Verified
 

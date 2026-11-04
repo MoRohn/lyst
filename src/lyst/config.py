@@ -13,6 +13,8 @@ LYST_LLM_PROVIDER    openrouter | local; inferred when unset
 LYST_LLM_BASE_URL    a local OpenAI-compatible endpoint, e.g. http://localhost:11434/v1 (Ollama)
 LYST_LLM_API_KEY     optional bearer key for the local endpoint
 LYST_LLM_EXTERNAL    "1" marks a non-OpenRouter endpoint as external (data policy applies)
+LYST_EMBED_MODEL     embedding model at the same provider (e.g. openai/text-embedding-3-small on OpenRouter,
+                     nomic-embed-text on Ollama); turns on semantic search over documents and memory
 LYST_EXTERNAL_LLM_DEFAULT  "1" lets new workspaces use an external provider (default: on with OpenRouter)
 LYST_API_URL         where the Streamlit UI finds the API (default http://127.0.0.1:8770)
 """

@@ -48,7 +48,7 @@
 | Knowledge | Entities and relations in DuckDB, automatic lineage metric → dataset → column and analysis → artifact, lineage walks | Tested | `test_knowledge.py` |
 | Knowledge | Documents (text, Markdown, PDF) split into passages, BM25 search with role gating, citations in answers | Tested | `test_knowledge.py::test_documents_are_searched_and_cited` |
 | Knowledge | Consistency with prior answers on the same data; validated memory surfaced in answers | Tested | `test_knowledge.py` |
-| Knowledge | Vector (embedding) search | Planned | — |
+| Knowledge | Semantic recall: embeddings through the gateway (`LYST_EMBED_MODEL`), hybrid BM25 + cosine over passages, memory recall by meaning, reindex; keyword-only when no model is allowed | Tested against a stub embedding model | `test_embeddings.py` |
 | Build | Governed skills: static check, sandboxed tests with adversarial cases, approval by another role, registration, use in plans, retire | Tested | Scenario F, `test_skills.py` |
 | Build | Capability Foundry: a request for a method Lyst lacks drafts a skill (template, or a configured model against a fixed contract), runs the static check, sandbox tests, adversarial cases and a benchmark, requests registration, and runs it after approval | Tested | New scenario E, `test_foundry.py` |
 | Build | Evaluation harness: question bank, independent expected values, stored scored runs, `lyst eval` | Tested | `test_evals.py` (15/15 on the demo bank) |

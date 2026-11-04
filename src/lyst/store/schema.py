@@ -450,4 +450,21 @@ WORKSPACE: list[Migration] = [
         )
         """,
     ),
+    (
+        5,
+        """
+        CREATE TABLE passage_vectors (
+            document_id VARCHAR NOT NULL,
+            seq INTEGER NOT NULL,
+            model VARCHAR NOT NULL,
+            vector FLOAT[] NOT NULL,
+            PRIMARY KEY (document_id, seq)
+        );
+        CREATE TABLE memory_vectors (
+            memory_id VARCHAR PRIMARY KEY,
+            model VARCHAR NOT NULL,
+            vector FLOAT[] NOT NULL
+        )
+        """,
+    ),
 ]

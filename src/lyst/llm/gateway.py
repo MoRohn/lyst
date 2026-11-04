@@ -414,6 +414,41 @@ class Gateway:
                     self.sleep(retry_delay(attempt, retry_after, self.rng))
         raise Exhausted(f"every model failed; last: {last_error}")
 
+    def embed(self, texts: list[str], *, model: str, tenant: str = "platform") -> tuple[list[list[float]], CallRecord]:
+        """Embeddings through the same admission and accounting (background pool, workload embed)."""
+        est = sum(len(t) for t in texts) // 4
+        lease = self.admission.acquire("background", tenant, est, model)
+        start = time.monotonic()
+        rec = CallRecord(model, "background", "embed", tenant, None, "error", lease.queue_ms, 0, 1)
+        outcome, retry_after = "error", None
+        try:
+            resp = self.http.post(f"{self.base_url}/embeddings", headers=self._headers(),
+                                  json={"model": model, "input": texts, **({"usage": {"include": True}} if self.provider == "openrouter" else {})},
+                                  timeout=self.timeout_s)
+            rec.status = resp.status_code
+            retry_after = _retry_after(resp)
+            if resp.status_code == 200:
+                outcome = "ok"
+                data = resp.json()
+                vectors = [d["embedding"] for d in sorted(data["data"], key=lambda d: d.get("index", 0))]
+                usage = data.get("usage") or {}
+                rec.input_tokens, rec.cost_usd = usage.get("prompt_tokens") or usage.get("total_tokens"), usage.get("cost")
+                return vectors, rec
+            outcome = "throttled" if resp.status_code == 429 else ("credits" if resp.status_code == 402 else
+                                                                  ("upstream_error" if resp.status_code >= 500 else "rejected"))
+            raise RequestRejected(f"embeddings failed ({resp.status_code})") if outcome == "rejected" else \
+                Exhausted(f"embeddings failed: {outcome} ({resp.status_code})")
+        except httpx.TimeoutException as exc:
+            outcome = "timeout"
+            raise Exhausted("embeddings timed out") from exc
+        except httpx.HTTPError as exc:
+            outcome = "network"
+            raise Exhausted(f"embeddings network error: {exc}") from exc
+        finally:
+            rec.outcome, rec.latency_ms = outcome, int((time.monotonic() - start) * 1000)
+            self.admission.release(lease, outcome, retry_after if outcome == "throttled" else None)
+            self.on_call(rec)
+
     def key_status(self) -> dict[str, Any] | None:
         """OpenRouter's view of this key: limit, usage and what remains (GET /api/v1/key)."""
         if self.provider != "openrouter":

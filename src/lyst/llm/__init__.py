@@ -116,6 +116,30 @@ class LLMClient:
         except httpx.HTTPError as exc:
             raise LLMUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
+    @property
+    def embed_model(self) -> str | None:
+        import os  # noqa: PLC0415
+
+        return os.environ.get("LYST_EMBED_MODEL") or None
+
+    def can_embed(self, workspace_id: str) -> bool:
+        return bool(self.embed_model) and self.allowed_for(workspace_id)
+
+    def embed(self, workspace_id: str, texts: list[str], *, purpose: str = "embed") -> list[list[float]]:
+        if not self.can_embed(workspace_id):
+            raise LLMUnavailable("no embedding model is allowed for this workspace")
+        if self.settings.external:
+            texts = [redact(t) for t in texts]
+        self._local.task_id, self._local.purpose = None, purpose
+        out: list[list[float]] = []
+        for i in range(0, len(texts), 64):
+            try:
+                vectors, _ = self.gateway.embed(texts[i:i + 64], model=self.embed_model, tenant=workspace_id)
+            except GatewayError as exc:
+                raise LLMUnavailable(str(exc)) from exc
+            out.extend(vectors)
+        return out
+
     def chat_json(self, workspace_id: str, messages: list[dict[str, str]], **kw) -> dict:
         text = self.chat(workspace_id, messages, json_mode=True, **kw)
         start, end = text.find("{"), text.rfind("}")

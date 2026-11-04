@@ -508,6 +508,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).knowledge.add_document(user, ws, content, filename=file.filename or "document.txt", title=title,
                                                  classification=classification, min_role=min_role)
 
+    @app.post("/v1/workspaces/{ws}/documents/reindex")
+    def reindex_documents(request: Request, ws: str, user: User):
+        return L(request).knowledge.reindex(user, ws)
+
     @app.get("/v1/workspaces/{ws}/documents/search")
     def search_documents(request: Request, ws: str, user: User, q: str, limit: int = 5):
         return L(request).knowledge.search(user, ws, q, limit=min(limit, 20))
