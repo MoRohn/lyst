@@ -19,6 +19,7 @@ from .contracts import ContractService
 from .data import DataService
 from .deliverables import ArtifactService
 from .ingest import IngestService
+from .evidence import EvidenceService
 from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
@@ -61,6 +62,7 @@ class Lyst:
     transforms: TransformService | None = None
     ingest: IngestService | None = None
     anticipation: AnticipationService | None = None
+    evidence: EvidenceService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -126,8 +128,8 @@ class Lyst:
         semantic.after_change.append(anticipation.after_definition)
         runtime.periodic.append(anticipation.tick_all)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest,
-                   anticipation=anticipation)
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, anticipation=anticipation, ingest=ingest, transforms=transforms,
+                   evidence=EvidenceService(stores, guard, runtime, artifacts))
 
     def close(self) -> None:
         self.runtime.stop()

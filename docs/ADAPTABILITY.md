@@ -51,3 +51,34 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
   suggestions list under Data.
 - O5. Recognition is lexical. An embedding model, where one is allowed, could match columns named in another
   language or by convention.
+
+## 2. Evidence graph and explainable results
+
+**Built and verified** (`src/lyst/evidence.py`, `tests/test_evidence.py`):
+
+- **Evidence graph per answer.** `GET /v1/tasks/{id}/evidence` builds nodes and edges from records the engine
+  already keeps: the answer and each finding (claims), every figure stated in them, the step that computed each
+  figure, the SQL each step ran, the dataset version each query read (rows, checksum, load time, loader,
+  classification), the source it was loaded from, the governed metric definition version in effect when the task
+  ran, validation checks, assumptions, cited passages, approvals and model wording. Plain records, no graph
+  database.
+- **Traced, not guessed.** A figure is traced when a step's stored output holds the same number at the
+  precision written (the tolerance the engine already uses to reject a model's unbacked numbers). A figure that
+  matches nothing is counted as untraced and listed.
+- **Reports trace the same way.** `GET /v1/artifacts/{id}/evidence` links a generated report, workbook or deck to
+  the answer it presents (scenario C).
+- **Trust questions answered from records.** `GET /v1/tasks/{id}/explain?q=how|sources|method|assumptions|change|reproduce|actions`
+  (`&figure=` picks one figure). Each answer has a one-sentence `short` and the `detail` records behind it.
+- **Is it current, and can I reproduce it?** The graph reports any dataset with a newer version than the one used.
+  `q=reproduce` re-runs every recorded query as the caller, under the caller's current policies, and compares row
+  counts; queries over data that has changed are reported as not comparable rather than re-run.
+
+**Open**
+
+- E1. Figures the answer derives inline (a change in points between two traced values) show as untraced. Next:
+  mark a figure *derived* when it equals the difference or ratio of two traced figures in the same claim.
+- E2. Reproduction compares row counts, not values: the query log does not keep result hashes. Next: store a
+  hash of each result in `query_history` and compare it.
+- E3. "Why this method" uses each capability's description; the planner's own reasons (intent rules, workflow
+  reuse) are in the plan output but not yet surfaced as a sentence.
+- E4. No UI yet; the "How this ran" dialog is the natural home for `explain` (UX thread's placement).
