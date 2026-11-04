@@ -63,6 +63,19 @@ that rewrite is checked against tool output. Simple value questions make at most
 (`openai/text-embedding-3-small`) serve memory recall and document search. No multi-agent delegation on simple
 tasks. Aggregated over this instance's history: chat calls p95 0.9 to 2.7 s by provider, about $0.0003 a call.
 
+## Pass 4 findings (2026-11-04)
+
+| ID | Severity | Area | Finding | Root cause | Fix | Status |
+|---|---|---|---|---|---|---|
+| B1 | High | Recovery | Restore copied a backup with a flipped byte over the installation | The manifest's SHA-256 per file was written but never checked | Checksums verified before anything is opened or copied | Verified Fixed (`test_restore_refuses_a_backup_whose_files_do_not_match_the_manifest`) |
+| B2 | High | Recovery | Restore deleted and replaced the files of a running engine | No check for an open database | Probe DuckDB's lock on each target; refuse with a plain sentence | Verified Fixed (test in-process; live: refused against a running `lyst serve`) |
+| B3 | Medium | Operations | `lyst backup` ended in a lock traceback whenever the engine ran, so there was no online backup outside the engine process | Only one process may open the files | `POST /v1/installation/backup` (installation administrators; under `<home>/backups`); the CLI falls back to it | Verified Fixed (live: taken during 60 concurrent tasks, 0 failures; restored copy consistent) |
+| O2 | High | Observability | Traces silently lost when tracing first starts on several threads at once (as workers do at startup) | Each racing thread built a provider; the module kept one that was not the global, so exporters attached to it saw nothing | Lock; keep the provider OpenTelemetry installed | Verified Fixed (fresh processes: 5 of 5 lost before, 0 after) |
+
+Scenario 2 is now verified by test: three workspaces with different data on four workers, every answer from its own
+data and every analysis in its own database. Scenario 4 for the model provider: a key rejected with 401 costs one
+call, the answer stands on Lyst's computation, and the key appears in no stored or returned text.
+
 ## Measurements (Mac mini, Apple Silicon, Python 3.13, DuckDB 2.0; 2026-11-04)
 
 Load (`scripts/load_test.py`, engine with `LYST_WORKERS=4`, Northwind demo, no model, one round of the five-question bank):
@@ -88,9 +101,9 @@ What these do not say: no model call is included; the demo dataset is small; one
 | 5 | Misleading data | Partially: join inflation now flagged (J1); conflicting definitions disclosed (`test_contradictory_documentation_is_disclosed_and_the_approved_definition_wins`) |
 | 9 | Reused analytical workflow | Verified (`scripts/bench_workflows.py`, pass 3): compiled workflows 12 tasks, 9 model calls, 142 queries; compilation off 12, 160; 12/12 verified both ways |
 | 10 | Complete user journey | Verified in a browser (Playwright, pass 3): Home ready 1.2 s, deep question submitted, answer verified with chart, export control present, task listed on Work |
-| 2 | Concurrent jobs across workspaces | Partially: load test (one workspace) and route sweep (two); a mixed multi-workspace load run is not yet done |
+| 2 | Concurrent jobs across workspaces | Verified (pass 4): `test_concurrent_jobs_across_workspaces_stay_in_their_workspace` |
 | 3 | Mid-execution worker failure | Verified by tests: resume from checkpoints (`test_h_resume_after_interruption`), no duplicate step under lease expiry (R1), fenced results (R2), crash loops abandoned (R3) |
-| 4 | Compromised or missing credentials | Partially: connector errors scrubbed (C1); revoked credentials already covered by `test_gaps.py` |
+| 4 | Compromised or missing credentials | Verified for connectors (C1, `test_gaps.py`) and the model provider (pass 4, `test_provider_key_failures.py`); expiring API tokens in `test_auth.py` |
 | 6 | Browser closed mid-task | Verified in a browser (pass 3): the browser closed right after submitting; a new browser at the task link showed the verified answer 3.8 s later |
 | 7 | Cross-tenant security | Verified (T2) |
 | 8 | Large analytical workload | Measured (above) |
@@ -100,4 +113,4 @@ What these do not say: no model call is included; the demo dataset is small; one
 
 Model choice per workload (model-tier thread), a real identity provider (GAPS S10),
 Docker/Compose (no Docker on this machine; GAPS O1), untrusted MCP servers, knowledge-layer retrieval quality,
-backup during an active workload, multi-workspace load.
+a multi-workspace load run over HTTP.

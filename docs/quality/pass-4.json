@@ -1,0 +1,23 @@
+{
+  "pass": 4,
+  "date": "2026-11-04",
+  "base": "main@cac6bd8",
+  "tests": {"suite": "pytest", "passed": 252, "failed": 0, "where": "local, Mac mini"},
+  "gates": {
+    "critical_security_unresolved": 0,
+    "critical_data_integrity_unresolved": 0,
+    "cross_tenant_isolation": "pass (route sweep; scenario 2 across three workspaces)",
+    "interrupted_task_recovery": "verified in fault-injection tests",
+    "secret_leakage": "no observed exposure (connectors, model provider key)",
+    "backup_restore": "online backup during 60 live tasks, 0 failures; checksum and live-engine guards verified"
+  },
+  "findings": [
+    {"id": "B1", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_backup_integrity.py::test_restore_refuses_a_backup_whose_files_do_not_match_the_manifest"},
+    {"id": "B2", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_backup_integrity.py::test_restore_refuses_to_replace_files_an_engine_has_open; live CLI run against lyst serve"},
+    {"id": "B3", "severity": "medium", "status": "verified_fixed", "evidence": "tests/test_backup_integrity.py::test_the_engine_takes_an_online_backup_for_installation_administrators_only; live CLI run during load"},
+    {"id": "O2", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_backup_integrity.py::test_tracing_started_from_many_threads_at_once_still_exports"}
+  ],
+  "scenarios": {"2": "verified", "4": "verified"},
+  "measurements": {"online_backup_under_load": {"tasks": 60, "failures": 0}, "restored_tasks": 1113, "inconsistent_restored_tasks": 0,
+                   "provider_calls_with_rejected_key": 1}
+}
