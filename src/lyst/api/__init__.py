@@ -1590,6 +1590,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     register_extend(app, L, User)
 
+    # -- voice (voice/): settings, engines, sessions, turns, read-back, duplex stream --------------------------------
+    from .voice import routes as voice_routes  # noqa: PLC0415
+
+    voice_routes(app, L, User)
+
     return app
 
 

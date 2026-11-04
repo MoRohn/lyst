@@ -284,3 +284,19 @@ def test_points_changes_apply_and_unapplied_changes_are_stated_never_dropped(see
     assert any("Not applied" in f for f in r["evidence"])
     for q_ in r["supporting"]["queries"]:  # the same keys as every other query in Supporting work
         assert {"purpose", "sql", "query_id", "rows", "ms", "datasets"} <= set(q_)
+
+
+def test_ranges_may_be_given_as_lists_and_bad_values_are_400s(seeded):
+    spec = {**COST_OPTIONS, "alternatives": [
+        {**a, "values": {k: ([v["low"], v["base"], v["high"]] if isinstance(v, dict) else v) for k, v in a["values"].items()}}
+        for a in COST_OPTIONS["alternatives"]]}
+    assert decisions.analyze(spec) == decisions.analyze(COST_OPTIONS)
+    assert decisions.recommendation(spec, decisions.analyze(spec))["choice"] == "Renegotiate suppliers"
+    lyst, owner = seeded
+    h = {"Authorization": f"Bearer {lyst.guard.issue_token(owner)}"}
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        r = c.post("/v1/workspaces/northwind/decision-records", headers=h, json={"title": "Lists", "spec": spec})
+        assert r.status_code == 200 and r.json()["recommendation"]["choice"] == "Renegotiate suppliers"
+        bad = {**COST_OPTIONS, "alternatives": [{**COST_OPTIONS["alternatives"][0], "values": {
+            **COST_OPTIONS["alternatives"][0]["values"], "cost": ["cheap"]}}, COST_OPTIONS["alternatives"][1]]}
+        assert c.post("/v1/workspaces/northwind/decision-records", headers=h, json={"title": "Bad", "spec": bad}).status_code == 400

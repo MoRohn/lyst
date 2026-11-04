@@ -1250,6 +1250,48 @@ CONTROL.append((
         review_note VARCHAR,
         created_at TIMESTAMPTZ DEFAULT now(),
         updated_at TIMESTAMPTZ DEFAULT now()
+# Voice (migrations 60-69): workspace voice settings, each person's voice preferences, voice sessions and their turns.
+# Audio is stored only when an administrator turns on retention; transcripts are redacted before they are written.
+WORKSPACE.append((
+    60,
+    """
+    CREATE TABLE voice_settings (
+        id VARCHAR PRIMARY KEY,
+        spec JSON NOT NULL,
+        updated_by VARCHAR,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE voice_prefs (
+        user_id VARCHAR PRIMARY KEY,
+        spec JSON NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE voice_sessions (
+        id VARCHAR PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        mode VARCHAR NOT NULL,
+        turns INTEGER NOT NULL DEFAULT 0,
+        last_task_id VARCHAR,
+        started_at TIMESTAMPTZ DEFAULT now(),
+        last_activity TIMESTAMPTZ,
+        ended_at TIMESTAMPTZ
+    );
+    CREATE TABLE voice_turns (
+        id VARCHAR PRIMARY KEY,
+        session_id VARCHAR NOT NULL,
+        seq INTEGER NOT NULL,
+        role VARCHAR NOT NULL,
+        source VARCHAR NOT NULL,
+        text VARCHAR NOT NULL,
+        intent VARCHAR,
+        task_id VARCHAR,
+        outcome VARCHAR,
+        engines JSON,
+        audio BLOB,
+        audio_mime VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE (session_id, seq)
     )
     """,
 ))
