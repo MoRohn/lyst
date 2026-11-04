@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import collab, kit
+from lyst.ui import collab, kit, onboarding
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -87,6 +87,17 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
     if st.session_state.get("hide_get_started"):
         return
     admin = st.session_state.get("role") in ("admin", "owner")
+    if admin:
+        try:
+            model = bool(api.get("/health").get("model"))
+        except APIError:
+            model = True
+        extra = [("Connect a model (optional)", "Richer explanations. Every number still comes from your data.", model,
+                  "app_pages/settings.py")]
+    else:
+        extra = []
+    if onboarding.card(extra=extra):
+        return
     try:
         asked = bool(api.get(f"/v1/workspaces/{ws}/tasks"))
         watching = bool(api.get(f"/v1/workspaces/{ws}/monitors") or api.get(f"/v1/workspaces/{ws}/schedules"))
