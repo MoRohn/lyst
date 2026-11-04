@@ -240,7 +240,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
-            "ambiguous": resolved["ambiguous"], "by": by, "dataset": dataset, "method": method,
+            "ambiguous": resolved["ambiguous"], "precedence": resolved.get("precedence") or {}, "by": by, "dataset": dataset, "method": method,
             "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
             "filters": filters, "scenarios": prescriptive.wants_scenarios(text),
@@ -1148,6 +1148,9 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             evidence_queries += out.get("evidence", [])
     spec = MetricSpec.model_validate(c["metrics"][0]["spec"]) if c.get("metrics") else None
     assumptions: list[str] = []
+    for phrase, pick in (o["understand"].get("precedence") or {}).items():
+        assumptions.append(f"'{phrase}' is defined on more than one source; Lyst used {pick['chosen']} because {pick['because']} "
+                           f"(not {', '.join(pick['over'])}).")
     if c.get("period") and c["period"].get("note"):
         assumptions.append(c["period"]["note"])
     if c.get("period"):
