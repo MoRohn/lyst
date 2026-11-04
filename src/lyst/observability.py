@@ -24,6 +24,7 @@ from pythonjsonlogger.json import JsonFormatter
 request_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("request_id", default=None)
 task_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("task_id", default=None)
 user_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("user_id", default=None)  # the person a task runs for
+step_seq: contextvars.ContextVar[int | None] = contextvars.ContextVar("step_seq", default=None)  # the task step running
 
 
 class _ContextFilter(logging.Filter):

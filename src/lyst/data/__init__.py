@@ -17,6 +17,7 @@ import pyarrow as pa
 import pyarrow.csv as pacsv
 import pyarrow.parquet as pq
 
+from .. import observability as obs
 from ..analytics.profile import profile as profile_frame
 from ..security import RANK, Guard, Principal
 from ..store import Stores
@@ -281,12 +282,13 @@ class DataService:
 
     @staticmethod
     def _history(db, actor, task_id, sql, rows, ms, outcome, error) -> int:
+        step = obs.step_seq.get() if task_id else None  # read here, on the caller's thread, not the writer's
         def tx(c):
             qid = c.execute("SELECT nextval('query_seq')").fetchone()[0]
             c.execute(
-                "INSERT INTO query_history (id, actor, task_id, sql, rows, ms, outcome, error) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                [qid, actor.user_id, task_id, sql, rows, ms, outcome, error],
+                "INSERT INTO query_history (id, actor, task_id, sql, rows, ms, outcome, error, step) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [qid, actor.user_id, task_id, sql, rows, ms, outcome, error, step],
             )
             return qid
 
