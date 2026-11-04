@@ -374,6 +374,7 @@ def dashboards_view() -> None:
     if editor and st.button("New dashboard", icon=":material/dashboard_customize:", type="tertiary"):
         reports.new_dashboard()
     reports.dashboards()
+    reports.saved_reports()
 
 
 def sql(catalog: list[dict]) -> None:
