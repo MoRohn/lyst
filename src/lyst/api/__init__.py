@@ -1324,6 +1324,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
                                 {"models": out["modelCount"], "changes": out["changes"][:20]})
         return out
 
+    # -- anticipation (anticipate/): activity center, explanations, responses, autonomy level and budgets --
+    from .anticipate import routes as anticipation_routes  # noqa: PLC0415
+
+    anticipation_routes(app, L, User)
+
     @app.get("/v1/workspaces/{ws}/model-usage")
     def model_usage(request: Request, ws: str, user: User):
         lyst = L(request)
