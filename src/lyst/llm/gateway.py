@@ -415,6 +415,13 @@ class Gateway:
                         max_tokens = min(4096, (max_tokens or 1024) * 3)
                         attempt -= 1
                         continue
+                    if not content.strip() and not msg.get("tool_calls"):
+                        # a stop with no text (the model spent its answer thinking, or returned nothing): never a reply;
+                        # the next model in the walk is tried, and with none left the call fails like any other
+                        rec.outcome = "empty"
+                        self.on_call(rec)
+                        last_error = f"{model}: empty reply"
+                        break
                     self.on_call(rec)
                     return CallResult(content, data.get("model") or model, rec.provider,
                                       rec.input_tokens, rec.output_tokens, rec.cost_usd, tries_total,

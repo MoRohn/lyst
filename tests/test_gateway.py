@@ -308,3 +308,19 @@ def test_refused_reasoning_setting_moves_a_tier_walk_to_the_next_model():
     r = g.complete([{"role": "user", "content": "hi"}], models=["m/large", "m/next"], workload="classify", reasoning_for=quick)
     assert r.model == "m/next" and seen == [("m/large", {"effort": "none"}), ("m/next", {"effort": "none"})]
     assert g.reasoning_refused == {"m/large"}
+
+
+def test_empty_reply_is_a_failed_attempt_that_moves_to_the_next_model():
+    def handler(req):
+        model = json.loads(req.content)["model"]
+        if model == "m/thinker":  # stopped with only reasoning, no text
+            return httpx.Response(200, json={"choices": [{"message": {"content": "", "reasoning": "long thoughts"},
+                                                          "finish_reason": "stop"}], "usage": {"prompt_tokens": 5, "completion_tokens": 600}})
+        return httpx.Response(200, json=OK)
+
+    g, _, calls = gw(handler)
+    r = g.complete([{"role": "user", "content": "hi"}], models=["m/thinker", "m/next"], workload="chat")
+    assert r.model == "m/next" and r.text == "fine"
+    assert [c.outcome for c in calls] == ["empty", "ok"] and calls[0].output_tokens == 600
+    with pytest.raises(Exhausted, match="empty reply"):
+        g.complete([{"role": "user", "content": "hi"}], models=["m/thinker"], workload="chat")

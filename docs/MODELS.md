@@ -49,6 +49,10 @@ setting the catalog listed, Lyst remembers that for the process and moves to the
 a pinned model without the setting. Interactive calls whose workload sets no routing prefer fast
 endpoints, as chat does. Long answers and reasoning keep each model's default.
 
+**Empty replies.** A reply with no text, for example a model that spent its answer on thinking and
+stopped, is a failed attempt (`empty` in `llm_calls`). The next model in the walk is tried, and with
+none left the call fails, so the computed answer stands.
+
 **Who chooses.** An installation administrator sets the default level, an optional pinned model, and
 the highest level a workspace may choose. A workspace admin picks a level and optionally one specific
 model from the ~250 OpenRouter models Lyst can use (any provider), within that ceiling. A workspace
