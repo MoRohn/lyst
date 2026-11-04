@@ -307,15 +307,20 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     memory = s.memory.recall(ctx.actor, ctx.workspace_id, u["question"], limit=5)
     period = None
     if anchor:
-        p = periods.parse(u["question"], anchor)
+        from ..onboarding import fiscal_start  # noqa: PLC0415 - the business profile's fiscal calendar
+
+        fs = fiscal_start(s.semantic.stores.workspace(ctx.workspace_id))
+        p = periods.parse(u["question"], anchor, fs)
         if p is None and u["intent"] in ("value", "explain", "breakdown"):
-            p = periods.last_complete("quarter", anchor)
+            p = periods.last_complete("quarter", anchor, fs)
             period_note = f"No period was named, so Lyst used the last complete quarter in the data ({p.label})."
         else:
             period_note = None
         if p:
             period = {"label": p.label, "start": p.start.isoformat(), "end": p.end.isoformat(), "grain": p.grain,
                       "note": period_note, "anchor": anchor.isoformat()}
+            if fs != 1:  # recorded only for a fiscal calendar, so calendar-year outputs are unchanged
+                period["fiscal_start"] = fs
     passages, prior = [], []
     if s.knowledge:
         try:
@@ -482,8 +487,10 @@ def _premise(question: str) -> str | None:
 def _prev_period(p: dict[str, Any]) -> dict[str, Any]:
     start, end = date.fromisoformat(p["start"]), date.fromisoformat(p["end"])
     if p["grain"] in ("quarter", "month", "year"):
-        q = periods.previous(periods.Period(p["label"], start, end, p["grain"]))
-        return {"label": q.label, "start": q.start.isoformat(), "end": q.end.isoformat(), "grain": q.grain}
+        fs = p.get("fiscal_start", 1)
+        q = periods.previous(periods.Period(p["label"], start, end, p["grain"]), fs)
+        return {"label": q.label, "start": q.start.isoformat(), "end": q.end.isoformat(), "grain": q.grain,
+                **({"fiscal_start": fs} if fs != 1 else {})}
     # YTD or custom: same length immediately before
     span = end - start
     return {"label": "prior period", "start": (start - span).isoformat(), "end": start.isoformat(), "grain": "custom"}
@@ -497,7 +504,7 @@ def _year_ago(p: dict[str, Any]) -> dict[str, Any] | None:
         s2, e2 = start.replace(year=start.year - 1), end.replace(year=end.year - 1)
     except ValueError:
         return None
-    label = (periods.year_ago(periods.Period(p["label"], start, end, p["grain"])).label
+    label = (periods.year_ago(periods.Period(p["label"], start, end, p["grain"]), p.get("fiscal_start", 1)).label
              if p["grain"] in ("quarter", "month") else f"{p['label']} a year earlier")
     return {"label": label, "start": s2.isoformat(), "end": e2.isoformat(), "grain": p["grain"]}
 

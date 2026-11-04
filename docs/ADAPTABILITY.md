@@ -41,8 +41,10 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
 
 **Open**
 
-- O1. The fiscal calendar is stored in the profile but period parsing (`analyst/periods.py`) still uses calendar
-  quarters. Next: pass the profile's fiscal start into `periods.parse`.
+- O1. Done in the stacked PR. The profile's fiscal year start drives period parsing: "last quarter", "Q1 2026",
+  "FY2026", "last year" and "year to date" follow the fiscal calendar, with labels such as "Q2 FY2027" (FY named
+  for the year it ends in), and comparisons to the prior and year-ago periods follow it too. "In 2026" stays the
+  calendar year. Calendar-year workspaces are unchanged (`tests/test_fiscal.py`).
 - O2. Cross-domain models ("how did procurement, workforce and sales affect margin") are not built: recognition
   can return several domains, but there is no reconciled multi-dataset model yet.
 - O3. When the collaboration reviews (`reviews` table, PR #36) land, accepting a metric or contract proposal
