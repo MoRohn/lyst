@@ -43,8 +43,8 @@ export const pillars = {
     {
       icon: 'Compass',
       title: 'Understand',
-      text: 'Lyst learns each dataset’s grain, keys, relationships and quality risks on its own, and interprets every question in that context.',
-      detail: ['Grain, keys and relationships', 'Business definitions', 'Breakdowns like “by region”'],
+      text: 'Lyst studies your metadata, never the rows, to learn each dataset’s grain, keys and quality risks and the business areas involved, then reads every question in that context.',
+      detail: ['Grain, keys and relationships', '13 industry packages', 'Your own words for metrics'],
     },
     {
       icon: 'SquareTerminal',
@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'Scenarios', 'Event impact'],
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Event impact'],
     status: 'available',
   },
   {
@@ -86,21 +86,21 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Governed extracts'],
+    items: ['Interactive Dash dashboards', 'Verified derived datasets', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
     status: 'available',
   },
   {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Calendar schedules', 'Fair queueing and quotas'],
+    items: ['Approved monitors', 'Automatic investigation', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
     status: 'available',
   },
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Databases, APIs and files today. Every connection reports its health in plain words and checks schema changes against its contract.',
-    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files by URL', 'Local files and documents', 'MCP server', 'Warehouses and SaaS'],
+    text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health in plain words and checks schema changes against its contract.',
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
@@ -164,7 +164,7 @@ export const enterprise = {
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person, and a change to a shared definition needs an approver other than its author.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person. Decisions are recorded, approved and later checked against what happened.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, and row and column policies decide what each person sees. Reports stay private, go to named people or are published.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
@@ -178,7 +178,7 @@ export const workflow = {
   headline: 'A better way to get analytical work done.',
   steps: [
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
-    { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work.' },
+    { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, then watch the metric or repeat the analysis in one click.' },
   ],
@@ -220,7 +220,7 @@ export const footer = {
  * ("180+") for counts that only grow, so the line stays true between updates.
  */
 export const proof = [
-  { value: '230+', label: 'automated tests, run on every change' },
+  { value: '350+', label: 'automated tests, run on every change' },
   { value: '5', label: 'data connectors' },
   { value: 'Every', label: 'finding ships with its evidence' },
   { value: 'AGPL-3.0', label: 'open source, self-hosted' },
