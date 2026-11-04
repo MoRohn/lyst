@@ -93,7 +93,7 @@ export const capabilities: {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Calendar schedules', 'Fair queueing and quotas'],
+    items: ['Approved monitors', 'Automatic investigation', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
     status: 'available',
   },
   {
