@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Analyst: Lyst's home. Ask; see what Lyst is doing; read a verified answer at the depth you need; continue."""
+"""Home: where you ask Lyst. Ask; see what Lyst is doing; read a verified answer at the depth you need; continue."""
 
 import streamlit as st
 
