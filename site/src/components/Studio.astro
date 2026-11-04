@@ -11,6 +11,8 @@ import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
 import sourcesLight from '../assets/product/sources-light.png';
 import sourcesDark from '../assets/product/sources-dark.png';
+import healthLight from '../assets/product/health-light.png';
+import healthDark from '../assets/product/health-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -59,6 +61,17 @@ const views: View[] = [
     callouts: [
       { icon: 'HeartPulse', text: 'Health in plain words', x: '47%', y: '17%' },
       { icon: 'GitCompare', text: 'Schema change caught on sync', x: '50%', y: '47%' },
+    ],
+  },
+  {
+    id: 'health',
+    tab: 'Out of date',
+    img: healthLight,
+    dark: healthDark,
+    alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button, plus its versions and what it depends on.',
+    callouts: [
+      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '56%', y: '54%' },
+      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '19%', y: '67.5%' },
     ],
   },
   {
@@ -213,6 +226,9 @@ import { studio } from '../data/content';
 
   .tabs {
     display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
     gap: 2px;
     padding: 3px;
     border: 1px solid var(--line);
@@ -221,6 +237,8 @@ import { studio } from '../data/content';
   }
 
   .tabs button {
+    flex: none;
+    white-space: nowrap;
     min-height: 32px;
     padding: 0.2rem 0.8rem;
     border: 0;
@@ -443,7 +461,8 @@ import { studio } from '../data/content';
       grid-template-columns: 1fr;
     }
 
-    .badge {
+    .badge,
+    .dots {
       display: none;
     }
   }
