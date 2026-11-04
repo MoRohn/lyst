@@ -1117,3 +1117,29 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Living project specifications: requirements with acceptance criteria, traced to the tasks, artifacts, assets and
+# decisions that satisfy them; every revision is a version.
+WORKSPACE.append((
+    32,
+    """
+    CREATE TABLE project_specs (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE spec_versions (
+        spec_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        body JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (spec_id, version)
+    )
+    """,
+))

@@ -32,6 +32,7 @@ from .secrets import CredentialService, backend_from_env
 from .security import Guard
 from .semantic import SemanticService
 from .skills import SkillService
+from .specs import SpecService
 from .standing import StandingService
 from .store import Stores
 from .studio import StudioService
@@ -69,6 +70,7 @@ class Lyst:
     governance: GovernanceService | None = None
     standing: StandingService | None = None
     costs: CostService | None = None
+    specs: SpecService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -143,7 +145,8 @@ class Lyst:
                    evidence=EvidenceService(stores, guard, runtime, artifacts),
                    standing=StandingService(stores, guard, runtime=runtime, registry=REGISTRY, collab=collab, assets=assets,
                                             connections=connections, onboarding=onboarding, semantic=semantic),
-                   costs=CostService(stores, guard, settings))
+                   costs=CostService(stores, guard, settings),
+                   specs=SpecService(stores, guard, semantic=semantic, runtime=runtime, artifacts=artifacts, assets=assets))
 
     def close(self) -> None:
         self.runtime.stop()
