@@ -73,6 +73,12 @@ button[data-variant="segmented_control"][aria-checked="true"] {color: var(--lyst
 [data-testid="stCode"] .token.operator, [data-testid="stCode"] .token.punctuation {color: var(--lyst-text) !important;}
 /* the command palette's trigger: a search field look, with the shortcut on the right */
 div.st-key-lyst_palette button {justify-content: flex-start; color: var(--lyst-text-muted);}
+/* SQL: the editor and recent queries in the code face; recent queries as tight one-line links */
+div.st-key-sql_text textarea {font-family: var(--lyst-font-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+                              font-size: var(--lyst-size-sm);}
+div[class*="st-key-sqlr_"] button {min-height: 0; padding: .1rem 0; justify-content: flex-start; text-align: left;
+                                   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--lyst-size-xs);
+                                   color: var(--lyst-text-muted);}
 /* quiet chrome */
 [data-testid="stToolbar"] {opacity: .55;}
 footer {visibility: hidden;}
@@ -82,13 +88,13 @@ footer {visibility: hidden;}
 
 def style() -> None:
     """The stylesheet, with the token block for the active theme (light or dark)."""
-    from lyst.ui import tokens  # noqa: PLC0415
+    from lyst.ui import tokens, visuals  # noqa: PLC0415
 
     try:
         mode = st.context.theme.type or "light"
     except Exception:  # noqa: BLE001 - outside a browser session
         mode = "light"
-    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n", 1))
+    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS, 1))
 
 
 def header(title: str, subtitle: str | None = None, *, action: str | None = None, icon: str | None = None,

@@ -72,3 +72,32 @@ def test_every_palette_place_is_a_real_page_and_section():
         if section:
             assert f'"{section}"' in src, (area, section)
             assert qp["view"] == section.lower()
+
+
+def test_visuals_carry_a_text_equivalent_and_no_raw_svg():
+    from lyst.ui import visuals  # noqa: PLC0415
+
+    sp = visuals.spark([1, 2, 3, 2.5], label="Revenue, last 4 months")
+    assert sp.startswith("<img") and 'alt="Revenue, last 4 months"' in sp  # st.html strips inline <svg>
+    assert "not enough points" in visuals.spark([1], label="x")
+    st_ = visuals.stacked([("Time 1", 1, "info"), ("Numbers 3", 3, "accent")], label="Columns by role")
+    assert 'role="img"' in st_ and "Numbers 3 75%" in st_
+    assert "Lineage of m: Source a.csv → Dataset A → Approved metric M" in visuals.flow(
+        [("Source", "a.csv", ""), ("Dataset", "A", ""), ("Approved metric", "M", "")], label="Lineage of m")
+    assert "↑" not in visuals.delta("0.0 pts", None) and "↓" in visuals.delta("-3.4%", False)
+    assert not re.findall(r"#[0-9a-fA-F]{6}\b", visuals.CSS)
+
+
+def test_sql_result_chart_picks_a_sensible_first_chart():
+    import ast  # noqa: PLC0415
+
+    src = (UI / "app_pages/data.py").read_text()
+    tree = ast.parse(src)
+    fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_result_chart")
+    ns: dict = {"pd": __import__("pandas")}
+    exec(compile(ast.Module([fn], []), "data.py", "exec"), ns)  # noqa: S102 - the pure function only
+    c = ns["_result_chart"](["region", "revenue"], [["EMEA", 2.0], ["APAC", 5.0]])
+    assert c["type"] == "bar" and c["x"] == ["APAC", "EMEA"]
+    c = ns["_result_chart"](["month", "v"], [["2026-01-01", 1], ["2026-02-01", 2]])
+    assert c["type"] == "line"
+    assert ns["_result_chart"](["a"], [[1]]) is None

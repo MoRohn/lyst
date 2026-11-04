@@ -42,6 +42,32 @@ classes, never Streamlit's generated `st-emotion-cache-*` classes.
   presented as proof of capability), and workspace switching. Everything is fetched for the current workspace when
   the palette opens.
 
+## Visuals
+
+`src/lyst/ui/visuals.py` draws small, data-dense visuals in one pass with the page (no chart library, no iframe):
+`spark` (sparkline as an SVG image with `alt`, since `st.html` strips inline `<svg>`), `stacked` (proportion bar with
+legend), `meter`, `bars` (labelled horizontal bars), `flow` (lineage boxes), `stats` (headline number strip,
+`compact=True` inside cards) and `delta` (a change coloured by whether it is good for that measure, no arrow on zero).
+Each has a text equivalent (`role="img"` + `aria-label`, or `alt`). `visuals.pulse()` reads each metric's latest value,
+change and history from `GET pulse`, cached five minutes per workspace in the session.
+
+Where they are used:
+
+* **Data › Datasets**: a stat strip (datasets, rows, approved metrics, latest data, needing attention) and a card per
+  dataset: classification, version and SQL name, health chip, rows/columns/data-through, columns by role (time,
+  categories, numbers), its grain, the headline metric it feeds with value, change and sparkline, and Open / Ask.
+* **Dataset › Columns**: a profile card per column: kind and type, completeness meter, distinct count, top values as
+  bars for a category, lowest/median/highest for a number, the span for a date, and any issue.
+* **Data › SQL**: a schema navigator (every dataset's columns and types, "Query it" writes a starting query), recent
+  queries as one-line links (deduplicated) that load into the editor, results kept across reruns (they used to vanish
+  on any click), a row count with "edited since it ran", and a Chart tab with a first chart (a date gives a line, a
+  category a sorted bar). `WORKBENCH` in `data.py` is the slot for a Python tab beside SQL.
+* **Brain › Definitions**: a card per approved metric with its latest value, change, twelve-period sparkline, meaning,
+  source dataset and splits. The definition dialog adds the trend and a lineage flow (source → dataset → approved
+  metric). `SECTIONS` in `brain.py` is the slot for a Specializations section.
+* **Brain › Documents / Memory**: a stat strip (documents, citable passages, latest added) and a bar of what Lyst knows
+  by trust (approved, validated by the team, observed).
+
 ## Checking a change
 
 ```bash
@@ -72,7 +98,9 @@ change), Open (owner noted).
 | R9 | No visible keyboard focus ring on tertiary buttons and sections | Streamlit default | Fixed: one `:focus-visible` ring |
 | R10 | A by-region answer shows no chart in Summary; the breakdown table appears only at Detail | `answer()` renders tables only at Detail | Open (next change: breakdown bar in Summary) |
 | R11 | Answer action area: six differently sized buttons, four pills, two more buttons, next steps, follow-ups and a composer | grown feature by feature | Open (shared answer layout; coordinate with the UX thread) |
-| R12 | Data and Brain are text lists: no dataset previews, freshness or health visuals, no definition/lineage visuals | list-first kit | Open (visual overhaul of Data and Brain, next) |
+| R12 | Data and Brain are text lists: no dataset previews, freshness or health visuals, no definition/lineage visuals | list-first kit | Fixed: see Visuals |
+| R17 | Data › SQL lost its result on any rerun (opening an expander, switching a tab) | result drawn only inside `if st.button` | Fixed: result kept in session state per workspace |
+| R18 | Data › SQL recent queries were full code blocks (8 × ~100 px) with no way to reuse one | rendering choice | Fixed: one-line links that load the query |
 | R13 | Home tile "0.0 pts" shows an up arrow | sign of zero | Open (Home tiles) |
 | R14 | Sidebar stacks five full-width controls | each feature added its own | Partly: search moved into the palette trigger at the top |
 | R15 | Console shows a 404 for a static resource on every page | pre-existing | Open |
