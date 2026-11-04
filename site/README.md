@@ -42,7 +42,7 @@ None of them may hold a secret: they are compiled into the HTML.
 | `PUBLIC_BASE_PATH` | `/` | `/lyst` for `https://USER.github.io/lyst/`; `/` for a custom domain. |
 | `PUBLIC_LAUNCH_MODE` | `stealth` | `stealth` or `public`. See below. |
 | `PUBLIC_WAITLIST_ENDPOINT` | empty | Base URL of the waitlist service. Empty shows a truthful "sign-up isn’t open" state instead of a form. |
-| `PUBLIC_CONTACT_EMAIL` | empty | Shown in the footer and as the design-partner fallback only when set. |
+| `PUBLIC_CONTACT_EMAIL` | empty | Shown in the footer and the closed sign-up state only when set. |
 | `PUBLIC_GITHUB_URL` | empty | Shown in the footer and the open-source section only when set. |
 
 Copy lives in [`src/data/content.ts`](src/data/content.ts) and stage labels in
@@ -101,10 +101,10 @@ last good "Website" workflow run from the Actions tab.
 ## Verification (2026-11-04, local, macOS, Chrome headless)
 
 - `npm run build`: 0 type errors, 2 pages, `index.html` 177 KB raw, 34 KB gzipped (CSS and SVG inlined); 2.9 KB of gzipped JavaScript.
-- Playwright: 22 tests passing, covering metadata, headings, anchors, navigation, mobile menu, keyboard
+- Playwright: 21 tests passing, covering metadata, headings, anchors, navigation, mobile menu, keyboard
   and focus, axe (WCAG 2.2 AA, no serious or critical issues), overflow at 320–1920 px, the walkthrough
   (buttons, keyboard, autoplay and pause, reduced motion), demo tabs, the form against the real service
-  (success, duplicate, client and server validation, network failure, 503, 429, design partner), the
+  (success, duplicate, client and server validation, network failure, 503, 429), the
   closed public-mode build, and the `/lyst/` base-path build.
 - Waitlist service: 23 pytest tests passing, including 80 concurrent writes through the single writer.
 - Lighthouse 13.6 (median of 3 runs): mobile 100 / 100 / 100 / 100, LCP 0.8 s, CLS 0.049, TBT 0 ms;

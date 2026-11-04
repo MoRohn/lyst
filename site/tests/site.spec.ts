@@ -243,21 +243,6 @@ test.describe('learn more sign-up (configured backend)', () => {
     await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByRole('status')).toHaveText(/Too many attempts/);
   });
-
-  test('design partner application', async ({ page }) => {
-    await page.goto('/#design-partners');
-    await page.getByText('Apply as a design partner').click();
-    const form = page.locator('[data-partner] form');
-    await form.getByRole('button', { name: 'Send application' }).click();
-    await expect(form.getByText('Enter your organization.')).toBeVisible();
-    await form.getByLabel(/Work email/).fill(unique());
-    await form.getByLabel(/Organization/).fill('Example Co');
-    await form.getByLabel(/Analytics team size/).selectOption('6–20');
-    await form.getByLabel(/What would you want Lyst to take on/).fill('Month-end variance commentary');
-    await form.getByLabel(/design partner program/).check();
-    await form.getByRole('button', { name: 'Send application' }).click();
-    await expect(form.getByRole('status')).toHaveText(/design partner application was received/);
-  });
 });
 
 test.describe('unconfigured, public-mode build', () => {

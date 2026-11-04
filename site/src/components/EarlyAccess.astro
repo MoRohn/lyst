@@ -5,9 +5,6 @@ import { site, stage } from '../config/site';
 
 const endpoint = site.waitlistEndpoint.replace(/\/$/, '');
 const configured = Boolean(endpoint);
-const mailto = site.contactEmail
-  ? `mailto:${site.contactEmail}?subject=${encodeURIComponent('Lyst design partner')}`
-  : '';
 const CONSENT_VERSION = '2026-11-04';
 ---
 
@@ -126,95 +123,6 @@ const CONSENT_VERSION = '2026-11-04';
       </div>
     </div>
 
-    <div class="partner" id="design-partners" data-reveal>
-      <div>
-        <h3>{earlyAccess.partner.title}</h3>
-        <p>{earlyAccess.partner.text}</p>
-      </div>
-      {
-        configured ? (
-          <details class="partner-flow" data-partner>
-            <summary class="btn btn-ghost">
-              Apply as a design partner
-              <Icon name="ArrowRight" size={16} class="arrow" />
-            </summary>
-            <form
-              class="form compact"
-              data-waitlist
-              data-kind="design_partner"
-              data-endpoint={`${endpoint}/v1/registrations`}
-              data-consent-version={CONSENT_VERSION}
-              novalidate
-            >
-              <div class="row">
-                <div class="field">
-                  <label for="dp-email">
-                    Work email <span class="req">Required</span>
-                  </label>
-                  <input id="dp-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="dp-email-err" />
-                  <p class="err" id="dp-email-err" data-err-for="email" />
-                </div>
-                <div class="field">
-                  <label for="dp-org">
-                    Organization <span class="req">Required</span>
-                  </label>
-                  <input id="dp-org" name="organization" type="text" autocomplete="organization" maxlength="120" required aria-describedby="dp-org-err" />
-                  <p class="err" id="dp-org-err" data-err-for="organization" />
-                </div>
-              </div>
-              <div class="row">
-                <div class="field">
-                  <label for="dp-role">
-                    Role <span class="opt">Optional</span>
-                  </label>
-                  <select id="dp-role" name="role">
-                    <option value="">Select a role</option>
-                    {earlyAccess.roles.map((r) => <option value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="dp-size">
-                    Analytics team size <span class="opt">Optional</span>
-                  </label>
-                  <select id="dp-size" name="team_size">
-                    <option value="">Select a size</option>
-                    {['1–5', '6–20', '21–100', '100+'].map((r) => <option value={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div class="field">
-                <label for="dp-msg">
-                  What would you want Lyst to take on? <span class="opt">Optional</span>
-                </label>
-                <textarea id="dp-msg" name="message" rows="3" maxlength="1000" />
-              </div>
-              <div class="hp" aria-hidden="true">
-                <label for="dp-website">Leave this field empty</label>
-                <input id="dp-website" name="website" type="text" tabindex="-1" autocomplete="off" />
-              </div>
-              <div class="field consent">
-                <input id="dp-consent" name="consent" type="checkbox" required aria-describedby="dp-consent-err" />
-                <label for="dp-consent">
-                  I agree that Lyst may contact me about the design partner program. I can ask for my data to be deleted at any time.
-                </label>
-                <p class="err" id="dp-consent-err" data-err-for="consent" />
-              </div>
-              <button class="btn submit" type="submit">
-                <span data-label>Send application</span>
-              </button>
-              <div class="status-msg" role="status" aria-live="polite" data-status />
-            </form>
-          </details>
-        ) : mailto ? (
-          <a class="btn btn-ghost" href={mailto}>
-            Contact us about partnering
-            <Icon name="ArrowRight" size={16} class="arrow" />
-          </a>
-        ) : (
-          <p class="partner-closed">Design partner applications open when sign-up does.</p>
-        )
-      }
-    </div>
   </div>
 </section>
 
@@ -426,61 +334,6 @@ const CONSENT_VERSION = '2026-11-04';
     color: var(--muted);
   }
 
-  .partner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-5);
-    margin-top: var(--space-5);
-    padding: var(--space-5) clamp(1.5rem, 1rem + 3vw, 4rem);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-  }
-
-  .partner > div {
-    max-width: 40rem;
-  }
-
-  .partner h3 {
-    font-size: var(--step-1);
-    letter-spacing: -0.015em;
-  }
-
-  .partner p {
-    margin-top: 0.35rem;
-    color: var(--muted);
-    font-size: 0.9375rem;
-  }
-
-  .partner-flow {
-    flex: 0 1 auto;
-  }
-
-  .partner-flow[open] {
-    flex: 1 1 100%;
-  }
-
-  .partner-flow summary {
-    list-style: none;
-  }
-
-  .partner-flow summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .partner-flow[open] summary {
-    margin-bottom: var(--space-5);
-  }
-
-  .partner-flow[open] summary :global(svg) {
-    transform: rotate(90deg);
-  }
-
-  .partner-closed {
-    font-size: 0.875rem;
-  }
-
   @media (max-width: 900px) {
     .card {
       grid-template-columns: 1fr;
@@ -490,12 +343,6 @@ const CONSENT_VERSION = '2026-11-04';
   @media (max-width: 560px) {
     .row {
       grid-template-columns: 1fr;
-    }
-
-    .partner-flow,
-    .partner-flow summary,
-    .partner > .btn {
-      width: 100%;
     }
   }
 </style>

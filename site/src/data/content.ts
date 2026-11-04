@@ -207,10 +207,6 @@ export const earlyAccess = {
   ],
   consent:
     'I agree that Lyst may email me product previews and release updates. I can unsubscribe or ask for my data to be deleted at any time.',
-  partner: {
-    title: 'Interested in becoming a design partner?',
-    text: 'We are looking for a small number of teams with real analytical workloads to shape Lyst with us: early builds, direct access to the people building it, and influence over the roadmap.',
-  },
 };
 
 export const footer = {
