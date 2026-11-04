@@ -68,8 +68,9 @@ def add_data() -> None:
 @st.dialog("Dataset", width="large")
 def dataset_detail(d: dict) -> None:
     st.markdown(f"**{d['title']}** · `{d['name']}`")
-    st.caption(f"{d['row_count']:,} rows · version {d['version']} · refreshed {kit.when(d['refreshed_at'])} · "
-               f"{d['classification']}" + (f" · {d['description']}" if d.get("description") else ""))
+    st.caption(f"{d['row_count']:,} rows · version {d['version']} · updated {kit.when(d['refreshed_at'])} · "
+               f"{str(d['classification']).capitalize()}" + (f" · {d['description']}" if d.get("description") else "")
+               + f" · referred to as {d['name']} in SQL")
     view = st.segmented_control("Show", ["Preview", "Columns", "Quality"], default="Preview",
                                 label_visibility="collapsed") or "Preview"
     if view == "Preview":
@@ -132,8 +133,9 @@ def datasets(catalog: list[dict]) -> None:
         if len(catalog) > 6 else ""
     shown = [d for d in catalog if not q or q.lower() in (d["title"] + d["name"] + (d.get("description") or "")).lower()]
     for i, d in enumerate(shown):
-        hit = kit.row(d["title"], f"`{d['name']}` · {d['row_count']:,} rows · v{d['version']} · "
-                      f"refreshed {kit.when(d['refreshed_at'])} · {d['classification']}",
+        hit = kit.row(d["title"], " · ".join(x for x in (d.get("description"), f"{d['row_count']:,} rows",
+                                                           f"updated {kit.when(d['refreshed_at'])}",
+                                                           str(d["classification"]).capitalize()) if x),
                       actions=[("Open", "open")], key=f"d{d['name']}", divider=i < len(shown) - 1)
         if hit:
             dataset_detail(d)
@@ -177,7 +179,7 @@ def sql(catalog: list[dict]) -> None:
 
 try:
     catalog = api.get(f"/v1/workspaces/{ws}/datasets")
-    if kit.header("Data", "What Lyst can read, where it comes from, and a place to query it.",
+    if kit.header("Data", "The data Lyst answers from, where it comes from, and (for analysts) a place to query it.",
                   action="Add data" if editor else None, icon=":material/add:"):
         add_data()
     view = kit.sections(["Datasets", "Connections", "SQL"], key="view")

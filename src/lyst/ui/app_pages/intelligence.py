@@ -25,12 +25,15 @@ def ask(question: str) -> None:
 
 @st.dialog("Definition", width="large")
 def metric_detail(m: dict, terms: list[dict]) -> None:
-    st.markdown(f"**{m['title']}** · `{m['name']}`")
+    st.markdown(f"**{m['title']}**")
     st.markdown(md(m.get("description") or "No description yet."))
-    st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
     alias = sorted({*m.get("synonyms", []), *[t["term"] for t in terms if t.get("maps_to_metric") == m["name"]]})
-    st.caption(f"From {m['dataset']} · by {m['time_column']} · split by {', '.join(m['dimensions']) or 'nothing'}"
+    dims = ", ".join(d.replace("_", " ") for d in m["dimensions"])
+    st.caption((f"Can be split by {dims}" if dims else "Not split by anything")
                + (f" · also called {', '.join(alias)}" if alias else ""))
+    with st.expander("How it's calculated", icon=":material/functions:"):
+        st.caption(f"From the {m['dataset']} dataset, by {m['time_column']}; referred to as {m['name']}.")
+        st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
     lin = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/lineage/metric/{m['name']}"))
     if lin and (lin.get("upstream") or lin.get("downstream")):
         c = st.columns(2)
@@ -58,7 +61,7 @@ def definitions() -> None:
     if hits:
         kit.label(f"Metrics · {len(hits)}")
     for i, m in enumerate(hits):
-        if kit.row(m["title"], " · ".join(x for x in (m.get("description"), m["dataset"]) if x), actions=[("Open", "open")],
+        if kit.row(m["title"], m.get("description") or "No description yet", actions=[("Open", "open")],
                    key=f"m{m['name']}", divider=i < len(hits) - 1):
             metric_detail(m, terms)
     tshown = [t for t in terms if not q or q.lower() in (t["term"] + t["definition"]).lower()]

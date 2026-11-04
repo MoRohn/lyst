@@ -12,7 +12,18 @@ api, ws = client(), workspace()
 admin = st.session_state.get("role") in ("admin", "owner")
 editor = st.session_state.get("role") in ("editor", "admin", "owner")
 TONE = {"green": "ok", "orange": "warn", "red": "bad", "blue": "run", "gray": "off"}
+SENSITIVITY = {4.0: "Big moves only", 3.0: "Notable moves", 2.0: "Any unusual move"}
+ACTIONS = {"schedule.activate": "Start a scheduled question", "monitor.activate": "Start watching a metric",
+           "skill.register": "Add a new skill to Lyst"}
 EVERY = {3600: "Hourly", 21600: "Every 6 hours", 86400: "Daily", 604800: "Weekly", 2592000: "Monthly"}
+
+
+def sensitivity(sigma: float) -> str:
+    return SENSITIVITY.get(float(sigma)) or f"Moves beyond {sigma:g} standard deviations"
+
+
+def priority(p: float) -> str:
+    return "High priority" if p >= 6 else ("Medium priority" if p >= 4 else "Low priority")  # size of move + relative change
 
 
 def every(seconds: int) -> str:
@@ -30,14 +41,17 @@ def details(tid: str) -> None:
     text, color, _ = task_state(t["status"], t.get("outcome"))
     st.markdown(f"**{t['title']}**")
     kit.chip(text, TONE.get(color, "info"))
-    st.caption(f"{t['kind'].capitalize()} · started {kit.when(t['created_at'])} · autonomy {t['autonomy']}")
+    kind = {"scheduled": "Scheduled", "workflow": "Repeated analysis"}.get(t["kind"], "Asked")
+    st.caption(f"{kind} · started {kit.when(t['created_at'])} · {sum(s['status'] == 'done' for s in t['steps'])} of "
+               f"{len(t['steps'])} steps done")
     if t.get("error"):
         st.error(t["error"])
-    kit.label("Steps")
-    for s in t["steps"]:
-        mark = {"done": "✓", "failed": "✕", "skipped": "–", "running": "…"}.get(s["status"], "·")
-        st.markdown(f"{mark} {s['capability'].replace('_', ' ')} · {s['agent'].replace('_', ' ')}"
-                    + (f" · {s['error']}" if s.get("error") else ""))
+    with st.expander("Steps", icon=":material/list:"):
+        st.caption(f"Autonomy: {t['autonomy']}")
+        for s in t["steps"]:
+            mark = {"done": "✓", "failed": "✕", "skipped": "–", "running": "…"}.get(s["status"], "·")
+            st.markdown(f"{mark} {s['capability'].replace('_', ' ')} · {s['agent'].replace('_', ' ')}"
+                        + (f" · {s['error']}" if s.get("error") else ""))
     c = st.columns(3)
     if t["status"] == "done" and c[0].button("Open the answer", type="primary", icon=":material/arrow_outward:"):
         open_in_analyst(tid)
@@ -66,7 +80,8 @@ def needs_you() -> None:
     if approvals:
         kit.label(f"Approvals · {len(approvals)}")
         for i, ap in enumerate(approvals):
-            hit = kit.row(ap["summary"], f"{ap['action']} · {kit.when(ap['created_at'])}",
+            hit = kit.row(ap["summary"], f"{ACTIONS.get(ap['action'], ap['action'].replace('.', ' ').replace('_', ' ').capitalize())}"
+                          f" · {kit.when(ap['created_at'])}",
                           actions=[("Approve", "yes"), ("Reject", "no")], key=f"ap{ap['id']}", divider=i < len(approvals) - 1)
             if hit:
                 if kit.guarded(lambda a=ap, h=hit: api.post(f"/v1/approvals/{a['id']}", {"approve": h == "yes"}),
@@ -106,15 +121,15 @@ def activity() -> None:
 def recurring() -> None:
     scheds = api.get(f"/v1/workspaces/{ws}/schedules")
     mons = api.get(f"/v1/workspaces/{ws}/monitors")
-    kit.label("Schedules")
+    kit.label("Scheduled questions")
     if not scheds:
-        st.caption("Nothing runs on a schedule yet. Schedule a verified workflow from Build › Workflows, or below.")
+        st.caption("Nothing repeats on its own yet. Open any answer and choose Repeat it, or set one up here.")
     for i, s in enumerate(scheds):
         kit.row(s["title"], f"{every(s['every_seconds'])} · next {kit.when(s['next_run_at']) or s['next_run_at']}",
                 status=("Active", "ok") if s["enabled"] else ("Awaiting approval", "wait"), key=f"s{s['id']}",
                 divider=i < len(scheds) - 1)
     if editor:
-        with st.popover("New schedule", icon=":material/event_repeat:"):
+        with st.popover("Schedule a question", icon=":material/event_repeat:"):
             with st.form("schedule", border=False):
                 title = st.text_input("Name", placeholder="Weekly margin review")
                 question = st.text_input("What to ask", placeholder="Why did operating margin change last week?")
@@ -124,12 +139,13 @@ def recurring() -> None:
                                                     {"title": title, "question": question, "every_seconds": ev}),
                                    "Proposed. It starts once an admin approves it."):
                         st.rerun(scope="fragment")
-    kit.label("Monitors")
+    kit.label("Watched metrics")
     if not mons:
-        st.caption("No metric is watched yet. A monitor investigates material changes on its own and tells you.")
+        st.caption("No metric is watched yet. Lyst checks a watched metric on its own, investigates unusual moves "
+                   "and tells you here and on Home.")
     for i, m in enumerate(mons):
-        kit.row(m["title"], f"{m['grain'].capitalize()} · alerts beyond {m['threshold_sigma']:g}σ · checks "
-                f"{every(m['every_seconds']).lower()} · last run {kit.when(m['last_run_at']) or 'not yet'}",
+        kit.row(m["title"], f"Each {m['grain']} · {sensitivity(m['threshold_sigma']).lower()} · checked "
+                f"{every(m['every_seconds']).lower()} · last checked {kit.when(m['last_run_at']) or 'not yet'}",
                 status=("Active", "ok") if m["enabled"] else ("Awaiting approval", "wait"), key=f"m{m['id']}",
                 divider=i < len(mons) - 1)
     if editor:
@@ -137,9 +153,11 @@ def recurring() -> None:
             with st.form("monitor", border=False):
                 metric = st.selectbox("Metric", [m["name"] for m in api.get(f"/v1/workspaces/{ws}/metrics")],
                                       format_func=lambda n: n.replace("_", " ").capitalize())
-                grain = st.selectbox("By", ["month", "quarter"], format_func=str.capitalize)
-                sigma = st.slider("Alert when a change is beyond (σ)", 1.0, 6.0, 3.0, 0.5)
-                ev = st.selectbox("Check", [3600, 21600, 86400], format_func=EVERY.get, index=2)
+                grain = st.selectbox("Looking at", ["month", "quarter"], format_func=lambda g: f"Each {g}")
+                sigma = st.radio("Tell me about", list(SENSITIVITY), format_func=SENSITIVITY.get, index=1,
+                                 help="Big moves only alerts beyond 4 standard deviations of the usual change, "
+                                      "notable beyond 3, any unusual move beyond 2.")
+                ev = st.selectbox("Check it", [3600, 21600, 86400], format_func=EVERY.get, index=2)
                 if st.form_submit_button("Propose", type="primary"):
                     if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/monitors", {
                             "metric": metric, "grain": grain, "threshold_sigma": sigma, "every_seconds": ev}),
@@ -147,9 +165,9 @@ def recurring() -> None:
                         st.rerun(scope="fragment")
     found = [f for f in api.get(f"/v1/workspaces/{ws}/findings") if f["status"] != "dismissed"]
     if found:
-        kit.label(f"Findings · {len(found)}")
+        kit.label(f"What Lyst noticed · {len(found)}")
         for i, f in enumerate(found[:20]):
-            hit = kit.row(f["summary"], f"Priority {f['priority']:.1f} · {kit.when(f['created_at'])}",
+            hit = kit.row(f["summary"], f"{priority(f['priority'])} · {kit.when(f['created_at'])}",
                           status=("Risk", "bad") if f["direction"] == "risk" else ("Opportunity", "ok"),
                           actions=[("See why", "why"), ("Dismiss", "x")], key=f"f{f['id']}", divider=i < len(found) - 1)
             if hit == "why" and f.get("task_id"):

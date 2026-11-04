@@ -70,8 +70,9 @@ class MonitorService:
             "next_run_at) VALUES (?, ?, ?, ?, ?, ?, ?, false, ?, now())",
             [mid, metric, grain, threshold_sigma, every_seconds, title, investigate, actor.user_id])
         aid = self.runtime.request_approval(ws, actor.user_id, "monitor.activate",
-                                            f"Monitor {title} (alert beyond {threshold_sigma:g} sigma, every "
-                                            f"{every_seconds // 60} min)", {"monitor_id": mid})
+                                            f"Watch {title}: tell us about "
+                                            f"{_SENSITIVITY.get(float(threshold_sigma), f'moves beyond {threshold_sigma:g} sigma')}, "
+                                            f"checked {cadence(every_seconds)}", {"monitor_id": mid})
         self._db(ws).execute("UPDATE monitors SET approval_id = ? WHERE id = ?", [aid, mid])
         self.guard.audit(actor, ws, "monitor.create", mid, "pending_approval")
         return {"monitor_id": mid, "approval_id": aid, "enabled": False}
@@ -261,3 +262,12 @@ def _fmt(value: float, spec: MetricSpec) -> str:
     from .analyst.engine import fmt  # noqa: PLC0415
 
     return fmt(value, spec)
+
+
+_SENSITIVITY = {4.0: "big moves only", 3.0: "notable moves", 2.0: "any unusual move"}
+
+
+def cadence(seconds: int) -> str:
+    """'every day', not 'every 1440 min': approval summaries are read by business users."""
+    return {3600: "every hour", 21600: "every 6 hours", 86400: "every day", 604800: "every week",
+            2592000: "every month"}.get(seconds, f"every {seconds // 60} min")
