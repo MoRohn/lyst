@@ -169,7 +169,7 @@ export const enterprise = {
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging and encrypted backups for the rest.', status: 'available' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging, plus encrypted backups that run while Lyst is up and are checked before any restore.', status: 'available' as Status },
   ],
 };
 
