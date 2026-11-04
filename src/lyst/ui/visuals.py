@@ -1,0 +1,194 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
+"""Small, data-dense visuals drawn as SVG images and plain HTML/CSS: sparklines, proportion bars, value distributions, lineage flows
+and stat strips. They render in one pass with the page (no chart library, no iframe, no extra rerun), take their
+colours from the design tokens for the active theme, and each carries a text equivalent (``role="img"`` with an
+``aria-label``) so a screen reader gets the same facts the eye does.
+
+Every visual is a function returning an HTML string, so pages compose them inside cards; :func:`show` renders one.
+"""
+
+from __future__ import annotations
+
+import base64
+from collections.abc import Sequence
+from html import escape
+from typing import Any
+
+import streamlit as st
+
+from lyst.ui import tokens
+
+
+def mode() -> str:
+    try:
+        return st.context.theme.type or "light"
+    except Exception:  # noqa: BLE001 - outside a browser session
+        return "light"
+
+
+def show(html: str) -> None:
+    st.html(html)
+
+
+def _num(v: Any) -> float | None:
+    return float(v) if isinstance(v, int | float) and v == v else None  # noqa: PLR0124 - NaN check
+
+
+def spark(values: Sequence[Any], *, label: str, tone: str = "accent", width: int = 220, height: int = 44,
+          band: bool = True) -> str:
+    """A sparkline: the series as a line, a faint area under it, and the latest point marked."""
+    ys = [v for v in (_num(x) for x in values) if v is not None]
+    c = tokens.colors(mode())
+    color = c.get(tone, c["accent"])
+    if len(ys) < 2:
+        return f'<div class="lyst-viz-empty" role="img" aria-label="{escape(label)}: not enough points">—</div>'
+    lo, hi = min(ys), max(ys)
+    span = (hi - lo) or abs(hi) or 1.0
+    pad = 4
+    step = (width - 2 * pad) / (len(ys) - 1)
+    pts = [(pad + i * step, pad + (height - 2 * pad) * (1 - (y - lo) / span)) for i, y in enumerate(ys)]
+    line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    area = f"{pad},{height - pad} {line} {pts[-1][0]:.1f},{height - pad}"
+    lx, ly = pts[-1]
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" preserveAspectRatio="none">'
+           + (f'<polygon points="{area}" fill="{color}" fill-opacity=".10"/>' if band else "")
+           + f'<polyline points="{line}" fill="none" stroke="{color}" stroke-width="1.8" '
+             f'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'
+           + f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="3" fill="{color}" stroke="{c["bg"]}" stroke-width="1.5"/>'
+           + "</svg>")
+    # st.html sanitises inline <svg> away, so the drawing travels as an image; alt carries the same facts
+    data = base64.b64encode(svg.encode()).decode()
+    return (f'<img class="lyst-spark" src="data:image/svg+xml;base64,{data}" alt="{escape(label)}" '
+            f'style="width:100%;height:{height}px">')
+
+
+def stacked(parts: Sequence[tuple[str, float, str]], *, label: str, height: int = 8) -> str:
+    """A proportion bar: (name, share, tone) parts, with a legend underneath."""
+    c = tokens.colors(mode())
+    total = sum(max(p[1], 0) for p in parts) or 1.0
+    segs = "".join(f'<span style="flex:{max(s, 0) / total:.4f};background:{c.get(t, t)}" title="{escape(n)}"></span>'
+                   for n, s, t in parts if s > 0)
+    legend = "".join(f'<span class="lyst-legend"><i style="background:{c.get(t, t)}"></i>{escape(n)}</span>'
+                     for n, s, t in parts if s > 0)
+    desc = ", ".join(f"{n} {s / total:.0%}" for n, s, _ in parts if s > 0)
+    return (f'<div role="img" aria-label="{escape(label)}: {escape(desc)}">'
+            f'<div class="lyst-stack" style="height:{height}px">{segs}</div>'
+            f'<div class="lyst-legends">{legend}</div></div>')
+
+
+def meter(share: float, *, label: str, tone: str = "accent", text: str | None = None) -> str:
+    """A thin horizontal meter (0..1), for completeness, coverage or a top value's share."""
+    c = tokens.colors(mode())
+    share = min(max(share, 0.0), 1.0)
+    return (f'<div class="lyst-meter" role="img" aria-label="{escape(label)} {share:.0%}">'
+            f'<span style="width:{share * 100:.1f}%;background:{c.get(tone, tone)}"></span></div>'
+            + (f'<div class="lyst-meter-text">{escape(text)}</div>' if text else ""))
+
+
+def bars(items: Sequence[tuple[str, float]], *, label: str, tone: str = "accent", fmt: str = "{:.0%}") -> str:
+    """Labelled horizontal bars: top values of a column, a breakdown, a share of total."""
+    c = tokens.colors(mode())
+    top = max((v for _, v in items), default=0) or 1.0
+    rows = "".join(
+        f'<div class="lyst-bar"><span class="lyst-bar-label">{escape(str(n))}</span>'
+        f'<span class="lyst-bar-track"><span style="width:{max(v, 0) / top * 100:.1f}%;background:{c.get(tone, tone)}">'
+        f'</span></span><span class="lyst-bar-value lyst-num">{escape(fmt.format(v))}</span></div>'
+        for n, v in items)
+    desc = ", ".join(f"{n} {fmt.format(v)}" for n, v in items)
+    return f'<div class="lyst-bars" role="img" aria-label="{escape(label)}: {escape(desc)}">{rows}</div>'
+
+
+def flow(steps: Sequence[tuple[str, str, str]], *, label: str) -> str:
+    """A left-to-right lineage: (kind, name, detail) boxes joined by arrows; wraps on narrow screens."""
+    boxes = []
+    for i, (kind, name, detail) in enumerate(steps):
+        boxes.append(f'<div class="lyst-flow-node"><div class="lyst-flow-kind">{escape(kind)}</div>'
+                     f'<div class="lyst-flow-name">{escape(name)}</div>'
+                     + (f'<div class="lyst-flow-detail">{escape(detail)}</div>' if detail else "") + "</div>")
+        if i < len(steps) - 1:
+            boxes.append('<div class="lyst-flow-arrow" aria-hidden="true">→</div>')
+    desc = " → ".join(f"{k} {n}" for k, n, _ in steps)
+    return f'<div class="lyst-flow" role="img" aria-label="{escape(label)}: {escape(desc)}">{"".join(boxes)}</div>'
+
+
+def stats(items: Sequence[tuple[str, str, str | None]], *, compact: bool = False) -> str:
+    """A strip of headline numbers: (label, value, note). Quieter than st.metric tiles, and one line tall.
+    ``compact`` keeps every item on one row at body size, for use inside a card."""
+    cells = "".join(f'<div class="lyst-stat"><div class="lyst-stat-value lyst-num">{escape(v)}</div>'
+                    f'<div class="lyst-stat-label">{escape(lbl)}</div>'
+                    + (f'<div class="lyst-stat-note">{escape(n)}</div>' if n else "") + "</div>"
+                    for lbl, v, n in items)
+    cls = "lyst-stats lyst-stats-compact" if compact else "lyst-stats"
+    style = f' style="grid-template-columns: repeat({len(items)}, minmax(0, 1fr))"' if compact else ""
+    return f'<div class="{cls}"{style}>{cells}</div>'
+
+
+def delta(text: str, good: bool | None) -> str:
+    """A change, coloured by whether it is good for this measure (not by its sign)."""
+    tone = "neutral" if good is None else ("good" if good else "bad")
+    arrow = "" if text.startswith(("0.0", "+0.0", "-0.0")) else ("↑ " if text.startswith("+") else
+                                                                    "↓ " if text.startswith("-") else "")
+    return f'<span class="lyst-delta lyst-num" style="color:var(--lyst-{tone})">{escape(arrow + text)}</span>'
+
+
+CSS = """
+.lyst-spark {display: block;}
+.lyst-viz-empty {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm);}
+.lyst-stack {display: flex; gap: 2px; border-radius: var(--lyst-radius-pill); overflow: hidden;}
+.lyst-stack span {display: block; height: 100%;}
+.lyst-legends {display: flex; flex-wrap: wrap; gap: .2rem .8rem; margin-top: .35rem; font-size: var(--lyst-size-xs);
+               color: var(--lyst-text-muted);}
+.lyst-legend i {display: inline-block; width: .55rem; height: .55rem; border-radius: 2px; margin-right: .3rem;
+                vertical-align: baseline;}
+.lyst-meter {height: 6px; border-radius: var(--lyst-radius-pill); background: var(--lyst-grid); overflow: hidden;}
+.lyst-meter span {display: block; height: 100%; border-radius: var(--lyst-radius-pill);}
+.lyst-meter-text {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted); margin-top: .2rem;}
+.lyst-bars {display: grid; gap: .3rem;}
+.lyst-bar {display: grid; grid-template-columns: minmax(5rem, 32%) 1fr 3.2rem; align-items: center; gap: .5rem;
+           font-size: var(--lyst-size-sm);}
+.lyst-bar-label {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+.lyst-bar-track {height: 8px; background: var(--lyst-grid); border-radius: var(--lyst-radius-pill); overflow: hidden;}
+.lyst-bar-track span {display: block; height: 100%; border-radius: var(--lyst-radius-pill);}
+.lyst-bar-value {text-align: right; color: var(--lyst-text-muted);}
+.lyst-flow {display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem;}
+.lyst-flow-node {border: 1px solid var(--lyst-border); border-radius: var(--lyst-radius-md); padding: .5rem .7rem;
+                 min-width: 9rem; flex: 1 1 9rem; background: var(--lyst-surface);}
+.lyst-flow-kind {font-size: var(--lyst-size-xs); text-transform: uppercase; letter-spacing: var(--lyst-tracking-label);
+                 color: var(--lyst-text-muted); font-weight: 600;}
+.lyst-flow-name {font-weight: var(--lyst-weight-medium); margin-top: .1rem;}
+.lyst-flow-detail {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted);}
+.lyst-flow-arrow {align-self: center; color: var(--lyst-text-muted);}
+.lyst-stats {display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem 1.5rem;
+             padding: .25rem 0 .5rem 0;}
+.lyst-stats-compact {gap: .5rem 1rem; padding: .5rem 0;}
+.lyst-stats-compact .lyst-stat-value {font-size: var(--lyst-size-md);}
+.lyst-stat-value {font-size: var(--lyst-size-lg); font-weight: var(--lyst-weight-strong); line-height: 1.2;}
+.lyst-stat-label {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted);}
+.lyst-stat-note {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted);}
+.lyst-delta {font-size: var(--lyst-size-sm); font-weight: var(--lyst-weight-medium);}
+/* cards: a title row, a headline, a visual, a quiet footer */
+.lyst-card-kicker {font-size: var(--lyst-size-xs); text-transform: uppercase; letter-spacing: var(--lyst-tracking-label);
+                   color: var(--lyst-text-muted); font-weight: 600;}
+.lyst-card-title {font-weight: var(--lyst-weight-strong); font-size: 1.02rem; line-height: 1.3;}
+.lyst-card-value {font-size: 1.45rem; font-weight: var(--lyst-weight-strong); line-height: 1.15; margin-top: .15rem;}
+.lyst-card-meta {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); line-height: 1.4;}
+"""
+
+
+def pulse(api: Any, ws: str) -> dict[str, dict]:
+    """Each approved metric's latest value, change and twelve-period history (GET pulse), by metric name. Cached per
+    workspace for five minutes in this session, the same freshness Home uses; never shared across workspaces."""
+    import time  # noqa: PLC0415
+
+    from lyst.ui.client import APIError  # noqa: PLC0415
+
+    hit = st.session_state.get("_viz_pulse")
+    if hit and hit[0] == ws and time.time() - hit[1] < 300:
+        return hit[2]
+    try:
+        data = {p["metric"]: p for p in api.get(f"/v1/workspaces/{ws}/pulse")}
+    except APIError:
+        data = {}
+    st.session_state["_viz_pulse"] = (ws, time.time(), data)
+    return data

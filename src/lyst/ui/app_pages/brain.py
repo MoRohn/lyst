@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from lyst.semantic import MetricSpec, value_expr
-from lyst.ui import kit
+from lyst.ui import kit, visuals
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -27,6 +27,13 @@ def ask(question: str) -> None:
 def metric_detail(m: dict, terms: list[dict]) -> None:
     st.markdown(f"**{m['title']}**")
     st.markdown(md(m.get("description") or "No description yet."))
+    p = visuals.pulse(api, ws).get(m["name"])
+    if p:
+        top = st.columns([1.2, 3], vertical_alignment="center")
+        top[0].html(f'<div class="lyst-card-kicker">{p["period"]}</div><div class="lyst-card-value lyst-num">'
+                    f'{p["value_text"]}</div>{visuals.delta(p["change_text"] + " vs prior " + p["grain"], p.get("good"))}')
+        top[1].html(visuals.spark(p["history"], label=f"{m['title']}, last {len(p['history'])} {p['grain']}s",
+                                  height=64, width=420))
     alias = sorted({*m.get("synonyms", []), *[t["term"] for t in terms if t.get("maps_to_metric") == m["name"]]})
     dims = ", ".join(d.replace("_", " ") for d in m["dimensions"])
     st.caption((f"Can be split by {dims}" if dims else "Not split by anything")
@@ -40,6 +47,14 @@ def metric_detail(m: dict, terms: list[dict]) -> None:
         fresh = src.get("freshness") or {}
         origin = src.get("origin") or {}
         kit.label("Where the number comes from")
+        steps = []
+        if origin:
+            steps.append(("Source", str(origin.get("name") or origin.get("table") or origin.get("connection")),
+                          str(origin.get("kind") or "")))
+        steps.append(("Dataset", src.get("title", m["dataset"]), f"{src.get('rows', 0):,} rows"
+                      + (f" · through {fresh['latest']}" if fresh.get("latest") else "")))
+        steps.append(("Approved metric", m["title"], f"v{lin.get('version', 1)}"))
+        st.html(visuals.flow(steps, label=f"Lineage of {m['title']}"))
         st.markdown(md(f"{src.get('title', m['dataset'])}: {src.get('rows', 0):,} rows"
                        + (f", data through {fresh['latest']}" if fresh.get("latest") else "")
                        + (f", loaded from {origin.get('name') or origin.get('table') or origin.get('connection')}"
@@ -94,6 +109,41 @@ def tidy(metrics: list[dict]) -> None:
                     divider=k < len(issues) - 1)
 
 
+def metric_cards(metrics: list[dict], terms: list[dict], per_row: int = 3) -> None:
+    """Each approved metric as a card: its latest value, the change coloured by whether it is good for this measure,
+    a twelve-period sparkline, and where it comes from. Values are the engine's own (pulse), never estimated here."""
+    live = visuals.pulse(api, ws)
+    datasets = {d["name"]: d.get("title", d["name"]) for d in _datasets()}
+    for start in range(0, len(metrics), per_row):
+        cols = st.columns(per_row)
+        for col, m in zip(cols, metrics[start:start + per_row], strict=False):
+            p = live.get(m["name"])
+            with col.container(border=True):
+                dims = ", ".join(d.replace("_", " ") for d in m.get("dimensions") or [])
+                head = (f'<div class="lyst-card-title">{kit._esc(m["title"])}</div>'
+                        + (f'<div class="lyst-card-value lyst-num">{kit._esc(p["value_text"])}</div>'
+                           + visuals.delta(p["change_text"] + " vs prior " + p["grain"], p.get("good"))
+                           + visuals.spark(p["history"], label=f"{m['title']} over the last {len(p['history'])} "
+                                           f"{p['grain']}s") if p else
+                           '<div class="lyst-card-meta">No recent value: Lyst computes it when asked.</div>'))
+                st.html(head)
+                meta = " · ".join(x for x in (f"from {datasets.get(m['dataset'], m['dataset'])}",
+                                              f"split by {dims}" if dims else None) if x)
+                st.html(f'<div class="lyst-card-meta">{kit._esc(m.get("description") or "No description yet")}'
+                        f'<br>{kit._esc(meta)}</div>')
+                if st.button("Open", key=f"m{m['name']}_open", type="tertiary", icon=":material/arrow_outward:") \
+                        or st.query_params.get("metric") == m["name"]:
+                    st.query_params.pop("metric", None)
+                    metric_detail(m, terms)
+
+
+def _datasets() -> list[dict]:
+    try:
+        return api.get(f"/v1/workspaces/{ws}/datasets")
+    except APIError:
+        return []
+
+
 def definitions() -> None:
     metrics = api.get(f"/v1/workspaces/{ws}/metrics")
     terms = api.get(f"/v1/workspaces/{ws}/glossary")
@@ -106,11 +156,7 @@ def definitions() -> None:
     hits = [m for m in metrics if not q or q.lower() in (m["title"] + m["name"] + " ".join(m["synonyms"])).lower()]
     if hits:
         kit.label(f"Metrics · {len(hits)}")
-    for i, m in enumerate(hits):
-        if kit.row(m["title"], m.get("description") or "No description yet", actions=[("Open", "open")],
-                   key=f"m{m['name']}", divider=i < len(hits) - 1) or st.query_params.get("metric") == m["name"]:
-            st.query_params.pop("metric", None)
-            metric_detail(m, terms)
+        metric_cards(hits, terms)
     tshown = [t for t in terms if not q or q.lower() in (t["term"] + t["definition"]).lower()]
     if tshown:
         kit.label(f"Business terms · {len(tshown)}")
@@ -143,6 +189,10 @@ def documents() -> None:
                 st.caption(f"{h['title']} · passage {h['passage']}")
                 st.markdown(md(h["text"]))
         return
+    if docs:
+        st.html(visuals.stats([("Documents", f"{len(docs)}", None),
+                               ("Passages Lyst can cite", f"{sum(int(d.get('passages') or 0) for d in docs):,}", None),
+                               ("Latest added", kit.when(max(d["added_at"] for d in docs)), None)]))
     if not docs:
         kit.empty(":material/description:", "No documents", "Policies, definitions and notes you add here are cited in "
                   "answers, and disagreements with approved definitions are disclosed.")
@@ -176,6 +226,12 @@ def memory() -> None:
                 st.rerun()
     taught = [m for m in mem if m["trust"] in ("approved", "user_validated")]
     learned = [m for m in mem if m["trust"] not in ("approved", "user_validated")]
+    if mem:  # how much of what Lyst knows a person stands behind
+        n = {t: sum(1 for m in mem if m["trust"] == t) for t in ("approved", "user_validated")}
+        st.html(visuals.stacked([(f"Approved {n['approved']}", n["approved"], "good"),
+                                 (f"Validated by the team {n['user_validated']}", n["user_validated"], "accent"),
+                                 (f"Observed in past analyses {len(learned)}", len(learned), "neutral")],
+                                label="What Lyst knows, by how much it is trusted", height=10))
     if taught:
         kit.label(f"Knowledge · {len(taught)}")
         for i, m in enumerate(taught):
@@ -222,7 +278,8 @@ def memory() -> None:
 
 try:
     kit.header("Brain", "What Lyst knows about this business, where it came from, and how much to trust it.")
-    view = kit.sections(["Definitions", "Documents", "Memory"], key="view")
-    {"Definitions": definitions, "Documents": documents, "Memory": memory}[view]()
+    # one entry per section; Specializations (the Analyst catalog) is added here as its own section
+    SECTIONS = {"Definitions": definitions, "Documents": documents, "Memory": memory}
+    SECTIONS[kit.sections(list(SECTIONS), key="view")]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

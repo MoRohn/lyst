@@ -121,14 +121,8 @@ def test_data_rows_say_whether_a_table_can_be_relied_on(ui):  # noqa: F811
 
 
 def test_search_results_open_where_each_thing_lives():
-    import pathlib  # noqa: PLC0415
+    from lyst.ui.palette import destination as dest  # noqa: PLC0415
 
-    src = pathlib.Path(__file__).parents[1] / "src/lyst/ui/app.py"
-    code = src.read_text()
-    start = code.index("def _destination")
-    ns: dict = {}
-    exec(code[start:code.index("@st.dialog(\"Search\"")], ns)  # noqa: S102  (the pure routing function only)
-    dest = ns["_destination"]
     assert dest({"kind": "metric", "name": "revenue"}) == ("app_pages/brain.py", {"metric": "revenue"})
     assert dest({"kind": "column", "name": "pnl.region"}) == ("app_pages/data.py", {"dataset": "pnl"})
     assert dest({"kind": "analysis", "name": "t_1"}) == ("app_pages/analyst.py", {"task": "t_1"})
