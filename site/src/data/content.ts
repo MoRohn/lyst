@@ -100,7 +100,7 @@ export const capabilities: {
     icon: 'Cable',
     title: 'Connect',
     text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health, warns before credentials expire and tests a fix for schema changes.',
-    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'APIs drafted from OpenAPI', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
