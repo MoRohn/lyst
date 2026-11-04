@@ -1,6 +1,6 @@
 # Lyst website
 
-The public product site for Lyst, the open-source AI Analyst. A single static page built with
+The public product site for Lyst, the open-source AI Analyst (GNU AGPL v3.0). A single static page built with
 [Astro](https://astro.build), deployed to GitHub Pages, with an optional registration service in
 [`waitlist/`](waitlist/README.md).
 
@@ -109,7 +109,8 @@ last good "Website" workflow run from the Actions tab.
 - Waitlist service: 23 pytest tests passing, including 80 concurrent writes through the single writer.
 - Lighthouse 13.6 (median of 3 runs): mobile 100 / 100 / 100 / 100, LCP 0.8 s, CLS 0.049, TBT 0 ms;
   desktop 100 / 100 / 100 / 100, LCP 0.2 s, CLS 0, TBT 0 ms. Reports in `reports/lighthouse/`.
-- Links, secrets and licenses checks pass. Two weak-copyleft build tools (libvips via sharp, LGPL-3.0;
+- Links, secrets and licenses checks pass. All runtime and build dependencies are permissive and
+  compatible with AGPL-3.0 distribution. Two weak-copyleft build tools (libvips via sharp, LGPL-3.0;
   lightningcss, MPL-2.0) are used unmodified at build time and nothing from them ships.
 
 ## Known limitations

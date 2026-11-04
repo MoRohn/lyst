@@ -116,7 +116,7 @@ export const openSource = {
   headline: 'Powerful by design. Open by principle.',
   lede: 'Lyst is built on an open, inspectable stack you can run on your own infrastructure. Commercial systems are optional connections, never requirements.',
   principles: [
-    { icon: 'Scale', title: 'Open-source software', text: 'Apache-2.0 licensed core.' },
+    { icon: 'Scale', title: 'Open-source software', text: 'Licensed under the GNU AGPL v3.0.' },
     { icon: 'Code', title: 'Python-native', text: 'Analysis in the language analysts already use.' },
     { icon: 'Database', title: 'DuckDB-powered', text: 'Fast, in-process SQL on local and remote data.' },
     { icon: 'Server', title: 'Self-hostable', text: 'Deploy on a laptop, a server or your cloud.' },

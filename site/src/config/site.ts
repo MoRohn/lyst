@@ -46,7 +46,7 @@ export const site = {
   contactEmail: email(clean(env.PUBLIC_CONTACT_EMAIL)),
   githubUrl: httpsUrl(clean(env.PUBLIC_GITHUB_URL)).replace(/\/$/, ''),
   copyrightHolder: 'The Lyst authors',
-  license: 'Apache-2.0',
+  license: 'AGPL-3.0-only',
 } as const;
 
 const github = httpsUrl(clean(env.PUBLIC_GITHUB_URL)).replace(/\/$/, '');

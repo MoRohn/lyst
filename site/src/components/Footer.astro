@@ -32,7 +32,7 @@ const year = new Date().getFullYear();
         <ul>
           {site.githubUrl && <li><a href={site.githubUrl} rel="noopener">GitHub repository</a></li>}
           {site.contactEmail && <li><a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a></li>}
-          <li><a href="https://www.apache.org/licenses/LICENSE-2.0" rel="license noopener">Apache License 2.0</a></li>
+          <li><a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="license noopener">GNU AGPL v3.0</a></li>
         </ul>
       </div>
 
@@ -43,7 +43,7 @@ const year = new Date().getFullYear();
     </div>
 
     <div class="bottom">
-      <p>© {year} {site.copyrightHolder}. Lyst is open-source software licensed under Apache-2.0.</p>
+      <p>© {year} {site.copyrightHolder}. Lyst is open-source software licensed under the GNU AGPL v3.0.</p>
       <p>Product previews on this page are illustrative and use synthetic data.</p>
     </div>
   </div>
