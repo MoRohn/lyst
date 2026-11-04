@@ -155,3 +155,36 @@ Every page is rendered headlessly against the in-process API in `tests/test_ui_p
 dark and phone widths were checked in a browser. Limitations: Streamlit decides much of the chrome (the sidebar toggle,
 dialog sizes); Settings keeps the build thread's layout under the shared header; no usability session with a first-time
 user has been run yet (scenario F).
+
+
+## Pass 6, 2026-11-04: refinement and robustness
+
+Baseline on `main` at `3dfe728` (after #14, #15, #16): 260 tests. After this pass: 270 passed (10 new, in
+`tests/test_refine.py`); `lyst eval` 19/19; ruff clean. Live checks ran on a separate instance (engine :8890, interface
+:8610, its own home and key), never on the instance at :8770. Scenarios F (concurrent workspaces) and G (credential
+failure) were covered by the audit thread in #15 and are not repeated here.
+
+Classes: Critical Defect · Functional Gap · Reliability Risk · Performance Issue · UX Friction · Architectural Debt ·
+Enhancement Opportunity. Status: Verified Fixed · Implemented/Unverified · Partially Resolved · Open · Not Evaluated.
+
+| # | Class | Finding (evidence) | Root cause | Fix | Resolution criterion | Status |
+|---|---|---|---|---|---|---|
+| P6-1 | Reliability Risk | The same submission sent twice queued two tasks: two concurrent `POST /tasks` with one `Idempotency-Key` returned `t_5b2ecb1c4a74` and `t_4feac9cd36c0` (live) | Submission had no idempotency; nothing tied a retry or double click to the first request | `Idempotency-Key` honoured per person and workspace; check and insert in one write transaction on the writer thread (control migration 11). The interface sends a key per request (session, workspace, question, 30 s window) from Home, Data, Intelligence and Build | 8 concurrent repeats give 1 task; another person's identical key never returns someone else's task; live repeat returned the same id | Verified Fixed (`test_a_repeated_submission…`, `test_an_idempotency_key_never…`, live) |
+| P6-2 | Reliability Risk | Scenario C live: 40 tasks, engine killed with SIGKILL 0.6 s in, restarted. All 40 finished and no audit, memory or step was duplicated, but the two tasks that were running sat idle for their full 30 s lease after the engine was back (claimed 10:51:01, re-claimed 10:51:31) | A lease from the previous process was treated like a live worker's | `recover_orphans()` at engine start expires leases held by any other worker id: DuckDB's file lock means no other live engine can hold them. Takeovers are still counted, so the crash-loop limit (R3) still applies | Re-run live: both interrupted tasks re-claimed 0.13 s after restart and done 0.26 s later; 40/40 complete; no duplicate audit `(action, target)` | Verified Fixed (`test_engine_restart_resumes…`, live re-run) |
+| P6-3 | Functional Gap | A slow or costly answer could not be traced to a step, a model call or a query (ENGINEERING O1: usage only aggregated per model) | Per-call records (`llm_calls`, `query_history`) existed but were never joined to a task | `GET /v1/tasks/{id}/trace` (same access as reading the task): steps with durations, each model call (purpose, model, level, outcome, latency, tokens, cost) and query (SQL, rows, ms, outcome), totals, slowest step. A call or query is matched to a step only when exactly one step was running then; otherwise it is left unattributed, not guessed. **How this ran** on every answer, including failed and stopped tasks | Totals equal the sum of the records; another workspace gets 403/404 with no SQL in the body | Verified Fixed (`test_trace_…` ×2, UI test, live) |
+| P6-4 | UX Friction | Settings was the one page still on the old layout: four large metric tiles, a Python dict on screen (`waiting {'interactive': 0, 'background': 0}`), members and audit as raw tables with user ids and ISO timestamps, a webhook field whose Save button appeared only after editing | Kept the pre-revamp layout under the shared header | Three sections, kept in the URL: **Models** (the tiers thread's block moved unchanged, the one-field Connect OpenRouter form kept), **Connections** (owner only; masked entry, Test/Replace/Revoke/History unchanged), **Workspace** (autonomy with a one-line meaning, webhook form with Save, members as rows with a role chip and Remove, audit trail with readable times and emails). Role, encryption and model calls moved into the header line; the installation tiles became one status line (a warning when unhealthy) | No `metric` elements, no Python dicts, no ISO stamps; light, dark and phone screenshots | Verified Fixed (`test_settings_sections…` ×3, `test_workspace_section…`, screenshots) |
+| P6-5 | UX Friction | Empty-state titles sat 12 px left of centre (measured: text centre 849 px, box centre 861 px) | Streamlit's hidden heading-link element takes space after the text | Hidden inside empty states | Re-measured: text centre 860.6 px = box centre | Verified Fixed (browser measurement) |
+| P6-6 | Reliability Risk | `learn` writes the analysis row, then the episodic memory, in two transactions; a crash between them leaves the analysis without its memory, and the resumed step returns early with `memory_id` None | Idempotency check keys on the analysis row only | Not changed in this pass (the build thread owns `analyst/engine.py`) | A crash between the two writes still yields one analysis and one memory | Open |
+| P6-7 | Enhancement Opportunity | Steps in one wave run in parallel, so their queries cannot be attributed (P6-3 leaves them unattributed) | Query and call records carry the task id but not the step | Pass the step sequence through the step context into `query_history` and `llm_calls` | Every record carries its step | Open |
+
+### Screens checked (Playwright, 6 pages × desktop 1440, wide 1920, tablet 820, phone 390 in light, desktop and phone in dark)
+
+36 rendered views before and after: no horizontal scroll at any width, no Streamlit exception, no page error. The only
+console errors are Streamlit's own probes of `/<page>/_stcore/health` and `/_stcore/host-config` on a deep link (404,
+harmless, Streamlit behaviour). The Settings sections and the How this ran dialog were captured in light, dark and phone.
+
+### Not evaluated in this pass
+
+A first-time user session with a person (scenario H); live model calls in the trace (no key on this instance; the trace
+reads the same `llm_calls` rows the gateway writes, exercised in the test by a recorded call); scenario A across
+several datasets.
