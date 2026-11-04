@@ -644,7 +644,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     @app.post("/v1/workspaces/{ws}/tasks", status_code=202)
     def ask(request: Request, ws: str, body: Ask, user: User):
-        return {"task_id": L(request).runtime.submit(user, ws, body.question, autonomy=body.autonomy)}
+        # Idempotency-Key: a retried or double-submitted request returns the first task instead of a second run
+        return {"task_id": L(request).runtime.submit(user, ws, body.question, autonomy=body.autonomy,
+                                                     idempotency_key=request.headers.get("idempotency-key"))}
 
     @app.get("/v1/workspaces/{ws}/workflows")
     def workflows(request: Request, ws: str, user: User, history: bool = False):
@@ -676,6 +678,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.get("/v1/tasks/{task_id}")
     def task(request: Request, task_id: str, user: User):
         return L(request).runtime.get(user, task_id)
+
+    @app.get("/v1/tasks/{task_id}/trace")
+    def task_trace(request: Request, task_id: str, user: User):
+        return L(request).runtime.trace(user, task_id)
 
     @app.post("/v1/tasks/{task_id}/{action}")
     def control(request: Request, task_id: str, action: str, user: User):

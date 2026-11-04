@@ -50,6 +50,8 @@ hr {margin: 0.2rem 0 !important; opacity: .55;}
 div.lyst-empty {text-align: center; padding: 2.2rem 1rem; opacity: .85;}
 div.lyst-empty .icon {font-size: 2rem; opacity: .55;}
 div.lyst-empty h4 {margin: .4rem 0 .2rem 0; font-weight: 600;}
+/* Streamlit gives every heading a hover link that takes space after the text, pulling a centred title off-centre */
+div.lyst-empty [data-testid="stHeaderActionElements"] {display: none;}
 div.lyst-empty p {opacity: .7; margin: 0 auto; max-width: 30rem;}
 /* quiet chrome */
 [data-testid="stToolbar"] {opacity: .55;}

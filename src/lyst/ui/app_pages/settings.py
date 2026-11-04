@@ -10,16 +10,13 @@ from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
 api, ws = client(), workspace()
-kit.header("Settings", "Models, secrets and connections, members, and how this workspace is governed.")
 s = api.get(f"/v1/workspaces/{ws}/settings")
 admin = s["role"] in ("admin", "owner")
 owner = s["role"] == "owner"
 cred = s.get("credentials") or {}
-c = st.columns(4)
-c[0].metric("Your role", s["role"].capitalize())
-c[1].metric("Autonomy", s["workspace"]["autonomy"].capitalize())
-c[2].metric("Encryption at rest", "On" if s["encrypted"] else "Off")
-c[3].metric("Model calls", s["llm_usage"]["calls"])
+kit.header("Settings", f"You are {s['role']} of {s['workspace']['name']} · "
+           + ("encrypted at rest" if s["encrypted"] else "not encrypted at rest")
+           + f" · {s['llm_usage']['calls']:,} model call{'s' * (s['llm_usage']['calls'] != 1)} so far")
 
 
 def _reauth(e: APIError) -> None:
@@ -118,49 +115,6 @@ def credential_panel(scope_kind: str, scope_id: str | None, *, title: str, intro
                     _reauth(e)
 
 
-# ------------------------------------------------------------------------------- inference
-
-st.markdown("#### Inference")
-m = s["model"]
-if m:
-    where = "OpenRouter" if m["provider"] == "openrouter" else f"local endpoint {m['base_url']}"
-    tier = f", {m['tier']} tier" if m.get("tier") else ", pinned model"
-    via = cred.get("model_credential")
-    st.write(f"{where}{tier}. Calls walk: " + " → ".join(f"`{x}`" for x in m["attempts"])
-             + (f". Credential: *{via['name']}* ({via['scope']} scope)." if via else "."))
-    st.caption("Every call goes through Lyst's gateway: pooled admission, adaptive limits, retries with fallback to "
-               "the next model, and per-workload routing, as in Acumane. Models see definitions and computed findings, "
-               "never dataset rows, and text is redacted before it leaves.")
-    if not s.get("model_ready") and admin:
-        st.info("This workspace is not allowed to use an external provider yet. Turn it on below.", icon=":material/toggle_off:")
-elif s.get("provider") == "openrouter":
-    st.write("No model credential is connected yet. Lyst plans with rules and writes answers from templates; every number "
-             "comes from SQL either way.")
-    quick_scope = ("installation", None) if cred.get("installation_admin") else \
-        (("workspace", ws) if owner and (cred.get("policy") or {}).get("workspace_override") else None)
-    if quick_scope:
-        # the common case needs one field: paste the key, Lyst tests it with OpenRouter and seals it
-        with st.form("connect-openrouter", clear_on_submit=True, border=True):
-            st.markdown("**Connect OpenRouter**")
-            q = st.columns([4, 1], vertical_alignment="bottom")
-            key = q[0].text_input("API key", type="password", autocomplete="off", placeholder="sk-or-…",
-                                  help="Checked with OpenRouter before it is saved, sealed, and never shown again.")
-            if q[1].form_submit_button("Connect", type="primary", icon=":material/key:") and key:
-                try:
-                    out = api.post("/v1/credentials", {"provider": "openrouter", "name": "OpenRouter", "secret": key,
-                                                       "scope_kind": quick_scope[0], "scope_id": quick_scope[1]})
-                    if admin and not s["workspace"]["allow_external_llm"]:  # the workspace that connected it may use it at once
-                        api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": True})
-                    st.success(f"Connected. OpenRouter reports {out['test'].get('label') or 'the key'} is valid; the model is available now.")
-                    st.rerun()
-                except APIError as e:
-                    _reauth(e)
-            st.caption("Shared by every workspace." if quick_scope[0] == "installation" else "Used by this workspace only.")
-    elif owner:
-        st.info("An installation administrator connects the OpenRouter key in Settings; workspace-level keys are not allowed by "
-                "the installation policy.", icon=":material/key:")
-else:
-    st.write("No model configured. Set LYST_LLM_BASE_URL and LYST_LLM_MODEL for a local OpenAI-compatible model, or use OpenRouter.")
 def usd(v: float | None, *, per: int = 1) -> str:
     """Dollar amounts too small for cents keep their significant digits: $0.00028, $1.40, $1,204."""
     if v is None:
@@ -185,112 +139,151 @@ def per_m(row: dict) -> str:
     return f"{price(row['input_per_m'])} in · {price(row['output_per_m'])} out per 1M tokens"
 
 
-opts = None
-if m and m.get("provider") == "openrouter":
-    try:
-        opts = api.get(f"/v1/workspaces/{ws}/model-options")
-    except APIError as e:
-        st.caption(str(e))
-if opts and opts.get("selection"):
-    sel, b, cat = opts["selection"], opts["basis"], opts["catalog"]
-    st.markdown("**Model level**")
-    fetched = kit.when(cat.get("lastRefreshedAt"))
-    src = (f"OpenRouter's live catalog, updated {fetched}" if cat.get("source") == "openrouter"
-           else f"the snapshot shipped with Lyst ({fetched}); it is replaced by OpenRouter's live catalog on the next refresh")
-    basis_txt = (f"this workspace's average call over 30 days ({b['input_tokens']:,} tokens in, {b['output_tokens']:,} out)"
-                 if b["observed"] else "a typical call of 800 tokens in and 400 out")
-    st.caption(md(f"Prices are OpenRouter's published per-token prices, from {src}. Estimates use {basis_txt}; "
-                  "the cost OpenRouter reports for each call is what Model usage records."))
-    cols = st.columns(3)
-    for col, t in zip(cols, opts["tiers"], strict=True):
-        with col.container(border=True):
-            head = st.columns([3, 2], vertical_alignment="center")
-            head[0].markdown(f"**{t['label']}**")
-            if sel["mode"] == "auto" and sel["tier"] == t["id"]:
-                kit.chip("In use", "ok", head[1])
-            elif not t["allowed"]:
-                kit.chip("Not allowed", "off", head[1])
-            st.caption(t["purpose"])
-            if t["primary"]:
-                st.metric("Per call", usd(t["per_call_usd"]), help="On the tier's first model, with the token counts above.")
-                lo, hi = t["range_usd"]
-                st.caption(md(f"{usd(t['per_call_usd'], per=1000)} per 1,000 calls · {usd(lo)} to {usd(hi)} across the tier"
-                              + (f" · about {usd(t['primary']['per_question_usd'])} per question" if t["primary"].get("per_question_usd") else "")))
-                st.markdown(md(f"{t['primary']['modelLabel']} first, then {len(t['models']) - 1} fallbacks"))
-                st.caption(md(per_m(t["primary"])))
-    if sel["mode"] == "pinned":
-        st.info(md(f"Pinned to **{sel['model_label'] or sel['model']}** (used alone, about {usd(sel['per_call_usd'])} per call)."),
-                icon=":material/push_pin:")
-    where = {"workspace": "chosen for this workspace", "installation": "the installation default",
-             "default": "Lyst's default"}[sel["source"]]
-    st.caption(md(f"Now: {where}. Calls walk {' → '.join(f'`{x}`' for x in sel['attempts'][:6])}"
-                  + (" …" if len(sel["attempts"]) > 6 else "")
-                  + (f". This installation allows tiers up to {sel['ceiling']}." if sel["ceiling"] != "frontier" else ".")))
-    if admin:
-        with st.form("model-level", border=True):
-            ws_row = s["workspace"]
-            labels = {"": "Follow the installation default"} | {t["id"]: f"{t['label']} · about {usd(t['per_call_usd'])} per call"
-                                                                for t in opts["tiers"] if t["allowed"]}
-            cur_tier = ws_row.get("llm_tier") or ""
-            f = st.columns(2)
-            tier = f[0].selectbox("Level for this workspace", list(labels), format_func=labels.get,
-                                  index=list(labels).index(cur_tier) if cur_tier in labels else 0)
-            allowed = [r for r in opts["models"] if r["allowed"]]
-            by_id = {r["modelId"]: r for r in allowed}
-            choices = ["auto"] + [r["modelId"] for r in allowed]
-            cur_model = ws_row.get("llm_model") or "auto"
-            if cur_model not in choices:
-                choices.append(cur_model)
 
-            def model_label(mid: str) -> str:
-                if mid == "auto":
-                    return "Auto: the tier's best-priced model, with fallbacks (recommended)"
-                r = by_id.get(mid)
-                if not r:
-                    return mid
-                tier_tag = f" · {r['tier']}" if r.get("tier") else ""
-                return f"{r['vendorLabel']} · {r['modelLabel']}{tier_tag} · {price(r['input_per_m'])}/{price(r['output_per_m'])} per 1M · ≈{usd(r['per_call_usd'])}/call"
-
-            model = f[1].selectbox("Model", choices, index=choices.index(cur_model), format_func=model_label,
-                                   help="Auto walks the level's models cheapest first and falls back on errors, as in Acumane. "
-                                        "A specific model is used alone. Models above this installation's highest allowed "
-                                        "level are not listed.")
-            if st.form_submit_button("Save model choice", icon=":material/save:"):
-                try:
-                    api.patch(f"/v1/workspaces/{ws}/settings", {"llm_tier": tier, "llm_model": model})
-                    st.toast("Model choice saved; the next call uses it.", icon=":material/check:")
-                    st.rerun()
-                except APIError as e:
-                    st.error(str(e))
-    with st.expander("Every model in each level"):
-        rows = [{"Level": t["label"], "Order": i + 1, "Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"],
-                 "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Cached $/1M": r["cached_per_m"],
-                 "Per call": r["per_call_usd"], "Per 1,000 calls": r["per_call_usd"] * 1000, "Context": r["context"]}
-                for t in opts["tiers"] for i, r in enumerate(t["models"])]
-        money = {k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Cached $/1M", "Per 1,000 calls")}
-        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                     column_config=money | {"Per call": st.column_config.NumberColumn("Per call", format="$%.6f"),
-                                            "Context": st.column_config.NumberColumn("Context", format="%d")})
-    with st.expander(f"All {cat.get('selectable') or len(opts['models'])} OpenRouter models Lyst can use"):
-        st.caption("Text models that support tool calls, with a published price and at least 8,000 tokens of context. "
-                   "Newest first within each provider.")
-        allm = pd.DataFrame([{"Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"], "Level": r["tier"] or "",
-                              "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Per 1,000 calls": r["per_call_usd"] * 1000,
-                              "Context": r["context"], "Reasoning": bool(r["reasoning"]), "Allowed here": r["allowed"]}
-                             for r in opts["models"]])
-        st.dataframe(allm, hide_index=True, width="stretch",
-                     column_config={k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Per 1,000 calls")})
-
-if admin:
-    allow = st.toggle("Allow this workspace to use external model providers", value=bool(s["workspace"]["allow_external_llm"]))
-    mode = st.segmented_control("Autonomy", ["assist", "delegate", "autonomous", "governed"],
-                                default=s["workspace"]["autonomy"])
-    if allow != bool(s["workspace"]["allow_external_llm"]) or (mode and mode != s["workspace"]["autonomy"]):
+def models() -> None:
+    """Which model Lyst may use, at what level and cost, and what it has spent."""
+    m = s["model"]
+    if m:
+        where = "OpenRouter" if m["provider"] == "openrouter" else f"local endpoint {m['base_url']}"
+        tier = f", {m['tier']} tier" if m.get("tier") else ", pinned model"
+        via = cred.get("model_credential")
+        st.write(f"{where}{tier}. Calls walk: " + " → ".join(f"`{x}`" for x in m["attempts"])
+                 + (f". Credential: *{via['name']}* ({via['scope']} scope)." if via else "."))
+        st.caption("Every call goes through Lyst's gateway: pooled admission, adaptive limits, retries with fallback to "
+                   "the next model, and per-workload routing, as in Acumane. Models see definitions and computed findings, "
+                   "never dataset rows, and text is redacted before it leaves.")
+        if not s.get("model_ready") and admin:
+            st.info("This workspace is not allowed to use an external provider yet. Turn it on below.", icon=":material/toggle_off:")
+    elif s.get("provider") == "openrouter":
+        st.write("No model credential is connected yet. Lyst plans with rules and writes answers from templates; every number "
+                 "comes from SQL either way.")
+        quick_scope = ("installation", None) if cred.get("installation_admin") else \
+            (("workspace", ws) if owner and (cred.get("policy") or {}).get("workspace_override") else None)
+        if quick_scope:
+            # the common case needs one field: paste the key, Lyst tests it with OpenRouter and seals it
+            with st.form("connect-openrouter", clear_on_submit=True, border=True):
+                st.markdown("**Connect OpenRouter**")
+                q = st.columns([4, 1], vertical_alignment="bottom")
+                key = q[0].text_input("API key", type="password", autocomplete="off", placeholder="sk-or-…",
+                                      help="Checked with OpenRouter before it is saved, sealed, and never shown again.")
+                if q[1].form_submit_button("Connect", type="primary", icon=":material/key:") and key:
+                    try:
+                        out = api.post("/v1/credentials", {"provider": "openrouter", "name": "OpenRouter", "secret": key,
+                                                           "scope_kind": quick_scope[0], "scope_id": quick_scope[1]})
+                        if admin and not s["workspace"]["allow_external_llm"]:  # the workspace that connected it may use it at once
+                            api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": True})
+                        st.success(f"Connected. OpenRouter reports {out['test'].get('label') or 'the key'} is valid; the model is available now.")
+                        st.rerun()
+                    except APIError as e:
+                        _reauth(e)
+                st.caption("Shared by every workspace." if quick_scope[0] == "installation" else "Used by this workspace only.")
+        elif owner:
+            st.info("An installation administrator connects the OpenRouter key in Settings; workspace-level keys are not allowed by "
+                    "the installation policy.", icon=":material/key:")
+    else:
+        st.write("No model configured. Set LYST_LLM_BASE_URL and LYST_LLM_MODEL for a local OpenAI-compatible model, or use OpenRouter.")
+    opts = None
+    if m and m.get("provider") == "openrouter":
         try:
-            api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": allow, "autonomy": mode})
-            st.rerun()
+            opts = api.get(f"/v1/workspaces/{ws}/model-options")
         except APIError as e:
-            st.error(str(e))
+            st.caption(str(e))
+    if opts and opts.get("selection"):
+        sel, b, cat = opts["selection"], opts["basis"], opts["catalog"]
+        st.markdown("**Model level**")
+        fetched = kit.when(cat.get("lastRefreshedAt"))
+        src = (f"OpenRouter's live catalog, updated {fetched}" if cat.get("source") == "openrouter"
+               else f"the snapshot shipped with Lyst ({fetched}); it is replaced by OpenRouter's live catalog on the next refresh")
+        basis_txt = (f"this workspace's average call over 30 days ({b['input_tokens']:,} tokens in, {b['output_tokens']:,} out)"
+                     if b["observed"] else "a typical call of 800 tokens in and 400 out")
+        st.caption(md(f"Prices are OpenRouter's published per-token prices, from {src}. Estimates use {basis_txt}; "
+                      "the cost OpenRouter reports for each call is what Model usage records."))
+        cols = st.columns(3)
+        for col, t in zip(cols, opts["tiers"], strict=True):
+            with col.container(border=True):
+                head = st.columns([3, 2], vertical_alignment="center")
+                head[0].markdown(f"**{t['label']}**")
+                if sel["mode"] == "auto" and sel["tier"] == t["id"]:
+                    kit.chip("In use", "ok", head[1])
+                elif not t["allowed"]:
+                    kit.chip("Not allowed", "off", head[1])
+                st.caption(t["purpose"])
+                if t["primary"]:
+                    st.metric("Per call", usd(t["per_call_usd"]), help="On the tier's first model, with the token counts above.")
+                    lo, hi = t["range_usd"]
+                    st.caption(md(f"{usd(t['per_call_usd'], per=1000)} per 1,000 calls · {usd(lo)} to {usd(hi)} across the tier"
+                                  + (f" · about {usd(t['primary']['per_question_usd'])} per question" if t["primary"].get("per_question_usd") else "")))
+                    st.markdown(md(f"{t['primary']['modelLabel']} first, then {len(t['models']) - 1} fallbacks"))
+                    st.caption(md(per_m(t["primary"])))
+        if sel["mode"] == "pinned":
+            st.info(md(f"Pinned to **{sel['model_label'] or sel['model']}** (used alone, about {usd(sel['per_call_usd'])} per call)."),
+                    icon=":material/push_pin:")
+        where = {"workspace": "chosen for this workspace", "installation": "the installation default",
+                 "default": "Lyst's default"}[sel["source"]]
+        st.caption(md(f"Now: {where}. Calls walk {' → '.join(f'`{x}`' for x in sel['attempts'][:6])}"
+                      + (" …" if len(sel["attempts"]) > 6 else "")
+                      + (f". This installation allows tiers up to {sel['ceiling']}." if sel["ceiling"] != "frontier" else ".")))
+        if admin:
+            with st.form("model-level", border=True):
+                ws_row = s["workspace"]
+                labels = {"": "Follow the installation default"} | {t["id"]: f"{t['label']} · about {usd(t['per_call_usd'])} per call"
+                                                                    for t in opts["tiers"] if t["allowed"]}
+                cur_tier = ws_row.get("llm_tier") or ""
+                f = st.columns(2)
+                tier = f[0].selectbox("Level for this workspace", list(labels), format_func=labels.get,
+                                      index=list(labels).index(cur_tier) if cur_tier in labels else 0)
+                allowed = [r for r in opts["models"] if r["allowed"]]
+                by_id = {r["modelId"]: r for r in allowed}
+                choices = ["auto"] + [r["modelId"] for r in allowed]
+                cur_model = ws_row.get("llm_model") or "auto"
+                if cur_model not in choices:
+                    choices.append(cur_model)
+
+                def model_label(mid: str) -> str:
+                    if mid == "auto":
+                        return "Auto: the tier's best-priced model, with fallbacks (recommended)"
+                    r = by_id.get(mid)
+                    if not r:
+                        return mid
+                    tier_tag = f" · {r['tier']}" if r.get("tier") else ""
+                    return f"{r['vendorLabel']} · {r['modelLabel']}{tier_tag} · {price(r['input_per_m'])}/{price(r['output_per_m'])} per 1M · ≈{usd(r['per_call_usd'])}/call"
+
+                model = f[1].selectbox("Model", choices, index=choices.index(cur_model), format_func=model_label,
+                                       help="Auto walks the level's models cheapest first and falls back on errors, as in Acumane. "
+                                            "A specific model is used alone. Models above this installation's highest allowed "
+                                            "level are not listed.")
+                if st.form_submit_button("Save model choice", icon=":material/save:"):
+                    try:
+                        api.patch(f"/v1/workspaces/{ws}/settings", {"llm_tier": tier, "llm_model": model})
+                        st.toast("Model choice saved; the next call uses it.", icon=":material/check:")
+                        st.rerun()
+                    except APIError as e:
+                        st.error(str(e))
+        with st.expander("Every model in each level"):
+            rows = [{"Level": t["label"], "Order": i + 1, "Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"],
+                     "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Cached $/1M": r["cached_per_m"],
+                     "Per call": r["per_call_usd"], "Per 1,000 calls": r["per_call_usd"] * 1000, "Context": r["context"]}
+                    for t in opts["tiers"] for i, r in enumerate(t["models"])]
+            money = {k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Cached $/1M", "Per 1,000 calls")}
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                         column_config=money | {"Per call": st.column_config.NumberColumn("Per call", format="$%.6f"),
+                                                "Context": st.column_config.NumberColumn("Context", format="%d")})
+        with st.expander(f"All {cat.get('selectable') or len(opts['models'])} OpenRouter models Lyst can use"):
+            st.caption("Text models that support tool calls, with a published price and at least 8,000 tokens of context. "
+                       "Newest first within each provider.")
+            allm = pd.DataFrame([{"Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"], "Level": r["tier"] or "",
+                                  "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Per 1,000 calls": r["per_call_usd"] * 1000,
+                                  "Context": r["context"], "Reasoning": bool(r["reasoning"]), "Allowed here": r["allowed"]}
+                                 for r in opts["models"]])
+            st.dataframe(allm, hide_index=True, width="stretch",
+                         column_config={k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Per 1,000 calls")})
+
+    if not admin:
+        return
+    allow = st.toggle("Allow this workspace to use external model providers", value=bool(s["workspace"]["allow_external_llm"]))
+    if allow != bool(s["workspace"]["allow_external_llm"]):
+        kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": allow}), "Saved")
+        st.rerun()
     usage = api.get(f"/v1/workspaces/{ws}/model-usage")
     if usage:
         st.markdown("**Model usage**")
@@ -310,12 +303,15 @@ if admin:
                                     "p95_ms": st.column_config.NumberColumn("p95 latency (ms)", format="%d")})
     if s.get("gateway") and s["gateway"].get("configured"):
         g = s["gateway"]
-        st.caption(f"Gateway now: {g['inflight']} calls in flight, waiting {g['waiting']}, refusals {g['refusals'] or 'none'}")
+        waiting = g.get("waiting") or {}
+        queued = sum(waiting.values()) if isinstance(waiting, dict) else int(waiting or 0)
+        st.caption(f"Right now: {g['inflight']} model call{'s' * (g['inflight'] != 1)} in flight, {queued} waiting"
+                   + (f" ({', '.join(f'{v} {k}' for k, v in waiting.items() if v)})" if isinstance(waiting, dict) and queued else "")
+                   + (f"; refused: {g['refusals']}" if g.get("refusals") else "") + ".")
 
-# ---------------------------------------------------------------------- secrets & connections
 
-if owner:
-    st.markdown("#### Secrets & Connections")
+def connections() -> None:
+    """Users manage connections; Lyst manages the secrets."""
     st.caption("You manage connections; Lyst manages the secrets. Values are entered once, tested, sealed with AES-256-GCM under "
                "a master key kept outside the database, and never displayed or returned again. Every connect, test, replace, "
                "revoke and use is in a tamper-evident history.")
@@ -334,11 +330,12 @@ if owner:
                 inst = None
                 _reauth(e)
             if inst:
-                k = st.columns(4)
-                k[0].metric("Secret backend", inst["backend"]["backend"], "healthy" if inst["backend"]["ok"] else "down")
-                k[1].metric("Master key from", inst["master_key_source"] or "none")
-                k[2].metric("Active credentials", inst["active_credentials"])
-                k[3].metric("Audit chain", "intact" if inst["audit"]["ok"] else f"broken at {inst['audit'].get('broken_at')}")
+                healthy = inst["backend"]["ok"] and inst["audit"]["ok"]
+                (st.caption if healthy else st.warning)(
+                    f"Secrets in the {inst['backend']['backend']} backend ({'healthy' if inst['backend']['ok'] else 'down'}) · "
+                    f"master key from {inst['master_key_source'] or 'nowhere'} · {inst['active_credentials']} active "
+                    f"credential{'s' * (inst['active_credentials'] != 1)} · audit chain "
+                    + ("intact" if inst["audit"]["ok"] else f"broken at {inst['audit'].get('broken_at')}"))
                 credential_panel("installation", None, key="inst", title="Installation credentials",
                                  intro="Shared by every workspace: the OpenRouter key (Acumane's rails) and the sign-in provider. "
                                        "An installation credential is authoritative; the policy below says where it may be overridden.")
@@ -391,34 +388,72 @@ if owner:
             credential_panel("user", None, key="me", title="Your personal credentials",
                              intro="Used only for your own work, never for anyone else's.")
 
-# ---------------------------------------------------------------------------- notifications
+AUTONOMY = {"assist": "Lyst proposes; you run each step.", "delegate": "Lyst runs analyses and asks before it changes anything.",
+            "autonomous": "Lyst runs and acts within this workspace's policies.", "governed": "Every action waits for an approval."}
 
-if admin:
-    st.markdown("#### Notifications")
-    hook = st.text_input("Webhook URL for monitor findings (https, JSON POST; empty to disable)",
-                         value=s["workspace"].get("webhook_url") or "")
-    if hook != (s["workspace"].get("webhook_url") or "") and st.button("Save webhook"):
-        try:
-            api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook})
+
+def workspace_section() -> None:
+    """How this workspace is governed: autonomy, notifications, members and the audit trail."""
+    if admin:
+        kit.label("Autonomy")
+        cur = s["workspace"]["autonomy"]
+        mode = st.segmented_control("Autonomy", list(AUTONOMY), default=cur, format_func=str.capitalize,
+                                    label_visibility="collapsed", key="autonomy")
+        st.caption(AUTONOMY.get(mode or cur, ""))
+        if mode and mode != cur:
+            kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
             st.rerun()
-        except APIError as e:
-            st.error(str(e))
-    st.markdown("#### Members")
-    members = api.get(f"/v1/workspaces/{ws}/members")
-    st.dataframe(pd.DataFrame(members)[["email", "name", "role"]], hide_index=True, width="stretch")
-    with st.form("member"):
-        c2 = st.columns([3, 1, 1], vertical_alignment="bottom")
-        email = c2[0].text_input("Email (the person must have signed in once)")
-        role = c2[1].selectbox("Role", ["viewer", "editor", "admin", "owner"])
-        if c2[2].form_submit_button("Add") and email:
-            try:
-                api.post(f"/v1/workspaces/{ws}/members", {"email": email.strip().lower(), "role": role})
+        kit.label("Notifications")
+        with st.form("webhook", border=False):
+            w = st.columns([5, 1.2], vertical_alignment="bottom")
+            hook = w[0].text_input("Webhook for monitor findings", value=s["workspace"].get("webhook_url") or "",
+                                   placeholder="https://… (empty turns it off)",
+                                   help="Lyst sends each new monitor finding as a JSON POST to this https address.")
+            if w[1].form_submit_button("Save", width="stretch") and hook != (s["workspace"].get("webhook_url") or ""):
+                kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
                 st.rerun()
-            except APIError as e:
-                st.error(str(e))
+    try:
+        people = api.get(f"/v1/workspaces/{ws}/members")
+    except APIError as e:
+        st.caption(str(e))
+        people = []
+    names = {p["user_id"]: p["email"] for p in people}
+    kit.label(f"Members · {len(people)}")
+    for i, p in enumerate(people):
+        acts = [("Remove", "rm")] if admin and p["role"] != "owner" else []
+        if kit.row(p.get("name") or p["email"], p["email"] if p.get("name") else "",
+                   status=(p["role"].capitalize(), "ok" if p["role"] in ("owner", "admin") else "info"), actions=acts,
+                   key=f"mem{i}", divider=i < len(people) - 1) == "rm":
+            kit.guarded(lambda u=p["user_id"]: api.delete(f"/v1/workspaces/{ws}/members/{u}"), f"Removed {p['email']}")
+            st.rerun()
+    if admin:
+        st.write("")
+        with st.form("member", clear_on_submit=True, border=False):
+            c2 = st.columns([4, 1.4, 1.2], vertical_alignment="bottom")
+            email = c2[0].text_input("Add someone", placeholder="name@company.com",
+                                     help="The person must have signed in to Lyst once.")
+            role = c2[1].selectbox("Role", ["viewer", "editor", "admin", "owner"], format_func=str.capitalize)
+            if c2[2].form_submit_button("Add", width="stretch") and email.strip():
+                done = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/members",
+                                                    {"email": email.strip().lower(), "role": role}), f"Added {email.strip()}")
+                if done is not None:
+                    st.rerun()
+    kit.label("Audit trail")
+    try:
+        log = api.get(f"/v1/workspaces/{ws}/audit")
+    except APIError as e:
+        st.caption(str(e))
+        return
+    if not log:
+        st.caption("Nothing recorded yet.")
+        return
+    st.caption("Every change, query and decision in this workspace, newest first. The trail is hash-chained, so an edit "
+               "to a past entry is detected.")
+    df = pd.DataFrame([{"When": kit.when(r["occurred_at"]), "Who": names.get(r["actor"], r["actor"]),
+                        "Action": r["action"], "On": r["target"] or "", "Outcome": r["outcome"],
+                        "Detail": "" if r["detail"] in (None, "{}", {}) else str(r["detail"])} for r in log])
+    st.dataframe(df, hide_index=True, width="stretch", height=min(38 + 35 * len(df), 420))
 
-st.markdown("#### Audit log")
-try:
-    st.dataframe(pd.DataFrame(api.get(f"/v1/workspaces/{ws}/audit")), hide_index=True, width="stretch")
-except APIError as e:
-    st.caption(str(e))
+
+SECTIONS = ["Models"] + (["Connections"] if owner else []) + ["Workspace"]
+{"Models": models, "Connections": connections, "Workspace": workspace_section}[kit.sections(SECTIONS, key="view")]()

@@ -596,3 +596,11 @@ CONTROL.append((
     ALTER TABLE llm_calls ADD COLUMN tier VARCHAR
     """,
 ))
+
+CONTROL.append((
+    11,
+    """
+    ALTER TABLE tasks ADD COLUMN idempotency_key VARCHAR;
+    CREATE INDEX tasks_idempotency ON tasks (workspace_id, created_by, idempotency_key)
+    """,
+))
