@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Governed metrics and glossary.
 
 A metric is defined once, versioned, and compiled to SQL by code, never written freshly by a

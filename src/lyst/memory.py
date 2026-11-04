@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Hierarchical memory with provenance, trust and revocation.
 
 Layers: working (lives in a task's checkpoints), task, user, team, organization, procedural,

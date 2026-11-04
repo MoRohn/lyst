@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 # Vendored from ai-analytics stkit (analytics/stats.py) at commit d86ee66, same author (Rohn Springfield).
 # Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
 """Is the change real? Small, explicit significance tests for KPI deltas.

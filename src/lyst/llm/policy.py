@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """What the gateway knows before a model call starts: the workload (routing objective and default
 pool), the admission limits, and the tier's model list. Ported from Acumane's
 ``packages/agent-core/src/ai-gateway/policy.ts`` and ``packages/config/src/tier-rates.ts``; the

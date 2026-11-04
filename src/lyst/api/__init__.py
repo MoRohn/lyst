@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Versioned HTTP API. The Streamlit UI is one client of it; nothing in the UI talks to DuckDB."""
 
 

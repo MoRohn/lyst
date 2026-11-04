@@ -65,4 +65,6 @@ automation and load tests. The [roadmap](docs/ROADMAP.md) orders them.
 
 ## License
 
-Apache-2.0. Vendored analytics in `src/lyst/analytics/` come from the same author's ai-analytics project.
+[GNU AGPL-3.0-only](LICENSE). If you run a modified Lyst as a network service, you must offer its users the
+modified source (AGPL section 13). Dependencies are all AGPL-compatible ([SBOM](docs/SBOM.md)). Vendored
+analytics in `src/lyst/analytics/` come from the same author's ai-analytics project and are relicensed with Lyst.

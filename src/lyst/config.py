@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Configuration. Everything comes from environment variables with safe local defaults.
 
 LYST_HOME            where databases, keys and artifacts live (default ./var)

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Read-only SQL guard. Ports the idea of Acumane's ``packages/arch/src/sql-guard.ts``
 (parse with a real parser, walk the whole tree, allow a narrow shape) to SQLGlot and DuckDB.
 

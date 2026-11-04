@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Turn period phrases into half-open date ranges, anchored on the data, not the wall clock.
 
 "Last quarter" means the last complete quarter in the data. The anchor is stated in the

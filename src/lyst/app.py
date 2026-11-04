@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Composition root: builds every service once, for the API process or a test."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """The model gateway: every model call Lyst makes goes through ``Gateway.complete``.
 
 A Python port of Acumane's AcuRout (``docs/ACUROUT.md``, ``packages/agent-core/src/ai-gateway``):

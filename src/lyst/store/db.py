@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """One DuckDB file, owned by this process, with serialized writes and parallel reads.
 
 DuckDB allows one read-write process per file, and inside that process many cursors.

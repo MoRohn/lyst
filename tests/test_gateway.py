@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """The model gateway against a stub OpenRouter: routing fields, retries, fallbacks, 402 handling,
 admission and adaptive limits (Acumane's AcuRout rules, ported)."""
 

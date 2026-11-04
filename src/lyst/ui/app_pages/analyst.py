@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 import streamlit as st
 
 from lyst.ui.client import APIError, client, workspace

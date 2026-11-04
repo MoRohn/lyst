@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Durable task runtime: leases, checkpoints, resume, approvals, budgets and schedules.
 
 A task is a list of steps. Each step's output is written to ``task_steps`` in the same

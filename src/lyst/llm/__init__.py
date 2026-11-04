@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Inference on Acumane's rails: OpenRouter through the gateway, or a local OpenAI-compatible model.
 
 OpenRouter is the main provider when ``LYST_OPENROUTER_API_KEY`` is set: a call walks the tier's

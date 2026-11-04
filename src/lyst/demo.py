@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """A seeded demo workspace with a planted story, used by the UI's first run and the tests.
 
 Northwind Industries' monthly P&L, Jan 2024 to Sep 2026, by region and product line.

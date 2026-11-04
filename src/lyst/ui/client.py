@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """The UI's only route to Lyst: the HTTP API. No DuckDB access from Streamlit."""
 
 from __future__ import annotations

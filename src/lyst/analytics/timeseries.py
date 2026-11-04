@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 # Vendored from ai-analytics stkit (analytics/timeseries.py) at commit d86ee66, same author (Rohn Springfield).
 # Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
 """Time series: periods and comparisons, resampling, forecasts with honest error bars, and

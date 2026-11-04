@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Identity, access, audit and redaction. Every service call passes through ``Guard``.
 
 Roles follow Acumane's MembershipRole (OWNER, ADMIN, EDITOR, VIEWER). Permissions are

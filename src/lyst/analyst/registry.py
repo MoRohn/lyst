@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Capability registry. A capability is a typed, permission-scoped, testable unit of work.
 
 The analyst plans with capabilities, the runtime executes them as checkpointed steps, and

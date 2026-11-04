@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
 """Lyst's interface. Run with `lyst ui` (the API must be running: `lyst serve`)."""
 
 from __future__ import annotations
