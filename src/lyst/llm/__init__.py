@@ -166,6 +166,11 @@ class LLMClient:
         self._local.user_id = self._owner_of(task_id)
         if not self.allowed_for(workspace_id):
             raise LLMUnavailable("no model is allowed for this workspace")
+        if workspace_id and workspace_id != "platform":
+            from ..operations import model_budget_block  # noqa: PLC0415
+
+            if blocked := model_budget_block(self.stores.control, workspace_id):
+                raise LLMUnavailable(blocked)
         if self.settings.external:
             messages = [{**m, "content": redact(m["content"])} for m in messages]
         try:
