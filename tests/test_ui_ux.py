@@ -237,6 +237,9 @@ def test_the_discussion_names_the_assignee_not_their_id(seeded, ui):  # noqa: F8
 def test_suggestions_from_the_data_can_be_accepted_where_people_work(seeded, ui):  # noqa: F811
     lyst, owner = seeded  # the same instance the ui fixture serves
     lyst.onboarding.discover(owner, "northwind")
+def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    lyst.ingest.inspect(owner, "northwind", b"region,amount\nEMEA,1\nAPAC,2\n", filename="regions.csv")
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
@@ -248,3 +251,4 @@ def test_suggestions_from_the_data_can_be_accepted_where_people_work(seeded, ui)
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(m.label == "Industry" for m in at.multiselect)
+    assert "regions.csv" in _texts(at) and any(b.label == "Review" for b in at.button)

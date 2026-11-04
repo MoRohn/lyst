@@ -271,6 +271,7 @@ KINDS = {
 
 class ArtifactService:
     def __init__(self, stores: Stores, guard: Guard, home: Path, knowledge: Any = None) -> None:
+        self.before_build: list = []
         self.stores = stores
         self.guard = guard
         self.home = home
@@ -286,6 +287,8 @@ class ArtifactService:
         if kind not in KINDS:
             raise ValueError("kind must be one of " + ", ".join(KINDS))
         name, mime = KINDS[kind]
+        for check in self.before_build:  # governance.check_export: data policy may forbid files from this result
+            check(actor, ws, task["id"])
         data = {"xlsx": lambda: workbook(result, task), "md": lambda: briefing(result, task).encode(),
                 "pdf": lambda: pdf_briefing(result, task), "pptx": lambda: deck(result, task)}[kind]()
         folder = self.home / "artifacts" / ws / task["id"]

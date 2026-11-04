@@ -97,8 +97,9 @@ def _pct(a: float | None, b: float | None) -> float | None:
 def horizon_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     spec = _spec(ctx, args["metric"])
     grain, n = args.get("grain", "quarter"), int(args.get("periods", 6))
-    anchor = date.fromisoformat(ctx.outputs["contextualize"]["period"]["anchor"])
-    last = periods.last_complete(grain, anchor) if grain != "week" else None
+    period = ctx.outputs["contextualize"]["period"]
+    anchor = date.fromisoformat(period["anchor"])
+    last = periods.last_complete(grain, anchor, period.get("fiscal_start", 1)) if grain != "week" else None
     end = last.end
     start = pd.Timestamp(end) - pd.DateOffset(**{f"{grain}s": n}) if grain != "quarter" else \
         pd.Timestamp(end) - pd.DateOffset(months=3 * n)

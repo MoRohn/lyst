@@ -195,11 +195,13 @@ class KnowledgeService:
     # -- documents --------------------------------------------------------------------------
 
     def add_document(self, actor: Principal, ws: str, content: bytes, *, filename: str, title: str | None = None,
-                     classification: str = "internal", min_role: str = "viewer") -> dict[str, Any]:
+                     classification: str = "internal", min_role: str = "viewer",
+                     text: str | None = None) -> dict[str, Any]:
+        """``text``: already-extracted text (from lyst.ingest) used instead of reading ``content`` again."""
         self.guard.require(actor, ws, "data.ingest", filename)
         if min_role not in RANK:
             raise ValueError("unknown role")
-        text = extract_text(content, filename)
+        text = text if text is not None else extract_text(content, filename)
         passages = split_passages(text)
         if not passages:
             raise ValueError("no readable text in the document")
