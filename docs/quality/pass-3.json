@@ -1,0 +1,35 @@
+{
+  "pass": 3,
+  "date": "2026-11-04",
+  "base": "main@983a414",
+  "tests": {"suite": "pytest", "passed": 237, "failed": 0, "where": "local, Mac mini"},
+  "eval": {"passed": 19, "cases": 19},
+  "gates": {
+    "critical_security_unresolved": 0,
+    "critical_data_integrity_unresolved": 0,
+    "golden_eval": {"passed": 19, "cases": 19},
+    "cross_tenant_isolation": "pass (79 route/method pairs)",
+    "interrupted_task_recovery": "verified in fault-injection tests",
+    "secret_leakage": "no observed exposure (connector paths)",
+    "performance_regressions": "none; paced 100-user run: submit p95 31 ms, end-to-end p95 0.68 s",
+    "primary_ui_journeys": "Home, ask, close and reopen, verified answer, export control, Work list: pass in Playwright"
+  },
+  "findings": [
+    {"id": "P1", "severity": "medium", "status": "verified_fixed", "evidence": "scripts/load_test.py --users 100 --rounds 3 --ramp 30 --think 10"},
+    {"id": "N1", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_model_wording_with_spelled_out_scales_is_verified_not_dropped; live re-run pending a restart of the running engine"},
+    {"id": "J1", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_join_inflation.py"},
+    {"id": "M-R1", "severity": "medium", "status": "confirmed_open", "evidence": "live task step timings; owner: model-tier thread"},
+    {"id": "O1", "severity": "low", "status": "confirmed_open", "evidence": "model-usage endpoint shape"},
+    {"id": "U2", "severity": "low", "status": "confirmed_open", "evidence": "j2 screenshot; owner: product-excellence thread"},
+    {"id": "H1", "severity": "low", "status": "partially_resolved", "evidence": "design note"}
+  ],
+  "scenarios": {"1": "partial", "2": "partial", "3": "verified", "4": "partial", "5": "partial", "6": "verified",
+                "7": "verified", "8": "measured", "9": "verified", "10": "verified"},
+  "measurements": {
+    "submit_single_ms_p50": 6.1,
+    "load_100_paced": {"tasks": 300, "submit_ms_p95": 31.0, "e2e_s_p95": 0.68},
+    "load_100_burst": {"submit_ms_p95_range": [331, 444]},
+    "workflows": {"on": {"model_calls": 9, "queries": 142}, "off": {"model_calls": 12, "queries": 160}, "tasks": 12},
+    "live_model_first_call_s": [11.3, 14.3], "live_model_warm_call_s": [0.55, 0.73]
+  }
+}
