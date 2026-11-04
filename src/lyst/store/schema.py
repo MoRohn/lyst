@@ -942,3 +942,86 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Anticipation (migrations 50-59): prepared-work objects with their signals, scores, preparation, verification, validity
+# and outcome; an append-only event trail per object; the workspace's autonomy level and budgets; per-day usage; and each
+# person's attention preferences.
+WORKSPACE.append((
+    50,
+    """
+    CREATE TABLE anticipations (
+        id VARCHAR PRIMARY KEY,
+        kind VARCHAR NOT NULL,
+        objective VARCHAR NOT NULL,
+        subject_kind VARCHAR NOT NULL,
+        subject_id VARCHAR NOT NULL,
+        audience JSON NOT NULL,
+        signals JSON NOT NULL,
+        reasons JSON NOT NULL,
+        scores JSON NOT NULL,
+        score DOUBLE NOT NULL,
+        level_required INTEGER NOT NULL,
+        status VARCHAR NOT NULL,
+        verdict VARCHAR,
+        prepared JSON,
+        verification JSON,
+        actions JSON NOT NULL,
+        depends JSON NOT NULL,
+        resources JSON NOT NULL,
+        needed_at TIMESTAMPTZ,
+        valid_until TIMESTAMPTZ,
+        revision INTEGER NOT NULL DEFAULT 1,
+        dedupe_key VARCHAR UNIQUE NOT NULL,
+        finding_id VARCHAR,
+        task_id VARCHAR,
+        snoozed_until TIMESTAMPTZ,
+        outcome VARCHAR,
+        decided_by VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        prepared_at TIMESTAMPTZ,
+        surfaced_at TIMESTAMPTZ,
+        decided_at TIMESTAMPTZ
+    );
+    CREATE INDEX anticipations_by_status ON anticipations (status, kind);
+    CREATE SEQUENCE anticipation_event_seq;
+    CREATE TABLE anticipation_events (
+        id BIGINT PRIMARY KEY,
+        anticipation_id VARCHAR NOT NULL,
+        event VARCHAR NOT NULL,
+        actor VARCHAR NOT NULL,
+        detail JSON NOT NULL,
+        occurred_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX anticipation_events_by_object ON anticipation_events (anticipation_id);
+    CREATE TABLE anticipation_settings (
+        id VARCHAR PRIMARY KEY,
+        level INTEGER NOT NULL,
+        daily_prepare_limit INTEGER NOT NULL,
+        daily_investigation_limit INTEGER NOT NULL,
+        daily_compute_ms BIGINT NOT NULL,
+        daily_surface_limit INTEGER NOT NULL,
+        updated_by VARCHAR,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE anticipation_usage (
+        day DATE NOT NULL,
+        operation VARCHAR NOT NULL,
+        count INTEGER NOT NULL,
+        compute_ms BIGINT NOT NULL,
+        refused INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, operation)
+    );
+    CREATE TABLE attention_prefs (
+        user_id VARCHAR PRIMARY KEY,
+        opted_out BOOLEAN NOT NULL DEFAULT false,
+        min_score DOUBLE,
+        max_per_day INTEGER,
+        quiet_start VARCHAR,
+        quiet_end VARCHAR,
+        timezone VARCHAR,
+        muted_kinds JSON NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))

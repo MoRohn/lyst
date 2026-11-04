@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from . import observability as obs
 from .analyst.engine import REGISTRY, Services
+from .anticipate import AnticipationService
 from .assets import AssetService
 from .catalog import CatalogService
 from .collab import CollaborationService
@@ -59,6 +60,7 @@ class Lyst:
     onboarding: OnboardingService | None = None
     transforms: TransformService | None = None
     ingest: IngestService | None = None
+    anticipation: AnticipationService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -114,8 +116,13 @@ class Lyst:
         onboarding = OnboardingService(stores, guard, catalog=catalog, semantic=semantic, contracts=contracts, data=data,
                                        knowledge=knowledge, runtime=runtime)
         ingest = IngestService(stores, guard, data, knowledge)
+        anticipation = AnticipationService(stores, guard, services=services, runtime=runtime, semantic=semantic, connections=connections)
+        data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
+        semantic.after_change.append(anticipation.after_definition)
+        runtime.periodic.append(anticipation.tick_all)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest)
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest,
+                   anticipation=anticipation)
 
     def close(self) -> None:
         self.runtime.stop()
