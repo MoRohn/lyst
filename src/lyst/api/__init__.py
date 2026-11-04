@@ -1494,6 +1494,49 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
             "quantile_cont(latency_ms, 0.95) AS p95_ms FROM llm_calls WHERE workspace_id = ? GROUP BY ALL ORDER BY calls DESC",
             [ws])
 
+    @app.get("/v1/workspaces/{ws}/model-registry")
+    def model_registry(request: Request, ws: str, user: User):
+        """What each model offers (context, prices, reasoning settings, tier) beside how it has measured up here (success
+        rate, latency, tokens and cost per workload over 7 days), and the workspace's inference policy."""
+        lyst = L(request)
+        lyst.guard.require(user, ws, "audit.read")
+        from ..llm import catalog as model_catalog  # noqa: PLC0415
+        from ..llm.scorecard import scorecard  # noqa: PLC0415
+
+        measured: dict[str, list] = {}
+        for row in scorecard(lyst.stores.control, workspace_id=ws):
+            measured.setdefault(row["model"], []).append({k: v for k, v in row.items() if k != "model"})
+        settings = lyst.settings.llm
+        models = []
+        if settings.provider == "openrouter":
+            release = model_catalog.active()
+            tiers_of: dict[str, list[str]] = {}
+            for tier, items in release["tiers"].items():
+                for m in items:
+                    tiers_of.setdefault(m["modelId"], []).append(tier)
+            seen = set()
+            for _tier, items in release["tiers"].items():
+                for m in items:
+                    if m["modelId"] in seen:
+                        continue
+                    seen.add(m["modelId"])
+                    models.append({"model": m["modelId"], "label": m.get("modelLabel"), "vendor": m.get("vendor"),
+                                   "tiers": tiers_of[m["modelId"]], "context": m.get("context"),
+                                   "usd_per_million_input": round(m.get("inputUsdPerToken", 0) * 1e6, 4),
+                                   "usd_per_million_output": round(m.get("outputUsdPerToken", 0) * 1e6, 4),
+                                   "reasoning": m.get("reasoningInfo"), "local": False,
+                                   "measured": measured.pop(m["modelId"], [])})
+        elif settings.model:
+            models.append({"model": settings.model, "label": settings.model, "vendor": None, "tiers": [], "context": None,
+                           "local": not settings.external, "measured": measured.pop(settings.model, [])})
+        for mid, rows in measured.items():  # models used here that the current catalog no longer lists
+            models.append({"model": mid, "label": mid, "tiers": [], "listed": False, "measured": rows})
+        ws_row = lyst.stores.control.query("SELECT allow_external_llm, llm_tier, llm_model FROM workspaces WHERE id = ?", [ws])
+        return {"provider": settings.provider or ("local" if settings.model else None), "external": settings.external,
+                "policy": ws_row[0] if ws_row else None, "routing": "tier order; models failing a workload recently "
+                "move behind healthy ones (pinned models are never reordered)", "models": models}
+
+
     from .adapt import register as register_adapt  # noqa: PLC0415
 
     register_adapt(app, L, User)

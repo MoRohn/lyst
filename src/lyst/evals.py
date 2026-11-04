@@ -33,6 +33,7 @@ class EvalCase:
     max_seconds: float = 10.0
     human_baseline_minutes: float | None = None   # a declared estimate of the manual effort, not a measurement
     supervision_minutes: float = 2.0               # time a person spends reading and checking Lyst's answer
+    category: str = "financial"                    # financial, statistical, forecasting, data_quality, adversarial, scenario
 
 
 @dataclass
@@ -99,10 +100,12 @@ def run(lyst, actor, workspace_id: str, cases: list[EvalCase], *, label: str = "
         task = lyst.runtime.get(actor, tid)
         outputs = _outputs(lyst, tid)
         checks = score(case, task, seconds, outputs)
+        usage = _usage(lyst, workspace_id, tid)
         gain = None
         if case.human_baseline_minutes:
             gain = case.human_baseline_minutes / (seconds / 60 + case.supervision_minutes)
-        rows.append({"case": case.id, "question": case.question, "task_id": tid, "seconds": round(seconds, 3),
+        rows.append({"case": case.id, "category": case.category, **usage,
+                     "question": case.question, "task_id": tid, "seconds": round(seconds, 3),
                      "passed": all(c.passed for c in checks), "checks": [asdict(c) for c in checks],
                      "human_baseline_minutes": case.human_baseline_minutes, "supervision_minutes": case.supervision_minutes,
                      "productivity_gain": round(gain, 1) if gain else None})
@@ -115,13 +118,90 @@ def run(lyst, actor, workspace_id: str, cases: list[EvalCase], *, label: str = "
                                         "passing cases only. Baselines are the bank author's estimates, not measurements."},
                "pass_rate": passed / len(rows) if rows else 0.0,
                "p95_seconds": float(pd.Series([r["seconds"] for r in rows]).quantile(0.95)) if rows else 0.0,
-               "model": (lyst.llm.info().name if lyst.llm.info() else None), "results": rows}
+               "model": (lyst.llm.info().name if lyst.llm.info() else None),
+               "dimensions": dimensions(rows), "categories": categories(rows), "results": rows}
     lyst.stores.control.execute(
         "INSERT INTO eval_runs (id, workspace_id, label, model, cases, passed, p95_seconds, results, created_by) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [run_id, workspace_id, label, summary["model"], len(rows), passed, summary["p95_seconds"],
          json.dumps(rows, default=str), actor.user_id])
     return summary
+
+
+def _usage(lyst, workspace_id: str, task_id: str) -> dict[str, Any]:
+    """Resources one case used: steps, queries, model calls and tokens."""
+    steps = lyst.stores.control.scalar("SELECT count(*) FROM task_steps WHERE task_id = ?", [task_id]) or 0
+    queries = lyst.stores.workspace(workspace_id).scalar("SELECT count(*) FROM query_history WHERE task_id = ?", [task_id]) or 0
+    calls = lyst.stores.control.query("SELECT count(*) AS n, coalesce(sum(coalesce(input_tokens, 0) + "
+                                      "coalesce(output_tokens, 0)), 0) AS tokens FROM llm_calls WHERE task_id = ?", [task_id])[0]
+    return {"steps": int(steps), "queries": int(queries), "model_calls": int(calls["n"]), "tokens": int(calls["tokens"])}
+
+
+# Which checks measure which quality dimension (prompt section 5.1)
+DIMENSION_OF = {"finished": "completion", "status": "completion", "metric": "correctness", "value": "correctness",
+                "driver": "correctness", "validation": "evidence", "latency": "efficiency"}
+
+
+def dimensions(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    out: dict[str, list[bool]] = {}
+    for r in rows:
+        for c in r["checks"]:
+            dim = DIMENSION_OF.get(c["name"], "correctness" if c["name"].startswith("contains:") else "other")
+            out.setdefault(dim, []).append(c["passed"])
+    return {k: {"checks": len(v), "passed": sum(v), "rate": round(sum(v) / len(v), 4)} for k, v in sorted(out.items())}
+
+
+def categories(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    out: dict[str, list[bool]] = {}
+    for r in rows:
+        out.setdefault(r.get("category", "financial"), []).append(r["passed"])
+    return {k: {"cases": len(v), "passed": sum(v)} for k, v in sorted(out.items())}
+
+
+# ------------------------------------------------------------------------------ baselines and regressions
+
+
+def baseline_of(summary: dict[str, Any]) -> dict[str, Any]:
+    """What a later run is compared with: per case, the checks that passed, time and resources."""
+    return {"format": 1, "label": summary.get("label"), "model": summary.get("model"),
+            "cases": {r["case"]: {"passed": r["passed"], "seconds": r["seconds"], "steps": r["steps"],
+                                  "queries": r["queries"], "model_calls": r["model_calls"], "tokens": r["tokens"],
+                                  "checks": {c["name"]: c["passed"] for c in r["checks"] if c["name"] != "latency"}}
+                      for r in summary["results"]}}
+
+
+def compare(summary: dict[str, Any], baseline: dict[str, Any], *, latency_factor: float = 3.0, latency_floor: float = 1.0,
+            resource_factor: float = 1.5, resource_floor: int = 2) -> dict[str, Any]:
+    """Regressions of a run against a baseline. Accuracy and completion: a check or case that passed and now fails.
+    Latency: slower than max(baseline x factor, baseline + floor seconds), so machine noise is not a regression.
+    Resources: steps, queries, model calls or tokens above baseline x factor and baseline + floor."""
+    regressions, improvements = [], []
+    base_cases = baseline.get("cases", {})
+    for r in summary["results"]:
+        b = base_cases.get(r["case"])
+        if b is None:
+            continue
+        now = {c["name"]: c["passed"] for c in r["checks"]}
+        details = {c["name"]: c["detail"] for c in r["checks"]}
+        for name, was in b["checks"].items():
+            if was and now.get(name) is not True:
+                regressions.append({"case": r["case"], "kind": "completion" if DIMENSION_OF.get(name) == "completion" else "accuracy",
+                                    "check": name, "detail": details.get(name, "check no longer produced")})
+            elif not was and now.get(name):
+                improvements.append({"case": r["case"], "check": name})
+        limit = max(b["seconds"] * latency_factor, b["seconds"] + latency_floor)
+        if r["seconds"] > limit:
+            regressions.append({"case": r["case"], "kind": "latency", "check": "seconds",
+                                "detail": f"{r['seconds']:.2f}s, baseline {b['seconds']:.2f}s (limit {limit:.2f}s)"})
+        for res in ("steps", "queries", "model_calls", "tokens"):
+            was, cur = b.get(res, 0), r.get(res, 0)
+            if cur > was * resource_factor and cur > was + resource_floor:
+                regressions.append({"case": r["case"], "kind": "resources", "check": res,
+                                    "detail": f"{cur} {res}, baseline {was}"})
+    ran = {r["case"] for r in summary["results"]}
+    missing = sorted(set(base_cases) - ran)
+    return {"regressions": regressions, "improvements": improvements, "missing": missing,
+            "new": sorted(ran - set(base_cases)), "ok": not regressions and not missing}
 
 
 def _outputs(lyst, task_id: str) -> dict[str, Any]:
@@ -153,7 +233,11 @@ def demo_bank() -> list[EvalCase]:
     q1_2026 = between("2026-01-01", "2026-04-01")
     y2025 = between("2025-01-01", "2026-01-01")
     margin = lambda d: d.operating_income.sum() / d.revenue.sum()  # noqa: E731
-    return [
+    # the what-if case's expected value, computed here from raw rows (labor share 0.55 is the model's stated assumption)
+    rev, cogs, opex = q2.revenue.sum(), q2.cogs.sum(), q2.opex.sum()
+    rev2 = rev * 1.03
+    whatif_margin = (rev2 - rev2 * cogs / rev - opex * 0.55 * 1.06 - opex * 0.45) / rev2
+    cases = [
         EvalCase("margin-why", "Why did operating margin decline last quarter?", metric="operating_margin",
                  value=margin(q3), contains=["Q3 2026", "EMEA"], driver="EMEA", human_baseline_minutes=90),
         EvalCase("margin-synonym", "Why did op margin drop last quarter?", metric="operating_margin",
@@ -193,5 +277,16 @@ def demo_bank() -> list[EvalCase]:
                  value=float(q3[q3.region == "EMEA"].revenue.sum())),
         EvalCase("prior-quarter-value", "What was operating margin in Q2 2026?", metric="operating_margin",
                  value=margin(q2), contains=["Q2 2026"]),
+        EvalCase("what-if-margin", "What happens to operating margin if labor costs increase 6% while revenue grows 3%?",
+                 value=whatif_margin, contains=["hypothetical", "labor costs +6%", "revenue +3%"],
+                 human_baseline_minutes=45, category="scenario"),
+        EvalCase("what-if-unknown-driver", "What would happen to operating income if marketing spend rises 10% and sales "
+                 "fall by 2 percent?", status="unverified", contains=["Not modelled", "marketing spend", "couldn't apply"],
+                 category="adversarial"),
     ]
+    for c in cases:
+        c.category = {"ambiguous": "adversarial", "unknown-metric": "adversarial", "quality": "data_quality",
+                      "forecast": "forecasting", "scenario-c": "forecasting", "trend": "statistical",
+                      "impact-emea": "statistical"}.get(c.id, c.category)
+    return cases
 

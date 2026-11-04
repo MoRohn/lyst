@@ -22,7 +22,7 @@ evidence graph, data classification, approval intelligence and cost attribution;
 | 5 Evaluation | `lyst eval`, 19 golden questions with independent expected values, stored scored runs | No baseline comparison, so a regression in accuracy or latency is not detected as a regression; later slice |
 | 1, 6 Decisions and scenarios | Staffing scenarios with Monte Carlo inside the prescriptive analysis | No general decision model (alternatives, criteria, weights, sensitivity) or driver-based what-if engine; later slice |
 
-## Slice 1: operations (this PR)
+## Slice 1: operations (PR #40)
 
 Module `src/lyst/operations.py`; runtime changes in `src/lyst/runtime/__init__.py`; CONTROL migration 20.
 
@@ -88,3 +88,20 @@ thread first).
 |---|---|---|---|---|
 | DI9 | "What if revenue falls 5% and the COGS ratio rises 2 points next quarter?" applied only the revenue change, said nothing about the COGS ratio, and the answer was marked verified | The parser read percentages only; a change it did not recognise was skipped silently, and the verdict ignored it | "Points" changes apply to ratios and percentages (2 points = +0.02); every stated change with an amount that is not applied is listed ("I couldn't apply: … , so these figures leave it out") and the answer is `unverified`, never Verified | `test_points_changes_apply_and_unapplied_changes_are_stated_never_dropped` |
 | DI10 | A what-if answer crashed the Home renderer (`KeyError: 'rows'`) | What-if evidence entries lacked `rows` and `ms` | Evidence entries carry the same keys as every other query (`purpose, sql, query_id, rows, ms, datasets`) | same |
+## Slice 3: continuous evaluation and measured routing
+
+Changes in `src/lyst/evals.py`, `src/lyst/cli.py`, `src/lyst/llm/scorecard.py`, `src/lyst/llm/__init__.py`; checked-in
+baseline `docs/quality/eval-baseline.json`; CI runs `lyst eval --baseline docs/quality/eval-baseline.json`.
+
+| # | Existing limitation | Root cause | Implemented solution | Tests | Verified result |
+|---|---|---|---|---|---|
+| EV1 | A change that made answers slower, costlier or wrong on one case failed CI only if a whole case failed outright; resource growth and latency drift were invisible | Runs were stored but never compared with an earlier run | Baseline per case: which checks passed, seconds, steps, queries, model calls, tokens. `evals.compare` reports accuracy and completion regressions (a check that passed now fails), latency regressions (above max(baseline × 3, baseline + 1 s), so machine noise is not one), resource regressions (above baseline × 1.5 and + 2), and missing cases. `lyst eval --baseline` fails on any regression; `--write-baseline` records a reviewed run | `test_compare_flags_latency_resources_and_missing_cases_but_not_noise`, `test_checked_in_baseline_covers_the_whole_bank` | 0.9 s against a 0.2 s baseline is noise; 2.5 s is a latency regression |
+| EV2 | Scenario H: a controlled analytical defect had to be caught before release | — | The regression test plants a defect in metric SQL (every value scaled by 0.97) and runs the bank against the baseline taken before it | `test_scenario_h_a_planted_analytical_defect_is_caught_as_a_regression` | Caught as an accuracy regression on `revenue-last-quarter / value` |
+| EV3 | Scores were pass/fail per case only | — | Quality dimensions per run (completion, correctness, evidence, efficiency) and pass counts per category (financial, statistical, forecasting, data quality, adversarial, scenario); resources per case | `test_runs_report_quality_dimensions…` | `lyst eval` prints both lines |
+| EV4 | The bank had no scenario or what-if cases | — | Two cases: a what-if with an expected margin computed from raw rows, and an adversarial what-if naming a driver the model lacks (must say "Not modelled", never guess). 21/21 | baseline file | 21/21 on the development Mac, p95 0.22 s |
+| RT1 | Routing ignored how models actually performed here (ENGINEERING M-R1) | Tier order was fixed; outcomes were recorded but not read back | Scorecard per model and workload from `llm_calls` (success rate, p50/p95 latency, tokens, cost over 7 days). In automatic routing a model whose calls for this workload mostly failed recently (≥10 decided calls in 24 h, success < 70%; all three settable) moves behind the healthy models of its tier; it stays as a fallback, is never promoted, and a pinned model is never reordered | `test_scorecard_and_measured_order`, `test_routing_skips_a_failing_model_first…` | Against a stub OpenRouter, the failing first choice is not called first; pinned, it is |
+| RT2 | No single view of what each model offers and how it measured up | Catalog and usage were separate endpoints | `GET /v1/workspaces/{ws}/model-registry` (audit readers): per model, tiers, context, prices per million tokens, reasoning settings, local or not, and measured rows per workload; the workspace's inference policy | `test_model_registry_shows…` | A model used here but no longer in the catalog is still listed with its measurements |
+
+Remaining risks: measured routing reacts to failures and errors, not to answer quality; quality per model comes from
+`lyst eval` runs with a model configured, which CI does not have (no key), so the checked-in baseline is the
+rules-only path. Latency baselines come from the development Mac; the factor and floor absorb CI's slower runners.

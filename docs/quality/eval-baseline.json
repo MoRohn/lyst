@@ -1,0 +1,337 @@
+{
+ "cases": {
+  "ambiguous": {
+   "checks": {
+    "contains:cogs_ratio": true,
+    "contains:operating_margin": true,
+    "finished": true,
+    "status": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 0,
+   "seconds": 0.069,
+   "steps": 6,
+   "tokens": 0
+  },
+  "cogs-why": {
+   "checks": {
+    "driver": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 14,
+   "seconds": 0.185,
+   "steps": 12,
+   "tokens": 0
+  },
+  "deep-investigation": {
+   "checks": {
+    "contains:confined to Q3 2026": true,
+    "contains:favours concentration": true,
+    "driver": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 29,
+   "seconds": 0.281,
+   "steps": 17,
+   "tokens": 0
+  },
+  "ebit-synonym": {
+   "checks": {
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 11,
+   "seconds": 0.142,
+   "steps": 9,
+   "tokens": 0
+  },
+  "forecast": {
+   "checks": {
+    "contains:backtest": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 4,
+   "seconds": 0.151,
+   "steps": 8,
+   "tokens": 0
+  },
+  "hardware-filtered": {
+   "checks": {
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 10,
+   "seconds": 0.142,
+   "steps": 9,
+   "tokens": 0
+  },
+  "impact-emea": {
+   "checks": {
+    "contains:Filtered to region = EMEA": true,
+    "contains:plausible causal estimate": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 4,
+   "seconds": 0.118,
+   "steps": 7,
+   "tokens": 0
+  },
+  "margin-synonym": {
+   "checks": {
+    "driver": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 14,
+   "seconds": 0.191,
+   "steps": 12,
+   "tokens": 0
+  },
+  "margin-why": {
+   "checks": {
+    "contains:EMEA": true,
+    "contains:Q3 2026": true,
+    "driver": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 14,
+   "seconds": 0.33,
+   "steps": 12,
+   "tokens": 0
+  },
+  "member-filter": {
+   "checks": {
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 11,
+   "seconds": 0.142,
+   "steps": 9,
+   "tokens": 0
+  },
+  "prior-quarter-value": {
+   "checks": {
+    "contains:Q2 2026": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 11,
+   "seconds": 0.145,
+   "steps": 9,
+   "tokens": 0
+  },
+  "quality": {
+   "checks": {
+    "contains:1 duplicate rows": true,
+    "contains:cogs: 1 negative values": true,
+    "contains:revenue: 1 nulls": true,
+    "finished": true,
+    "status": true,
+    "validation": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 3,
+   "seconds": 0.103,
+   "steps": 8,
+   "tokens": 0
+  },
+  "revenue-by-region": {
+   "checks": {
+    "contains:North America": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 12,
+   "seconds": 0.152,
+   "steps": 10,
+   "tokens": 0
+  },
+  "revenue-last-quarter": {
+   "checks": {
+    "contains:Q3 2026": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 11,
+   "seconds": 0.16,
+   "steps": 9,
+   "tokens": 0
+  },
+  "revenue-named-quarter": {
+   "checks": {
+    "contains:Q1 2026": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 11,
+   "seconds": 0.142,
+   "steps": 9,
+   "tokens": 0
+  },
+  "revenue-year": {
+   "checks": {
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 9,
+   "seconds": 0.14,
+   "steps": 8,
+   "tokens": 0
+  },
+  "scenario-c": {
+   "checks": {
+    "contains:80% interval": true,
+    "contains:Q4 2026": true,
+    "contains:shortfall risk under 5%": true,
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 4,
+   "seconds": 0.168,
+   "steps": 8,
+   "tokens": 0
+  },
+  "trend": {
+   "checks": {
+    "finished": true,
+    "metric": true,
+    "status": true,
+    "validation": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 4,
+   "seconds": 0.111,
+   "steps": 8,
+   "tokens": 0
+  },
+  "unknown-metric": {
+   "checks": {
+    "contains:No approved metric": true,
+    "finished": true,
+    "status": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 0,
+   "seconds": 0.065,
+   "steps": 6,
+   "tokens": 0
+  },
+  "what-if-margin": {
+   "checks": {
+    "contains:hypothetical": true,
+    "contains:labor costs +6%": true,
+    "contains:revenue +3%": true,
+    "finished": true,
+    "status": true,
+    "validation": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 4,
+   "seconds": 0.16,
+   "steps": 7,
+   "tokens": 0
+  },
+  "what-if-unknown-driver": {
+   "checks": {
+    "contains:Not modelled": true,
+    "contains:couldn't apply": true,
+    "contains:marketing spend": true,
+    "finished": true,
+    "status": true,
+    "validation": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 4,
+   "seconds": 0.117,
+   "steps": 7,
+   "tokens": 0
+  }
+ },
+ "format": 1,
+ "label": "",
+ "model": null
+}

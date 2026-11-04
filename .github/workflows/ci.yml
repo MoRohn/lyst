@@ -54,6 +54,6 @@ jobs:
       - name: Tests
         run: uv run pytest -q -rfE
       - name: Evaluation suite (golden questions)
-        run: uv run lyst eval
+        run: uv run lyst eval --baseline docs/quality/eval-baseline.json
       - name: Dependency licenses (AGPL-compatible, open source only)
         run: uv run python scripts/licenses.py
