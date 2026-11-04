@@ -15,6 +15,7 @@ open. It is kept honest: "Planned" means not built.
 | `service.py` | The cycle, the activity center, explanations, a person's responses, level changes |
 | `recurring.py` | Anticipator: approved recurring work (schedules) prepared just in time |
 | `nextaction.py` | Anticipator: next-best analytical action after finished work |
+| `health.py` | Anticipator: credential expiry and age, connection reliability trends, schema-change impact with a validated fix |
 | `earlywarning.py` | Anticipator: developing adverse trends on monitored metrics, investigated before anyone is told |
 
 The cycle per workspace: **observe** (signals from authorized metadata) -> **contextualize** (the run's datasets and
@@ -107,6 +108,27 @@ marked `unverified`.
 
 Lowering the level below 3 withdraws warnings whose investigation has not finished and cancels the queued task.
 
+## Data and integration health foresight (scenarios C, F)
+
+From metadata Lyst already records; no source is contacted. Level 1 lists these items; level 2 pushes the risky ones once.
+
+| Signal | Source | Pushed when | Offered |
+| --- | --- | --- | --- |
+| Credential expiry | `expires_at` recorded with the credential behind a connection | expired, within 3 days, or before the next scheduled run that reads the connection's data | link to Settings > Secrets (the secret is never shown) |
+| Credential age | connected or last replaced more than `LYST_CREDENTIAL_MAX_AGE_DAYS` (180) ago | never (activity center) | same link |
+| Authentication failure | the latest connection event failed with category `auth` | always | test the connection, open the source |
+| Intermittent failures | 2+ of the last 10 attempts failed, the latest succeeded | a dependent run within 48 h | same |
+| Rate-limit pressure | a third of recent attempts retried for rate limits | a dependent run within 48 h | same |
+| Rising latency | median of the last 5 successful calls at least twice the earlier median and over 1 s | a dependent run within 48 h | same |
+| Schema change | a dataset version in the last 14 days removed or retyped columns approved metrics use | any schedule or asset depends on the metrics | a validated definition fix filed as a review |
+
+Schema-change repair: for each removed column a replacement of the same type family with a similar name is chosen; the
+corrected definition is compiled and run on the new version as the metric's owner, and only a candidate that runs is
+proposed. Accepting files one `metric.define` review per metric (collaboration reviews), so an admin approves each
+definition change; the asset registry then shows the dependent reports and dashboards as stale with its one-click
+repair. Items close themselves (`resolved`) when the signal is gone, for example after the credential is replaced with a
+later expiry.
+
 ## API
 
 | Route | Purpose |
@@ -156,7 +178,7 @@ monitor would catch them at all. Earlier detection of fast moves without more fa
 | --- | --- | --- |
 | N1 | Next-best action: comparisons against other periods, hypothesis tests and briefings as further suggestion kinds | Planned |
 | N2 | Early warning on unmonitored metrics, leading-indicator search across metrics (correlation without causal claims), capacity-exhaustion and cost-variance projections | Planned |
-| N3 | Data and integration health foresight: schema-change impact with validated repair proposals, credential age and expiry, latency and failure trends (scenarios C, F) | Planned, slice 4 |
+| N3 | Health foresight: volume anomalies and incomplete ingestion, storage pressure, API deprecation notices, retyped-column repair candidates, predicting breakage before a connection sync commits the new version | Planned |
 | N4 | Attention management: per-person frequency, quiet periods, relevance thresholds, muted kinds, opt-out (scenario H) | Planned, slice 5 (table exists) |
 | N5 | Learning from outcomes and anticipation quality metrics; offline verification (scenario I) | Planned, slice 6 |
 | N6 | Capability-gap forecasting through the Capability Foundry (scenario G) | Planned, slice 7 |

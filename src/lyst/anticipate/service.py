@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import earlywarning, model, nextaction, policy, recurring
+from . import earlywarning, health, model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -49,7 +49,8 @@ class AnticipationService:
         self.runtime = runtime
         self.semantic = semantic
         self.connections = connections
-        self.anticipators = [recurring, nextaction, earlywarning]
+        self.anticipators = [recurring, nextaction, earlywarning, health]
+        self.collab = None  # set by the composition root; health foresight files definition fixes as reviews
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0
         self._local = threading.local()
@@ -138,7 +139,9 @@ class AnticipationService:
             for mod in self.anticipators:
                 signals = mod.observe(self, ws, now)                       # observe
                 out["observed"] += len(signals)
+                produced: set[str] = set()
                 for cand in mod.candidates(self, ws, now, signals):       # contextualize, forecast, anticipate
+                    produced.add(cand["dedupe_key"])
                     if cand["level_required"] > s.level:
                         continue
                     cand["score"] = combine(cand["scores"], self.learned(ws, cand["kind"]))   # prioritize
@@ -158,6 +161,12 @@ class AnticipationService:
                     prep = mod.prepare(self, ws, cand, now, automate=s.allows("automate"))   # prepare + verify
                     policy.charge(db, "prepare", prep["resources"]["compute_ms"], now)
                     self._apply(ws, s, mod, stored["id"], cand["scores"], prep, now, out)
+                if getattr(mod, "RESOLVES", False):                       # the condition went away: close it
+                    for r in db.query(f"SELECT id, dedupe_key FROM anticipations WHERE status IN {model.OPEN} AND kind IN "
+                                      f"({', '.join('?' for _ in mod.KINDS)})", list(mod.KINDS)):
+                        if r["dedupe_key"] not in produced:
+                            model.transition(db, r["id"], "resolved", detail={"reason": "the signal is no longer present"})
+                            out["resolved"] = out.get("resolved", 0) + 1
             for mod in self.anticipators:                                   # investigations that were running
                 if not hasattr(mod, "resume"):
                     continue
@@ -190,6 +199,8 @@ class AnticipationService:
         score = combine(scores, self.learned(ws, a["kind"]))
         model.set_prepared(db, aid, verdict=prep["verdict"], prepared=prep["prepared"], verification=prep["verification"],
                            resources=prep["resources"], reasons=prep["reasons"])
+        if prep.get("actions") is not None:   # preparation may add an action it validated (a definition fix)
+            db.execute("UPDATE anticipations SET actions = ? WHERE id = ?", [json.dumps(prep["actions"]), aid])
         db.execute("UPDATE anticipations SET scores = ?, score = ? WHERE id = ?", [json.dumps(scores), score, aid])
         out["prepared"] += 1
         if prep["verdict"] in getattr(mod, "SURFACE", SURFACE_VERDICTS) and score >= SURFACE_MIN_SCORE:

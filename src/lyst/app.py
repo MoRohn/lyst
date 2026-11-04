@@ -133,6 +133,7 @@ class Lyst:
         data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
         semantic.after_change.append(anticipation.after_definition)
         runtime.periodic.append(anticipation.tick_all)
+        anticipation.collab = collab
         governance = GovernanceService(stores, guard, external_model=lambda: bool(llm.settings.external), runtime=runtime)
         data.access_checks.append(governance.check_read)
         llm.gates.append(governance.model_gate)

@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 OPEN = ("candidate", "preparing", "prepared", "surfaced", "snoozed")
-TERMINAL = ("accepted", "dismissed", "expired", "withdrawn", "completed", "suppressed")
+TERMINAL = ("accepted", "dismissed", "expired", "withdrawn", "completed", "suppressed", "resolved")
 JSON_COLS = ("audience", "signals", "reasons", "scores", "prepared", "verification", "actions", "depends", "resources")
 
 
