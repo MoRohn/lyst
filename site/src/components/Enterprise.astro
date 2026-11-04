@@ -1,6 +1,6 @@
 ---
 import Icon from './Icon.astro';
-import { enterprise } from '../data/content';
+import { enterprise, statusLabel } from '../data/content';
 import { stage } from '../config/site';
 ---
 
@@ -19,7 +19,7 @@ import { stage } from '../config/site';
             <span class="ic"><Icon name={it.icon} size={18} /></span>
             <h3>{it.title}</h3>
             <p>{it.text}</p>
-            <span class="goal">Design goal</span>
+            <span class:list={['goal', { built: it.status === 'available' }]}>{it.status === 'available' ? statusLabel.available : 'Design goal'}</span>
           </li>
         ))
       }
@@ -81,6 +81,11 @@ import { stage } from '../config/site';
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--slate);
+  }
+
+  .goal.built {
+    color: var(--good);
+    font-weight: 500;
   }
 
   @media (max-width: 1000px) {

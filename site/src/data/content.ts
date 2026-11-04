@@ -7,7 +7,8 @@
 export type Status = 'dev' | 'planned' | 'available';
 
 export const statusLabel: Record<Status, string> = {
-  available: 'Available',
+  // "Built" = implemented and tested on main, usable in the private preview. Not yet a general release.
+  available: 'Built',
   dev: 'In development',
   planned: 'Planned',
 };
@@ -71,43 +72,43 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting', 'Modeling', 'Business intelligence'],
-    status: 'dev',
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'Scenarios', 'Event impact'],
+    status: 'available',
   },
   {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Anomaly detection', 'Root-cause analysis', 'Research'],
-    status: 'dev',
+    items: ['Data discovery', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
+    status: 'available',
   },
   {
     icon: 'Blocks',
     title: 'Build',
     text: 'Deliverables people can use on Monday.',
-    items: ['Dashboards', 'Pipelines', 'Reports', 'Applications', 'Analytical tools'],
+    items: ['Excel and Markdown deliverables', 'Dashboards', 'Pipelines', 'Decks and PDFs'],
     status: 'dev',
   },
   {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work that runs on its own schedule.',
-    items: ['Recurring analysis', 'Monitoring', 'Reporting', 'Operational workflows'],
-    status: 'planned',
+    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Recurring reports'],
+    status: 'dev',
   },
   {
     icon: 'Cable',
     title: 'Connect',
     text: 'Work where your data already lives.',
-    items: ['Enterprise databases', 'Applications', 'APIs', 'Documents', 'Business systems'],
-    status: 'planned',
+    items: ['Files and documents', 'Webhooks', 'Enterprise databases', 'Business systems'],
+    status: 'dev',
   },
   {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Get better with every validated task.',
-    items: ['Organizational knowledge', 'Reusable workflows', 'Validated skills', 'Governed capability expansion'],
-    status: 'planned',
+    items: ['Living knowledge', 'Lineage', 'Governed skills', 'Reusable workflows'],
+    status: 'dev',
   },
 ];
 
@@ -161,14 +162,14 @@ export const enterprise = {
   eyebrow: 'Enterprise-ready thinking',
   headline: 'Built for serious analytical work.',
   items: [
-    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit, administrator-defined permissions.' },
-    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings link to the queries, data and assumptions behind them.' },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.' },
-    { icon: 'Library', title: 'Organizational context', text: 'Shared definitions and knowledge inform every task.' },
-    { icon: 'KeyRound', title: 'Role-aware access', text: 'What Lyst can see and do follows the user’s role.' },
-    { icon: 'History', title: 'Transparent task history', text: 'A complete, reviewable record of what was done and why.' },
-    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.' },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Run it where your policies require, including offline.' },
+    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit, administrator-defined permissions.', status: 'available' as Status },
+    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package: queries, dataset versions, hashes and assumptions.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
+    { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
+    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on (OIDC) and member roles decide what Lyst can see and do.', status: 'available' as Status },
+    { icon: 'History', title: 'Transparent task history', text: 'A complete, reviewable record of what was done and why.', status: 'dev' as Status },
+    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.', status: 'dev' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Docker and Compose packaging; run it where your policies require.', status: 'available' as Status },
   ],
 };
 

@@ -430,6 +430,14 @@ kbd {
   color: var(--teal-dark);
 }
 
+.status-available {
+  color: var(--good);
+}
+
+.status-available::before {
+  box-shadow: 0 0 0 2px var(--good-wash);
+}
+
 .status-planned {
   color: var(--slate);
 }

@@ -67,13 +67,13 @@ export const stage =
       }
     : {
         badge: 'Private Preview',
-        heroNote: 'In development. Open-source release planned.',
+        heroNote: 'In development. Source code open on GitHub.',
         primaryCta: 'Get Early Access',
         status: 'In development',
         capabilityNote:
-          'Lyst is in active development. These categories describe the product’s design scope, and each carries its current status. Availability is announced with each release.',
+          'Lyst is in active development. “Built” means implemented and tested in the private preview; nothing is generally released yet. The rest is being built in the open.',
         enterpriseNote:
-          'These are architectural design goals that guide how Lyst is being built, not certifications or finished features.',
+          'Items marked Built are implemented and tested in the private preview. The rest are architectural design goals. None of this is a certification.',
         accessHeadline: 'Meet the next generation of analytical work.',
         primaryHref: '#early-access',
       };
