@@ -43,8 +43,8 @@ export const pillars = {
     {
       icon: 'Compass',
       title: 'Understand',
-      text: 'Lyst interprets questions in the context of relevant business knowledge, data, and objectives.',
-      detail: ['Business definitions', 'Relevant datasets', 'Breakdowns like “by region”'],
+      text: 'Lyst learns each dataset’s grain, keys, relationships and quality risks on its own, and interprets every question in that context.',
+      detail: ['Grain, keys and relationships', 'Business definitions', 'Breakdowns like “by region”'],
     },
     {
       icon: 'SquareTerminal',
@@ -79,7 +79,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Source reconciliation', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -107,7 +107,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns new methods, with an owner’s approval.',
-    items: ['Living knowledge', 'Recall by meaning', 'Lineage', 'Governed skills', 'New skills drafted, tested and approved'],
+    items: ['Living knowledge', 'Search across data, definitions and saved work', 'Governed skills', 'New skills drafted, tested and approved'],
     status: 'available',
   },
 ];
@@ -165,7 +165,7 @@ export const enterprise = {
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
-    { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
+    { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown of steps, model calls, queries, time and cost, backed by an audit log.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
