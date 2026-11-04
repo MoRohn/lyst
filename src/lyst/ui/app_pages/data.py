@@ -10,6 +10,7 @@ import streamlit as st
 
 from lyst.ui import (
     anticipate,
+    drafts,
     governance,
     integrations,
     kit,
@@ -142,8 +143,11 @@ def review(jid: str) -> None:
 
 @st.dialog("Add data", width="large")
 def add_data() -> None:
-    how = st.segmented_control("How", ["Upload a file", "Connect a source"], default="Upload a file",
-                               label_visibility="collapsed") or "Upload a file"
+    how = st.segmented_control("How", ["Upload a file", "Connect a source", "From an API description"],
+                               default="Upload a file", label_visibility="collapsed") or "Upload a file"
+    if how == "From an API description":
+        drafts.from_description()
+        return
     if how == "Upload a file":
         upload()
         return
@@ -588,6 +592,7 @@ def waiting_review() -> None:
 
 
 def connections() -> None:
+    drafts.listed()
     conns = api.get(f"/v1/workspaces/{ws}/connections")
     kit.label(f"Sources · {len(conns)}" if conns else "Sources")
     if not conns:

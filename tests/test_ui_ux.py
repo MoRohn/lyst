@@ -419,3 +419,18 @@ def test_an_ended_voice_session_is_replaced_and_the_turn_sent_again(seeded, ui):
     at.run(timeout=30)
     assert not at.exception, at.exception
     assert at.session_state["voice_sid_northwind"] != old and at.session_state["r_intent"] == "question"
+
+
+def test_connections_proposed_from_an_api_description_wait_under_sources(seeded, ui):  # noqa: F811
+    from tests.test_connector_drafts import SPEC  # noqa: PLC0415
+
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    made = lyst.connections.drafts.create(owner, "northwind", name="Procurement", openapi=SPEC)
+    assert made
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Procurement purchase_orders" in body and "/purchase-orders" in body
