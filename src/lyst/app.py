@@ -17,6 +17,7 @@ from .connectors import ConnectionService
 from .contracts import ContractService
 from .data import DataService
 from .deliverables import ArtifactService
+from .ingest import IngestService
 from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
@@ -57,6 +58,7 @@ class Lyst:
     collab: CollaborationService
     onboarding: OnboardingService | None = None
     transforms: TransformService | None = None
+    ingest: IngestService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -111,8 +113,9 @@ class Lyst:
         collab = CollaborationService(stores, guard, semantic=semantic, contracts=contracts, assets=assets)
         onboarding = OnboardingService(stores, guard, catalog=catalog, semantic=semantic, contracts=contracts, data=data,
                                        knowledge=knowledge, runtime=runtime)
+        ingest = IngestService(stores, guard, data, knowledge)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms)
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest)
 
     def close(self) -> None:
         self.runtime.stop()

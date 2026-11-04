@@ -919,3 +919,26 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# -- extensibility lane (migrations 40-49): ingestion, experiments, environments, publishing -------------------------
+WORKSPACE.append((
+    40,
+    """
+    CREATE TABLE ingest_jobs (
+        id VARCHAR PRIMARY KEY,
+        filename VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        format VARCHAR NOT NULL,
+        size_bytes BIGINT NOT NULL,
+        sha256 VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        plan JSON NOT NULL,
+        result JSON,
+        content BLOB,
+        classification VARCHAR NOT NULL DEFAULT 'internal',
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        finished_at TIMESTAMPTZ
+    )
+    """,
+))

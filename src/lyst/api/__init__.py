@@ -1338,6 +1338,12 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .adapt import register as register_adapt  # noqa: PLC0415
 
     register_adapt(app, L, User)
+
+    # -- extensibility lane: ingestion, SDK contracts, experiments, environments, export/import, publishing ---------
+    from .extend import register as register_extend  # noqa: PLC0415
+
+    register_extend(app, L, User)
+
     return app
 
 
