@@ -97,8 +97,9 @@ Ask a what-if in plain words on Home, such as "What happens to operating margin 
 revenue grows 3%?". Lyst answers from a driver model whose observed inputs are read from governed data for a named
 period, with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
 hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
-formulas as evidence, and is recomputed independently. A driver the model does not have is listed as "Not
-modelled", never guessed. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
+formulas as evidence, and is recomputed independently. Changes can be given as percentages or in points ("COGS
+ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, any change
+Lyst could not apply is stated, and such an answer is never marked Verified. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
 P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
 any drift reported.
 
