@@ -236,6 +236,14 @@ where they point, with Mark all read and "What to tell me about".
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Reads any file, and shows you first.** One upload path takes Excel workbooks (every table on every sheet,
+  merged and two-row headers folded, units and scale read from headers, formula columns reported, error values
+  counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown and PDF
+  text. Lyst returns a plan before anything loads: the tables it found, whether a total row adds up, and what
+  needs a look. You choose what to keep and what to call it. Document text becomes searchable so answers can cite
+  it, macros and embedded code never run, and unsupported files (legacy Office, password-protected, images)
+  are refused in plain words. Through the API today; the review screen in Add data is on the way
+  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
   verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
@@ -334,7 +342,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Adaptability](docs/ADAPTABILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
