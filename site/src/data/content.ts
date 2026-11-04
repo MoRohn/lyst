@@ -107,7 +107,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns new methods, with an owner’s approval.',
-    items: ['Living knowledge', 'Lineage', 'Governed skills', 'New skills drafted, tested and approved'],
+    items: ['Living knowledge', 'Recall by meaning', 'Lineage', 'Governed skills', 'New skills drafted, tested and approved'],
     status: 'available',
   },
 ];
@@ -167,9 +167,9 @@ export const enterprise = {
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
     { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on (OIDC) and member roles decide what Lyst can see and do.', status: 'available' as Status },
-    { icon: 'History', title: 'Transparent task history', text: 'A complete, reviewable record of what was done and why.', status: 'dev' as Status },
+    { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.', status: 'dev' as Status },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Docker and Compose packaging; run it where your policies require.', status: 'available' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Docker packaging, encrypted backups and verified restore; run it where your policies require.', status: 'available' as Status },
   ],
 };
 
