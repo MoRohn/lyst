@@ -140,7 +140,7 @@ dataset version, and version 1's file is untouched.
 Not built: polished output standards beyond the existing PDF, Excel and slide builders (citations are carried; no
 template review); editing an asset in place; repairs that rewrite a broken definition (they stop and ask).
 
-## PR D: team collaboration
+## PR D: team collaboration (#36, merged)
 
 Built in `src/lyst/collab.py` (with `notices.py` honouring preferences and asset shares in `assets.py`); workspace
 migration 11 (`comments`, `assignments`, `reviews`, `asset_shares`, `user_notifications`, `notification_prefs`);
@@ -173,6 +173,35 @@ Not built: email or chat delivery of personal notifications (the inbox and the e
 digests, team or organizational workspaces above a workspace (a workspace is the team today), and real-time
 co-editing.
 
+## PR E: verified transformations (gap G4)
+
+Built in `src/lyst/transforms.py`, with `data_model` assets in `assets.py`; workspace migration 12 (`transforms`,
+`transform_versions`, `transform_runs`); tests in `tests/test_transforms.py`.
+
+* A transformation is a named `SELECT` over governed datasets, run through the same SQL guard, whose output is an
+  ordinary governed dataset (versions, insights, contracts, lineage `derived_from` each input, a `data_model` asset).
+* **Verified before saving** by running it: not empty, a declared key unique, no join fan-out, columns not mostly
+  empty, summed measures reconcile with their single input. Advice for `SELECT *`, `ORDER BY` without `LIMIT`,
+  `DISTINCT`, joins without a condition. `explain` reads inputs, joins, filter, grouping and computed columns from
+  the SQL.
+* **Designed from a sentence** when a model is configured: the model sees dataset names, column names and types,
+  grain and relationships, never rows; its SQL is previewed and returned as a proposal. Without a model Lyst says so
+  and takes SQL.
+* **Follows its inputs**: an input's new version re-runs it (chains in order, no cycles); `incremental_column`
+  appends only newer rows. A failed run keeps the last good version, marks the transformation failed with the reason,
+  and its asset reads broken with "needs a person"; a new definition version recovers it.
+* A derived dataset takes the strictest classification of its inputs (public < internal < confidential < restricted; unknown counts as internal); a level raised by hand stays.
+* Refused: a key that repeats, a join that multiplies rows, a name that is already an ordinary dataset, cycles, and
+  definitions by someone who sees only some rows of an input (the result would be silently partial).
+* REST: `/v1/workspaces/{ws}/transforms` (list, define), `/transforms/design`, `/transforms/preview`,
+  `/transforms/{name}` (definition, versions, runs, advice, explain), `/transforms/{name}/run`, `/transforms/{name}/retire`.
+
+Verified: 332 tests pass (7 new), ruff, eval 19/19. On the demo ledger the preview catches the planted double booking
+as a repeated key, a month-only join as a fan-out, and reconciles summed COGS to the cent.
+
+Not built: Polars/Python pipelines (SQL only; the skill sandbox is the path for Python), and transformations
+scheduled on their own (they follow their inputs and can be run on demand).
+
 ## Where it surfaces (handed to the UX thread)
 
 The API is complete; the screens are the UX thread's call. Proposed placement, following their layout:
@@ -180,7 +209,8 @@ catalog rows, insights and contracts in **Data › Datasets** (a dataset dialog 
 summary sentence and risks; columns and relationships; contract and check history); metric lineage, history,
 deprecation and the semantic audit in **Brain › Definitions**; search in the single box on Home or the sidebar;
 contract findings already arrive in the existing inbox. Collaboration goes on the answer act bar and in Work (comments, assign, request review on an investigation),
-with a notifications list and preferences under the person's menu, and pending reviews for admins. Assets go in **Data › Dashboards** and **Saved analyses** (a health
+with a notifications list and preferences under the person's menu, and pending reviews for admins. Transformations go in **Data › Datasets** as "Build a dataset" (describe or write SQL, preview with checks, save).
+Assets go in **Data › Dashboards** and **Saved analyses** (a health
 badge, the reason, the proposal and a Repair button, and the version list). Connection health and events go in **Data › Datasets ›
 Sources** (a state badge, the reasons and the required action per connection, the event list on open).
 
@@ -197,7 +227,7 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | G3 | Collaboration: comments, change requests, decisions, assignments, reviews gating metric and contract changes, sharing, ownership, notification preferences | 1 | done (PR D) |
 | G16 | Personal notifications by email or chat, and digests | 2 | open |
 | G17 | Team and organizational spaces above a workspace (shared definitions across workspaces) | 3 | open |
-| G4 | Natural-language transformations: derived datasets from a DuckDB SQL or Polars definition, verified by running them and checking the result against a contract, with lineage | 2 | open |
+| G4 | Natural-language transformations and verified derived datasets (SQL) | 2 | done (PR E); Polars/Python pipelines open |
 | G5 | Fiscal calendars: periods such as "last fiscal quarter" resolved by a workspace calendar; today metric periods are calendar periods only | 2 | open |
 | G6 | Source precedence as a rule (which of two overlapping sources answers), not only an audit finding | 2 | open |
 | G7 | Analyst answers to lineage questions in plain words from the Home box ("where does operating margin come from?"); today the answer is the API and MCP lineage tool | 2 | open |
@@ -213,7 +243,7 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 
 | Workstream | State |
 |---|---|
-| 1 Data intelligence | Discovery, profiling, relationships, contracts done (PR A); natural-language transformations open (G4) |
+| 1 Data intelligence | Discovery, profiling, relationships, contracts done (PR A); verified SQL transformations designed from a sentence done (PR E); Python pipelines open |
 | 2 Integrations | Uniform operations, retries, health, schema evolution done (PR B); new connectors wait on test servers (G14); generated connectors open (G13) |
 | 3 Knowledge and semantics | Semantic audit, lifecycle, history, lineage done (PR A); fiscal calendars and source precedence open (G5, G6) |
 | 4 Automation | Unchanged this iteration: approval-gated schedules, monitors, compiled workflows; composition with branches and gates open (G8) |

@@ -869,3 +869,53 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Transformations: derived datasets defined by a governed DuckDB query, verified before they are saved, refreshed
+# when an input changes, versioned with every run recorded.
+WORKSPACE.append((
+    12,
+    """
+    CREATE TABLE transforms (
+        name VARCHAR PRIMARY KEY,
+        version INTEGER NOT NULL,
+        title VARCHAR NOT NULL,
+        description VARCHAR,
+        sql VARCHAR NOT NULL,
+        inputs JSON NOT NULL,
+        key JSON NOT NULL,
+        incremental_column VARCHAR,
+        status VARCHAR NOT NULL,
+        last_error VARCHAR,
+        last_run_at TIMESTAMPTZ,
+        owner VARCHAR NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE transform_versions (
+        name VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        sql VARCHAR NOT NULL,
+        description VARCHAR,
+        checks JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (name, version)
+    );
+    CREATE TABLE transform_runs (
+        id VARCHAR PRIMARY KEY,
+        name VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        trigger VARCHAR NOT NULL,
+        outcome VARCHAR NOT NULL,
+        mode VARCHAR NOT NULL,
+        rows BIGINT,
+        dataset_version INTEGER,
+        checks JSON,
+        error VARCHAR,
+        ms INTEGER,
+        actor VARCHAR,
+        ran_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
