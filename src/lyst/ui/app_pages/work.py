@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from lyst.ui.client import APIError, client, workspace
-from lyst.ui.components import STATUS, md
+from lyst.ui.components import md, task_state
 
 api, ws = client(), workspace()
 st.markdown("## Work")
@@ -12,16 +12,21 @@ tabs = st.tabs(["Board", "Approvals", "Schedules", "Monitors"])
 
 with tabs[0]:
     tasks = api.get(f"/v1/workspaces/{ws}/tasks")
-    lanes = [("Queued", ["queued"]), ("Running", ["running", "paused"]), ("Needs approval", ["awaiting_approval"]),
-             ("Done", ["done"]), ("Stopped", ["failed", "cancelled"])]
+    def lane(t) -> str:
+        if t["status"] == "done":
+            return "Needs you" if t.get("outcome") in ("needs_input", "unverified") else "Done"
+        return {"queued": "Queued", "running": "Running", "paused": "Running", "awaiting_approval": "Needs you"}.get(
+            t["status"], "Stopped")
+
+    lanes = ["Queued", "Running", "Needs you", "Done", "Stopped"]
     cols = st.columns(len(lanes))
-    for col, (title, states) in zip(cols, lanes, strict=True):
-        items = [t for t in tasks if t["status"] in states]
+    for col, title in zip(cols, lanes, strict=True):
+        items = [t for t in tasks if lane(t) == title]
         col.markdown(f"**{title}** · {len(items)}")
         for t in items[:20]:
             with col.container(border=True):
                 st.markdown(md(t["title"]))
-                st.caption(f"{STATUS[t['status']][0]} · {t['kind']} · {str(t['created_at'])[:16]}")
+                st.caption(f"{task_state(t['status'], t.get('outcome'))[0]} · {t['kind']} · {str(t['created_at'])[:16]}")
                 b = st.columns(2)
                 if t["status"] in ("queued", "running") and b[0].button("Pause", key=f"p{t['id']}", type="tertiary"):
                     api.post(f"/v1/tasks/{t['id']}/pause")

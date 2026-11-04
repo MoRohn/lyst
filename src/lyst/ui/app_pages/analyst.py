@@ -78,7 +78,7 @@ def progress(tid: str) -> None:
     head = st.columns([6, 1], vertical_alignment="center")
     head[0].markdown(f"**{md(t['title'])}**")
     with head[1]:
-        status_badge(t["status"])
+        status_badge(t["status"], t.get("outcome"))
     steps = t["steps"]
     done = sum(s["status"] == "done" for s in steps)
     current = next((s for s in steps if s["status"] == "running"), steps[-1] if steps else None)
@@ -94,7 +94,7 @@ def result(t: dict) -> None:
     head = st.columns([6, 1], vertical_alignment="center")
     head[0].markdown(f"**{md(t['title'])}**")
     with head[1]:
-        status_badge(t["status"])
+        status_badge(t["status"], t.get("outcome"))
     if t["status"] in ("failed", "cancelled"):
         st.error(t.get("error") or "This task was cancelled.", icon=":material/error:")
         if t["status"] == "failed" and st.button("Retry", icon=":material/refresh:", key=f"retry_{tid}"):
@@ -149,7 +149,7 @@ for t in recent:
     row = st.columns([6, 1.2, 1], vertical_alignment="center")
     row[0].markdown(md(t["title"]))
     with row[1]:
-        status_badge(t["status"])
+        status_badge(t["status"], t.get("outcome"))
     if row[2].button("Open", key=f"open_{t['id']}", type="tertiary"):
         st.session_state.task_id = t["id"]
         st.rerun()

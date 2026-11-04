@@ -32,6 +32,10 @@ log = logging.getLogger("lyst.api")
 MAX_UPLOAD = 200 * 1024 * 1024
 
 
+class ScheduleWorkflow(BaseModel):
+    every_seconds: int
+
+
 class RunWorkflow(BaseModel):
     period: str | None = None
 
@@ -261,25 +265,37 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         token = obs.request_id.set(rid)
         start = time.perf_counter()
         status = 500
-        span_cm = obs.tracer().start_as_current_span("http")
-        span = span_cm.__enter__()
+        from opentelemetry import context as otel_context  # noqa: PLC0415
+        from opentelemetry import trace as otel_trace  # noqa: PLC0415
+
+        span = obs.tracer().start_span("http")
+        otel_token = otel_context.attach(otel_trace.set_span_in_context(span))
+        abandoned = False
         try:
             response = await call_next(request)
             status = response.status_code
             response.headers["X-Request-Id"] = rid
             return response
+        except (GeneratorExit, asyncio.CancelledError):
+            # the request was abandoned (client gone, server shutting down); this coroutine may be finalised in
+            # another context, where detaching would fail and log an error, so only end the span
+            abandoned = True
+            raise
         finally:
             span.set_attribute("http.route", getattr(request.scope.get("route"), "path", request.url.path))
             span.set_attribute("http.status_code", status)
             span.set_attribute("lyst.request_id", rid)
-            span_cm.__exit__(None, None, None)
+            span.end()
+            if not abandoned:
+                otel_context.detach(otel_token)
             route = getattr(request.scope.get("route"), "path", request.url.path)
             if route not in ("/metrics", "/health"):
                 obs.HTTP_REQUESTS.labels(route, request.method, str(status)).inc()
                 obs.HTTP_LATENCY.labels(route).observe(time.perf_counter() - start)
                 if status >= 500:
                     log.error("request failed", extra={"route": route, "status": status})
-            obs.request_id.reset(token)
+            if not abandoned:
+                obs.request_id.reset(token)
 
     @app.exception_handler(AccessDenied)
     async def _denied(_: Request, exc: AccessDenied):
@@ -624,6 +640,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def run_workflow(request: Request, ws: str, wf_id: str, body: RunWorkflow, user: User):
         lyst = L(request)
         return {"task_id": lyst.services.workflows.run(user, ws, wf_id, lyst.runtime, period=body.period)}
+
+    @app.post("/v1/workspaces/{ws}/workflows/{wf_id}/schedule")
+    def schedule_workflow(request: Request, ws: str, wf_id: str, body: ScheduleWorkflow, user: User):
+        lyst = L(request)
+        return lyst.services.workflows.schedule(user, ws, wf_id, lyst.runtime, body.every_seconds)
 
     @app.post("/v1/workspaces/{ws}/workflows/{wf_id}/retire")
     def retire_workflow(request: Request, ws: str, wf_id: str, user: User):
