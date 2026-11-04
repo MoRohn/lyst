@@ -50,25 +50,53 @@ def status_badge(status: str, outcome: str | None = None) -> None:
     st.badge(label, color=color, icon=icon)
 
 
-def _fmt_axis(fmt: str) -> dict[str, Any]:
-    return {"percent": {"tickformat": ".0%"}, "currency": {"tickprefix": "$", "tickformat": "~s"}}.get(fmt, {})
+def _mode() -> str:
+    try:
+        return st.context.theme.type or "light"
+    except Exception:  # noqa: BLE001 - outside a browser session
+        return "light"
+
+
+def _alt(c: dict[str, Any]) -> str:
+    """A text equivalent of the chart for screen readers: what it shows, its range and its last value."""
+    ys = [v for v in (c.get("y") or []) if isinstance(v, int | float)]
+    xs = c.get("x") or []
+    if not ys:
+        return str(c.get("title") or "Chart")
+    fmt = c.get("format", "number")
+    show = (lambda v: f"{v:.1%}") if fmt == "percent" else (lambda v: f"{v:,.4g}")
+    kind = {"forecast": "Forecast", "bar": "Bar chart"}.get(c.get("type"), "Line chart")
+    return (f"{kind}: {c.get('title', '')}. {len(ys)} points from {xs[0] if xs else ''} to {xs[-1] if xs else ''}; "
+            f"lowest {show(min(ys))}, highest {show(max(ys))}, last {show(ys[-1])}.")
 
 
 def chart(c: dict[str, Any]) -> None:
+    """An analytical chart in Lyst's theme: the accent for the measure, a muted line for history, the forecast as a
+    dotted line inside a shaded interval, and the latest point marked so the eye lands on what changed."""
+    from lyst.ui import tokens  # noqa: PLC0415
+
+    mode = _mode()
+    col = tokens.colors(mode)
+    accent = tokens.series(mode)[0]
     fig = go.Figure()
     if c["type"] == "forecast":
-        fig.add_scatter(x=c.get("history_x", []), y=c.get("history_y", []), mode="lines", name="Actual")
+        fig.add_scatter(x=c.get("history_x", []), y=c.get("history_y", []), mode="lines", name="Actual",
+                        line={"color": col["text-muted"], "width": 1.6})
         fig.add_scatter(x=c["x"] + c["x"][::-1], y=c["hi"] + c["lo"][::-1], fill="toself", mode="lines",
-                        line={"width": 0}, opacity=0.2, name="Interval", hoverinfo="skip")
-        fig.add_scatter(x=c["x"], y=c["y"], mode="lines", line={"dash": "dot"}, name="Forecast")
+                        line={"width": 0}, fillcolor=accent, opacity=0.16, name="Interval", hoverinfo="skip")
+        fig.add_scatter(x=c["x"], y=c["y"], mode="lines", line={"dash": "dot", "color": accent, "width": 2},
+                        name="Forecast")
     elif c["type"] == "bar":
-        fig.add_bar(x=c["x"], y=c["y"], name=c["title"])
+        fig.add_bar(x=c["x"], y=c["y"], name=c["title"], marker={"color": accent})
     else:
-        fig.add_scatter(x=c["x"], y=c["y"], mode="lines+markers", marker={"size": 4}, name=c["title"])
-    fig.update_layout(title=None, height=300, margin={"l": 8, "r": 8, "t": 8, "b": 8}, showlegend=c["type"] == "forecast",
-                      yaxis=_fmt_axis(c.get("format", "number")), hovermode="x unified")
+        fig.add_scatter(x=c["x"], y=c["y"], mode="lines", line={"color": accent, "width": 2}, name=c["title"])
+        if c.get("x") and c.get("y"):  # the latest observation, marked
+            fig.add_scatter(x=[c["x"][-1]], y=[c["y"][-1]], mode="markers", showlegend=False, hoverinfo="skip",
+                            marker={"size": 7, "color": accent, "line": {"color": col["bg"], "width": 2}})
+    fig.update_layout(**tokens.plotly_layout(mode, fmt=c.get("format", "number")), height=280,
+                      showlegend=c["type"] == "forecast", hovermode="x unified")
     st.caption(c["title"])
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", theme=None, config={"displayModeBar": False}, alt=_alt(c))
 
 
 def heading(col: str) -> str:
@@ -91,7 +119,10 @@ def table(t: dict[str, Any]) -> None:
             cfg[col] = st.column_config.NumberColumn(heading(col), format="compact")
         else:
             cfg[col] = st.column_config.Column(heading(col))
-    st.dataframe(df, hide_index=True, width="stretch", column_config=cfg)
+    # Missing values read as an em dash, not "None"; long tables scroll inside a fixed height instead of pushing the
+    # answer's actions off screen. Sorting, search, column resizing, copy and CSV export are the grid's own.
+    height = "auto" if len(df) <= 12 else 38 + 35 * 12
+    st.dataframe(df, hide_index=True, width="stretch", column_config=cfg, placeholder="—", height=height)
 
 
 VIEWS = ("Summary", "Detail", "Method")
