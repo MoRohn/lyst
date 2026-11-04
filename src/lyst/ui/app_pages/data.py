@@ -18,6 +18,7 @@ from lyst.ui import (
     reports,
     scenarios,
     transforms,
+    visuals,
 )
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
@@ -243,11 +244,7 @@ def dataset_detail(d: dict) -> None:
     elif view == "Columns":
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
         if ins:
-            st.dataframe(pd.DataFrame([{"Column": c["name"], "Kind": (c.get("semantic_type") or c.get("role") or "").replace("_", " "),
-                                        "Type": c.get("type"), "Missing": c.get("nulls"), "Distinct values": c.get("distinct"),
-                                        "Notes": "; ".join(c.get("issues") or [])} for c in ins["columns"]]),
-                         hide_index=True, width="stretch",
-                         column_config={"Missing": st.column_config.ProgressColumn("Missing", min_value=0, max_value=1)})
+            column_profiles(name, ins)
             cols = st.multiselect("If these columns changed, what would be affected?", [c["name"] for c in ins["columns"]],
                                   key=f"imp_{name}")
             if cols:
@@ -258,6 +255,46 @@ def dataset_detail(d: dict) -> None:
         contract(name)
     if view == "Overview":
         transforms.panel(d.get("source"))
+
+
+def _fmt(v: object) -> str:
+    if isinstance(v, int | float):
+        a = abs(v)
+        return (f"{v / 1e9:.2f}B" if a >= 1e9 else f"{v / 1e6:.2f}M" if a >= 1e6 else f"{v / 1e3:.1f}K" if a >= 1e4
+                else f"{v:,.4g}")
+    return str(v)
+
+
+def column_profiles(name: str, ins: dict) -> None:
+    """Every column as a small profile: what it is, how complete, how varied, and its values at a glance (the top
+    categories for a category, the range and middle for a number, the span for a date). From the stored profile."""
+    prof = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/profile")) or {}
+    by = {c["name"]: c for c in prof.get("columns") or []}
+    cols = ins.get("columns") or []
+    for start in range(0, len(cols), 2):
+        row = st.columns(2)
+        for slot, c in zip(row, cols[start:start + 2], strict=False):
+            p = by.get(c["name"], {})
+            stats = p.get("stats") or {}
+            kind = (c.get("semantic_type") or c.get("role") or "").replace("_", " ")
+            missing = float(c.get("nulls") or 0)
+            body = (f'<div class="lyst-card-kicker">{kit._esc(kind)} · {kit._esc(str(c.get("type", "")))}</div>'
+                    f'<div class="lyst-card-title">{kit._esc(c["name"])}</div>'
+                    + visuals.meter(1 - missing, label=f"{c['name']} complete", tone="good" if missing == 0 else "warn",
+                                    text=f"{1 - missing:.0%} complete · {c.get('distinct', p.get('unique', 0)):,} distinct"))
+            if c.get("top"):
+                body += visuals.bars([(str(k), float(v)) for k, v in c["top"][:5]],
+                                     label=f"Most common {c['name']} values")
+            elif "min" in stats and isinstance(stats.get("min"), int | float):
+                body += visuals.stats([("lowest", _fmt(stats["min"]), None), ("median", _fmt(stats.get("median")), None),
+                                       ("highest", _fmt(stats["max"]), None)], compact=True)
+            elif stats.get("min"):
+                body += visuals.stats([("from", str(stats["min"]), None), ("to", str(stats.get("max", "")), None)],
+                                      compact=True)
+            if c.get("issues"):
+                body += f'<div class="lyst-card-meta" style="color:var(--lyst-warn)">{kit._esc("; ".join(c["issues"]))}</div>'
+            with slot.container(border=True):
+                st.html(body)
 
 
 def contract(name: str) -> None:
@@ -368,17 +405,100 @@ def datasets(catalog: list[dict]) -> None:
     q = st.text_input("Find", placeholder="Find a dataset", label_visibility="collapsed", key="ds_find") \
         if len(catalog) > 6 else ""
     shown = [d for d in catalog if not q or q.lower() in (d["title"] + d["name"] + (d.get("description") or "")).lower()]
-    for i, d in enumerate(shown):
-        c = {**d, **info.get(d["name"], {})}
-        fresh = (c.get("freshness") or {}).get("latest")
-        hit = kit.row(d["title"], " · ".join(x for x in (d.get("description"), f"{d['row_count']:,} rows",
-                                                           f"data through {fresh}" if fresh else
-                                                           f"updated {kit.when(d['refreshed_at'])}",
-                                                           str(d["classification"]).capitalize()) if x),
-                      status=health(c), actions=[("Open", "open")], key=f"d{d['name']}", divider=i < len(shown) - 1)
-        if hit or st.query_params.get("dataset") == d["name"]:
-            st.query_params.pop("dataset", None)
-            dataset_detail(c)
+    full = [{**d, **info.get(d["name"], {})} for d in shown]
+    by = _metrics_by_dataset()
+    overview(full, by)
+    for start in range(0, len(full), 2):
+        cols = st.columns(2)
+        for col, c in zip(cols, full[start:start + 2], strict=False):
+            with col.container(border=True):
+                hit = dataset_card(c, by.get(c["name"]) or [])
+            if hit or st.query_params.get("dataset") == c["name"]:
+                st.query_params.pop("dataset", None)
+                dataset_detail(c)
+
+
+ROLE_TONE = {"time": ("Time", "info"), "dimension": ("Categories", "neutral"), "measure": ("Numbers", "accent")}
+
+
+def _roles(schema: list[dict]) -> dict[str, int]:
+    """Columns by what they are for: time, categories (to split by), numbers (to add up)."""
+    out = {"time": 0, "dimension": 0, "measure": 0}
+    for col in schema or []:
+        t = str(col.get("type", "")).lower()
+        out["time" if any(k in t for k in ("date", "time")) else
+            "measure" if any(k in t for k in ("int", "double", "float", "decimal", "numeric", "real")) else
+            "dimension"] += 1
+    return out
+
+
+def _metrics_by_dataset() -> dict[str, list[dict]]:
+    try:
+        metrics = api.get(f"/v1/workspaces/{ws}/metrics")
+    except APIError:
+        return {}
+    out: dict[str, list[dict]] = {}
+    for m in metrics:
+        out.setdefault(m["dataset"], []).append(m)
+    return out
+
+
+def overview(full: list[dict], by: dict[str, list[dict]]) -> None:
+    """The workspace's data at a glance: how much, how fresh, how much needs attention."""
+    if not full:
+        return
+    latest = max(((c.get("freshness") or {}).get("latest") or "" for c in full), default="")
+    attention = sum(1 for c in full if (health(c) or ("", "ok"))[1] in ("bad", "warn"))
+    st.html(visuals.stats([
+        ("Datasets", f"{len(full)}", None),
+        ("Rows", f"{sum(int(c.get('rows') or c.get('row_count') or 0) for c in full):,}", None),
+        ("Approved metrics", f"{sum(len(v) for v in by.values())}", None),
+        ("Latest data", latest or "—", None),
+        ("Need attention", f"{attention}", "a risk or a broken contract" if attention else "none"),
+    ]))
+
+
+def dataset_card(c: dict, feeds: list[dict]) -> bool:
+    """One dataset as a card: what it is, its shape, how fresh it is, and the headline measure it feeds."""
+    fresh = c.get("freshness") or {}
+    schema = c.get("schema") or []
+    roles = _roles(schema)
+    top = st.columns([4, 1.6], vertical_alignment="top")
+    top[0].html(f'<div class="lyst-card-kicker">{kit._esc(str(c.get("classification", "")).capitalize())} · '
+                f'v{c.get("version", 1)} · {kit._esc(c["name"])}</div>'
+                f'<div class="lyst-card-title">{kit._esc(c["title"])}</div>')
+    if h := health(c):
+        kit.chip(h[0], h[1], top[1])
+    grain = " × ".join(g.replace("_", " ") for g in c.get("grain") or [])
+    st.html(f'<div class="lyst-card-meta">{kit._esc(c.get("description") or "")}</div>'
+            + visuals.stats([("rows", f"{int(c.get('rows') or c.get('row_count') or 0):,}", None),
+                             ("columns", f"{len(schema)}", None),
+                             ("data through", fresh.get("latest") or "—",
+                              f"{fresh['age_days']} days ago" if fresh.get("age_days") is not None else None)],
+                            compact=True)
+            + visuals.stacked([(f"{ROLE_TONE[k][0]} {v}", v, ROLE_TONE[k][1]) for k, v in roles.items()],
+                              label=f"{c['title']} columns by role")
+            + (f'<div class="lyst-card-meta" style="margin-top:.4rem">One row per {kit._esc(grain)}</div>'
+               if grain else ""))
+    live = visuals.pulse(api, ws)
+    lead = next((live[m["name"]] for m in feeds if m["name"] in live), None)
+    if lead:
+        st.html(f'<div class="lyst-card-meta" style="margin-top:.2rem">{kit._esc(lead["title"])} · '
+                f'{kit._esc(lead["period"])} <b class="lyst-num">{kit._esc(lead["value_text"])}</b> '
+                f'{visuals.delta(lead["change_text"], lead.get("good"))}</div>'
+                + visuals.spark(lead["history"], label=f"{lead['title']} over the last {len(lead['history'])} "
+                                f"{lead['grain']}s", height=36))
+    if feeds:
+        st.caption(f"Feeds {len(feeds)} approved metric{'s' * (len(feeds) != 1)}: "
+                   + ", ".join(m["title"] for m in feeds[:4]) + ("…" if len(feeds) > 4 else ""))
+    b = st.columns([1, 1, 2.5])
+    opened = b[0].button("Open", key=f"d{c['name']}_open", type="tertiary", icon=":material/arrow_outward:")
+    if b[1].button("Ask", key=f"d{c['name']}_ask", type="tertiary", icon=":material/chat:",
+                   help=f"Ask Lyst what is in {c['title']}"):
+        ask(f"Summarise {c['name']}: what does it contain and what stands out?")
+    return opened
+
+
 STATE = {"healthy": ("Healthy", "ok"), "degraded": ("Degraded", "warn"), "failing": ("Failing", "bad"),
          "needs_action": ("Needs action", "bad"), "untested": ("Not tested", "off")}
 CATEGORY = {"auth": "sign-in", "permission": "permissions", "rate_limit": "rate limit", "timeout": "time-out",
@@ -515,21 +635,102 @@ def dashboards_view() -> None:
     reports.saved_reports()
 
 
+def _set_sql(text: str) -> None:
+    st.session_state["sql_text"] = text
+
+
+def _result_chart(cols: list[str], rows: list[list]) -> dict | None:
+    """A first chart for a result: a date or category column against the first number, when there is one."""
+    if not rows or len(cols) < 2:
+        return None
+    df = pd.DataFrame(rows, columns=cols)
+    num = [c for c in cols if pd.api.types.is_numeric_dtype(df[c])]
+    other = [c for c in cols if c not in num]
+    if not num or not other:
+        return None
+    x, y = other[0], num[0]
+    if df[x].nunique() > 60:
+        return None
+    dated = pd.to_datetime(df[x].astype(str), errors="coerce", format="mixed").notna().all()
+    agg = df.groupby(x, sort=dated)[y].sum().reset_index()
+    if not dated:
+        agg = agg.sort_values(y, ascending=False).head(20)
+    return {"type": "line" if dated else "bar", "title": f"{y} by {x}".replace("_", " "),
+            "x": [str(v)[:10] if dated else str(v) for v in agg[x]], "y": [float(v) for v in agg[y]]}
+
+
+def schema_navigator(catalog: list[dict]) -> None:
+    """Every dataset with its columns and types; one click writes a starting query."""
+    kit.label(f"Datasets · {len(catalog)}")
+    for d in catalog:
+        with st.expander(d["title"], icon=":material/table:"):
+            st.caption(f"`{d['name']}` · {d.get('row_count', 0):,} rows")
+            st.html('<div class="lyst-card-meta">' + "<br>".join(
+                f'{kit._esc(c["name"])} <span style="opacity:.7">{kit._esc(str(c.get("type", "")))}</span>'
+                for c in d.get("schema") or []) + "</div>")
+            st.button("Query it", key=f"sqlq_{d['name']}", type="tertiary", icon=":material/edit_note:",
+                      on_click=_set_sql, args=(f'SELECT *\nFROM "{d["name"]}"\nLIMIT 50',))
+
+
+def sql_editor(catalog: list[dict]) -> None:
+    """Read-only SQL with the schema beside it, results that survive a rerun, a first chart, and recent queries."""
+    if "sql_text" not in st.session_state:
+        st.session_state["sql_text"] = f'SELECT *\nFROM "{catalog[0]["name"]}"\nLIMIT 50' if catalog else ""
+    side, main = st.columns([1, 2.8], gap="medium")
+    with side:
+        schema_navigator(catalog)
+        mine = []
+        try:
+            seen: set[str] = set()
+            for h in api.get(f"/v1/workspaces/{ws}/queries", limit=200):
+                key_ = " ".join(str(h.get("sql", "")).split())
+                if not h.get("task_id") and key_ and key_ not in seen:
+                    seen.add(key_)
+                    mine.append(h)
+            mine = mine[:6]
+        except APIError:
+            pass
+        if mine:
+            kit.label("Recent")
+            for i, h in enumerate(mine):
+                sql_ = " ".join(str(h.get("sql", "")).split())
+                st.button(sql_[:60] + ("…" if len(sql_) > 60 else ""), key=f"sqlr_{i}", type="tertiary",
+                          help=f"{kit.when(h['occurred_at'])} · {h.get('rows') or 0:,} rows · {h['outcome']}",
+                          on_click=_set_sql, args=(h.get("sql", ""),))
+    with main:
+        st.caption("Read-only SQL against dataset names. Column and row policies apply, and every query is recorded.")
+        text = st.text_area("SQL", height=150, label_visibility="collapsed", key="sql_text")
+        if st.button("Run", type="primary", icon=":material/play_arrow:", key="sql_run"):
+            r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": text, "max_rows": 5000}))
+            st.session_state["sql_result"] = (ws, text, r) if r else None
+        held = st.session_state.get("sql_result")
+        if held and held[0] == ws and held[2]:
+            _, ran, r = held
+            n = len(r["rows"])
+            st.caption(f"{n:,} row{'s' * (n != 1)} · {r['ms']} ms" + (" · edited since it ran" if ran != text else ""))
+            chart = _result_chart(r["columns"], r["rows"])
+            tabs = st.tabs(["Table", "Chart"] if chart else ["Table"])
+            with tabs[0]:
+                st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch",
+                             placeholder="—", height="auto" if n <= 12 else 420)
+            if chart:
+                with tabs[1]:
+                    from lyst.ui.components import chart as draw  # noqa: PLC0415
+
+                    draw(chart)
+
+
+# The workbench's tabs: SQL today; Python joins it here when the engine offers a sandbox.
+WORKBENCH = {"SQL": sql_editor}
+
+
 def sql(catalog: list[dict]) -> None:
-    st.caption("Read-only SQL against dataset names. Column and row policies apply, and every query is recorded.")
-    text = st.text_area("SQL", height=130, label_visibility="collapsed", key="sql_text",
-                        value=f'SELECT * FROM {catalog[0]["name"]} LIMIT 50' if catalog else "")
-    if st.button("Run", type="primary", icon=":material/play_arrow:"):
-        r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": text, "max_rows": 5000}))
-        if r:
-            st.caption(f"{len(r['rows']):,} rows · {r['ms']} ms")
-            st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch")
-    mine = [h for h in api.get(f"/v1/workspaces/{ws}/queries", limit=200) if not h.get("task_id")][:8]
-    if mine:
-        kit.label("Your recent queries")
-        for h in mine:
-            st.caption(f"{kit.when(h['occurred_at'])} · {h.get('rows') or 0:,} rows · {h['outcome']}")
-            st.code(h.get("sql", ""), language="sql")
+    if len(WORKBENCH) == 1:
+        sql_editor(catalog)
+        return
+    for tab, fn in zip(st.tabs(list(WORKBENCH)), WORKBENCH.values(), strict=True):
+        with tab:
+            fn(catalog)
 
 
 try:

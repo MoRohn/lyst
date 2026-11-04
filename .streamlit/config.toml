@@ -28,6 +28,12 @@ secondaryBackgroundColor = "#f5f6f8"
 textColor = "#16181d"
 borderColor = "#e3e5ea"
 chartCategoricalColors = ["#0B6B64", "#5b6577", "#d9822b", "#8a63d2", "#d64550", "#12A79B"]
+# Status text (badges, :green[...]) at 4.5:1 or better on its own tinted background; Streamlit's defaults are 4.3:1.
+greenTextColor = "#166f30"
+redTextColor = "#b42318"
+orangeTextColor = "#8a5a00"
+blueTextColor = "#0b5cad"
+grayTextColor = "#4b5263"
 
 [theme.dark]
 primaryColor = "#0E7C73"
