@@ -10,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from lyst import demo
 from lyst.security import AccessDenied
 from lyst.studio import refresh_interval, wants_dashboard
 
@@ -24,27 +25,48 @@ def test_request_parsing():
     assert refresh_interval("no cadence") is None
 
 
-def test_b_dashboard_from_a_sentence(seeded):
+def test_b_dashboard_from_a_sentence_is_a_dash_app(seeded):
     lyst, owner = seeded
     t = ask(lyst, owner, "Create an automated operating margin and revenue reporting dashboard by region, refreshed weekly")
     assert t["status"] == "done", t["error"]
     r = t["result"]
-    assert r["status"] == "complete" and "verified by a headless render" in r["answer"]
     d = lyst.studio.list(owner, "northwind")[0]
+    assert r["status"] == "complete" and "as a Dash app" in r["answer"] and "every page and callback ran" in r["answer"], \
+        json.dumps(d["checks"], indent=1)
     folder = Path(lyst.stores.workspace("northwind").scalar("SELECT path FROM dashboards WHERE id = ?", [d["id"]]))
-    assert {p.name for p in folder.iterdir()} == {"app.py", "manifest.json", "README.md", "operating_margin_series.parquet",
-                                                  "operating_margin_by_region.parquet", "revenue_series.parquet", "revenue_by_region.parquet"}
+    names = {str(p.relative_to(folder)) for p in folder.rglob("*") if p.is_file() and ".cache" not in p.parts and "__pycache__" not in p.parts}
+    assert {"app.py", "theme.toml", "requirements.txt", "DESIGN.md", "README.md", "manifest.json", "lyst_dash/settings.py",
+            "lyst_dash/data.py", "lyst_dash/ui.py", "pages/overview.py", "pages/breakdown.py", "pages/method.py",
+            "tests/test_app.py", "data/parts_operating_margin.parquet", "data/parts_revenue.parquet"} <= names
     man = json.loads((folder / "manifest.json").read_text())
-    assert [m["name"] for m in man["metrics"]] == ["operating_margin", "revenue"] and man["dimension"] == "region"
-    assert all(c["passed"] for c in man["checks"]) and {c["name"] for c in man["checks"]} >= {"app_syntax", "headless_render"}
+    assert man["target"] == "dash" and [m["name"] for m in man["metrics"]] == ["operating_margin", "revenue"] and man["dimension"] == "region"
+    assert all(c["passed"] for c in man["checks"]) and {c["name"] for c in man["checks"]} >= {"app_syntax", "dash_check"}
+    # the parts extracts recompute the governed numbers exactly (a ratio from its numerator and denominator)
+    parts = pd.read_parquet(folder / "data" / "parts_operating_margin.parquet")
+    latest = parts[parts["period"] == parts["period"].max()]
+    assert latest["num"].sum() / latest["den"].sum() == pytest.approx(next(m["latest_value"] for m in man["metrics"] if m["name"] == "operating_margin"), rel=1e-9)
+    emea = parts[parts["region"] == "EMEA"].groupby("period")[["num", "den"]].sum()
+    df = demo.pnl()
+    e = df[df.region == "EMEA"].groupby("month")[["operating_income", "revenue"]].sum()
+    assert (emea["num"] / emea["den"]).iloc[-1] == pytest.approx(e.operating_income.iloc[-1] / e.revenue.iloc[-1], rel=1e-9)
+    design = (folder / "DESIGN.md").read_text()
+    assert "## Pages" in design and "click to filter" in design and "Tableau dashboards" in design
+    assert "no purples" in design.lower()
+    # the app's own tests pass (dashkit check + manifest values), in a separate process
+    import subprocess
+    import sys
+
+    run = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(folder / "tests")], capture_output=True,
+                         text=True, timeout=300, cwd=folder)
+    assert run.returncode == 0, run.stdout[-2000:] + run.stderr[-2000:]
     # extracts hold the governed numbers
     s = pd.read_parquet(folder / "operating_margin_series.parquet").sort_values("period")
     assert s["period"].iloc[-1] == "2026-09-01" and 0.30 < s["value"].iloc[-1] < 0.35
     readme = (folder / "README.md").read_text()
     assert "## Metrics" in readme and "Operating margin (v1)" in readme and "```sql" in readme
     # the app reads nothing but its extracts
-    app = (folder / "app.py").read_text()
-    assert "duckdb" not in app and "read_parquet" in app and "manifest.json" in app
+    sources = "\n".join(p.read_text() for p in folder.rglob("*.py"))
+    assert "duckdb" not in sources and "read_parquet" in (folder / "lyst_dash" / "data.py").read_text()
     # refresh schedule proposed, not yet active
     sched = lyst.runtime.schedules(owner, "northwind")[0]
     assert sched["enabled"] is False and json.loads(sched["request"])["question"] == f"refresh dashboard {d['id']}"
@@ -59,6 +81,8 @@ def test_b_dashboard_from_a_sentence(seeded):
     lyst.runtime.drain()
     rt = lyst.runtime.get(owner, started[0])
     assert rt["status"] == "done" and rt["result"]["answer"].endswith("published.")
+    man2 = json.loads((folder / "manifest.json").read_text())
+    assert man2["target"] == "dash" and all(c["passed"] for c in man2["checks"])
     d2 = lyst.studio.list(owner, "northwind")[0]
     assert d2["refresh_count"] == 1 and (folder / "manifest.json").stat().st_mtime_ns > before
     # bundle and lineage
@@ -68,9 +92,31 @@ def test_b_dashboard_from_a_sentence(seeded):
     assert any(x["kind"] == "artifact" and x["name"] == d["id"] for x in down)
 
 
+def test_streamlit_target_on_request(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Build a revenue dashboard by region in Streamlit")["result"]
+    assert "as a Streamlit app" in r["answer"] and "verified" in r["answer"]
+    d = lyst.studio.list(owner, "northwind")[0]
+    folder = Path(lyst.stores.workspace("northwind").scalar("SELECT path FROM dashboards WHERE id = ?", [d["id"]]))
+    man = json.loads((folder / "manifest.json").read_text())
+    assert man["target"] == "streamlit" and {c["name"] for c in man["checks"]} >= {"headless_render"}
+    assert "read_parquet" in (folder / "app.py").read_text() and not (folder / "pages").exists()
+
+
+def test_non_additive_metric_is_refused_honestly(seeded):
+    from lyst.semantic import Measure, MetricSpec
+
+    lyst, owner = seeded
+    lyst.semantic.define(owner, "northwind", MetricSpec(name="avg_ticket", title="Average ticket", dataset="pnl",
+                                                        measure=Measure(agg="avg", column="revenue"), time_column="month",
+                                                        dimensions=["region"], format="currency"))
+    with pytest.raises(ValueError, match="not additive"):
+        lyst.studio.design(owner, "northwind", ["avg_ticket"], dimension="region", title=None, every_seconds=None)
+
+
 def test_failed_refresh_keeps_the_old_extracts_and_marks_stale(seeded, monkeypatch):
     lyst, owner = seeded
-    ask(lyst, owner, "Build a revenue dashboard by region")
+    ask(lyst, owner, "Build a revenue dashboard by region in Streamlit")
     d = lyst.studio.list(owner, "northwind")[0]
     folder = Path(lyst.stores.workspace("northwind").scalar("SELECT path FROM dashboards WHERE id = ?", [d["id"]]))
     good = (folder / "revenue_series.parquet").read_bytes()

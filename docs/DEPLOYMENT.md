@@ -16,6 +16,12 @@ plain HTTP on the internal network.
 The Compose file has not yet been run on this machine (Docker was not available while it was written); the
 image build and the services are checked in CI once it exists.
 
+## Dependencies from ai-analytics
+
+`dashkit` and `stkit` come from `github.com/MoRohn/ai-analytics` (pinned by commit in `pyproject.toml`). That
+repository is private, so `uv sync` and the Docker build need Git access to it (an SSH key or a token in the
+environment, or a mirror). A generated dashboard's `requirements.txt` carries the same two references.
+
 ## Sign-in
 
 Set the `LYST_OIDC_*` variables (`.env.example`) to any OIDC provider: Keycloak, Authentik, Dex, Zitadel or a

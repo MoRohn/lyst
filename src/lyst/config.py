@@ -97,7 +97,20 @@ def _master_key(home: Path) -> bytes:
     return key
 
 
+def load_env_file() -> Path | None:
+    """Read a .env file into the environment without overriding variables already set.
+    Looks at LYST_ENV_FILE, then ./.env. The file is gitignored; it holds keys such as LYST_OPENROUTER_API_KEY."""
+    from dotenv import load_dotenv
+
+    for candidate in (os.environ.get("LYST_ENV_FILE"), ".env"):
+        if candidate and Path(candidate).is_file():
+            load_dotenv(candidate, override=False)
+            return Path(candidate).resolve()
+    return None
+
+
 def load_settings(home: str | Path | None = None) -> Settings:
+    load_env_file()
     root = Path(home or os.environ.get("LYST_HOME", "var")).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return Settings(

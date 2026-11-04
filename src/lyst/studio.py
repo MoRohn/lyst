@@ -133,8 +133,11 @@ class StudioService:
     # -- design -----------------------------------------------------------------------------
 
     def design(self, actor: Principal, ws: str, metrics: list[str], *, dimension: str | None, title: str | None,
-               grain: str = "month", every_seconds: int | None) -> dict[str, Any]:
+               grain: str = "month", every_seconds: int | None, target: str = "dash",
+               narrative: dict[str, Any] | None = None) -> dict[str, Any]:
         self.guard.require(actor, ws, "data.read")
+        if target not in ("dash", "streamlit"):
+            raise ValueError("target must be dash or streamlit")
         specs = [self.semantic.get(actor, ws, m) for m in metrics]
         dims = set(specs[0].dimensions)
         for sp in specs[1:]:
@@ -144,17 +147,30 @@ class StudioService:
             raise ValueError("the metrics share no dimension to break down by")
         catalog = {d["name"]: d for d in self.data.catalog(actor, ws)}
         design = {"title": title or f"{' & '.join(sp.title for sp in specs)} by {dim}", "grain": grain, "dimension": dim,
-                  "every_seconds": every_seconds, "metrics": []}
+                  "every_seconds": every_seconds, "target": target, "narrative": narrative or {}, "metrics": []}
+        from .analyst.engine import _sum_target  # noqa: PLC0415
+        from .semantic import _cond  # noqa: PLC0415
+
         for sp in specs:
             series_sql = compile_metric(sp, grain=grain)
             breakdown_sql = compile_metric(sp, grain=grain, by=[dim])
             r1 = self.data.query(actor, ws, series_sql)
             r2 = self.data.query(actor, ws, breakdown_sql)
+            if sp.kind == "ratio":
+                num, den = _sum_target(sp.numerator), _sum_target(sp.denominator)
+            else:
+                num, den = _sum_target(sp.measure), None
+            if not num or (sp.kind == "ratio" and not den):
+                raise ValueError(f"{sp.title} is not additive (sum or count, or a ratio of them); a dashboard needs additive parts "
+                                 "so that filtering recomputes it exactly")
+            where = " AND ".join([f'"{sp.time_column}" IS NOT NULL'] + [_cond(f) for f in sp.filters])
+            parts_sql = (f'SELECT date_trunc(\'{grain}\', "{sp.time_column}") AS period, "{dim}" AS {dim}, SUM({num}) AS num, '
+                         f'{"SUM(" + den + ")" if den else "NULL"} AS den FROM "{sp.dataset}" WHERE {where} GROUP BY 1, 2 ORDER BY 1, 2')
             design["metrics"].append({"name": sp.name, "title": sp.title, "description": sp.description, "format": sp.format,
-                                      "higher_is_better": sp.higher_is_better, "dataset": sp.dataset,
+                                      "higher_is_better": sp.higher_is_better, "dataset": sp.dataset, "kind": sp.kind,
                                       "dataset_version": catalog[sp.dataset]["version"],
                                       "version": self._db(ws).scalar("SELECT current_version FROM metrics WHERE name = ?", [sp.name]),
-                                      "series_sql": series_sql, "breakdown_sql": breakdown_sql,
+                                      "series_sql": series_sql, "breakdown_sql": breakdown_sql, "parts_sql": parts_sql,
                                       "series_rows": len(r1.rows), "breakdown_rows": len(r2.rows),
                                       "query_ids": [r1.query_id, r2.query_id]})
         return design
@@ -169,14 +185,13 @@ class StudioService:
             e = existing[0]
             return {"dashboard_id": e["id"], "title": e["title"], "path": e["path"], "status": e["status"],
                     "checks": json.loads(e["checks"] or "[]"), "schedule": {"schedule_id": e["schedule_id"]} if e["schedule_id"] else None,
-                    "files": sorted(p.name for p in Path(e["path"]).iterdir()), "resumed": True}
+                    "target": design.get("target", "streamlit"),
+                    "files": sorted(str(p.relative_to(e["path"])) for p in Path(e["path"]).rglob("*") if p.is_file()
+                                    and ".cache" not in p.parts and "__pycache__" not in p.parts), "resumed": True}
         folder = self._dir(ws, did)
         folder.mkdir(parents=True, exist_ok=True)
         manifest = self._materialize(actor, ws, design, folder, task_id=task_id)
-        (folder / "app.py").write_text(APP_TEMPLATE)
-        (folder / "README.md").write_text(self._readme(design, manifest))
-        (folder / "manifest.json").write_text(json.dumps(manifest, indent=1, default=str))  # the render reads it
-        checks = self._verify(folder, manifest)
+        checks = self._write_and_verify(folder, design, manifest)
         manifest["checks"] = checks
         (folder / "manifest.json").write_text(json.dumps(manifest, indent=1, default=str))
         status = "published" if all(c["passed"] for c in checks if c["severity"] == "error") else "failed"
@@ -196,7 +211,9 @@ class StudioService:
             for m in design["metrics"]:
                 self.knowledge.relate(actor, ws, "artifact", did, "reads", "metric", m["name"], source="system")
         return {"dashboard_id": did, "title": design["title"], "path": str(folder), "status": status, "checks": checks,
-                "schedule": schedule, "files": sorted(p.name for p in folder.iterdir())}
+                "schedule": schedule, "target": design.get("target", "streamlit"),
+                "files": sorted(str(p.relative_to(folder)) for p in folder.rglob("*") if p.is_file() and ".cache" not in p.parts
+                                and "__pycache__" not in p.parts)}
 
     def _materialize(self, actor: Principal, ws: str, design: dict[str, Any], folder: Path, *, task_id: str | None) -> dict[str, Any]:
         metrics, data_through = [], None
@@ -208,10 +225,18 @@ class StudioService:
             self._parquet(folder / breakdown_file, b.columns, b.rows)
             last = max((str(r[0])[:10] for r in s.rows), default=None)
             data_through = max(filter(None, [data_through, last]), default=None)
-            metrics.append({**{k: m[k] for k in ("name", "title", "description", "format", "higher_is_better", "version", "dataset")},
-                            "sql": m["series_sql"], "series_file": series_file, "breakdown_file": breakdown_file,
-                            "rows": len(s.rows), "sha256": hashlib.sha256((folder / series_file).read_bytes()).hexdigest()})
+            latest = next((float(r[1]) for r in sorted(s.rows, key=lambda r: str(r[0]), reverse=True) if r[1] is not None), None)
+            entry = {**{k: m[k] for k in ("name", "title", "description", "format", "higher_is_better", "version", "dataset")},
+                     "kind": m.get("kind", "simple"), "sql": m["series_sql"], "series_file": series_file, "breakdown_file": breakdown_file,
+                     "rows": len(s.rows), "latest_value": latest, "sha256": hashlib.sha256((folder / series_file).read_bytes()).hexdigest()}
+            if design.get("target", "streamlit") == "dash" and m.get("parts_sql"):
+                (folder / "data").mkdir(exist_ok=True)
+                pr = self.data.query(actor, ws, m["parts_sql"], task_id=task_id, max_rows=10_000)
+                self._parquet(folder / "data" / f"parts_{m['name']}.parquet", pr.columns, pr.rows)
+                entry["parts_file"] = f"data/parts_{m['name']}.parquet"
+            metrics.append(entry)
         return {"id": folder.name, "title": design["title"], "dimension": design["dimension"], "grain": design["grain"],
+                "target": design.get("target", "streamlit"),
                 "metrics": metrics, "refreshed_at": datetime.now(UTC).isoformat(timespec="seconds"), "data_through": data_through,
                 "checks": []}
 
@@ -221,6 +246,22 @@ class StudioService:
         if "period" in cols:
             cols["period"] = [str(v)[:10] for v in cols["period"]]
         pq.write_table(pa.table(cols), path)
+
+    def _write_and_verify(self, folder: Path, design: dict[str, Any], manifest: dict[str, Any]) -> list[dict[str, Any]]:
+        """App files for the target, the manifest (the render reads it), then the target's checks."""
+        from . import studio_dash  # noqa: PLC0415
+
+        (folder / "README.md").write_text(self._readme(design, manifest))
+        (folder / "manifest.json").write_text(json.dumps(manifest, indent=1, default=str))
+        if design.get("target", "streamlit") == "dash":
+            studio_dash.write_app(folder, design, manifest)
+            checks = studio_dash.verify(folder)
+            for m in manifest["metrics"]:
+                checks.append({"name": f"extract:{m['name']}", "passed": m["rows"] > 0, "detail": f"{m['rows']} rows, sha256 {m['sha256'][:12]}",
+                               "severity": "error"})
+            return checks
+        (folder / "app.py").write_text(APP_TEMPLATE)
+        return self._verify(folder, manifest)
 
     def _verify(self, folder: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
         checks = []
@@ -247,7 +288,8 @@ class StudioService:
 
     @staticmethod
     def _readme(design: dict[str, Any], manifest: dict[str, Any]) -> str:
-        lines = [f"# {design['title']}", "", "Generated by Lyst. Run with `streamlit run app.py`; the app reads the Parquet "
+        runner = "`pip install -r requirements.txt && python app.py` (Dash)" if design.get("target", "streamlit") == "dash" else "`streamlit run app.py`"
+        lines = [f"# {design['title']}", "", f"Generated by Lyst. Run with {runner}; the app reads the Parquet "
                  "extracts beside it and nothing else. Refreshing is Lyst's job (an approved schedule re-runs the governed "
                  "queries, rewrites the extracts and re-checks the app).", "", f"Dimension: `{design['dimension']}` · grain: "
                  f"{design['grain']} · data through {manifest['data_through']}", "", "## Metrics", ""]
@@ -271,18 +313,14 @@ class StudioService:
         staging.mkdir(parents=True)
         try:
             manifest = self._materialize(actor, ws, design, staging, task_id=task_id)
-            (staging / "app.py").write_text(APP_TEMPLATE)
-            (staging / "README.md").write_text(self._readme(design, manifest))
-            (staging / "manifest.json").write_text(json.dumps(manifest, indent=1, default=str))
-            checks = self._verify(staging, manifest)
+            checks = self._write_and_verify(staging, design, manifest)
             manifest["checks"] = checks
             (staging / "manifest.json").write_text(json.dumps(manifest, indent=1, default=str))
             ok = all(c["passed"] for c in checks if c["severity"] == "error")
         except Exception as exc:  # noqa: BLE001
             ok, checks = False, [{"name": "refresh", "passed": False, "detail": f"{type(exc).__name__}: {exc}"[:300], "severity": "error"}]
         if ok:
-            for p in staging.iterdir():
-                shutil.copy2(p, folder / p.name)
+            shutil.copytree(staging, folder, dirs_exist_ok=True)
             shutil.rmtree(staging)
             self._db(ws).execute("UPDATE dashboards SET status = 'published', last_refresh_at = now(), refresh_count = refresh_count + 1, "
                                  "checks = ? WHERE id = ?", [json.dumps(checks), dashboard_id])
@@ -325,8 +363,9 @@ class StudioService:
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            for p in Path(path).iterdir():
-                z.write(p, p.name)
+            for p in sorted(Path(path).rglob("*")):
+                if p.is_file() and ".cache" not in p.parts and "__pycache__" not in p.parts:
+                    z.write(p, str(p.relative_to(path)))
         return buf.getvalue()
 
 

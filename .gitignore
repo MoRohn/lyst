@@ -7,3 +7,6 @@ var/
 *.duckdb
 *.duckdb.wal
 .lyst-key
+.env
+.env.*
+!.env.example

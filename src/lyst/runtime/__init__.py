@@ -470,7 +470,10 @@ class TaskRuntime:
         finally:
             obs.task_id.reset(ctx_token)
             if otel_token is not None:
-                otel_context.detach(otel_token)
+                try:
+                    otel_context.detach(otel_token)
+                except ValueError:  # a step ran code inside its own contextvars Context; nothing to restore
+                    pass
 
     def _fail(self, task_id: str, error: str) -> str:
         self.db.execute("UPDATE tasks SET status = 'failed', error = ?, updated_at = now(), lease_owner = NULL "

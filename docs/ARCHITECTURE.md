@@ -111,10 +111,17 @@ with redacted text.
 
 ## The Studio
 
-`studio.py`: "create an automated <metrics> reporting dashboard by <dimension>, refreshed weekly" designs on
-governed metrics, runs the compiled SQL through the guard, writes Parquet extracts, generates a standalone
-Streamlit app (it reads only its extracts, Acumane's arch-runtime rule) and a README with every definition,
-verifies by compiling and rendering headlessly with Streamlit's `AppTest`, and proposes a refresh schedule.
+`studio.py` and `studio_dash.py`: "create an automated <metrics> reporting dashboard by <dimension>, refreshed
+weekly" designs on governed metrics, runs the compiled SQL through the guard, writes Parquet extracts, and
+generates a standalone **Dash** app on ai-analytics' `dashkit` and `stkit` (a git dependency on
+github.com/MoRohn/ai-analytics, pinned): the design language of the ai-analytics Tableau dashboards and their
+Dash ports (navbar, scope header, KPI cards with icon tile, delta pill and sparkline, trend with forecast band,
+click-to-filter mix, computed findings, Data and method page, MCP). The app reads only its extracts
+(Acumane's arch-runtime rule); a ratio ships its numerator and denominator per period and member so filters
+recompute it exactly. Verification runs dashkit's check (pages, ids, URLs, every callback through MCP) in a
+separate interpreter, because Dash keeps process-wide state. A configured model may suggest the page's
+question, subtitle, purpose and KPI order on the OpenRouter rails; it never supplies a number. "In Streamlit"
+in the request keeps the Streamlit target (verified with `AppTest`).
 The refresh is an ordinary task (`refresh dashboard <id>`) that rebuilds into a staging folder and only
 replaces the published extracts when every check passes; otherwise the dashboard is marked stale.
 

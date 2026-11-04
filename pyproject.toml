@@ -31,6 +31,13 @@ dependencies = [
   "python-pptx>=1.0",
   "opentelemetry-sdk>=1.30",
   "opentelemetry-exporter-otlp-proto-http>=1.30",
+  "dashkit",
+  "stkit",
+  "dash[diskcache]==4.4.1",
+  "dash-mantine-components==2.8.1",
+  "dash-ag-grid==35.3.0",
+  "plotly==7.1.0",
+  "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -64,3 +71,7 @@ ignore = ["S101", "S608", "E501", "S603", "S404", "B008"]
 [tool.ruff.lint.per-file-ignores]
 "src/lyst/analytics/*" = ["ALL"]
 "tests/*" = ["S105", "S106", "S108"]
+
+[tool.uv.sources]
+dashkit = { git = "https://github.com/MoRohn/ai-analytics", subdirectory = "dash/kit", rev = "d86ee66" }
+stkit = { git = "https://github.com/MoRohn/ai-analytics", subdirectory = "streamlit/kit", rev = "d86ee66" }
