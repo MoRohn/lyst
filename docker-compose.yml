@@ -9,6 +9,10 @@ services:
     environment:
       LYST_HOST: 0.0.0.0
       LYST_HOME: /var/lib/lyst
+      LYST_KEYRING: "0"           # containers use mounted secrets, not a desktop credential store
+    secrets:
+      - LYST_MASTER_KEY
+      - LYST_OPENROUTER_API_KEY
     volumes:
       - lyst-data:/var/lib/lyst
     ports:
@@ -42,6 +46,12 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     restart: unless-stopped
+
+secrets:
+  LYST_MASTER_KEY:
+    file: ./secrets/LYST_MASTER_KEY
+  LYST_OPENROUTER_API_KEY:
+    file: ./secrets/LYST_OPENROUTER_API_KEY
 
 volumes:
   lyst-data:

@@ -57,6 +57,35 @@ def issue_token(email: str, name: str | None, hours: int | None, owner_of: str |
         lyst.close()
 
 
+def secret_cmd(action: str, name: str | None, from_stdin: bool) -> None:
+    import getpass
+
+    from .security.vault import KNOWN, STORE, is_secret_name
+
+    if action in ("set", "delete") and not name:
+        sys.exit("name the secret, e.g. lyst secret set LYST_OPENROUTER_API_KEY")
+    if action == "set":
+        if not is_secret_name(name):
+            sys.exit(f"{name} does not look like a secret name (expected ..._API_KEY, ..._SECRET, ..._PASSWORD, ..._TOKEN, ..._KEY)")
+        if name == "LYST_MASTER_KEY" and from_stdin is False:
+            print("Paste a 64-character hex key, or press Enter to generate one.", file=sys.stderr)
+        value = sys.stdin.read().strip() if from_stdin else getpass.getpass(f"{name}: ")
+        if name == "LYST_MASTER_KEY" and not value:
+            import secrets as _s
+
+            value = _s.token_hex(32)
+            print("Generated a new master key. Back it up: without it the databases cannot be opened.", file=sys.stderr)
+        backend = STORE.set(name, value)
+        print(f"Stored {name} in the {backend} credential store (service 'lyst').")
+    elif action == "delete":
+        print(f"{'Removed' if STORE.delete(name) else 'Not found:'} {name}")
+    else:
+        names = tuple(KNOWN) + ((name,) if name and name not in KNOWN else ())
+        print(f"Credential store backend: {STORE.backend_name()}; mounted secrets dir: {STORE.secrets_dir}")
+        for row in STORE.status(names):
+            print(f"  {row['name']:<28} {'configured via ' + row['source'] if row['configured'] else 'not configured'}")
+
+
 def backup(dest: Path) -> None:
     from .app import Lyst
 
@@ -143,6 +172,10 @@ def main(argv: list[str] | None = None) -> None:
     tk.add_argument("--name", default=None)
     tk.add_argument("--hours", type=int, default=None, help="expiry; default never")
     tk.add_argument("--owner-of", default=None, help="also create this workspace with the user as owner")
+    sc = sub.add_parser("secret", help="store, list, check or delete a secret in the OS credential store")
+    sc.add_argument("action", choices=["set", "list", "check", "delete"])
+    sc.add_argument("name", nargs="?", help="e.g. LYST_OPENROUTER_API_KEY, LYST_MASTER_KEY, LYST_LLM_API_KEY, or PG_PASSWORD")
+    sc.add_argument("--stdin", action="store_true", help="read the value from standard input instead of a hidden prompt")
     bk = sub.add_parser("backup", help="consistent, encrypted backup of every database plus artifacts and dashboards")
     bk.add_argument("dest")
     rs = sub.add_parser("restore", help="restore a backup into LYST_HOME (engine must be stopped)")
@@ -162,6 +195,8 @@ def main(argv: list[str] | None = None) -> None:
         serve()
     elif args.cmd == "token":
         issue_token(args.email, args.name, args.hours, args.owner_of)
+    elif args.cmd == "secret":
+        secret_cmd(args.action, args.name, args.stdin)
     elif args.cmd == "backup":
         backup(Path(args.dest))
     elif args.cmd == "restore":

@@ -45,7 +45,9 @@ class OIDCSettings:
         env = os.environ
         if not env.get("LYST_OIDC_ISSUER"):
             return None
-        return cls(env["LYST_OIDC_ISSUER"].rstrip("/"), env["LYST_OIDC_CLIENT_ID"], env.get("LYST_OIDC_CLIENT_SECRET") or None,
+        from .vault import STORE  # noqa: PLC0415
+
+        return cls(env["LYST_OIDC_ISSUER"].rstrip("/"), env["LYST_OIDC_CLIENT_ID"], STORE.get("LYST_OIDC_CLIENT_SECRET"),
                    env["LYST_OIDC_REDIRECT_URL"],
                    tuple(d.strip().lower() for d in env.get("LYST_OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()),
                    int(env.get("LYST_SESSION_HOURS", "12")))

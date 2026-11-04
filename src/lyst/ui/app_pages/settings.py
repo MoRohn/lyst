@@ -15,6 +15,12 @@ c[1].metric("Autonomy", s["workspace"]["autonomy"].capitalize())
 c[2].metric("Encryption at rest", "On" if s["encrypted"] else "Off")
 c[3].metric("Model calls", s["llm_usage"]["calls"])
 
+if s.get("secrets"):
+    st.markdown("#### Secrets")
+    st.caption("Where each secret comes from (values are never shown). Store one with `lyst secret set NAME` on the engine host, "
+               "or mount it under /run/secrets in a container.")
+    st.dataframe(pd.DataFrame(s["secrets"]), hide_index=True, width="stretch")
+
 st.markdown("#### Inference")
 m = s["model"]
 if m:

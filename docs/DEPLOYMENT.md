@@ -3,10 +3,17 @@
 ## Single machine with Docker Compose
 
 ```bash
-cp .env.example .env            # set LYST_MASTER_KEY (python -c "import secrets;print(secrets.token_hex(32))")
+cp .env.example .env            # non-secret settings only
+printf '%s' "$(python -c 'import secrets;print(secrets.token_hex(32))')" > secrets/LYST_MASTER_KEY   # or your secret manager
+printf '%s' 'sk-or-...' > secrets/LYST_OPENROUTER_API_KEY
 docker compose up -d --build    # engine (API + workers) on 127.0.0.1:8770, UI on :8501
 docker compose exec engine lyst token you@example.com --owner-of acme   # first owner token, until OIDC is on
 ```
+
+Secrets are mounted at `/run/secrets` (the Compose file uses Docker secrets from `./secrets/`, which is
+gitignored); with Kubernetes mount a Secret there, or point `LYST_SECRETS_DIR` elsewhere. On a single machine
+without containers, `lyst secret set NAME` stores a secret in the OS credential store instead. See
+`docs/SECURITY.md`, *Secrets*.
 
 Both containers run as a non-root user with a read-only root filesystem, no Linux capabilities and
 `no-new-privileges`. Only the engine mounts the data volume; the UI holds no data and reaches the engine over

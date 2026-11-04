@@ -623,8 +623,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         calls = lyst.stores.control.query(
             "SELECT count(*) AS calls, coalesce(sum(input_tokens), 0) AS input_tokens, "
             "coalesce(sum(output_tokens), 0) AS output_tokens FROM llm_calls WHERE workspace_id = ?", [ws])[0]
+        from ..security.vault import STORE  # noqa: PLC0415
+
         return {"workspace": w, "role": role, "model": info.__dict__ if info else None, "llm_usage": calls,
                 "gateway": lyst.llm.status() if role in ("admin", "owner") else None,
+                "secrets": STORE.status() if role == "owner" else None,
                 "encrypted": lyst.settings.encrypt, "home": str(lyst.settings.home) if role == "owner" else None}
 
     @app.patch("/v1/workspaces/{ws}/settings")

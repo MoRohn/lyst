@@ -22,6 +22,26 @@ secrets, session tokens, the master encryption key, model API keys, audit histor
 | Engine ↔ skill sandbox | the engine | skill source and its output |
 | Engine ↔ filesystem | `$LYST_HOME` | everything else (DuckDB external access is off) |
 
+## Secrets
+
+Secrets are never read from configuration files. `security/vault.py` resolves a named secret from, in order:
+a mounted secret file under `LYST_SECRETS_DIR` (default `/run/secrets`: Docker and Kubernetes secrets, Vault
+Agent, External Secrets), the operating system's credential store through `keyring` (macOS Keychain, Windows
+Credential Manager, Secret Service on Linux; service `lyst`), then the process environment for orchestrators
+that inject variables. `.env` files carry non-secret settings only: a secret-shaped name there is ignored with
+a warning. Values are cached in process memory, never logged, never stored in clear in a database, never
+returned by the API (Settings shows only which backend holds each known secret). Connector credentials may be
+stored by reference (`secret:NAME`) and are resolved at connect time.
+
+| Secret | Set with |
+|---|---|
+| `LYST_MASTER_KEY` (encryption at rest) | `lyst secret set LYST_MASTER_KEY` (Enter generates one; back it up) |
+| `LYST_OPENROUTER_API_KEY` | `lyst secret set LYST_OPENROUTER_API_KEY` |
+| `LYST_LLM_API_KEY`, `LYST_OIDC_CLIENT_SECRET` | the same |
+| a connector password | `lyst secret set PG_PASSWORD`, then `secret:PG_PASSWORD` in the connection form |
+
+`lyst secret list` shows the backend and where each known secret comes from, never the values.
+
 ## Autonomy levels
 
 | Class of work | Who may start it | Gate |
@@ -57,8 +77,8 @@ and no capability in the registry calls them.
 
 * The skill sandbox is process isolation with an allow-list, not a kernel sandbox. Run the engine in the
   provided container (read-only filesystem, no capabilities) and keep `skill.propose` to trusted roles.
-* The master key is a single secret. Keep it in a secret manager, not in `.env` on disk, and store it apart
-  from backups. Key rotation is manual (restore under a new key is not yet automated).
+* The master key is a single secret: keep it in the credential store or a secret manager, backed up apart
+  from the database backups. Key rotation is manual (restore under a new key is not yet automated).
 * Lyst serves plain HTTP; terminate TLS in a reverse proxy.
 * OIDC has been exercised against a stub provider only; run a real login against your IdP before go-live.
 * Model providers see redacted metric names, definitions and computed findings. If even that is too much,

@@ -139,7 +139,10 @@ class ConnectionService:
         return config, secrets
 
     def _connector(self, kind: str, config: dict[str, Any], secrets: dict[str, str]) -> Connector:
-        return CONNECTORS[kind](config, secrets)
+        from ..security.vault import STORE  # noqa: PLC0415
+
+        resolved = {k: STORE.reference(v) for k, v in secrets.items()}  # "secret:NAME" -> the OS credential store
+        return CONNECTORS[kind](config, resolved)
 
     def create(self, actor: Principal, ws: str, *, kind: str, name: str, values: dict[str, Any]) -> dict[str, Any]:
         self.guard.require(actor, ws, "data.ingest", name)

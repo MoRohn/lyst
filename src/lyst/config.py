@@ -3,10 +3,13 @@
 """Configuration. Everything comes from environment variables with safe local defaults.
 
 LYST_HOME            where databases, keys and artifacts live (default ./var)
-LYST_MASTER_KEY      hex master key for encryption at rest; if unset a keyfile is created
-                     at $LYST_HOME/.lyst-key with mode 0600 (development only)
+LYST_MASTER_KEY      hex master key for encryption at rest. A secret: read from a mounted secret file, the OS
+                     credential store (`lyst secret set LYST_MASTER_KEY`) or the environment, in that order
+                     (security/vault.py). Only when none holds it does development fall back to a 0600
+                     keyfile at $LYST_HOME/.lyst-key, with a warning.
 LYST_ENCRYPT         "1" (default) encrypts every DuckDB file; "0" disables (tests only)
-LYST_OPENROUTER_API_KEY  an OpenRouter key; when set, OpenRouter is the provider (Acumane's rails)
+LYST_OPENROUTER_API_KEY  an OpenRouter key (a secret: keychain, mounted file or environment); when present,
+                     OpenRouter is the provider (Acumane's rails)
 LYST_LLM_TIER        economy | balanced (default) | frontier: the model list a call walks
 LYST_LLM_MODEL       pin one model (an OpenRouter slug, or the local model's name)
 LYST_LLM_PROVIDER    openrouter | local; inferred when unset
@@ -46,7 +49,7 @@ class LLMSettings:
 
 def llm_settings_from_env() -> LLMSettings:
     env = os.environ
-    key = env.get("LYST_OPENROUTER_API_KEY") or None
+    key = secret("LYST_OPENROUTER_API_KEY")
     provider = env.get("LYST_LLM_PROVIDER") or ("openrouter" if key else ("local" if env.get("LYST_LLM_BASE_URL") else None))
     if provider == "openrouter":
         return LLMSettings(base_url=env.get("LYST_OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
@@ -54,7 +57,7 @@ def llm_settings_from_env() -> LLMSettings:
                            provider="openrouter", tier=env.get("LYST_LLM_TIER", "balanced"),
                            external_default=env.get("LYST_EXTERNAL_LLM_DEFAULT", "1") == "1")
     return LLMSettings(base_url=env.get("LYST_LLM_BASE_URL") or None, model=env.get("LYST_LLM_MODEL") or None,
-                       api_key=env.get("LYST_LLM_API_KEY") or None, external=env.get("LYST_LLM_EXTERNAL", "0") == "1",
+                       api_key=secret("LYST_LLM_API_KEY"), external=env.get("LYST_LLM_EXTERNAL", "0") == "1",
                        provider=provider, tier=env.get("LYST_LLM_TIER", "balanced"),
                        external_default=env.get("LYST_EXTERNAL_LLM_DEFAULT", "0") == "1")
 
@@ -80,15 +83,20 @@ class Settings:
 
 
 def _master_key(home: Path) -> bytes:
-    env = os.environ.get("LYST_MASTER_KEY")
-    if env:
-        key = bytes.fromhex(env)
+    stored = secret("LYST_MASTER_KEY")
+    if stored:
+        key = bytes.fromhex(stored)
         if len(key) < 32:
             raise ValueError("LYST_MASTER_KEY must be at least 32 bytes of hex")
         return key
     path = home / ".lyst-key"
     if path.exists():
         return bytes.fromhex(path.read_text().strip())
+    import logging
+
+    logging.getLogger("lyst.config").warning(
+        "no LYST_MASTER_KEY in the credential store, a mounted secret or the environment: creating a development keyfile at %s. "
+        "For a real deployment run `lyst secret set LYST_MASTER_KEY`.", path)
     home.mkdir(parents=True, exist_ok=True)
     key = secrets.token_bytes(32)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -98,15 +106,34 @@ def _master_key(home: Path) -> bytes:
 
 
 def load_env_file() -> Path | None:
-    """Read a .env file into the environment without overriding variables already set.
-    Looks at LYST_ENV_FILE, then ./.env. The file is gitignored; it holds keys such as LYST_OPENROUTER_API_KEY."""
-    from dotenv import load_dotenv
+    """Read non-secret settings from LYST_ENV_FILE or ./.env without overriding variables already set.
+    Secret-shaped names (keys, passwords, tokens) in that file are refused with a warning: secrets come
+    from the OS credential store, a mounted secret file or the orchestrator (see security/vault.py)."""
+    import logging
+
+    from dotenv import dotenv_values
+
+    from .security.vault import is_secret_name
 
     for candidate in (os.environ.get("LYST_ENV_FILE"), ".env"):
         if candidate and Path(candidate).is_file():
-            load_dotenv(candidate, override=False)
+            for k, v in dotenv_values(candidate).items():
+                if v is None:
+                    continue
+                if is_secret_name(k):
+                    logging.getLogger("lyst.config").warning(
+                        "%s in %s ignored: store secrets with `lyst secret set %s` (OS credential store) or a mounted secret file",
+                        k, candidate, k)
+                    continue
+                os.environ.setdefault(k, v)
             return Path(candidate).resolve()
     return None
+
+
+def secret(name: str) -> str | None:
+    from .security.vault import STORE
+
+    return STORE.get(name)
 
 
 def load_settings(home: str | Path | None = None) -> Settings:

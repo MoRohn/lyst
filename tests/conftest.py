@@ -9,6 +9,18 @@ from lyst.app import Lyst
 from lyst.config import load_settings
 
 
+@pytest.fixture(autouse=True)
+def _isolated_secrets(tmp_path, monkeypatch):
+    """Tests never touch the real credential store, and never see a secret cached by another test."""
+    from lyst.security.vault import STORE
+
+    monkeypatch.setenv("LYST_KEYRING", "0")
+    monkeypatch.setenv("LYST_SECRETS_DIR", str(tmp_path / "no-secrets"))
+    STORE.forget()
+    yield
+    STORE.forget()
+
+
 @pytest.fixture
 def lyst(tmp_path, monkeypatch):
     monkeypatch.setenv("LYST_MASTER_KEY", "ab" * 32)
