@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -77,9 +80,9 @@ class Client:
         tok = _token()
         return {"Authorization": f"Bearer {tok}"} if tok else {}
 
-    def _do(self, method: str, path: str, **kw) -> Any:
+    def _do(self, method: str, path: str, headers_extra: dict[str, str] | None = None, **kw) -> Any:
         try:
-            r = self.http.request(method, path, headers=self._h(), **kw)
+            r = self.http.request(method, path, headers=self._h() | (headers_extra or {}), **kw)
         except httpx.HTTPError as exc:
             raise APIError(0, f"Lyst's API is not reachable at {self.base} ({type(exc).__name__}).") from exc
         if r.status_code >= 400:
@@ -95,6 +98,15 @@ class Client:
 
     def post(self, path: str, json: Any | None = None, **kw) -> Any:
         return self._do("POST", path, json=json, **kw)
+
+    def ask(self, ws: str, question: str) -> Any:
+        """Submit a request once. A double click, a second rerun or a retry of the same request from this browser
+        session within the same 30 seconds carries the same Idempotency-Key, so the engine returns the first task
+        instead of running the work twice."""
+        sid = st.session_state.setdefault("_lyst_sid", uuid.uuid4().hex)
+        key = hashlib.sha256(f"{sid}|{ws}|{' '.join(question.split())}|{int(time.time() // 30)}".encode()).hexdigest()
+        return self._do("POST", f"/v1/workspaces/{ws}/tasks", json={"question": question},
+                        headers_extra={"Idempotency-Key": key})
 
     def patch(self, path: str, json: Any) -> Any:
         return self._do("PATCH", path, json=json)

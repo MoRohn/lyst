@@ -97,18 +97,34 @@ class TaskRuntime:
 
     def submit(self, actor: Principal, workspace_id: str, question: str, *, autonomy: str | None = None,
                kind: str = "analysis", schedule_id: str | None = None, max_steps: int = 40,
-               budget_seconds: int = 600, workflow: dict[str, Any] | None = None) -> str:
+               budget_seconds: int = 600, workflow: dict[str, Any] | None = None,
+               idempotency_key: str | None = None) -> str:
+        """Queue a task. With an ``idempotency_key``, a repeat of the same submission by the same person in the same
+        workspace (a double click, a client retry after a timeout) returns the first task instead of running the
+        work twice. The check and the insert are one write transaction, so two concurrent repeats cannot both win."""
         self.services.guard.require(actor, workspace_id, "task.create")
         autonomy = autonomy or self.db.scalar("SELECT autonomy FROM workspaces WHERE id = ?", [workspace_id]) or "delegate"
         if autonomy not in AUTONOMY:
             raise ValueError("unknown autonomy mode")
         tid = "t_" + uuid.uuid4().hex[:12]
-        self.db.execute(
-            "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
-            "budget_seconds, schedule_id) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)",
-            [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
-             autonomy, max_steps, budget_seconds, schedule_id],
-        )
+        key = (idempotency_key or "").strip()[:200] or None
+
+        def tx(c) -> str | None:
+            if key:
+                prior = c.execute("SELECT id FROM tasks WHERE workspace_id = ? AND created_by = ? AND idempotency_key = ?",
+                                  [workspace_id, actor.user_id, key]).fetchone()
+                if prior:
+                    return prior[0]
+            c.execute(
+                "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
+                "budget_seconds, schedule_id, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?)",
+                [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
+                 autonomy, max_steps, budget_seconds, schedule_id, key],
+            )
+            return None
+
+        if prior := self.db.write(tx):
+            return prior
         self.event(tid, "queued", "Task received")
         self.services.guard.audit(actor, workspace_id, "task.create", tid, "ok")
         return tid
@@ -181,6 +197,66 @@ class TaskRuntime:
             "SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, autonomy, kind, "
             "created_by, created_at, updated_at, schedule_id "
             "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, limit])
+
+    def trace(self, actor: Principal, task_id: str) -> dict[str, Any]:
+        """Where one task's time, model calls and queries went, step by step, from the records the engine
+        already keeps (task_steps, llm_calls, query_history). Read-only; the same access as reading the task.
+
+        A model call or query is attributed to a step only when exactly one step was running at that moment
+        (steps of a wave run in parallel); otherwise it stays unattributed rather than guessed."""
+        t = self.db.query("SELECT id, workspace_id, status, created_at FROM tasks WHERE id = ?", [task_id])
+        if not t:
+            raise KeyError(task_id)
+        task = t[0]
+        self.services.guard.require(actor, task["workspace_id"], "workspace.read", task_id)
+        steps = self.db.query(
+            "SELECT seq, phase, capability, agent, status, error, started_at, finished_at, "
+            "date_diff('millisecond', started_at, finished_at) AS ms FROM task_steps WHERE task_id = ? ORDER BY seq",
+            [task_id])
+        calls = self.db.query(
+            "SELECT occurred_at, purpose, workload, model, provider, tier, attempt, outcome, status, latency_ms, queue_ms, "
+            "input_tokens, output_tokens, cost_usd FROM llm_calls WHERE task_id = ? ORDER BY id", [task_id])
+        try:
+            queries = self.stores.workspace(task["workspace_id"]).query(
+                "SELECT occurred_at, sql, rows, ms, outcome, error FROM query_history WHERE task_id = ? ORDER BY id",
+                [task_id])
+        except Exception:  # noqa: BLE001 - a workspace file that cannot open must not hide the rest of the trace
+            queries = []
+
+        def step_at(ts) -> int | None:
+            if ts is None:
+                return None
+            hits = [s["seq"] for s in steps if s["started_at"] and s["started_at"] <= ts
+                    and (s["finished_at"] is None or ts <= s["finished_at"])]
+            return hits[0] if len(hits) == 1 else None
+
+        for s in steps:
+            s["model_calls"], s["queries"] = 0, 0
+        by_seq = {s["seq"]: s for s in steps}
+        for rows, field in ((calls, "model_calls"), (queries, "queries")):
+            for r in rows:
+                r["step"] = step_at(r["occurred_at"])
+                if r["step"] is not None:
+                    by_seq[r["step"]][field] += 1
+        first = min((s["started_at"] for s in steps if s["started_at"]), default=None)
+        last = max((s["finished_at"] for s in steps if s["finished_at"]), default=None)
+        summary = {
+            "wall_ms": int((last - first).total_seconds() * 1000) if first and last else None,
+            "queued_ms": int((first - task["created_at"]).total_seconds() * 1000) if first and task["created_at"] else None,
+            "steps": len(steps),
+            "model_calls": len(calls),
+            "model_failures": sum(1 for c in calls if c["outcome"] != "ok"),
+            "model_ms": sum(c["latency_ms"] or 0 for c in calls),
+            "input_tokens": sum(c["input_tokens"] or 0 for c in calls),
+            "output_tokens": sum(c["output_tokens"] or 0 for c in calls),
+            "cost_usd": round(sum(c["cost_usd"] or 0 for c in calls), 6),
+            "queries": len(queries),
+            "query_ms": sum(q["ms"] or 0 for q in queries),
+            "rejected_queries": sum(1 for q in queries if q["outcome"] != "ok"),
+            "slowest_step": max(steps, key=lambda s: s["ms"] or 0)["capability"] if steps else None,
+        }
+        return {"task_id": task_id, "status": task["status"], "summary": summary, "steps": steps,
+                "model_calls": calls, "queries": queries}
 
     def event(self, task_id: str, kind: str, message: str, data: dict | None = None) -> None:
         self.db.execute(
@@ -574,7 +650,31 @@ class TaskRuntime:
 
     # -- workers ----------------------------------------------------------------------------
 
+    def recover_orphans(self) -> int:
+        """At engine start, tasks still marked running belong to a process that is gone: DuckDB's file lock lets one
+        process at a time open these files, so no other live engine can hold their leases. Expire those leases now
+        instead of leaving the work idle until they time out (up to ``lease_seconds``). The normal claim path then
+        takes them over, so takeovers are still counted and a task that keeps killing its worker is still abandoned."""
+        owner = self.worker_id
+
+        def tx(c) -> list[str]:
+            rows = c.execute("SELECT id FROM tasks WHERE status = 'running' AND coalesce(lease_owner, '') <> ? "
+                             "AND lease_until > ?", [owner, _now()]).fetchall()
+            ids = [r[0] for r in rows]
+            if ids:
+                c.execute(f"UPDATE tasks SET lease_until = ? WHERE id IN ({', '.join('?' * len(ids))})",
+                          [_now() - timedelta(seconds=1), *ids])
+            return ids
+
+        ids = self.db.write(tx)
+        for tid in ids:
+            self.event(tid, "recovered", "The engine restarted while this task ran; resuming from its last finished step")
+        if ids:
+            log.warning("recovered %d task(s) interrupted by the previous engine process", len(ids))
+        return len(ids)
+
     def start(self, workers: int = 2) -> None:
+        self.recover_orphans()
         for i in range(workers):
             th = threading.Thread(target=self._loop, name=f"lyst-worker-{i}", daemon=True)
             th.start()

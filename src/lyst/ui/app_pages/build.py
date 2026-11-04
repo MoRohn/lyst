@@ -91,7 +91,7 @@ def new_dashboard() -> None:
         titles = " and ".join(kit.lower(next(m["title"] for m in metrics if m["name"] == n)) for n in picks)
         q = f"Create an automated {titles} reporting dashboard" + (f" by {by.replace('_', ' ')}" if by else "") \
             + f", refreshed {every}"
-        r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/tasks", {"question": q}))
+        r = kit.guarded(lambda: api.ask(ws, q))
         if r:
             open_task(r["task_id"])
 

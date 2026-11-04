@@ -2,11 +2,12 @@
 # Copyright (C) 2026 Rohn Springfield
 """Home: where you ask Lyst. Ask; see what Lyst is doing; read a verified answer at the depth you need; continue."""
 
+import pandas as pd
 import streamlit as st
 
 from lyst.ui import kit
 from lyst.ui.client import APIError, client, workspace
-from lyst.ui.components import answer, task_state
+from lyst.ui.components import answer, md, task_state
 
 api, ws = client(), workspace()
 ACTIVE = {"queued", "running", "paused", "awaiting_approval"}
@@ -29,7 +30,7 @@ def open_task(tid: str | None) -> None:
 
 
 def submit(q: str) -> None:
-    out = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/tasks", {"question": q}))
+    out = kit.guarded(lambda: api.ask(ws, q))
     if out:
         open_task(out["task_id"])
 
@@ -164,6 +165,46 @@ def progress(task: str) -> None:
         kit.guarded(lambda: api.post(f"/v1/tasks/{task}/cancel"), "Stopped")
 
 
+def _secs(ms: int | None) -> str:
+    if ms is None:
+        return "n/a"
+    return f"{ms} ms" if ms < 1000 else f"{ms / 1000:.1f} s"
+
+
+@st.dialog("How this ran", width="large")
+def how_it_ran(task: str) -> None:
+    """Where the time, model calls and queries went, step by step: the trail from this answer back to the engine."""
+    try:
+        tr = api.get(f"/v1/tasks/{task}/trace")
+    except APIError as e:
+        st.error(str(e))
+        return
+    s = tr["summary"]
+    parts = [f"{_secs(s['wall_ms'])} of work" + (f" after {_secs(s['queued_ms'])} in the queue" if s["queued_ms"] else ""),
+             f"{s['steps']} steps"]
+    parts.append(f"{s['model_calls']} model call{'s' * (s['model_calls'] != 1)}, {_secs(s['model_ms'])}"
+                 + (f", ${s['cost_usd']:.4f}" if s["cost_usd"] else "")
+                 + (f", {s['model_failures']} failed over" if s["model_failures"] else "")
+                 if s["model_calls"] else "no model calls")
+    parts.append(f"{s['queries']} governed quer{'ies' if s['queries'] != 1 else 'y'}, {_secs(s['query_ms'])}"
+                 + (f", {s['rejected_queries']} refused" if s["rejected_queries"] else ""))
+    st.markdown(md(" · ".join(parts)))
+    if s.get("slowest_step"):
+        st.caption(f"Slowest step: {md(s['slowest_step'].replace('_', ' '))}.")
+    st.dataframe(pd.DataFrame([{"Step": f"{x['seq'] + 1}. {PHASES.get(x['phase'], x['phase'])}", "Capability": x["capability"],
+                                "Status": x["status"], "Time": _secs(x["ms"]), "Model calls": x["model_calls"],
+                                "Queries": x["queries"], "Error": x["error"] or ""} for x in tr["steps"]]),
+                 hide_index=True, width="stretch")
+    if tr["model_calls"]:
+        st.markdown("**Model calls**")
+        st.dataframe(pd.DataFrame([{"Purpose": c["purpose"], "Model": c["model"], "Level": c["tier"] or "", "Outcome": c["outcome"],
+                                    "Time": _secs(c["latency_ms"]), "Tokens in": c["input_tokens"], "Tokens out": c["output_tokens"],
+                                    "Cost": c["cost_usd"]} for c in tr["model_calls"]]),
+                     hide_index=True, width="stretch",
+                     column_config={"Cost": st.column_config.NumberColumn("Cost", format="$%.5f")})
+    st.caption(f"Task {task}. Model calls and queries are matched to a step when exactly one step was running at the time.")
+
+
 def task_view(task: str) -> None:
     top = st.columns([6, 1.4], vertical_alignment="center")
     if top[1].button("New question", icon=":material/add:", type="tertiary", width="stretch"):
@@ -183,18 +224,26 @@ def task_view(task: str) -> None:
         return
     if t["status"] in ("failed", "cancelled"):
         st.error(t.get("error") or "This task was stopped before it finished.", icon=":material/error:")
-        if t["status"] == "failed" and st.button("Try again", type="primary", icon=":material/refresh:"):
+        b = st.columns([1.3, 1.3, 5])
+        if t["status"] == "failed" and b[0].button("Try again", type="primary", icon=":material/refresh:", width="stretch"):
             kit.guarded(lambda: api.post(f"/v1/tasks/{task}/retry"), "Running it again")
             st.rerun()
+        if b[1].button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
+            how_it_ran(task)
     elif t["result"]:
         r = t["result"]
         answer(r, key=task)
         if r["status"] == "complete":
-            cols = st.columns([1.2, 1, 1, 1.2, 3])
+            cols = st.columns([1.2, 1, 1, 1.2, 1.4, 1.6])
             for col, (kind, text) in zip(cols, EXPORTS, strict=False):
                 col.download_button(text, _export(task, kind), file_name=f"lyst-{task}.{kind}", mime=MIME[kind],
                                     key=f"dl_{kind}_{task}", icon=":material/download:", type="tertiary",
                                     on_click="ignore", width="stretch")
+        else:
+            cols = st.columns([1.4, 6])
+        if cols[-2 if r["status"] == "complete" else 0].button("How this ran", type="tertiary", icon=":material/timeline:",
+                                                                key=f"trace_{task}", width="stretch"):
+            how_it_ran(task)
         metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
         if metric:
             m = kit.lower(metric["title"])

@@ -21,7 +21,7 @@ def dataset_name(filename: str) -> str:
 
 
 def ask(question: str) -> None:
-    out = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/tasks", {"question": question}))
+    out = kit.guarded(lambda: api.ask(ws, question))
     if out:
         st.session_state.task_id = out["task_id"]
         st.switch_page("app_pages/analyst.py", query_params={"task": out["task_id"]})
