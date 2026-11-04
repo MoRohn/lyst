@@ -91,6 +91,7 @@ class TaskRuntime:
         self.poll_seconds = poll_seconds
         self.parallelism = max(1, int(os.environ.get("LYST_TASK_PARALLELISM", "4")))
         self.monitors = None  # set by the app; ticked by the worker loop
+        self.periodic: list = []  # platform jobs run on the worker tick (asset repairs)
         self._last_prune = time.monotonic()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
@@ -713,6 +714,11 @@ class TaskRuntime:
                 if time.monotonic() - last_tick > 5:
                     self.tick_schedules()
                     self.tick_monitors()
+                    for job in self.periodic:
+                        try:
+                            job()
+                        except Exception:  # noqa: BLE001 - one platform job never stops the worker
+                            log.exception("periodic job failed")
                     last_tick = time.monotonic()
                 if time.monotonic() - self._last_prune > 86400:
                     self._last_prune = time.monotonic()

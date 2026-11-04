@@ -275,8 +275,9 @@ class ArtifactService:
         self.guard = guard
         self.home = home
         self.knowledge = knowledge
+        self.assets: Any = None  # assets.AssetService: every file built is a registered, versioned asset
 
-    def build(self, actor: Principal, task: dict[str, Any], kind: str) -> dict[str, Any]:
+    def build(self, actor: Principal, task: dict[str, Any], kind: str, *, asset_id: str | None = None) -> dict[str, Any]:
         ws = task["workspace_id"]
         self.guard.require(actor, ws, "workspace.read", task["id"])
         result = task.get("result")
@@ -299,7 +300,12 @@ class ArtifactService:
         self.guard.audit(actor, ws, "artifact.create", aid, "ok", {"kind": kind, "task": task["id"]})
         if self.knowledge:
             self.knowledge.record_artifact(actor, ws, aid, task["id"], kind)
-        return {"id": aid, "kind": kind, "name": name, "mime": mime, "bytes": len(data), "path": str(path)}
+        out = {"id": aid, "kind": kind, "name": name, "mime": mime, "bytes": len(data), "path": str(path)}
+        if self.assets is not None:
+            reg = self.assets.on_artifact(actor, task, kind, out, hashlib.sha256(data).hexdigest(), asset_id=asset_id)
+            if reg:
+                out.update(reg)
+        return out
 
     def get(self, actor: Principal, artifact_id: str) -> tuple[dict[str, Any], bytes]:
         rows = self.stores.control.query("SELECT * FROM artifacts WHERE id = ?", [artifact_id])

@@ -730,6 +730,32 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def contract_checks(request: Request, ws: str, name: str, user: User):
         return L(request).contracts.checks(user, ws, name)
 
+    # -- asset registry -----------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/assets")
+    def assets(request: Request, ws: str, user: User, kind: str | None = None, health: str | None = None, retired: bool = False):
+        return L(request).assets.list(user, ws, kind=kind, health=health, include_retired=retired)
+
+    @app.post("/v1/workspaces/{ws}/assets/scan")
+    def scan_assets(request: Request, ws: str, user: User):
+        return L(request).assets.scan_now(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/assets/{asset_id}")
+    def asset(request: Request, ws: str, asset_id: str, user: User):
+        return L(request).assets.get(user, ws, asset_id)
+
+    @app.get("/v1/workspaces/{ws}/assets/{asset_id}/proposal")
+    def asset_proposal(request: Request, ws: str, asset_id: str, user: User):
+        return L(request).assets.propose(user, ws, asset_id)
+
+    @app.post("/v1/workspaces/{ws}/assets/{asset_id}/repair")
+    def repair_asset(request: Request, ws: str, asset_id: str, user: User):
+        return L(request).assets.repair(user, ws, asset_id)
+
+    @app.post("/v1/workspaces/{ws}/assets/{asset_id}/retire")
+    def retire_asset(request: Request, ws: str, asset_id: str, user: User):
+        return L(request).assets.retire(user, ws, asset_id)
+
     # -- analyst and work -------------------------------------------------------------------
 
     @app.post("/v1/workspaces/{ws}/tasks", status_code=202)
