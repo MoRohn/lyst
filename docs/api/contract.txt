@@ -20,6 +20,7 @@ GET /v1/connectors | query: - | body: -
 GET /v1/credentials | query: - | body: -
 GET /v1/credentials/providers | query: - | body: -
 GET /v1/credentials/{cid}/history | query: - | body: -
+GET /v1/diagnostics | query: - | body: -
 GET /v1/domains | query: - | body: -
 GET /v1/domains/{package_id} | query: - | body: -
 GET /v1/environment | query: - | body: -
@@ -27,6 +28,7 @@ GET /v1/events/types | query: - | body: -
 GET /v1/experiments/methods | query: - | body: -
 GET /v1/ingest/formats | query: - | body: -
 GET /v1/installation | query: - | body: -
+GET /v1/installation/continuity | query: - | body: -
 GET /v1/me | query: - | body: -
 GET /v1/operations | query: - | body: -
 GET /v1/specializations | query: - | body: -
@@ -105,6 +107,7 @@ GET /v1/workspaces/{ws}/ingest/{jid} | query: - | body: -
 GET /v1/workspaces/{ws}/lineage/{kind}/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/members | query: - | body: -
 GET /v1/workspaces/{ws}/memory | query: - | body: -
+GET /v1/workspaces/{ws}/memory/review | query: - | body: -
 GET /v1/workspaces/{ws}/metrics | query: - | body: -
 GET /v1/workspaces/{ws}/metrics/{metric}/scenario-models | query: - | body: -
 GET /v1/workspaces/{ws}/metrics/{name}/history | query: - | body: -
@@ -171,6 +174,7 @@ POST /v1/credentials/{cid}/test | query: - | body: -
 POST /v1/imports | query: - | body: file
 POST /v1/imports/inspect | query: - | body: file
 POST /v1/installation/backup | query: - | body: -
+POST /v1/installation/backups/{name}/drill | query: - | body: -
 POST /v1/models/catalog/refresh | query: - | body: -
 POST /v1/tasks/{task_id}/artifacts/{kind} | query: - | body: -
 POST /v1/tasks/{task_id}/follow-up | query: - | body: text

@@ -56,13 +56,26 @@ def _allow_private() -> bool:
 
 def check_target(url: str) -> None:
     """Refuse a URL the engine must not call. Resolved now and again at every delivery (DNS can change)."""
+    from .profiles import offline  # noqa: PLC0415
+
     p = urlparse(url)
-    if p.scheme != "https" and not (_allow_private() and p.scheme == "http"):
+    if p.scheme != "https" and not ((_allow_private() or offline()) and p.scheme == "http"):
         raise ValueError("a webhook URL must be https")
     if not p.hostname:
         raise ValueError("the webhook URL has no host")
     if p.username or p.password:
         raise ValueError("put credentials in the signing secret, not in the webhook URL")
+    if offline():
+        # an air-gapped installation: only private addresses, whatever else is configured
+        try:
+            infos = socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)
+        except socket.gaierror as exc:
+            raise ValueError(f"the webhook host {p.hostname} does not resolve") from exc
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_global:
+                raise ValueError(f"this installation is offline (LYST_PROFILE=offline); {p.hostname} is on the internet")
+        return
     if _allow_private():
         return
     try:

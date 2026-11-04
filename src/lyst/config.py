@@ -24,6 +24,8 @@ LYST_EMBED_MODEL     embedding model at the same provider (e.g. openai/text-embe
 LYST_EXTERNAL_LLM_DEFAULT  "1"/"0": whether new workspaces may use an external provider (default: on once the
                      installation has connected OpenRouter in Settings › Secrets & Connections)
 LYST_API_URL         where the Streamlit UI finds the API (default http://127.0.0.1:8770)
+LYST_PROFILE         local (default) | offline | server | portable: a set of defaults for a kind of installation
+                     (lyst/profiles.py); `lyst doctor` checks the installation against it
 """
 
 from __future__ import annotations
@@ -131,6 +133,9 @@ def anchor(name: str) -> str | None:
 
 def load_settings(home: str | Path | None = None) -> Settings:
     load_env_file()
+    from .profiles import apply as apply_profile  # noqa: PLC0415 - LYST_PROFILE fills defaults before anything reads them
+
+    apply_profile()
     root = Path(home or os.environ.get("LYST_HOME", "var")).resolve()
     root.mkdir(parents=True, exist_ok=True)
     key, source = _master_key(root)

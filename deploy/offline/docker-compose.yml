@@ -1,0 +1,61 @@
+# Air-gapped Lyst: the engine, the interface and a local model server on a network with no route out.
+# Written to Compose's documented schema; NOT run on the development Mac (no Docker there). Pull the images and the
+# model on a connected machine, `docker save` / `docker load` them inside, then:
+#   echo <64 hex chars> > secrets/LYST_MASTER_KEY && docker compose up -d && docker compose exec engine lyst doctor
+services:
+  engine:
+    image: lyst:local
+    command: ["lyst", "serve"]
+    environment:
+      LYST_PROFILE: offline
+      LYST_HOST: 0.0.0.0
+      LYST_HOME: /var/lib/lyst
+      LYST_KEYRING: "0"
+      LYST_LLM_BASE_URL: http://models:11434/v1
+      LYST_LLM_MODEL: qwen3:14b              # any model already pulled into the models volume
+      LYST_EMBED_MODEL: nomic-embed-text
+      LYST_SANDBOX: "off"                    # no bubblewrap in the slim image; enable by adding it to the image
+    secrets: [LYST_MASTER_KEY]
+    volumes: [lyst-data:/var/lib/lyst]
+    networks: [inside]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8770/health',timeout=3)"]
+      interval: 30s
+
+  ui:
+    image: lyst:local
+    command: ["lyst", "ui"]
+    environment:
+      LYST_PROFILE: offline
+      LYST_API_URL: http://engine:8770
+      LYST_HOME: /tmp/lyst-ui
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+    networks: [inside, edge]
+    ports: ["127.0.0.1:8501:8501"]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on: [engine]
+
+  models:
+    image: ollama/ollama:0.12.6
+    volumes: [models:/root/.ollama]
+    networks: [inside]
+    restart: unless-stopped
+
+networks:
+  inside:
+    internal: true      # no route to the internet from engine or models
+  edge: {}              # only the interface is published, on loopback
+
+volumes:
+  lyst-data: {}
+  models: {}
+
+secrets:
+  LYST_MASTER_KEY:
+    file: ./secrets/LYST_MASTER_KEY

@@ -605,6 +605,19 @@ def main(argv: list[str] | None = None) -> None:
     ev.add_argument("--baseline", help="compare with this baseline file; any regression fails the run")
     ev.add_argument("--write-baseline", help="write this run as the new baseline (after reviewing it)")
     ev.add_argument("--json", help="write the full scored run as JSON to this path")
+    # extensibility lane: diagnostics and moving workspaces between installations
+    dr = sub.add_parser("doctor", help="check this installation's health and its profile (LYST_PROFILE) promises")
+    dr.add_argument("--json", action="store_true")
+    dr.add_argument("--no-network", action="store_true", help="skip reaching the model server")
+    ex = sub.add_parser("export", help="seal a workspace into a pack (passphrase from LYST_PACK_PASSPHRASE or a prompt)")
+    ex.add_argument("workspace")
+    ex.add_argument("out")
+    ex.add_argument("--history", action="store_true", help="include tasks, model calls and event history")
+    im = sub.add_parser("import", help="create a workspace from a pack (inspect with --check first)")
+    im.add_argument("pack")
+    im.add_argument("--as", dest="target", default=None, help="workspace id to create (default: the pack's)")
+    im.add_argument("--activate", action="store_true", help="run its schedules and monitors here (a migration, not a copy)")
+    im.add_argument("--check", action="store_true", help="only verify the pack; change nothing")
     args = p.parse_args(argv)
     try:
         _dispatch(args)
@@ -621,7 +634,105 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(lock_message(load_settings().home / "control.duckdb", holder))
 
 
+def _engine_or_local(path: str, method: str = "GET", **kw):
+    """Ask the running engine (it holds the database files); without one, open the installation here."""
+    import httpx
+
+    settings = load_settings()
+    url = os.environ.get("LYST_API_URL", f"http://127.0.0.1:{os.environ.get('LYST_PORT', '8770')}")
+    token = os.environ.get("LYST_TOKEN") or ((settings.home / "dev-token").read_text().strip()
+                                             if (settings.home / "dev-token").exists() else None)
+    try:
+        r = httpx.request(method, url + path, headers={"Authorization": f"Bearer {token}"} if token else {}, timeout=900, **kw)
+    except httpx.TransportError:
+        return None
+    if r.status_code >= 400:
+        try:
+            detail = r.json().get("detail", r.text)
+        except ValueError:
+            detail = r.text
+        sys.exit(f"The engine refused ({r.status_code}): {detail}")
+    return r
+
+
+def _passphrase(confirm: bool) -> str:
+    import getpass
+
+    pw = os.environ.get("LYST_PACK_PASSPHRASE")
+    if pw:
+        return pw
+    pw = getpass.getpass("Pack passphrase: ")
+    if confirm and getpass.getpass("Again: ") != pw:
+        sys.exit("The passphrases differ.")
+    return pw
+
+
+def _extend_dispatch(args) -> bool:
+    if args.cmd == "doctor":
+        from . import diagnostics
+
+        r = _engine_or_local("/v1/diagnostics" + ("?network=false" if args.no_network else ""))
+        if r is not None:
+            report = r.json()
+        else:
+            from .app import Lyst
+
+            lyst = Lyst.build()
+            try:
+                report = diagnostics.run(lyst, network=not args.no_network)
+            finally:
+                lyst.close()
+        print(json.dumps(report, indent=1, default=str) if args.json else diagnostics.render(report))
+        sys.exit(1 if report["status"] == "unhealthy" else 0)
+    if args.cmd == "export":
+        pw = _passphrase(confirm=True)
+        r = _engine_or_local(f"/v1/workspaces/{args.workspace}/exports", "POST",
+                             json={"passphrase": pw, "include_history": args.history})
+        if r is not None:
+            info = r.json()
+            data = _engine_or_local(info["download"]).content
+            Path(args.out).write_bytes(data)
+        else:
+            from .app import Lyst
+            from .security import SYSTEM
+
+            lyst = Lyst.build()
+            try:
+                owner = _local_owner(lyst, args.workspace)
+                info = lyst.portability.export(owner or SYSTEM, args.workspace, passphrase=pw, include_history=args.history)
+                shutil.copyfile(lyst.portability.export_path(owner or SYSTEM, args.workspace, info["id"]), args.out)
+            finally:
+                lyst.close()
+        print(f"Sealed {args.workspace} into {args.out}: {info['tables']} tables, {info['rows']:,} rows, {info['files']} files, "
+              f"{info['bytes'] / 1e6:.1f} MB. Keep the passphrase apart from the pack.")
+        return True
+    if args.cmd == "import":
+        pw = _passphrase(confirm=False)
+        content = Path(args.pack).read_bytes()
+        path = "/v1/imports/inspect" if args.check else "/v1/imports"
+        form = {"passphrase": pw, "activate": str(args.activate).lower()}
+        if args.target:
+            form["workspace_id"] = args.target
+        r = _engine_or_local(path, "POST", files={"file": (Path(args.pack).name, content)}, data=form)
+        if r is None:
+            sys.exit("Start the engine (`lyst serve`) and set LYST_TOKEN to an installation administrator's token, then "
+                     "import again; imports go through the engine so the new workspace is checked and audited.")
+        print(json.dumps(r.json(), indent=1, default=str))
+        return True
+    return False
+
+
+def _local_owner(lyst, ws: str):
+    from .security import Principal
+
+    rows = lyst.stores.control.query("SELECT u.id, u.email FROM memberships m JOIN users u ON u.id = m.user_id "
+                                     "WHERE m.workspace_id = ? AND m.role = 'owner' LIMIT 1", [ws])
+    return Principal(rows[0]["id"], rows[0]["email"]) if rows else None
+
+
 def _dispatch(args) -> None:
+    if _extend_dispatch(args):
+        return
     if args.cmd == "start" and args.check:
         sys.exit(start_checks(args.json))
     elif args.cmd == "start":
