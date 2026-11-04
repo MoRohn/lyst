@@ -503,6 +503,20 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
                 "model": (lyst.llm.info().__dict__ if lyst.llm.info() else None),
                 "events": c.events(user, scope_kind="installation", limit=50)}
 
+    @app.post("/v1/installation/backup")
+    def installation_backup(request: Request, user: User):
+        """B3: an online backup taken by the engine that owns the files (DuckDB lets no other process open them while
+        it runs). Installation administrators only; written under <home>/backups, never to a caller-chosen path."""
+        from datetime import UTC, datetime  # noqa: PLC0415
+
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("backups are taken by installation administrators")
+        dest = lyst.settings.home / "backups" / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        m = lyst.stores.backup(dest)
+        lyst.guard.audit(user, None, "installation.backup", str(dest), "ok", {"files": len(m["files"])})
+        return {"path": str(dest), **m}
+
     @app.patch("/v1/installation")
     def installation_patch(request: Request, body: InstallationPatch, user: User):
         lyst = L(request)
