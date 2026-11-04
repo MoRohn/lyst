@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -82,29 +83,62 @@ def table(t: dict[str, Any]) -> None:
     st.dataframe(df, hide_index=True, width="stretch", column_config=cfg)
 
 
-def answer(r: dict[str, Any]) -> None:
-    """Answer → Evidence → Business implications → Recommended actions → Supporting work."""
+VIEWS = ("Business", "Analyst", "Engineer", "Executive")
+_CAVEAT = re.compile(r"\b(did not|does not|disagree|differently|no period was named|assumed|filtered|caution|not verified)\b", re.I)
+
+
+def _default_view(r: dict[str, Any]) -> str:
+    if r.get("audience") == "executive":
+        return "Executive"
+    if st.session_state.get("view_pref") in VIEWS:
+        return st.session_state["view_pref"]
+    return "Business" if st.session_state.get("role") == "viewer" else "Analyst"
+
+
+def caveats(r: dict[str, Any]) -> list[str]:
+    """What a reader must not miss: wrong premises, defaulted periods, filters, disagreements, failed warnings."""
+    sup = r.get("supporting") or {}
+    out = [a for a in sup.get("assumptions", []) if _CAVEAT.search(a)]
+    out += [f"Check not passed: {c['name']} ({c['detail']})" for c in (r.get("confidence") or {}).get("checks", [])
+            if not c["passed"]]
+    return out
+
+
+def answer(r: dict[str, Any], key: str = "answer") -> None:
+    """One result, four depths, no re-run: Business (answer, evidence, implications, actions), Analyst (adds tables,
+    hypotheses, assumptions and sources), Engineer (adds plan, checks and every query), Executive (the brief and
+    what to do). Limitations are visible at every depth."""
     conf = r.get("confidence", {})
     level = conf.get("level", "")
+    sup = r.get("supporting", {}) or {}
     with st.container(border=True):
-        top = st.columns([6, 2], vertical_alignment="center")
-        top[0].markdown("#### " + md(r["brief"] if r.get("audience") == "executive" and r.get("brief") else r["answer"]))
+        head = st.empty()
+        bar = st.columns([3, 2], vertical_alignment="center")
+        default = _default_view(r)
+        view = bar[1].segmented_control("View", VIEWS, default=default, key=f"view_{key}",
+                                        label_visibility="collapsed", width="stretch") or default
+        if not (view == "Executive" and r.get("audience") == "executive"):
+            st.session_state["view_pref"] = view  # the depth a person picks carries to their next answers
+        head.markdown("#### " + md(r["brief"] if view == "Executive" and r.get("brief") else r["answer"]))
         if r["status"] == "needs_input":
-            top[1].badge("Needs your input", color="orange", icon=":material/help:")
+            bar[0].badge("Needs your input", color="orange", icon=":material/help:")
         elif level == "verified":
-            top[1].badge("Verified", color="green", icon=":material/verified:")
+            bar[0].badge("Verified", color="green", icon=":material/verified:")
         elif level:
-            top[1].badge(level.capitalize(), color="orange", icon=":material/warning:")
-        wf = (r.get("supporting") or {}).get("workflow") or {}
+            bar[0].badge(level.capitalize(), color="orange", icon=":material/warning:")
+        wf = sup.get("workflow") or {}
         if wf.get("used"):
             st.caption(f":material/bolt: Ran the verified workflow “{md(wf['used']['title'])}” "
                        f"(v{wf['used']['version']}, verified {wf['used']['verified_runs']}×) instead of planning from scratch.")
         elif (wf.get("compiled") or {}).get("created"):
             st.caption(":material/library_add_check: Verified, so Lyst saved this as a reusable workflow (Build › Workflows).")
-        if r.get("evidence"):
+        cav = caveats(r)
+        if cav:
+            st.warning(bullets(cav), icon=":material/info:")
+        if view != "Executive" and r.get("evidence"):
             st.markdown("**Evidence**")
             st.markdown(bullets(r["evidence"]))
-        for c in r.get("charts", []):
+        for c in (r.get("charts", [])[:1] if view == "Executive" else r.get("charts", [])):
             chart(c)
         cols = st.columns(2)
         if r.get("implications"):
@@ -115,21 +149,26 @@ def answer(r: dict[str, Any]) -> None:
             with cols[1]:
                 st.markdown("**Recommended actions**")
                 st.markdown(bullets(r["actions"]))
-        for t in r.get("tables", []):
-            table(t)
-        if r.get("hypotheses"):
-            with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:"):
-                icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
-                for h in r["hypotheses"]:
-                    st.markdown(f"{icons[h['verdict']]} **{h['id'].replace('_', ' ').capitalize()}** · {h['verdict']} · {md(h['detail'])}")
-        with st.expander("Supporting work: method, checks and queries", icon=":material/fact_check:"):
-            sup = r.get("supporting", {})
+        if view in ("Analyst", "Engineer"):
+            for t in r.get("tables", []):
+                table(t)
+            if r.get("hypotheses"):
+                with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:", expanded=True):
+                    icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
+                    for h in r["hypotheses"]:
+                        st.markdown(f"{icons[h['verdict']]} **{h['id'].replace('_', ' ').capitalize()}** · {h['verdict']} · "
+                                    f"{md(h['detail'])}")
+            if sup.get("assumptions"):
+                st.markdown("**Assumptions**")
+                st.markdown(bullets(sup["assumptions"]))
+        with st.expander("Supporting work: method, checks and queries", icon=":material/fact_check:",
+                         expanded=view == "Engineer"):
             if sup.get("sources"):
                 st.markdown("**Sources**")
                 for src in sup["sources"]:
                     st.caption(f"{src['dataset']} v{src['version']} · {src['rows']:,} rows · data through {src['data_through']} · "
                                f"sha256 {src['sha256'][:12]}… · loaded {str(src['loaded_at'])[:16]}")
-            if sup.get("assumptions"):
+            if view not in ("Analyst", "Engineer") and sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown(bullets(sup["assumptions"]))
             if sup.get("citations"):
