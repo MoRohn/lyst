@@ -120,3 +120,25 @@ runtime (`submit(derived_from=…)`) and the API.
 
 Remaining risks: discovery is lexical with synonyms (no embeddings yet; the knowledge layer's embedding model could
 be added when configured); drill-down covers the follow-ups listed above, and anything else asks for a full question.
+
+## Slice 5: long-term memory that ages, and operational continuity
+
+Changes in `src/lyst/memory.py`, `src/lyst/continuity.py`, `src/lyst/store/__init__.py` (memory retention), the analyst
+(`learn` records what a memory was learned from; answers flag memory that may no longer apply) and the API.
+
+| # | Existing limitation | Root cause | Implemented solution | Tests | Verified result |
+|---|---|---|---|---|---|
+| ME1 | A remembered answer stayed "true" after the data or the metric definition changed | Memory kept its text and trust only | Episodic memory records its sources (dataset, version) and metric version; `applicability` marks a memory stale when a source has a newer version or no longer exists, the definition changed, or (unless approved) it is older than `LYST_MEMORY_STALE_DAYS` (365). Recall ranks memories that still apply first and returns the reason; answers that draw on stale validated memory say "may no longer apply: …" | `test_a_memory_learned_from_older_data…`, `test_a_changed_metric_definition_or_age…` | New pnl version: "it was learned from pnl v1; the data is now v2" |
+| ME2 | No way to review knowledge that went stale | — | `GET /v1/workspaces/{ws}/memory/review` (admins): every memory that may no longer apply, with the reason, to revoke or re-confirm | `test_memory_review_endpoint_is_for_admins` | Viewer 403 |
+| ME3 | Memory was kept forever | No retention | `LYST_RETENTION_DAYS_MEMORY` in the daily prune removes old agent-observed episodic and task memory (and its vectors); approved and person-validated knowledge is never aged out | `test_memory_retention_removes_only_old_agent_observations` | Old observation removed, validated kept |
+| DR1 | A backup interrupted part way (full disk) left a half-written folder that looked like a backup | Files were written in place | Backups are written to `.partial-<stamp>` and renamed when complete; a failure removes the partial copy, keeps earlier backups and records the error | `test_backup_is_atomic…` | ENOSPC mid-backup: no partial folder, the previous backup intact |
+| DR2 | Nothing checked that a backup could actually be restored until someone tried | Restore verified only at restore time | Restore drill: checksums, key separation, copy, open every database with the current master key, read schema version and tables, timed | `test_restore_drill_verifies…` | Flipped byte: drill fails on the checksum |
+| DR3 | No scheduled backups, so the recovery point was whenever someone remembered | — | `LYST_BACKUP_EVERY_HOURS` on the worker tick: backup, drill, keep the newest `LYST_BACKUP_KEEP` (7); partial leftovers cleaned | `test_scheduled_backups_respect_the_interval_and_retention` | Interval respected; oldest pruned |
+| DR4 | Recovery objectives were not measured | — | `GET /v1/installation/continuity`: backups, last failure, last drill, RPO (age of the newest drilled backup) and RTO (that drill's time) against `LYST_RPO_HOURS` / `LYST_RTO_MINUTES`; `POST /v1/installation/backups/{stamp}/drill`. No high-availability claim (one engine per installation) | `test_continuity_endpoints…` | Demo installation (9.7 MB): backup 0.03 s, drill 0.05 s on the development Mac |
+| DR5 | Key separation was a note in the manifest | — | Backups are checked to contain neither the master key bytes nor a key file; the drill refuses a backup with key material; the report says the key comes from its trust anchor, backed up separately | `test_backups_never_contain_the_master_key` | Key bytes absent from every backup file |
+| DR6 | A migration failing part way could leave a half-applied schema | (checked) | Already one transaction per run: verified by a test that a failing second migration leaves version 1 and no new table | `test_a_failed_migration_leaves_the_database_as_it_was` | Rolled back |
+
+Recovery cases already covered elsewhere: worker crash and engine restart (`test_runtime_integrity.py`, scenario G in
+`test_operations.py`), model service failure and expired credentials (`test_gateway.py`, `test_provider_key_failures.py`),
+corrupted backup and restore over a running engine (`test_backup_integrity.py`). Not simulated here: network outage of
+external connectors beyond the connector retry tests, and an interrupted deployment (needs a deployment target).

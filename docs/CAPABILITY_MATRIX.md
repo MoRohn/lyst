@@ -66,6 +66,7 @@
 | UI | Executive audience gets a brief (answer + implications + first action) ahead of the detail | Tested | `test_adversarial.py::test_executive_audience_gets_a_brief` |
 | Collaboration | Comments, mentions, change requests, decisions on tasks, analyses, assets, metrics and datasets; assignments; reviews that gate metric, contract and publication changes (approver is an admin other than the proposer); private and shared assets; ownership transfer; personal notifications with per-kind preferences honoured by platform notices | Tested | `test_collab.py` (scenario E) |
 | Memory | Layers, trust, promotion, revocation, corrections | Built, partly tested | `memory.py`; promotion path untested |
+| Memory | Memory knows when it may no longer apply (newer data version, changed definition, age), ranks current memory first, flags stale memory in answers, admin review list, retention for agent observations | Tested | `test_memory_continuity.py`, docs/OPERATIONS.md ME1-ME3 |
 | UI | Six-area Streamlit app with live progress, light and dark themes | Checked by hand with Playwright screenshots | `docs/images/` |
 | API | Versioned FastAPI endpoints | Tested | `test_api.py` |
 | Identity | OIDC sign-in (code flow + PKCE, JWKS verification, domain allow-list, expiring sessions, logout), member management | Tested against a stub provider | `test_auth.py` |
@@ -93,6 +94,7 @@
 | Deliverables | PDF briefing and slides | Built | `deliverables.py`, `test_deliverables.py` |
 | Deliverables | Asset registry: reports, workbooks, decks, briefings, dashboards and workflows with owner, visibility, versions, validation, dependencies; health (current, stale, invalidated, broken) after every ingest and definition change; owner notices; verified repair with previous versions kept; retire | Tested | `test_assets.py` (scenarios C and F) |
 | Ops | Online encrypted backup (`lyst backup`), verified restore (`lyst restore`), retention (`lyst prune`, daily in the worker) | Tested | `test_hardening.py` |
+| Ops | Atomic and scheduled backups, restore drills, backup retention, measured RPO/RTO, key separation checked | Tested | `test_memory_continuity.py`, docs/OPERATIONS.md DR1-DR6 |
 | Ops | OpenTelemetry spans for requests, tasks, steps and model calls; OTLP export when configured | Tested | `test_hardening.py::test_spans_are_emitted_for_tasks_steps_and_http` |
 | Ops | Load test script and a measured baseline | Run on the dev machine | `scripts/load_test.py`, `docs/PERFORMANCE.md` |
 | Security | Row policies (by user or role, applied inside the SQL guard on every path); Secret Management Service: AES-256-GCM envelope encryption (embedded) or OpenBao; master key from a trust anchor outside the data with browser setup mode and rotation; installation/workspace/user scopes with explicit override policy; Settings › Secrets & Connections (connect, test, replace, revoke, history); broker for trusted consumers only; hash-chained audit; log redaction; `.env` refuses secret-shaped names | Tested | `test_credentials.py`, `test_secrets.py` |

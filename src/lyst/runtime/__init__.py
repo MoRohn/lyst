@@ -857,7 +857,8 @@ class TaskRuntime:
                     self._last_prune = time.monotonic()
                     try:
                         self.stores.prune(event_days=int(os.environ.get("LYST_RETENTION_DAYS_EVENTS", "90")),
-                                          audit_days=int(os.environ.get("LYST_RETENTION_DAYS_AUDIT", "400")))
+                                          audit_days=int(os.environ.get("LYST_RETENTION_DAYS_AUDIT", "400")),
+                                          memory_days=int(os.environ.get("LYST_RETENTION_DAYS_MEMORY", "0")) or None)
                     except Exception:  # noqa: BLE001
                         log.exception("retention prune failed")
                 if not self.run_once():

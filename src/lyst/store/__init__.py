@@ -97,7 +97,7 @@ class Stores:
             pairs.append((path, target))
         return pairs
 
-    def prune(self, *, event_days: int = 90, audit_days: int = 400) -> dict[str, int]:
+    def prune(self, *, event_days: int = 90, audit_days: int = 400, memory_days: int | None = None) -> dict[str, int]:
         """Retention: drop old operational rows; audit lines live longer. Returns rows removed per table."""
         removed: dict[str, int] = {}
 
@@ -114,6 +114,16 @@ class Stores:
             db = self.workspace(w["id"])
             removed["query_history"] = removed.get("query_history", 0) + count_then_delete(db, "query_history", "occurred_at", event_days)
             removed["notifications"] = removed.get("notifications", 0) + count_then_delete(db, "notifications", "created_at", event_days)
+            if memory_days:
+                # retention for agent-observed memory only: approved or person-validated knowledge is never aged out
+                old = [r["id"] for r in db.query(
+                    "SELECT id FROM memory WHERE trust = 'observed' AND layer IN ('episodic', 'task') "
+                    "AND created_at < now() - to_days(CAST(? AS BIGINT))", [memory_days])]
+                if old:
+                    marks = ", ".join("?" * len(old))
+                    db.execute(f"DELETE FROM memory_vectors WHERE memory_id IN ({marks})", old)
+                    db.execute(f"DELETE FROM memory WHERE id IN ({marks})", old)
+                removed["memory"] = removed.get("memory", 0) + len(old)
         return removed
 
     def close(self) -> None:

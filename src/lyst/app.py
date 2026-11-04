@@ -134,6 +134,10 @@ class Lyst:
 
         services.scenarios = ScenarioService(stores, guard, data, semantic)
         services.decisions = DecisionService(stores, guard, runtime)
+        from . import continuity  # noqa: PLC0415
+
+        lyst_ref: dict = {}
+        runtime.periodic.append(lambda: continuity.scheduled(lyst_ref["app"]) if "app" in lyst_ref else None)
         anticipation = AnticipationService(stores, guard, services=services, runtime=runtime, semantic=semantic, connections=connections)
         data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
         semantic.after_change.append(anticipation.after_definition)
@@ -143,7 +147,7 @@ class Lyst:
         data.access_checks.append(governance.check_read)
         llm.gates.append(governance.model_gate)
         artifacts.before_build.append(governance.check_export)
-        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
+        app = cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
                    studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest,
                    anticipation=anticipation, governance=governance,
                    evidence=EvidenceService(stores, guard, runtime, artifacts),
@@ -151,6 +155,8 @@ class Lyst:
                                             connections=connections, onboarding=onboarding, semantic=semantic),
                    costs=CostService(stores, guard, settings),
                    specs=SpecService(stores, guard, semantic=semantic, runtime=runtime, artifacts=artifacts, assets=assets))
+        lyst_ref["app"] = app
+        return app
 
     def __post_init__(self) -> None:
         from .lane import attach  # noqa: PLC0415 - the extensibility lane's services (events, webhooks, experiments ...)

@@ -345,7 +345,8 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         except Exception:  # noqa: BLE001 - knowledge is advisory; the analysis must not fail on it
             passages, prior = [], []
     return {"metrics": metrics, "datasets": list(catalog), "memory": [
-        {"id": m["id"], "content": m["content"], "trust": m["trust"], "layer": m["layer"]} for m in memory],
+        {"id": m["id"], "content": m["content"], "trust": m["trust"], "layer": m["layer"],
+         "applicable": m.get("applicable", True), "stale_reason": m.get("stale_reason")} for m in memory],
         "period": period, "passages": passages, "prior_answers": prior}
 
 
@@ -1605,6 +1606,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     confidence = {"passed": "verified", "passed_with_warnings": "verified with warnings",
                   "failed": "not verified"}[v["status"]]
     context_notes = [f"{'Approved' if m['trust'] == 'approved' else 'Validated'} {m['layer']} knowledge: {m['content']}"
+                     + (f" (may no longer apply: {m['stale_reason']})" if m.get("stale_reason") else "")
                      for m in c.get("memory", []) if m["trust"] in ("approved", "user_validated")]
     citations = [{"document_id": p["document_id"], "title": p["title"], "passage": p["passage"], "quote": p["text"][:300]}
                  for p in c.get("passages", [])]
@@ -1726,7 +1728,13 @@ def learn(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if d["status"] == "complete" and ctx.services.guard.can(ctx.actor, ctx.workspace_id, "memory.write"):
         mem = ctx.services.memory.remember(
             ctx.actor, ctx.workspace_id, "episodic", f"Q: {d['question']} A: {d['answer']}",
-            provenance={"analysis_id": aid, "task_id": ctx.task_id}, trust="observed")
+            provenance={"analysis_id": aid, "task_id": ctx.task_id,
+                        # what it was learned from, so a later version of the data or definition marks it as possibly stale
+                        "sources": [{"dataset": x.get("dataset"), "version": x.get("version")}
+                                    for x in (d.get("supporting") or {}).get("sources", [])],
+                        "metric": ({"name": m, "version": _metric_version(ctx, m)}
+                                   if (m := ((d.get("supporting") or {}).get("metric") or {}).get("spec", {}).get("name")) else None)},
+            trust="observed")
     return {"analysis_id": aid, "memory_id": mem, "workflow": wf_out}
 
 
