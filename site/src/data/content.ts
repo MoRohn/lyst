@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Your fiscal calendar'],
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, a connected source, an analysis that knows it is out of date, work waiting on a teammate, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a what-if, a dataset’s trust check, a connected source, an analysis that knows it is out of date, work waiting on a teammate, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },

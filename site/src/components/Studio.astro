@@ -15,6 +15,8 @@ import healthLight from '../assets/product/health-light.png';
 import healthDark from '../assets/product/health-dark.png';
 import needsLight from '../assets/product/needsyou-light.png';
 import needsDark from '../assets/product/needsyou-dark.png';
+import whatifLight from '../assets/product/whatif-light.png';
+import whatifDark from '../assets/product/whatif-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -41,6 +43,18 @@ const views: View[] = [
       { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '33%', y: '19%' },
       { icon: 'Layers', text: 'Summary, Detail or Method', x: '66%', y: '24.6%' },
       { icon: 'ListChecks', text: 'What it means, what to do', x: '72%', y: '78.6%' },
+    ],
+  },
+  {
+    id: 'whatif',
+    tab: 'What if',
+    img: whatifLight,
+    dark: whatifDark,
+    alt: 'Lyst answering “What happens to operating margin if labor costs increase 6% while revenue grows 3%?”: operating margin would go from 36.03% to 35.96% and operating income from $9.04M to $9.30M, labelled as hypothetical figures, with the stated labor-share assumption and its plausible range, and evidence from observed P&L data.',
+    callouts: [
+      { icon: 'FlaskConical', text: 'Labelled hypothetical', x: '60%', y: '21.5%' },
+      { icon: 'Info', text: 'Assumptions stated, with ranges', x: '63%', y: '35.5%' },
+      { icon: 'Database', text: 'Built on observed data', x: '62%', y: '50%' },
     ],
   },
   {
