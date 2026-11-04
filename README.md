@@ -264,7 +264,8 @@ where they point, with Mark all read and "What to tell me about".
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
 * **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
   drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
-  and say plainly when there is no clear winner. Every run records its exact series, dataset and metric versions,
+  name a winner only when the difference is statistically significant, and otherwise recommend the simplest
+  method. Every run records its exact series, dataset and metric versions,
   SQL and environment, and can be reproduced to show what, if anything, changed. An admin records the chosen
   method, and a choice against the evidence is flagged.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
@@ -302,7 +303,7 @@ where they point, with Mark all read and "What to tell me about".
   expire or past their age limit (with the runs and reports they feed), connections with rising failures or
   latency, and upstream schema changes that would break approved metrics, with a corrected definition tested and
   filed for an admin's approval. Each person sets how much to hear (a daily cap, a minimum score, quiet hours in
-  their own time zone, muted kinds), and the same subject is never repeated within a day
+  their own time zone, muted kinds, or opting out), and the same subject is never repeated within a day
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
