@@ -99,6 +99,22 @@ def chart(c: dict[str, Any]) -> None:
     st.plotly_chart(fig, width="stretch", theme=None, config={"displayModeBar": False}, alt=_alt(c))
 
 
+def breakdown_chart(r: dict[str, Any]) -> dict[str, Any] | None:
+    """A breakdown answer (a table of one category column and one number) as a bar chart, so the Summary shows
+    the split at a glance instead of only naming the largest part. Only when the answer has no chart of its own."""
+    if r.get("charts"):
+        return None
+    for t in r.get("tables") or []:
+        cols, rows = t.get("columns") or [], t.get("rows") or []
+        if len(cols) == 2 and 2 <= len(rows) <= 24 and all(
+                isinstance(row[1], int | float) and not isinstance(row[0], int | float) for row in rows):
+            fmt = "percent" if any(k in cols[1] for k in ("rate", "share", "margin", "ratio")) else (
+                "currency" if "$" in str(r.get("answer", "")) else "number")
+            return {"type": "bar", "title": t.get("title") or f"{heading(cols[1])} by {heading(cols[0]).lower()}",
+                    "x": [str(row[0]) for row in rows], "y": [float(row[1]) for row in rows], "format": fmt}
+    return None
+
+
 def heading(col: str) -> str:
     """'prior_rate' -> 'Prior rate', 'region' -> 'Region': column names in words, acronyms kept."""
     text = str(col).replace("_", " ").strip()
@@ -224,6 +240,8 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
             st.markdown(bullets(r["evidence"]))
         for c in (r.get("charts", [])[:1] if exec_ else r.get("charts", [])):
             chart(c)
+        if view == "Summary" and (bc := breakdown_chart(r)):
+            chart(bc)
         cols = st.columns(2)
         if r.get("implications"):
             with cols[0]:

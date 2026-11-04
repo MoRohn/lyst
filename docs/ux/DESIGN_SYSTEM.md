@@ -96,7 +96,7 @@ change), Open (owner noted).
 | R7 | No keyboard route anywhere; search only in the sidebar, sections only by clicking | no palette | Fixed: ⌘K palette |
 | R8 | Five "waiting" API calls on every rerun of every widget, on every page (9 shell calls per page view) | count recomputed each run | Fixed: 20 s per-workspace cache, dropped on any action |
 | R9 | No visible keyboard focus ring on tertiary buttons and sections | Streamlit default | Fixed: one `:focus-visible` ring |
-| R10 | A by-region answer shows no chart in Summary; the breakdown table appears only at Detail | `answer()` renders tables only at Detail | Open (next change: breakdown bar in Summary) |
+| R10 | A by-region answer shows no chart in Summary; the breakdown table appears only at Detail | `answer()` renders tables only at Detail | Fixed: `breakdown_chart` draws the split as a bar in Summary |
 | R11 | Answer action area: six differently sized buttons, four pills, two more buttons, next steps, follow-ups and a composer | grown feature by feature | Open (shared answer layout; coordinate with the UX thread) |
 | R12 | Data and Brain are text lists: no dataset previews, freshness or health visuals, no definition/lineage visuals | list-first kit | Fixed: see Visuals |
 | R17 | Data › SQL lost its result on any rerun (opening an expander, switching a tab) | result drawn only inside `if st.button` | Fixed: result kept in session state per workspace |

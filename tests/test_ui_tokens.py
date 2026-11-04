@@ -101,3 +101,14 @@ def test_sql_result_chart_picks_a_sensible_first_chart():
     c = ns["_result_chart"](["month", "v"], [["2026-01-01", 1], ["2026-02-01", 2]])
     assert c["type"] == "line"
     assert ns["_result_chart"](["a"], [[1]]) is None
+
+
+def test_a_breakdown_answer_gets_a_bar_chart_in_summary():
+    from lyst.ui.components import breakdown_chart  # noqa: PLC0415
+
+    r = {"answer": "Revenue was $25.41M", "charts": [], "tables": [
+        {"title": "Revenue by region", "columns": ["region", "value"], "rows": [["EMEA", 7.4e6], ["APAC", 5.7e6]]}]}
+    c = breakdown_chart(r)
+    assert c["type"] == "bar" and c["x"] == ["EMEA", "APAC"] and c["format"] == "currency"
+    assert breakdown_chart({**r, "charts": [{"type": "line"}]}) is None  # its own chart wins
+    assert breakdown_chart({"tables": [{"columns": ["a", "b", "c"], "rows": [[1, 2, 3]]}]}) is None
