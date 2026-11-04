@@ -8,6 +8,8 @@ a workspace; secrets live in their own column of the encrypted control database 
 |---|---|---|---|
 | `postgres` | Tables and views in the listed schemas | Yes, by a cursor column (`id`, `updated_at`) | psycopg 3; every transaction `READ ONLY`, 60 s statement timeout, server-side cursors, identifiers validated |
 | `files` | CSV, TSV and Parquet files in one directory | No (a sync reloads the file) | The directory must be under `LYST_IMPORT_ROOT` (default `$LYST_HOME/imports`) |
+| `sqlite` | Tables and views of a SQLite file | Yes, by a cursor column | Opened `mode=ro`; the file must be under the import root |
+| `rest` | A JSON list endpoint with page or cursor pagination | Yes, with a `since` parameter and a cursor column | GET only, https only, hosts limited by `LYST_REST_ALLOWED_HOSTS`; bearer or API-key header; nested values stored as JSON text |
 
 ## Syncing
 
@@ -29,6 +31,7 @@ loudly on a connection problem so that nothing untestable is saved; it never log
 
 ## Not yet built
 
-MySQL, SQL Server, Snowflake, BigQuery, Redshift, Databricks, REST/GraphQL, SaaS applications (Salesforce,
-Workday, NetSuite, ServiceNow, Jira), object storage. The SDK is the path for each; the commercial ones stay
+MySQL, SQL Server, Snowflake, BigQuery, Redshift, Databricks, GraphQL, SaaS-specific adapters (Salesforce,
+Workday, NetSuite, ServiceNow, Jira; many of their list APIs already work through `rest`), object storage.
+They are not written because no server is available here to test them against; an untested connector is not shipped. The SDK is the path for each; the commercial ones stay
 optional integrations behind the same interface.

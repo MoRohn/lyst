@@ -44,7 +44,8 @@
 | Ops | JSON logs with request and task ids, Prometheus `/metrics`, `/health` | Tested | `test_auth.py::test_metrics_and_request_ids` |
 | Ops | Dockerfile and Compose (non-root, read-only, no capabilities) | Written, not yet run (no Docker on the dev machine) | `docker-compose.yml` |
 | Connectors | Connector SDK with manifests; PostgreSQL (read-only transactions, discovery, full then incremental sync by cursor, scheduled syncs) and a confined files connector; secrets never returned | Tested (PostgreSQL against a local server) | `test_connectors.py`, `docs/CONNECTORS.md` |
-| Connectors | MySQL, SQL Server, warehouses, SaaS, REST | Planned | — |
+| Connectors | SQLite (read-only file, incremental) and REST JSON-list (pagination, auth header, since parameter, host allow-list) | Tested | `test_connectors.py` |
+| Connectors | MySQL, SQL Server, warehouses, GraphQL, SaaS-specific adapters | Planned; no server here to test against | — |
 | Knowledge | Entities and relations in DuckDB, automatic lineage metric → dataset → column and analysis → artifact, lineage walks | Tested | `test_knowledge.py` |
 | Knowledge | Documents (text, Markdown, PDF) split into passages, BM25 search with role gating, citations in answers | Tested | `test_knowledge.py::test_documents_are_searched_and_cited` |
 | Knowledge | Consistency with prior answers on the same data; validated memory surfaced in answers | Tested | `test_knowledge.py` |

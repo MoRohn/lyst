@@ -145,3 +145,69 @@ def test_postgres_full_then_incremental_sync(seeded, pg_database):
     started = lyst.runtime.tick_schedules(datetime.now(UTC) + timedelta(hours=2))
     lyst.runtime.drain()
     assert lyst.runtime.get(owner, started[0])["status"] == "done"
+
+
+def test_sqlite_connector_full_and_incremental(seeded, tmp_path, monkeypatch):
+    import sqlite3
+
+    lyst, owner = seeded
+    root = tmp_path / "imports"
+    root.mkdir()
+    monkeypatch.setenv("LYST_IMPORT_ROOT", str(root))
+    db = root / "crm.sqlite"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE deals (id INTEGER PRIMARY KEY, stage TEXT, amount REAL)")
+        c.executemany("INSERT INTO deals (stage, amount) VALUES (?, ?)", [("won", 100.0), ("lost", 50.0), ("open", 75.0)])
+    conn = lyst.connections.create(owner, "northwind", kind="sqlite", name="CRM export", values={"path": "crm.sqlite"})
+    assert conn["test"]["read_only"] and conn["test"]["tables_visible"] == 1
+    assert lyst.connections.discover(owner, "northwind", conn["id"])[0]["name"] == "deals"
+    r = lyst.connections.sync(owner, "northwind", conn["id"], source_table="deals", cursor_column="id")
+    assert r.rows_added == 3 and r.cursor == 3
+    with sqlite3.connect(db) as c:
+        c.execute("INSERT INTO deals (stage, amount) VALUES ('won', 200.0)")
+    r = lyst.connections.sync(owner, "northwind", conn["id"], source_table="deals", cursor_column="id")
+    assert r.mode == "incremental" and r.rows_added == 1 and r.rows_total == 4 and r.version == 2
+    assert lyst.data.query(owner, "northwind", "select sum(amount) from deals where stage = 'won'").rows == [[300.0]]
+    with pytest.raises(ConnectorError, match="outside the import root"):
+        lyst.connections.create(owner, "northwind", kind="sqlite", name="x", values={"path": "/etc/hosts"})
+
+
+def test_rest_connector_paginates_and_syncs(seeded, monkeypatch):
+    import httpx
+
+    from lyst.connectors.rest import RestConnector
+
+    lyst, owner = seeded
+    monkeypatch.setenv("LYST_REST_ALLOWED_HOSTS", "api.example.test")
+    records = [{"id": i, "updated_at": f"2026-01-{i:02d}", "owner": {"name": f"p{i}"}, "value": i * 10} for i in range(1, 8)]
+
+    def handler(req: httpx.Request):
+        assert req.headers.get("x-api-key") == "secret-key"
+        page = int(req.url.params.get("page", "1"))
+        since = req.url.params.get("updated_after")
+        pool = [r for r in records if not since or r["updated_at"] > since]
+        chunk = pool[(page - 1) * 3: page * 3]
+        return httpx.Response(200, json={"data": chunk, "meta": {"page": page}})
+
+    RestConnector.http = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        with pytest.raises(ConnectorError, match="not in LYST_REST_ALLOWED_HOSTS"):
+            lyst.connections.create(owner, "northwind", kind="rest", name="x", values={"url": "https://other.test/v1/items"})
+        with pytest.raises(ConnectorError, match="must be https"):
+            lyst.connections.create(owner, "northwind", kind="rest", name="x", values={"url": "http://api.example.test/v1/items"})
+        conn = lyst.connections.create(owner, "northwind", kind="rest", name="Items API", values={
+            "url": "https://api.example.test/v1/items", "records_key": "data", "page_param": "page", "auth_header": "X-API-Key",
+            "token": "secret-key", "since_param": "updated_after"})
+        assert conn["test"]["records_in_first_page"] == 3 and "owner" in conn["test"]["fields"]
+        assert lyst.connections.discover(owner, "northwind", conn["id"])[0]["name"] == "items"
+        r = lyst.connections.sync(owner, "northwind", conn["id"], source_table="items", cursor_column="updated_at")
+        assert r.rows_added == 7 and r.cursor == "2026-01-07"
+        q = lyst.data.query(owner, "northwind", "select count(*), sum(value) from items")
+        assert q.rows == [[7, 280]]
+        assert lyst.data.query(owner, "northwind", "select owner from items where id = 1").rows == [['{"name": "p1"}']]
+        records.append({"id": 8, "updated_at": "2026-01-08", "owner": {"name": "p8"}, "value": 80})
+        r = lyst.connections.sync(owner, "northwind", conn["id"], source_table="items", cursor_column="updated_at")
+        assert r.mode == "incremental" and r.rows_added == 1 and r.rows_total == 8
+        assert "secret-key" not in str(lyst.connections.list(owner, "northwind"))
+    finally:
+        RestConnector.http = None

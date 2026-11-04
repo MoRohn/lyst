@@ -251,7 +251,7 @@ class ConnectionService:
                           time.perf_counter() - start, mode)
 
 
-from . import files, postgres  # noqa: E402,F401 - registers the connectors
+from . import files, postgres, rest, sqlite  # noqa: E402,F401 - registers the connectors
 
 __all__ = ["CONNECTORS", "ConnectionService", "Connector", "ConnectorError", "Field", "Manifest", "SourceTable",
            "SyncResult", "manifests", "register"]

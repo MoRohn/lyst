@@ -21,7 +21,7 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 143 tests
+uv run pytest                # 145 tests
 uv run lyst eval             # scores 19 analytical questions against independent answers
 ```
 
@@ -54,7 +54,7 @@ after a crash, approvals, budgets and schedules; a versioned API; and a six-area
 
 ## What does not exist yet
 
-Connectors beyond PostgreSQL and files, a real model or embedding call (needs an OpenRouter key or a local model), and a
+Connectors beyond PostgreSQL, SQLite, REST and files, a real model or embedding call (needs an OpenRouter key or a local model), and a
 Compose run on a Docker host. The [roadmap](docs/ROADMAP.md) orders them.
 
 ## Documents
