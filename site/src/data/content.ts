@@ -50,7 +50,7 @@ export const pillars = {
       icon: 'SquareTerminal',
       title: 'Execute',
       text: 'Lyst is designed to conduct analysis, develop code, build dashboards, and complete multi-step workflows.',
-      detail: ['SQL and Python', 'Statistical methods', 'Dashboards and reports'],
+      detail: ['SQL and Python', 'Statistical methods', 'Dashboards and reports', 'Resumes after a restart'],
     },
     {
       icon: 'ShieldCheck',
@@ -167,7 +167,7 @@ export const enterprise = {
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
     { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
-    { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
+    { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown of steps, model calls, queries, time and cost, backed by an audit log.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging, plus encrypted backups that run while Lyst is up and are checked before any restore.', status: 'available' as Status },
   ],
