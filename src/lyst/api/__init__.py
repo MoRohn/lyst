@@ -227,6 +227,25 @@ class TransferIn(BaseModel):
     note: str = ""
 
 
+class TransformIn(BaseModel):
+    name: str
+    sql: str
+    title: str | None = None
+    description: str = ""
+    key: list[str] = []
+    incremental_column: str | None = None
+    note: str = ""
+
+
+class PreviewIn(BaseModel):
+    sql: str
+    key: list[str] = []
+
+
+class DesignIn(BaseModel):
+    request: str
+
+
 class EntityIn(BaseModel):
     kind: str
     name: str
@@ -822,6 +841,37 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.post("/v1/workspaces/{ws}/assets/{asset_id}/retire")
     def retire_asset(request: Request, ws: str, asset_id: str, user: User):
         return L(request).assets.retire(user, ws, asset_id)
+
+    # -- transformations ------------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/transforms")
+    def transforms(request: Request, ws: str, user: User):
+        return L(request).transforms.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/transforms/design")
+    def design_transform(request: Request, ws: str, body: DesignIn, user: User):
+        return L(request).transforms.design(user, ws, body.request)
+
+    @app.post("/v1/workspaces/{ws}/transforms/preview")
+    def preview_transform(request: Request, ws: str, body: PreviewIn, user: User):
+        return L(request).transforms.preview(user, ws, body.sql, key=body.key)
+
+    @app.post("/v1/workspaces/{ws}/transforms")
+    def define_transform(request: Request, ws: str, body: TransformIn, user: User):
+        return L(request).transforms.define(user, ws, body.name, body.sql, title=body.title, description=body.description, key=body.key,
+                                            incremental_column=body.incremental_column, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/transforms/{name}")
+    def get_transform(request: Request, ws: str, name: str, user: User):
+        return L(request).transforms.get(user, ws, name)
+
+    @app.post("/v1/workspaces/{ws}/transforms/{name}/run")
+    def run_transform(request: Request, ws: str, name: str, user: User, full: bool = False):
+        return L(request).transforms.run(user, ws, name, full=full)
+
+    @app.post("/v1/workspaces/{ws}/transforms/{name}/retire")
+    def retire_transform(request: Request, ws: str, name: str, user: User):
+        return L(request).transforms.retire(user, ws, name)
 
     # -- collaboration --------------------------------------------------------------------------
 

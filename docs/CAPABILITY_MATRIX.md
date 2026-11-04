@@ -14,7 +14,7 @@
 | Data | Relationships across datasets (foreign-key candidates, shared dimensions, inconsistent definitions, overlapping sources reconciled by totals) recorded in the knowledge graph | Tested | `test_catalog.py` |
 | Data | Versioned data contracts (draft from data, checks on every ingest, breaking/fail/warn, downstream impact, deduplicated inbox finding) | Tested | `test_catalog.py::test_d_f_contract_catches_a_changed_schema_and_lists_affected_assets` |
 | Data | Search across metrics, datasets, columns, terms, workflows, dashboards, analyses and documents, policy-aware | Tested | `test_catalog.py::test_g_search_connects_metrics_datasets_terms_and_documents`, MCP `search` |
-| Data | Natural-language transformations and derived datasets | Planned | docs/PLATFORM.md G4 |
+| Data | Transformations: derived datasets from a governed SELECT (designed from a sentence when a model is configured), verified by running (non-empty, unique key, no fan-out, reconciled totals) with SQL advice and an explanation, re-run when inputs change, incremental by column, versioned runs, lineage and a data-model asset | Tested | `test_transforms.py` |
 | Data | Query history | Built | written on every query |
 | Semantic | Versioned metrics (simple, ratio, filtered), glossary | Tested | `test_scenarios.py` |
 | Semantic | Ambiguity surfaced instead of guessed | Tested | `test_ambiguous_term_asks_instead_of_guessing` |

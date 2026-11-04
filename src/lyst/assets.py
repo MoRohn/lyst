@@ -40,7 +40,7 @@ from .store import Stores
 log = logging.getLogger("lyst.assets")
 
 REPORT_KINDS = {"pdf": "report", "xlsx": "workbook", "pptx": "presentation", "md": "briefing"}
-KINDS = ("report", "workbook", "presentation", "briefing", "dashboard", "workflow")
+KINDS = ("report", "workbook", "presentation", "briefing", "dashboard", "workflow", "data_model")
 HEALTH = ("current", "stale", "invalidated", "broken", "repairing")
 
 
@@ -57,6 +57,7 @@ class AssetService:
         self.runtime = runtime
         self.artifacts = artifacts
         self.studio = studio
+        self.transforms = None  # transforms.TransformService, set by the composition root
 
     def _db(self, ws: str):
         return self.stores.workspace(ws)
@@ -169,6 +170,34 @@ class AssetService:
             log.exception("asset registration for workflow %s failed", wf_id)
             return None
 
+    def on_transform(self, actor: Principal, ws: str, name: str, *, failed: str | None = None) -> dict[str, Any] | None:
+        """A transformation's derived dataset as a data model asset: a new version per successful run of a new definition,
+        broken with the reason when a run fails (the last good dataset version stays in place)."""
+        try:
+            db = self._db(ws)
+            t = db.query("SELECT version, title, description, inputs FROM transforms WHERE name = ?", [name])
+            if not t:
+                return None
+            existing = db.query("SELECT id, version, depends FROM assets WHERE ref_kind = 'transform' AND ref_id = ?", [name])
+            if failed:
+                if existing:
+                    db.execute("UPDATE assets SET health = 'broken', health_reason = ?, checked_at = now() WHERE id = ?",
+                               [f"its last run failed: {failed}"[:500], existing[0]["id"]])
+                return None
+            dv = self._dataset_versions(ws)
+            depends = {"datasets": {d: int(dv[d]) for d in json.loads(t[0]["inputs"]) if d in dv}, "metrics": {}}
+            if existing and json.loads(existing[0]["depends"]).get("definition") == t[0]["version"]:
+                # a refresh of the same definition: dependencies move forward, no new asset version
+                db.execute("UPDATE assets SET depends = ?, health = 'current', health_reason = NULL, checked_at = now(), updated_at = now() "
+                           "WHERE id = ?", [json.dumps({**depends, "definition": t[0]["version"]}), existing[0]["id"]])
+                return {"asset_id": existing[0]["id"], "version": existing[0]["version"]}
+            return self._upsert(ws, actor, kind="data_model", ref_kind="transform", ref_id=name, title=t[0]["title"], task_id=None,
+                                question=t[0]["description"], depends={**depends, "definition": t[0]["version"]}, validation="verified",
+                                sha256=None, note=f"definition v{t[0]['version']}")
+        except Exception:  # noqa: BLE001
+            log.exception("asset registration for transformation %s failed", name)
+            return None
+
     # -- reading --------------------------------------------------------------------------------
 
     @staticmethod
@@ -239,6 +268,12 @@ class AssetService:
             st = self._db(ws).query("SELECT status, invalid_reason FROM workflows WHERE id = ? ORDER BY version DESC LIMIT 1", [a["ref_id"]])
             if st and st[0]["status"] == "stale":
                 reasons["invalidated"].append(st[0]["invalid_reason"] or "the workflow is stale")
+        if a["kind"] == "data_model":
+            st = self._db(ws).query("SELECT status, last_error FROM transforms WHERE name = ?", [a["ref_id"]])
+            if not st or st[0]["status"] == "retired":
+                reasons["broken"].append("its transformation was retired")
+            elif st[0]["status"] == "failed":
+                reasons["broken"].append(f"its last run failed: {st[0]['last_error']}")
         if a["kind"] == "dashboard":
             st = self._db(ws).scalar("SELECT status FROM dashboards WHERE id = ?", [a["ref_id"]])
             if st == "failed":
@@ -309,6 +344,11 @@ class AssetService:
         if "no longer exists" in reason or "contract" in reason or "failed its checks" in reason and a["kind"] != "dashboard":
             return {"action": None, "automatic": False,
                     "text": "Needs a person first: fix the source or the definition named above, then repair this."}
+        if a["kind"] == "data_model":
+            if "failed" in reason or "retired" in reason:
+                return {"action": None, "automatic": False,
+                        "text": "Needs a person first: the transformation's query no longer runs; fix it (a new version) and it runs again."}
+            return {"action": "rerun", "automatic": True, "text": "Run the transformation again on the current inputs; its checks must pass."}
         if a["kind"] == "dashboard":
             return {"action": "refresh", "automatic": True, "text": "Refresh it: Lyst re-materializes its data with the current definitions and verifies every page."}
         if a["kind"] == "workflow":
@@ -331,6 +371,10 @@ class AssetService:
         if not prop["automatic"]:
             raise ValueError(prop["text"])
         db = self._db(ws)
+        if a["kind"] == "data_model":
+            out = self.transforms.run(actor, ws, a["ref_id"], trigger="repair", full=True)
+            self.scan(ws, actor)
+            return {"asset_id": asset_id, "action": "rerun", "status": out["outcome"], "version": self.get(actor, ws, asset_id)["version"]}
         if a["kind"] == "dashboard":
             path = db.scalar("SELECT path FROM dashboards WHERE id = ?", [a["ref_id"]])
             if path and Path(path).exists():

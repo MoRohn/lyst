@@ -29,6 +29,7 @@ from .semantic import SemanticService
 from .skills import SkillService
 from .store import Stores
 from .studio import StudioService
+from .transforms import TransformService
 from .workflows import WorkflowService
 
 
@@ -55,6 +56,7 @@ class Lyst:
     assets: AssetService
     collab: CollaborationService
     onboarding: OnboardingService | None = None
+    transforms: TransformService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -100,6 +102,9 @@ class Lyst:
         services.catalog = catalog
         assets = AssetService(stores, guard, semantic=semantic, runtime=runtime, artifacts=artifacts, studio=studio)
         artifacts.assets = studio.assets = services.workflows.assets = assets
+        transforms = TransformService(stores, guard, data, knowledge=knowledge, llm=llm, catalog=catalog)
+        transforms.assets, assets.transforms = assets, transforms
+        data.after_ingest.append(transforms.after_ingest)  # derived datasets follow their inputs before assets are assessed
         data.after_ingest.append(assets.after_ingest)  # after the contract check, so a breaking version reads as broken
         semantic.after_change.append(assets.after_definition)
         runtime.periodic.append(assets.complete_all)
@@ -107,7 +112,7 @@ class Lyst:
         onboarding = OnboardingService(stores, guard, catalog=catalog, semantic=semantic, contracts=contracts, data=data,
                                        knowledge=knowledge, runtime=runtime)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding)
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms)
 
     def close(self) -> None:
         self.runtime.stop()
