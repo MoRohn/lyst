@@ -6,7 +6,7 @@ import datetime
 
 import streamlit as st
 
-from lyst.ui import anticipate, collab, kit
+from lyst.ui import anticipate, collab, decisions, kit
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
@@ -16,7 +16,7 @@ editor = st.session_state.get("role") in ("editor", "admin", "owner")
 TONE = {"green": "ok", "orange": "warn", "red": "bad", "blue": "run", "gray": "off"}
 SENSITIVITY = {4.0: "Big moves only", 3.0: "Notable moves", 2.0: "Any unusual move"}
 ACTIONS = {"schedule.activate": "Start a scheduled question", "monitor.activate": "Start watching a metric",
-           "skill.register": "Add a new skill to Lyst"}
+           "skill.register": "Add a new skill to Lyst", "decision.approve": "Approve a decision"}
 WEEKDAYS = {"mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"}
 EVERY = {3600: "Hourly", 21600: "Every 6 hours", 86400: "Daily", 604800: "Weekly", 2592000: "Monthly"}
 
@@ -114,8 +114,11 @@ def activity() -> None:
             st.switch_page("app_pages/analyst.py")
         return
     groups = {"All": None, "Running": {"queued", "running", "paused", "awaiting_approval"}, "Done": {"done"},
-              "Stopped": {"failed", "cancelled"}}
+              "Stopped": {"failed", "cancelled"}, "Decisions": "decisions"}
     pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
+    if pick == "Decisions":
+        decisions.activity_rows()
+        return
     shown = [t for t in tasks if groups[pick] is None or t["status"] in groups[pick]][:40]
     for i, t in enumerate(shown):
         text, color, _ = task_state(t["status"], t.get("outcome"))

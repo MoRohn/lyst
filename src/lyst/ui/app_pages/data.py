@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit, onboarding, reports, transforms
+from lyst.ui import kit, onboarding, reports, scenarios, transforms
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -513,6 +513,6 @@ try:
     view = kit.sections(["Datasets", "Dashboards", "Saved analyses", "SQL"], key="view")
     {"Datasets": lambda: (datasets(catalog), onboarding.data_suggestions(), waiting_review(), connections()),
      "Dashboards": dashboards_view,
-     "Saved analyses": reports.workflows, "SQL": lambda: sql(catalog)}[view]()
+     "Saved analyses": lambda: (reports.workflows(), scenarios.saved_list()), "SQL": lambda: sql(catalog)}[view]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")
