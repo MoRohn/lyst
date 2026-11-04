@@ -45,6 +45,17 @@ class DecideIn(BaseModel):
     note: str = ""
 
 
+class PythonIn(BaseModel):
+    code: str
+    inputs: dict[str, str] = {}
+    timeout: float | None = None
+
+
+class SaveIn(BaseModel):
+    name: str
+    description: str | None = None
+
+
 class IngestCommit(BaseModel):
     tables: list[IngestChoice] = []
     document: bool | None = None
@@ -182,4 +193,36 @@ def register(app, L, User) -> None:
     @app.post("/v1/workspaces/{ws}/experiment-runs/{run_id}/reproduce")
     def experiment_reproduce(request: Request, ws: str, run_id: str, user: User):
         return L(request).experiments.reproduce(user, ws, run_id)
+
+    # -- execution environment and workbench --------------------------------------------------
+
+    @app.get("/v1/environment")
+    def environment_info(request: Request, user: User):
+        """What computations run on here: interpreter and numeric package versions, and what the workbench offers."""
+        return L(request).workbench.status()
+
+    @app.post("/v1/workspaces/{ws}/workbench/sql")
+    def workbench_sql(request: Request, ws: str, body: dict[str, Any], user: User):
+        return L(request).workbench.sql(user, ws, str(body.get("sql", "")), max_rows=int(body.get("max_rows", 1000)))
+
+    @app.post("/v1/workspaces/{ws}/workbench/python")
+    async def workbench_python(request: Request, ws: str, body: PythonIn, user: User):
+        """Run Python in the OS sandbox on inputs named as SQL queries; assign the answer to ``result``."""
+        return await run_in_threadpool(L(request).workbench.python, user, ws, body.code, inputs=body.inputs, timeout=body.timeout)
+
+    @app.get("/v1/workspaces/{ws}/workbench/runs")
+    def workbench_runs(request: Request, ws: str, user: User, limit: int = 50):
+        return L(request).workbench.list(user, ws, limit)
+
+    @app.get("/v1/workspaces/{ws}/workbench/runs/{rid}")
+    def workbench_run(request: Request, ws: str, rid: str, user: User):
+        return L(request).workbench.get(user, ws, rid)
+
+    @app.post("/v1/workspaces/{ws}/workbench/runs/{rid}/reproduce")
+    async def workbench_reproduce(request: Request, ws: str, rid: str, user: User):
+        return await run_in_threadpool(L(request).workbench.reproduce, user, ws, rid)
+
+    @app.post("/v1/workspaces/{ws}/workbench/runs/{rid}/save")
+    async def workbench_save(request: Request, ws: str, rid: str, body: SaveIn, user: User):
+        return await run_in_threadpool(L(request).workbench.save, user, ws, rid, body.name, description=body.description)
 

@@ -21,6 +21,9 @@ def attach(lyst) -> None:
 
     lyst.experiments = ExperimentService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lambda: lyst)
 
+    from .workbench import WorkbenchService
+
+    lyst.workbench = WorkbenchService(lyst.stores, lyst.guard, lyst.data, lyst.knowledge, lyst.settings.home)
     # -- other lanes
     from .specialists.core import UniversalAnalystCore  # noqa: PLC0415 - specializations lane
 

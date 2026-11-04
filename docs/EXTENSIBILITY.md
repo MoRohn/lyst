@@ -128,3 +128,34 @@ Permissions: `experiment.run` (editor), `experiment.decide` (admin). Events: `ex
 
 Gaps: the decision is advice; the analyst's forecast step does not yet read it. No causal-method arms yet
 (interrupted time series vs difference-in-differences), and no hyperparameter search.
+
+## 7. Execution environment and workbench (`src/lyst/environment.py`, `sandbox.py`, `workbench.py`, workspace migration 42)
+
+`GET /v1/environment` says what computations run on (Python, the numeric packages that decide numbers, the
+lockfile digest) and what the workbench offers on this host.
+
+**SQL**: `POST /v1/workspaces/{ws}/workbench/sql` is the guarded read-only query (history kept as for every query).
+
+**Python**: `POST /v1/workspaces/{ws}/workbench/python {code, inputs: {name: sql}, timeout}` (editors). The inputs run
+first as guarded SQL under the caller's column and row policies; the code then runs in a separate interpreter
+inside an OS sandbox and sees them as pandas DataFrames; whatever it assigns to `result` comes back (a table as
+columns, row count and a 50-row preview; a value as JSON), with stdout and a readable error.
+
+| Host | Sandbox | Verified here |
+|---|---|---|
+| macOS | `sandbox-exec`, deny by default: reads only from the system, the Python installation, the packages and the job folder; writes only to the job folder; no network | Yes: `test_the_sandbox_contains_the_code` reads the Lyst home, `~/.ssh` and a temp file, opens a socket and writes to /tmp, all refused; no `LYST_*` variables |
+| Linux | `bwrap`: every namespace unshared (no network), read-only root, Lyst home and credential folders hidden, job folder writable | No (no Linux host); written to bubblewrap's documented flags |
+| Other / `LYST_SANDBOX=off` | Python workbench off, with the reason | Yes |
+
+Limits: 60 s wall clock (up to 300 on request), 60 CPU-seconds, 256 MB file writes, 2 GB address space on Linux,
+200,000 rows per input, single-threaded numeric libraries, a scrubbed environment. The sandbox contains an editor's
+own analysis code; it is not offered as a boundary against hostile code from strangers.
+
+Every run is recorded (code, inputs with SQL, dataset versions, row counts and row digests, environment, outcome,
+result digest). `.../runs/{id}/reproduce` reruns it and answers `{same, differences, observed_changed,
+changed_inputs, environment}`. `.../runs/{id}/save {name}` stores a table result as a dataset version with source
+`workbench:<run>` and `derived_from` lineage to what it read. Members see their own runs; admins see all.
+
+Gaps: task-level reproduction will build on the adapt thread's `evidence.reproduce` (re-run recorded queries)
+once it merges, adding result digests (its gap E2) and the environment diff; Docker/Kubernetes images for the
+sandbox are not provided (no Docker on this host).
