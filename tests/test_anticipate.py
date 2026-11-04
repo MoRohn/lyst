@@ -59,6 +59,7 @@ def test_a_upcoming_financial_review_is_prepared_without_distributing_or_editing
     assert _counts(lyst) == before
     assert [x["id"] for x in a["actions"]] == ["run_now", "dismiss", "snooze"]
     why = lyst.anticipation.explain(owner, WS, a["id"])
+    assert why["short"] == why["why"][0] and why["detail"][0] == why["short"] and len(why["detail"]) > len(why["why"])
     assert "Monthly finance review" in why["why"][0] and "next run" in why["why"][0] and why["methods"].startswith("metadata")
     assert lyst.anticipation.cycle(WS)["anticipated"] == 0              # the same occurrence is one object
     r = lyst.anticipation.act(owner, WS, a["id"], "run_now")

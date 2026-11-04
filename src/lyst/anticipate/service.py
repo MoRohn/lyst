@@ -235,7 +235,10 @@ class AnticipationService:
     def explain(self, actor: Principal, ws: str, aid: str) -> dict[str, Any]:
         """Why Lyst surfaced this: the reasons, each grounded in a recorded signal, check or dependency, and how it scored."""
         a = self.get(actor, ws, aid)
-        return {"id": aid, "objective": a["objective"], "why": a["reasons"], "signals": a["signals"],
+        checks = (a["verification"] or {}).get("checks", [])
+        detail = list(a["reasons"]) + [f"{c['detail'][0].upper()}{c['detail'][1:]} ({c['status']})." for c in checks if c.get("detail")]
+        return {"id": aid, "short": a["reasons"][0] if a["reasons"] else a["objective"], "detail": detail,
+                "objective": a["objective"], "why": a["reasons"], "signals": a["signals"],
                 "checks": (a["verification"] or {}).get("checks", []), "score": a["score"], "scores": a["scores"],
                 "depends_on": a["depends"], "level_required": policy.LEVELS[a["level_required"]],
                 "methods": "metadata and deterministic checks; no model was used"}

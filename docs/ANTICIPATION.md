@@ -77,7 +77,7 @@ daily surface budget. The only offered action is "Run it now", which submits the
 | `GET /v1/workspaces/{ws}/anticipations?status=open&kind=` | The activity center for the caller |
 | `POST /v1/workspaces/{ws}/anticipations/refresh` | Run a cycle now (admins) |
 | `GET /v1/workspaces/{ws}/anticipations/{id}` | One item with its checks, dependencies, resources and event trail |
-| `GET /v1/workspaces/{ws}/anticipations/{id}/why` | The grounded explanation |
+| `GET /v1/workspaces/{ws}/anticipations/{id}/why` | The grounded explanation: `{short, detail[], why[], signals, checks, score, scores, depends_on, level_required, methods}` (`short`/`detail` match the evidence explain shape) |
 | `POST /v1/workspaces/{ws}/anticipations/{id}/act` | `{action: run_now | dismiss | snooze | useful | not_useful | incorrect, until?, note?}` |
 
 ## Storage
