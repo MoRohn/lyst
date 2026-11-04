@@ -1252,6 +1252,9 @@ WORKSPACE.append((
         saved_as VARCHAR,
         created_by VARCHAR NOT NULL,
         created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
 
 # Connector drafts: connections Lyst proposes from an API description, tested in a dry run and promoted by an admin.
 CONTROL.append((
@@ -1272,6 +1275,10 @@ CONTROL.append((
         review_note VARCHAR,
         created_at TIMESTAMPTZ DEFAULT now(),
         updated_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
+
 # Voice (migrations 60-69): workspace voice settings, each person's voice preferences, voice sessions and their turns.
 # Audio is stored only when an administrator turns on retention; transcripts are redacted before they are written.
 WORKSPACE.append((
