@@ -270,6 +270,59 @@ class SemanticService:
             "SELECT term, definition, maps_to_metric, status, source FROM glossary ORDER BY term"
         )
 
+    # -- source precedence -------------------------------------------------------------------
+
+    def set_authority(self, actor: Principal, workspace_id: str, dataset: str, level: str | None, *, subject: str = "",
+                      note: str = "") -> dict[str, Any]:
+        """Mark a dataset as the authoritative source (for a subject such as "P&L") or a secondary copy; None clears it.
+        Where two definitions compute the same number from different sources, the authoritative one answers."""
+        self.guard.require(actor, workspace_id, "metric.define", dataset)
+        db = self.stores.workspace(workspace_id)
+        if not db.scalar("SELECT count(*) FROM datasets WHERE name = ?", [dataset]):
+            raise KeyError(dataset)
+        if level is None:
+            db.execute("DELETE FROM source_authority WHERE dataset = ?", [dataset])
+        elif level in ("authoritative", "secondary"):
+            db.execute("INSERT OR REPLACE INTO source_authority (dataset, level, subject, note, set_by) VALUES (?, ?, ?, ?, ?)",
+                       [dataset, level, subject or None, note or None, actor.user_id])
+        else:
+            raise ValueError("level is authoritative, secondary or null")
+        self.guard.audit(actor, workspace_id, "source.authority", dataset, "ok", {"level": level, "subject": subject})
+        self._changed(actor, workspace_id, f"dataset:{dataset}")
+        return {"dataset": dataset, "level": level, "subject": subject or None}
+
+    def authority(self, actor: Principal, workspace_id: str) -> dict[str, dict[str, Any]]:
+        self.guard.require(actor, workspace_id, "metric.read")
+        return self._authority(workspace_id)
+
+    def _authority(self, workspace_id: str) -> dict[str, dict[str, Any]]:
+        rows = self.stores.workspace(workspace_id).query("SELECT dataset, level, subject, note, set_by, set_at FROM source_authority")
+        return {r["dataset"]: r for r in rows}
+
+    @staticmethod
+    def _calc_key(m: MetricSpec) -> str:
+        """The calculation, independent of the dataset it runs on."""
+        return value_expr(m.model_copy(update={"dataset": "x"})) + "|" + "|".join(sorted(_cond(f) for f in m.filters))
+
+    def _prefer(self, workspace_id: str, names: set[str], specs: dict[str, MetricSpec]) -> tuple[str, str] | None:
+        """Among definitions of the same calculation on different sources, the one on the authoritative source."""
+        group = [specs[n] for n in names if n in specs]
+        if len(group) != len(names) or len({self._calc_key(m) for m in group}) != 1 or len({m.dataset for m in group}) != len(group):
+            return None
+        auth = self._authority(workspace_id)
+        top = [m for m in group if (auth.get(m.dataset) or {}).get("level") == "authoritative"]
+        if len(top) != 1:
+            rest = [m for m in group if (auth.get(m.dataset) or {}).get("level") != "secondary"]
+            if len(rest) != 1:
+                return None
+            top = rest
+        chosen = top[0]
+        a = auth.get(chosen.dataset) or {}
+        why = (f"{chosen.dataset} is the authoritative source" + (f" for {a['subject']}" if a.get("subject") else "")
+               if a.get("level") == "authoritative" else
+               f"the other source{'s are' if len(group) > 2 else ' is'} marked secondary")
+        return chosen.name, why
+
     # -- lifecycle and history -------------------------------------------------------------
 
     def history(self, actor: Principal, workspace_id: str, name: str) -> list[dict[str, Any]]:
@@ -330,18 +383,34 @@ class SemanticService:
                 issues.append({"severity": "high", "kind": "duplicate_definition", "items": sorted(names),
                                "text": f"{' and '.join(sorted(names))} compute the same number the same way",
                                "fix": "deprecate one and point it at the other, or add synonyms instead of a second metric"})
+        auth = self._authority(workspace_id)
         for group in by_measure.values():
             sources = sorted({m.dataset for m in group})
             if len(sources) > 1:
-                issues.append({"severity": "medium", "kind": "conflicting_source", "items": sorted(m.name for m in group),
-                               "text": f"the same calculation is defined on {', '.join(sources)}; answers will differ if the sources disagree",
-                               "fix": "choose the authoritative source and deprecate the other definition"})
+                pick = self._prefer(workspace_id, {m.name for m in group}, {m.name: m for m in group})
+                if pick:
+                    for m in group:
+                        if m.name != pick[0]:
+                            issues.append({"severity": "low", "kind": "secondary_source_definition", "items": [m.name, pick[0]],
+                                           "text": f"{m.name} computes {pick[0]} from {m.dataset}; requests use {pick[0]} because {pick[1]}",
+                                           "fix": f"deprecate {m.name} in favour of {pick[0]}, or keep it for reconciliation only"})
+                else:
+                    issues.append({"severity": "medium", "kind": "conflicting_source", "items": sorted(m.name for m in group),
+                                   "text": f"the same calculation is defined on {', '.join(sources)}; answers will differ if the sources disagree",
+                                   "fix": "mark the authoritative source (and the others secondary), or deprecate the other definition"})
+        for m in metrics:
+            if (auth.get(m.dataset) or {}).get("level") == "secondary" and not any(m.name in i["items"] for i in issues
+                                                                                   if i["kind"] == "secondary_source_definition"):
+                issues.append({"severity": "low", "kind": "secondary_source_definition", "items": [m.name],
+                               "text": f"{m.name} reads {m.dataset}, which is marked as a secondary source",
+                               "fix": "define it on the authoritative source if one exists"})
         phrases: dict[str, set[str]] = {}
         for m in metrics:
             for p in {m.name.replace("_", " "), m.title.lower(), *[s.lower() for s in m.synonyms]}:
                 phrases.setdefault(p.strip(), set()).add(m.name)
+        specs_all = {m.name: m for m in metrics}
         for phrase, names in sorted(phrases.items()):
-            if len(names) > 1:
+            if len(names) > 1 and not self._prefer(workspace_id, names, specs_all):
                 issues.append({"severity": "medium", "kind": "ambiguous_term", "items": sorted(names),
                                "text": f"'{phrase}' names {' and '.join(sorted(names))}, so a request using it is asked to choose",
                                "fix": "keep the synonym on one metric only"})
@@ -419,15 +488,21 @@ class SemanticService:
         chosen: list[str] = []
         ambiguous: dict[str, list[str]] = {}
         matched: dict[str, str] = {}
+        precedence: dict[str, dict[str, Any]] = {}
+        specs = {m.name: m for m in metrics}
         for phrase, names in hits:
             if len(names) > 1:
-                ambiguous[phrase] = sorted(names)
-                continue
+                pick = self._prefer(workspace_id, names, specs)
+                if not pick:
+                    ambiguous[phrase] = sorted(names)
+                    continue
+                precedence[phrase] = {"chosen": pick[0], "over": sorted(names - {pick[0]}), "because": pick[1]}
+                names = {pick[0]}
             (name,) = names
             if name not in chosen:
                 chosen.append(name)
                 matched[name] = phrase
-        return {"metrics": chosen, "ambiguous": ambiguous, "matched": matched}
+        return {"metrics": chosen, "ambiguous": ambiguous, "matched": matched, "precedence": precedence}
 
 
 def _diff(a: dict[str, Any], b: dict[str, Any]) -> list[dict[str, Any]]:

@@ -29,25 +29,113 @@ def ask(question: str) -> None:
         st.switch_page("app_pages/analyst.py", query_params={"task": out["task_id"]})
 
 
+@st.cache_data(ttl=3600)
+def _formats() -> dict:
+    try:
+        return api.get("/v1/ingest/formats")
+    except APIError:
+        return {"extensions": ["csv", "tsv", "parquet"], "groups": {}, "refused": {}}
+
+
+def upload() -> None:
+    """Any file: a workbook, a document, a CSV. Lyst reads it first and shows what it found before anything loads."""
+    fm = _formats()
+    groups = fm.get("groups") or {}
+    st.caption("Spreadsheets (" + ", ".join(groups.get("spreadsheet", [])) + "), tables ("
+               + ", ".join(groups.get("table", [])) + ") and documents (" + ", ".join(groups.get("document", []))
+               + "). Lyst shows what it found before anything is loaded.")
+    f = st.file_uploader("File", type=fm.get("extensions"), label_visibility="collapsed", key="ingest_file")
+    jid = st.session_state.get("ingest_job")
+    if f is not None:
+        seen = st.session_state.get("ingest_seen")
+        if seen != (f.name, f.size):  # upload once per file, not on every rerun
+            job = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/ingest", None, files={"file": (f.name, f.getvalue())}))
+            st.session_state["ingest_seen"] = (f.name, f.size)
+            jid = job["id"] if job else None
+            st.session_state["ingest_job"] = jid
+    if jid:
+        review(jid)
+
+
+def review(jid: str) -> None:
+    job = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/ingest/{jid}"))
+    if not job:
+        st.session_state.pop("ingest_job", None)
+        return
+    if job.get("status") != "staged":
+        st.caption(f"{job['filename']} was already {job['status']}.")
+        st.session_state.pop("ingest_job", None)
+        return
+    st.markdown(md(f"**{job['filename']}** · {job.get('kind', 'file')}"
+                   + (f" · {len(job.get('sheets') or [])} sheet{'s' * (len(job.get('sheets') or []) != 1)}"
+                      if job.get("sheets") else "")))
+    if job.get("duplicate_of"):
+        st.info(md(f"This is the same file as an earlier upload ({job['duplicate_of']})."), icon=":material/content_copy:")
+    for w in job.get("warnings") or []:
+        st.warning(md(w), icon=":material/report:")
+    choices = []
+    tables = job.get("tables") or []
+    if tables:
+        kit.label(f"Tables found · {len(tables)}")
+    for t in tables:
+        with st.container(border=True):
+            c = st.columns([0.5, 3, 2], vertical_alignment="center")
+            inc = c[0].checkbox("Include", value=t.get("include", True), key=f"inc_{jid}_{t['key']}",
+                                label_visibility="collapsed")
+            c[1].markdown(md(f"**{t.get('title') or t.get('sheet') or t['key']}**  \n{t['rows']:,} rows · {len(t['columns'])} columns"
+                             + (f" · {t['sheet']} {t['range']}" if t.get("sheet") else "")))
+            name = c[2].text_input("Dataset name", value=t.get("proposed_name") or dataset_name(t["key"]),
+                                   key=f"nm_{jid}_{t['key']}", disabled=not inc)
+            for tot in t.get("totals") or []:
+                ok = all(ch["matches"] for ch in tot["checks"])
+                (st.caption if ok else st.warning)(md(
+                    f"“{tot['label']}” row: " + ("matches the sum of the rows, so it is left out of the data" if ok else
+                    "does not match: " + "; ".join(f"{ch['column']} says {ch['stated']:,g} but the rows add up to "
+                                                   f"{ch['sum_of_rows']:,g}" for ch in tot["checks"] if not ch["matches"]))))
+            for w in (t.get("warnings") or []) + (t.get("notes") or []):
+                st.caption(":material/info: " + md(w))
+            derived = [col["header"] for col in t["columns"] if col.get("formula") or col.get("derived")]
+            if derived:
+                st.caption("Calculated columns: " + md(", ".join(map(str, derived))))
+            with st.expander("Preview", icon=":material/table:"):
+                st.dataframe(pd.DataFrame(t.get("preview") or [], columns=[col["header"] for col in t["columns"]]),
+                             hide_index=True, width="stretch")
+            choices.append({"key": t["key"], "name": name, "include": inc})
+    doc = job.get("document")
+    searchable = False
+    if doc:
+        kit.label("Text")
+        st.caption(md(f"{doc.get('words', 0):,} words" + (f" · {doc['pages']} pages" if doc.get("pages") else "")
+                      + (" · sections: " + ", ".join(doc.get("headings")[:6]) if doc.get("headings") else "")))
+        searchable = st.checkbox("Make the text searchable, so answers can cite it", value=doc.get("include", True),
+                                 key=f"doc_{jid}")
+        with st.expander("Excerpt", icon=":material/article:"):
+            st.markdown(md(doc.get("excerpt") or ""))
+    b = st.columns([1.6, 1.2, 4])
+    if b[0].button("Load it", type="primary", icon=":material/upload:", key=f"commit_{jid}",
+                   disabled=not (any(ch["include"] for ch in choices) or searchable)):
+        out = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/ingest/{jid}/commit",
+                                           {"tables": choices, "document": searchable if doc else None}))
+        if out:
+            made = [f"{d['dataset']} ({d['rows']:,} rows)" for d in out.get("datasets") or []]
+            st.toast("Loaded " + (", ".join(made) if made else "")
+                     + (" and the text" if out.get("document") else ""), icon=":material/check:")
+            for e in out.get("errors") or []:
+                st.error(md(e if isinstance(e, str) else e.get("message") or str(e)))
+            st.session_state.pop("ingest_job", None)
+            st.rerun()
+    if b[1].button("Discard", type="tertiary", key=f"discard_{jid}"):
+        kit.guarded(lambda: api.delete(f"/v1/workspaces/{ws}/ingest/{jid}"), "Discarded")
+        st.session_state.pop("ingest_job", None)
+        st.rerun()
+
+
 @st.dialog("Add data", width="large")
 def add_data() -> None:
     how = st.segmented_control("How", ["Upload a file", "Connect a source"], default="Upload a file",
                                label_visibility="collapsed") or "Upload a file"
     if how == "Upload a file":
-        f = st.file_uploader("CSV, TSV or Parquet", type=["csv", "tsv", "parquet"])
-        if f:
-            c = st.columns(2)
-            name = c[0].text_input("Dataset name", value=dataset_name(f.name),
-                                   help="How questions and SQL refer to it. Letters, digits and underscores.")
-            desc = c[1].text_input("What it contains (optional)")
-            if st.button("Add dataset", type="primary", icon=":material/upload:"):
-                r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/datasets", None,
-                                                 data={"name": name, "description": desc},
-                                                 files={"file": (f.name, f.getvalue())}))
-                if r:
-                    st.toast(f"{r['dataset']}: {r['rows']:,} rows" + (" (no change from the current version)"
-                                                                      if r["unchanged"] else ""), icon=":material/check:")
-                    st.rerun()
+        upload()
         return
     kinds = api.get("/v1/connectors")
     kind = st.selectbox("Source", [k["kind"] for k in kinds],
@@ -344,6 +432,24 @@ def source_detail(cid: str) -> None:
     if editor and b[1].button("Sync", icon=":material/sync:", key=f"src_sync_{cid}"):
         st.session_state["_sync_after"] = cid
         st.rerun()
+
+
+def waiting_review() -> None:
+    """Uploads Lyst has read but nobody has loaded or discarded yet."""
+    try:
+        staged = [j for j in api.get(f"/v1/workspaces/{ws}/ingest") if j.get("status") == "staged"]
+    except APIError:
+        return
+    if not staged:
+        return
+    kit.label(f"Waiting for review · {len(staged)}")
+    for i, j in enumerate(staged):
+        hit = kit.row(j["filename"], " · ".join(x for x in (j.get("kind"), f"uploaded {kit.when(j.get('created_at'))}")
+                                                if x), actions=[("Review", "rev")] if editor else [],
+                      key=f"stg{j['id']}", divider=i < len(staged) - 1)
+        if hit == "rev":
+            st.session_state["ingest_job"] = j["id"]
+            add_data()
 
 
 def connections() -> None:

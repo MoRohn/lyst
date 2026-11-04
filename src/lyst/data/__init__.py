@@ -54,6 +54,8 @@ class DataService:
         self.guard = guard
         # called with (actor, workspace_id, result) after a new version commits: insights, contract checks
         self.after_ingest: list = []
+        # called with (actor, workspace_id, datasets) before a query runs; raise to refuse (governance.check_read)
+        self.access_checks: list = []
 
     # -- ingestion --------------------------------------------------------------------------
 
@@ -274,6 +276,12 @@ class DataService:
             self._history(db, actor, task_id, sql, None, 0, "rejected", str(exc))
             self.guard.audit(actor, workspace_id, "data.query", None, "rejected", {"reason": str(exc)})
             raise
+        for check in self.access_checks:
+            try:
+                check(actor, workspace_id, guarded.datasets)
+            except Exception as exc:
+                self._history(db, actor, task_id, sql, None, 0, "rejected", str(exc)[:500], guarded.datasets)
+                raise
         start = time.perf_counter()
         try:
             with db.read() as cur:
@@ -282,21 +290,21 @@ class DataService:
                 rows = [list(r) for r in rel.fetchall()]
         except Exception as exc:
             ms = int((time.perf_counter() - start) * 1000)
-            self._history(db, actor, task_id, sql, None, ms, "error", str(exc)[:500])
+            self._history(db, actor, task_id, sql, None, ms, "error", str(exc)[:500], guarded.datasets)
             raise
         ms = int((time.perf_counter() - start) * 1000)
-        qid = self._history(db, actor, task_id, sql, len(rows), ms, "ok", None)
+        qid = self._history(db, actor, task_id, sql, len(rows), ms, "ok", None, guarded.datasets)
         return QueryResult(cols, rows, sql, guarded.sql, guarded.datasets, ms, qid)
 
     @staticmethod
-    def _history(db, actor, task_id, sql, rows, ms, outcome, error) -> int:
+    def _history(db, actor, task_id, sql, rows, ms, outcome, error, datasets=None) -> int:
         step = obs.step_seq.get() if task_id else None  # read here, on the caller's thread, not the writer's
         def tx(c):
             qid = c.execute("SELECT nextval('query_seq')").fetchone()[0]
             c.execute(
-                "INSERT INTO query_history (id, actor, task_id, sql, rows, ms, outcome, error, step) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [qid, actor.user_id, task_id, sql, rows, ms, outcome, error, step],
+                "INSERT INTO query_history (id, actor, task_id, sql, rows, ms, outcome, error, step, datasets) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [qid, actor.user_id, task_id, sql, rows, ms, outcome, error, step, json.dumps(sorted(datasets)) if datasets else None],
             )
             return qid
 

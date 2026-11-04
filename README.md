@@ -71,8 +71,9 @@ the plan, every check and every query. **Brief** opens the two-line version with
 briefing, ready to forward; executive requests lead with it. Limitations stay visible at every depth.
 
 Under each answer you can act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved
-analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, and **How this
-ran** shows each step, query and model call with its timing.
+analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, **Share** assigns
+it to a colleague or asks for a review, **Discuss** opens its thread, and **How this ran** shows each step, query
+and model call with its timing.
 
 <p align="center">
   <img src="docs/images/brief.png" alt="The Brief: the answer, the trust line, one chart, what to do and the PDF briefing" width="49%">
@@ -177,10 +178,29 @@ says a person is needed.
 * **Your notifications, your way.** Mentions, assignments, reviews, decisions and comments on what you own
   arrive in one list with platform notices, and each kind can be switched off per person.
 
-These run through the API today; their screens in the answer and in Work are on the way.
+On screen: **Share** and **Discuss** sit on every answer; **Work › Needs you** adds *Assigned to you* (Open, Done)
+and *Reviews waiting* (Open, Approve, Reject), counted in the sidebar; and **Notifications** in the sidebar open
+where they point, with Mark all read and "What to tell me about".
+
+<table>
+  <tr>
+    <td width="45%"><img src="docs/images/discuss.png" alt="An answer's discussion: a mention, an open change request with Mark resolved, and a recorded decision"><br><b>Discuss</b>: comments, change requests and decisions</td>
+    <td width="55%"><img src="docs/images/notifications.png" alt="Sidebar notifications for a change request and a mention, over an answer with Share and Discuss in its act bar"><br><b>Notifications</b>: open where they point</td>
+  </tr>
+</table>
 
 ## What Lyst does
 
+* **Gets itself ready for a new organization.** Connect or upload data and Lyst studies the metadata only (names,
+  types and shape, never rows), recognises the business areas from thirteen versioned industry packages (finance,
+  procurement, sales, marketing, HR, manufacturing, customer service, product, logistics, IT, healthcare,
+  professional services, financial services), and suggests metrics, business terms, privacy limits for personal
+  data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
+  official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
+  business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
+  resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
+  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer.
+  Available through the API; screens are on the way ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -196,6 +216,17 @@ These run through the API today; their screens in the answer and in Work are on 
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
+* **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
+  and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
+  full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
+  continues without model wording), and a cap on any one task's time that holds across pauses and restarts.
+  Calendar schedules ("every Monday at 08:00 Europe/London") stay at local time across daylight saving, run once
+  after downtime and record what they missed, never double a run still going, and tell the owner when a run
+  finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
+  admins get an operations report (queues, failures, run times, spend against budget). On screen, Settings ›
+  Workspace › **Usage & limits** shows spend, tokens and tasks against the limits; Work › **Recurring** shows each
+  schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
+  [docs/OPERATIONS.md](docs/OPERATIONS.md).
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
   citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
 * **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
@@ -205,6 +236,27 @@ These run through the API today; their screens in the answer and in Work are on 
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Reads any file, and shows you first.** One upload path takes Excel workbooks (every table on every sheet,
+  merged and two-row headers folded, units and scale read from headers, formula columns reported, error values
+  counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown and PDF
+  text. Lyst returns a plan before anything loads: the tables it found, whether a total row adds up, and what
+  needs a look. You choose what to keep and what to call it. Document text becomes searchable so answers can cite
+  it, and unsupported files (legacy Office, password-protected, images)
+  are refused in plain words. Through the API today; the review screen in Add data is on the way
+  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+* **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
+  verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
+  columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
+  query's inputs, joins and grouping are explained. With a model configured, it can be designed from a sentence
+  (the model sees names, types and relationships, never rows). It reruns when an input gets a new version, keeps
+  the last good version if a run fails, and carries lineage to every input.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/recurring.png" alt="Work, Recurring: a daily schedule and a Monday 08:00 America/New_York schedule, both awaiting approval"><br><b>Recurring</b>: calendar schedules with their next run</td>
+    <td width="50%"><img src="docs/images/usage-limits.png" alt="Settings, Usage and limits: model spend, tokens and tasks against the limits"><br><b>Usage & limits</b>: spend and work against the limits</td>
+  </tr>
+</table>
 
 The [capability matrix](docs/CAPABILITY_MATRIX.md) lists each capability with its state and the test that proves
 it, and [known gaps](docs/GAPS.md) lists what is missing.
@@ -290,7 +342,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)

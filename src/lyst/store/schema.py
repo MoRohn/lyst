@@ -919,3 +919,201 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# -- extensibility lane (migrations 40-49): ingestion, experiments, environments, publishing -------------------------
+WORKSPACE.append((
+    40,
+    """
+    CREATE TABLE ingest_jobs (
+        id VARCHAR PRIMARY KEY,
+        filename VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        format VARCHAR NOT NULL,
+        size_bytes BIGINT NOT NULL,
+        sha256 VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        plan JSON NOT NULL,
+        result JSON,
+        content BLOB,
+        classification VARCHAR NOT NULL DEFAULT 'internal',
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        finished_at TIMESTAMPTZ
+    )
+    """,
+))
+
+# Anticipation (migrations 50-59): prepared-work objects with their signals, scores, preparation, verification, validity
+# and outcome; an append-only event trail per object; the workspace's autonomy level and budgets; per-day usage; and each
+# person's attention preferences.
+WORKSPACE.append((
+    50,
+    """
+    CREATE TABLE anticipations (
+        id VARCHAR PRIMARY KEY,
+        kind VARCHAR NOT NULL,
+        objective VARCHAR NOT NULL,
+        subject_kind VARCHAR NOT NULL,
+        subject_id VARCHAR NOT NULL,
+        audience JSON NOT NULL,
+        signals JSON NOT NULL,
+        reasons JSON NOT NULL,
+        scores JSON NOT NULL,
+        score DOUBLE NOT NULL,
+        level_required INTEGER NOT NULL,
+        status VARCHAR NOT NULL,
+        verdict VARCHAR,
+        prepared JSON,
+        verification JSON,
+        actions JSON NOT NULL,
+        depends JSON NOT NULL,
+        resources JSON NOT NULL,
+        needed_at TIMESTAMPTZ,
+        valid_until TIMESTAMPTZ,
+        revision INTEGER NOT NULL DEFAULT 1,
+        dedupe_key VARCHAR UNIQUE NOT NULL,
+        finding_id VARCHAR,
+        task_id VARCHAR,
+        snoozed_until TIMESTAMPTZ,
+        outcome VARCHAR,
+        decided_by VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        prepared_at TIMESTAMPTZ,
+        surfaced_at TIMESTAMPTZ,
+        decided_at TIMESTAMPTZ
+    );
+    CREATE INDEX anticipations_by_status ON anticipations (status, kind);
+    CREATE SEQUENCE anticipation_event_seq;
+    CREATE TABLE anticipation_events (
+        id BIGINT PRIMARY KEY,
+        anticipation_id VARCHAR NOT NULL,
+        event VARCHAR NOT NULL,
+        actor VARCHAR NOT NULL,
+        detail JSON NOT NULL,
+        occurred_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX anticipation_events_by_object ON anticipation_events (anticipation_id);
+    CREATE TABLE anticipation_settings (
+        id VARCHAR PRIMARY KEY,
+        level INTEGER NOT NULL,
+        daily_prepare_limit INTEGER NOT NULL,
+        daily_investigation_limit INTEGER NOT NULL,
+        daily_compute_ms BIGINT NOT NULL,
+        daily_surface_limit INTEGER NOT NULL,
+        updated_by VARCHAR,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE anticipation_usage (
+        day DATE NOT NULL,
+        operation VARCHAR NOT NULL,
+        count INTEGER NOT NULL,
+        compute_ms BIGINT NOT NULL,
+        refused INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, operation)
+    );
+    CREATE TABLE attention_prefs (
+        user_id VARCHAR PRIMARY KEY,
+        opted_out BOOLEAN NOT NULL DEFAULT false,
+        min_score DOUBLE,
+        max_per_day INTEGER,
+        quiet_start VARCHAR,
+        quiet_end VARCHAR,
+        timezone VARCHAR,
+        muted_kinds JSON NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
+
+# Scenario models (versioned driver models), saved scenarios with their result and a reproducibility digest, and
+# decision records (analysis, recommendation, the person's choice, approval and outcome review).
+WORKSPACE.append((
+    20,
+    """
+    CREATE TABLE scenario_models (
+        name VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        title VARCHAR NOT NULL,
+        spec JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (name, version)
+    );
+    CREATE TABLE scenarios (
+        id VARCHAR PRIMARY KEY,
+        model VARCHAR NOT NULL,
+        model_version INTEGER NOT NULL,
+        name VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        overrides JSON NOT NULL,
+        result JSON NOT NULL,
+        digest VARCHAR NOT NULL,
+        seed INTEGER,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE decisions (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        question VARCHAR,
+        spec JSON NOT NULL,
+        analysis JSON,
+        recommendation JSON,
+        status VARCHAR NOT NULL,
+        chosen VARCHAR,
+        rationale VARCHAR,
+        approval_id VARCHAR,
+        decided_by VARCHAR,
+        decided_at TIMESTAMPTZ,
+        review_at TIMESTAMPTZ,
+        outcome JSON,
+        task_id VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
+
+# Data classification history and the workspace's versioned data policy; the query log records which datasets each
+# query read, so a task's sensitivity is known before anything leaves (external model, exported file).
+WORKSPACE.append((
+    31,
+    """
+    CREATE SEQUENCE classification_seq;
+    CREATE TABLE classification_events (
+        id BIGINT PRIMARY KEY,
+        dataset VARCHAR NOT NULL,
+        level VARCHAR NOT NULL,
+        previous VARCHAR,
+        tags JSON NOT NULL,
+        reason VARCHAR NOT NULL,
+        actor VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE data_policies (
+        version INTEGER PRIMARY KEY,
+        spec JSON NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    ALTER TABLE query_history ADD COLUMN datasets JSON
+    """,
+))
+
+# Source precedence: which dataset is the authoritative source for a subject, and which are secondary copies.
+WORKSPACE.append((
+    13,
+    """
+    CREATE TABLE source_authority (
+        dataset VARCHAR PRIMARY KEY,
+        level VARCHAR NOT NULL,
+        subject VARCHAR,
+        note VARCHAR,
+        set_by VARCHAR NOT NULL,
+        set_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))

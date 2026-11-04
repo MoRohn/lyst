@@ -247,6 +247,7 @@ class CatalogService:
         self.guard.require(actor, ws, "data.read")
         restricted, row_limited = self._visibility(actor, ws)
         used = {}
+        auth = self.semantic.authority(actor, ws)
         for m in self.semantic.metrics(actor, ws):
             used.setdefault(m.dataset, []).append(m.name)
         out = []
@@ -261,7 +262,9 @@ class CatalogService:
                         "risks": {"high": sum(r["severity"] == "high" for r in risks), "medium": sum(r["severity"] == "medium" for r in risks),
                                   "low": sum(r["severity"] == "low" for r in risks)},
                         "contract": contract, "metrics": sorted(used.get(d["name"], [])),
-                        "trusted": bool(used.get(d["name"])) and bool(contract and contract.get("outcome") in ("pass", "warn"))})
+                        "authority": (auth.get(d["name"]) or {}).get("level"), "authority_subject": (auth.get(d["name"]) or {}).get("subject"),
+                        "trusted": (auth.get(d["name"]) or {}).get("level") != "secondary" and bool(used.get(d["name"]))
+                        and bool(contract and contract.get("outcome") in ("pass", "warn"))})
         return out
 
     # -- lineage and impact ---------------------------------------------------------------------
@@ -312,6 +315,7 @@ class CatalogService:
             "kind": spec.kind, "unit": spec.unit, "currency": spec.currency, "grain": spec.grain,
             "sql": compile_metric(spec), "columns": sorted(spec.columns()), "dataset": dataset,
             "contract": self.contracts.status(ws, spec.dataset) if self.contracts else None,
+            "authority": self.semantic.authority(actor, ws).get(spec.dataset),
             "quality": quality, "related_sources": upstream,
             "downstream": [i for i in impact_of(db, self.semantic, actor, ws, spec.dataset, sorted(spec.columns()))
                            if i["kind"] != "metric" and name in i.get("metrics", [])],
@@ -353,13 +357,21 @@ class CatalogService:
         by_dataset: dict[str, list[str]] = {}
         for m in metrics:
             by_dataset.setdefault(m.dataset, []).append(m.name)
+        auth = self.semantic.authority(actor, ws)
+        level = {d: (a or {}).get("level") for d, a in auth.items()}
+        for h in hits:  # metrics on the authoritative source first among equals; secondary sources last
+            ds = next((r["name"] for r in h["related"] if r["kind"] == "dataset"), None)
+            h["score"] += {"authoritative": 0.75, "secondary": -0.75}.get(level.get(ds), 0)
         for d in self._current(ws):
             hidden = restricted.get(d["name"], set())
             cols = [c["name"] for c in d["schema"] if c["name"] not in hidden]
             s = score(f"{d['name']} {d['title']}", f"{d['description'] or ''} {' '.join(cols)}")
             if s:
-                hits.append({"kind": "dataset", "name": d["name"], "title": d["title"], "score": s + (0.5 if by_dataset.get(d["name"]) else 0),
-                             "why": f"{d['row_count']:,} rows, v{d['version']}" + (", read by approved metrics" if by_dataset.get(d["name"]) else ""),
+                lv = level.get(d["name"])
+                hits.append({"kind": "dataset", "name": d["name"], "title": d["title"],
+                             "score": s + (0.5 if by_dataset.get(d["name"]) else 0) + {"authoritative": 0.75, "secondary": -0.75}.get(lv, 0),
+                             "why": f"{d['row_count']:,} rows, v{d['version']}" + (", read by approved metrics" if by_dataset.get(d["name"]) else "")
+                             + (f", the {lv} source" if lv else ""),
                              "related": [{"kind": "metric", "name": n} for n in sorted(by_dataset.get(d["name"], []))]})
             for c in cols:
                 cs = score(c)
