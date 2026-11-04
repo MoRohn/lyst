@@ -27,6 +27,8 @@ dependencies = [
   "pypdf>=5",
   "psycopg[binary]>=3.2",
   "mcp>=1.2",
+  "reportlab>=4.2",
+  "python-pptx>=1.0",
 ]
 
 [project.optional-dependencies]

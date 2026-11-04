@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Rohn Springfield
 import io
 
+import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
@@ -44,3 +45,25 @@ def test_artifacts_respect_workspace_membership(seeded):
         assert r.status_code == 200 and r.headers["content-type"].startswith("text/markdown")
         made = c.post(f"/v1/tasks/{t['id']}/artifacts/xlsx", headers=ho).json()
         assert made["bytes"] > 1000 and len(c.get(f"/v1/tasks/{t['id']}/artifacts", headers=ho).json()) == 2
+
+
+def test_pdf_and_deck_carry_the_verified_result(seeded):
+    from pptx import Presentation
+    from pypdf import PdfReader
+
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Why did operating margin decline last quarter? Prepare a briefing for the board.")
+    p = lyst.artifacts.build(owner, t, "pdf")
+    _, pdf = lyst.artifacts.get(owner, p["id"])
+    text = " ".join(page.extract_text() for page in PdfReader(io.BytesIO(pdf)).pages)
+    assert "Answer" in text and "EMEA" in text and "Supporting work" in text and "sha256" in text
+    assert "32.5%" in text
+    d = lyst.artifacts.build(owner, t, "pptx")
+    _, pptx = lyst.artifacts.get(owner, d["id"])
+    prs = Presentation(io.BytesIO(pptx))
+    titles = [s.shapes[0].text_frame.text for s in prs.slides]
+    assert titles[1] == "Answer" and "Evidence" in titles and "Supporting work" in titles[-1]
+    assert any("EMEA" in sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
+    with pytest.raises(ValueError):
+        lyst.artifacts.build(owner, t, "docx")
+    assert {a["kind"] for a in lyst.artifacts.list(owner, "northwind", t["id"])} == {"pdf", "pptx"}

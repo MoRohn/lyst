@@ -75,8 +75,8 @@ def live() -> None:
     if t["result"]:
         answer(t["result"])
         if t["result"]["status"] == "complete":
-            d = st.columns([1, 1, 6])
-            for i, (kind, label) in enumerate((("xlsx", "Excel workbook"), ("md", "Briefing"))):
+            d = st.columns([1, 1, 1, 1, 4])
+            for i, (kind, label) in enumerate((("xlsx", "Excel"), ("pdf", "PDF briefing"), ("pptx", "Deck"), ("md", "Markdown"))):
                 if d[i].button(label, key=f"mk_{kind}_{tid}", icon=":material/download:", type="tertiary"):
                     try:
                         a = api.post(f"/v1/tasks/{tid}/artifacts/{kind}")

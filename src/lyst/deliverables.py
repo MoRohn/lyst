@@ -145,6 +145,130 @@ def _cell(v: Any) -> str:
     return str(v).replace("|", "\\|")
 
 
+# ---------------------------------------------------------------------------- PDF and deck
+
+def pdf_briefing(result: dict[str, Any], task: dict[str, Any]) -> bytes:
+    """An executive briefing as PDF (ReportLab): Answer, Evidence, Implications, Actions, tables, Supporting work."""
+    import io  # noqa: PLC0415
+    from xml.sax.saxutils import escape  # noqa: PLC0415
+
+    from reportlab.lib import colors  # noqa: PLC0415
+    from reportlab.lib.pagesizes import A4  # noqa: PLC0415
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet  # noqa: PLC0415
+    from reportlab.lib.units import mm  # noqa: PLC0415
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle  # noqa: PLC0415
+
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=18, leading=22, spaceAfter=6, alignment=0)
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=12, spaceBefore=10, spaceAfter=4, textColor=colors.HexColor("#1f5eff"))
+    body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=10, leading=14)
+    small = ParagraphStyle("small", parent=body, fontSize=8, leading=10, textColor=colors.HexColor("#5b6577"))
+    mono = ParagraphStyle("mono", parent=body, fontName="Courier", fontSize=7.5, leading=9)
+    conf = result.get("confidence", {})
+    sup = result.get("supporting", {})
+    story = [Paragraph(escape(result.get("question", "Analysis")), h1),
+             Paragraph(escape(f"Lyst · {datetime.now(UTC).strftime('%d %b %Y')} · task {task.get('id', '')} · {conf.get('level', '')}"), small),
+             Spacer(1, 6), Paragraph("Answer", h2), Paragraph(escape(result.get("brief") or result.get("answer", "")), body)]
+    for heading, items in (("Evidence", result.get("evidence", [])), ("Business implications", result.get("implications", [])),
+                           ("Recommended actions", result.get("actions", []))):
+        if items:
+            story.append(Paragraph(heading, h2))
+            story += [Paragraph("• " + escape(str(i)), body) for i in items]
+    for t in result.get("tables", []):
+        story.append(Paragraph(escape(t["title"]), h2))
+        rows = [[str(c) for c in t["columns"]]] + [[_cell(v) for v in r] for r in t["rows"][:25]]
+        tbl = Table(rows, repeatRows=1, hAlign="LEFT")
+        tbl.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f5eff")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                                 ("FONTSIZE", (0, 0), (-1, -1), 7.5), ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e3e5ea")),
+                                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f6f8")])]))
+        story.append(tbl)
+        if len(t["rows"]) > 25:
+            story.append(Paragraph(escape(f"{len(t['rows']) - 25} more rows in the workbook."), small))
+    story.append(Paragraph("Supporting work", h2))
+    for a in sup.get("assumptions", []):
+        story.append(Paragraph("• " + escape(str(a)), small))
+    for c in conf.get("checks", []):
+        story.append(Paragraph(escape(f"{'✓' if c['passed'] else '✕'} {c['name']}: {c['detail']}"), small))
+    for src in sup.get("sources", []):
+        story.append(Paragraph(escape(f"Source {src['dataset']} v{src['version']} · {src['rows']:,} rows · through {src['data_through']} · "
+                                      f"sha256 {src['sha256'][:16]}"), small))
+    for q in sup.get("queries", [])[:12]:
+        story.append(Paragraph(escape(f"{q['purpose']} (query #{q['query_id']}, {q['rows']} rows)"), small))
+        story.append(Paragraph(escape(q["sql"]).replace("\n", "<br/>"), mono))
+    buf = io.BytesIO()
+    SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=16 * mm,
+                      title=result.get("question", "Analysis"), author="Lyst").build(story)
+    return buf.getvalue()
+
+
+def deck(result: dict[str, Any], task: dict[str, Any]) -> bytes:
+    """A presentation (python-pptx): title, answer, evidence, implications and actions, tables, supporting work."""
+    import io  # noqa: PLC0415
+
+    from pptx import Presentation  # noqa: PLC0415
+    from pptx.util import Inches, Pt  # noqa: PLC0415
+
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+    blank = prs.slide_layouts[6]
+
+    def slide(title: str, lines: list[str] | None = None, size: int = 18):
+        sl = prs.slides.add_slide(blank)
+        tb = sl.shapes.add_textbox(Inches(0.6), Inches(0.4), Inches(12.1), Inches(1.0)).text_frame
+        tb.text = title
+        tb.paragraphs[0].runs[0].font.size = Pt(28)
+        tb.paragraphs[0].runs[0].font.bold = True
+        if lines:
+            body = sl.shapes.add_textbox(Inches(0.6), Inches(1.5), Inches(12.1), Inches(5.5)).text_frame
+            body.word_wrap = True
+            for i, line in enumerate(lines):
+                p = body.paragraphs[0] if i == 0 else body.add_paragraph()
+                p.text = line
+                if p.runs:
+                    p.runs[0].font.size = Pt(size)
+                p.space_after = Pt(8)
+        return sl
+
+    conf = result.get("confidence", {})
+    slide(result.get("question", "Analysis"), [f"Lyst · {datetime.now(UTC).strftime('%d %b %Y')} · {conf.get('level', '')}"], 16)
+    slide("Answer", [result.get("brief") or result.get("answer", "")], 22)
+    if result.get("evidence"):
+        slide("Evidence", ["• " + str(e) for e in result["evidence"][:8]], 16)
+    if result.get("implications") or result.get("actions"):
+        slide("Implications and recommended actions",
+              ["Implications"] + ["• " + str(i) for i in result.get("implications", [])] + [""] +
+              ["Recommended actions"] + ["• " + str(a) for a in result.get("actions", [])], 16)
+    for t in result.get("tables", [])[:4]:
+        sl = slide(t["title"])
+        rows = t["rows"][:12]
+        shape = sl.shapes.add_table(len(rows) + 1, len(t["columns"]), Inches(0.6), Inches(1.5), Inches(12.1),
+                                    Inches(0.4) * (len(rows) + 1))
+        for j, c in enumerate(t["columns"]):
+            shape.table.cell(0, j).text = str(c)
+        for i, r in enumerate(rows, start=1):
+            for j, v in enumerate(r):
+                shape.table.cell(i, j).text = _cell(v)
+                para = shape.table.cell(i, j).text_frame.paragraphs[0]
+                if para.runs:
+                    para.runs[0].font.size = Pt(11)
+    sup = result.get("supporting", {})
+    lines = [f"{'✓' if c['passed'] else '✕'} {c['name']}: {c['detail']}" for c in conf.get("checks", [])[:10]]
+    lines += [f"Source {s_['dataset']} v{s_['version']}, {s_['rows']:,} rows through {s_['data_through']}" for s_ in sup.get("sources", [])]
+    lines += [str(a) for a in sup.get("assumptions", [])[:5]]
+    slide("Supporting work", lines or ["No checks recorded."], 12)
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+KINDS = {
+    "xlsx": ("analysis.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    "md": ("briefing.md", "text/markdown"),
+    "pdf": ("briefing.pdf", "application/pdf"),
+    "pptx": ("briefing.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+}
+
+
 class ArtifactService:
     def __init__(self, stores: Stores, guard: Guard, home: Path, knowledge: Any = None) -> None:
         self.stores = stores
@@ -158,13 +282,11 @@ class ArtifactService:
         result = task.get("result")
         if not result:
             raise ValueError("the task has no result yet")
-        if kind == "xlsx":
-            data, name, mime = workbook(result, task), "analysis.xlsx", \
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        elif kind == "md":
-            data, name, mime = briefing(result, task).encode(), "briefing.md", "text/markdown"
-        else:
-            raise ValueError("kind must be xlsx or md")
+        if kind not in KINDS:
+            raise ValueError("kind must be one of " + ", ".join(KINDS))
+        name, mime = KINDS[kind]
+        data = {"xlsx": lambda: workbook(result, task), "md": lambda: briefing(result, task).encode(),
+                "pdf": lambda: pdf_briefing(result, task), "pptx": lambda: deck(result, task)}[kind]()
         folder = self.home / "artifacts" / ws / task["id"]
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / name

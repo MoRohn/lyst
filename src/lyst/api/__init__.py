@@ -584,9 +584,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     @app.get("/v1/artifacts/{artifact_id}")
     def download_artifact(request: Request, artifact_id: str, user: User):
+        from ..deliverables import KINDS  # noqa: PLC0415
+
         meta, data = L(request).artifacts.get(user, artifact_id)
-        mime = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "md": "text/markdown"}[meta["kind"]]
-        name = {"xlsx": "analysis.xlsx", "md": "briefing.md"}[meta["kind"]]
+        name, mime = KINDS[meta["kind"]]
         return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/v1/capabilities")
