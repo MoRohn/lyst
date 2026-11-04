@@ -37,13 +37,18 @@ def proposals(kind: str | None = None) -> list[dict]:
         return []
 
 
+def _count(v) -> int:
+    """The engine reports new suggestions as a number; accept a list too."""
+    return v if isinstance(v, int) else len(v or [])
+
+
 def discover() -> None:
     api, ws, _ = _ctx()
     out = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/onboarding/discover"))
     if out:
         found = [f"{d['title']}" + ("" if d.get("strength") == "strong" else " (possibly)") for d in out.get("domains") or []]
         st.toast((f"Recognised {', '.join(found)}. " if found else "")
-                 + f"{len(out.get('new_proposals') or [])} new suggestions.", icon=":material/auto_awesome:")
+                 + f"{_count(out.get('new_proposals'))} new suggestions.", icon=":material/auto_awesome:")
 
 
 def suggestion_rows(items: list[dict], *, key: str, limit: int | None = None) -> None:

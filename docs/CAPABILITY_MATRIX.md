@@ -28,7 +28,7 @@
 | Semantic | Owner, grain and currency on definitions; deprecation with a replacement that requests and terms follow; version history with field-level changes; semantic audit (duplicates, conflicting sources, ambiguous synonyms, dangling or undefined terms, stale definitions) | Tested | `test_catalog.py` |
 | Semantic | Metric lineage: definition, SQL, source and origin, contract, quality, related sources, downstream assets, history | Tested | `test_catalog.py::test_b_metric_lineage_from_definition_to_source_and_downstream`, MCP `metric_lineage` |
 | Semantic | Source precedence: authoritative and secondary sources; the authoritative definition of the same calculation answers (stated in the answer), audit, catalog trust, search ranking | Tested | `test_precedence.py` |
-| Semantic | Fiscal calendars | In progress | period resolution in #51; fiscal buckets in compile_metric to follow |
+| Semantic | Fiscal calendars: periods (#51) and quarter/year buckets in metrics, investigations, monitors, dashboards and forecasts | Tested | `test_fiscal.py` |
 | Analyst | Value with prior period and year-ago comparison | Tested | `test_a_values_match_pandas` |
 | Analyst | Driver attribution (exact rate/mix for ratios, contribution for totals) | Tested | `test_a_operating_margin_decline_finds_emea` |
 | Analyst | Breakdown, trend, anomaly scan, ETS forecast with backtest | Tested | `test_runtime.py::test_trend_and_forecast` |

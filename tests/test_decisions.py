@@ -261,3 +261,26 @@ def test_scenario_and_decision_endpoints(seeded):
         r = c.post("/v1/workspaces/northwind/decision-records/allocate", headers=h,
                    json={"items": [{"name": "a", "cost": 2, "value": 3}, {"name": "b", "cost": 2, "value": 4}], "budget": 2})
         assert [x["name"] for x in r.json()["chosen"]] == ["b"]
+
+
+def test_points_changes_apply_and_unapplied_changes_are_stated_never_dropped(seeded):
+    from lyst.demo import PNL_DRIVERS
+
+    m = Model(PNL_DRIVERS)
+    q = "What if revenue falls 5% and the COGS ratio rises 2 points next quarter?"
+    p = scenarios.parse_what_if(m, q)
+    assert p["overrides"] == {"revenue": {"change_pct": -5.0}, "cogs_ratio": {"change_abs": 0.02}} and p["unapplied"] == []
+    assert p["described"]["cogs_ratio"] == "COGS ratio +2 points"
+    p = scenarios.parse_what_if(m, "What if revenue falls 5% and opex rises by $200k?")
+    assert p["overrides"] == {"revenue": {"change_pct": -5.0}}
+    assert p["unapplied"] and "opex rises by $200k" in p["unapplied"][0]["phrase"]
+    lyst, owner = seeded
+    t = ask(lyst, owner, q)
+    r = t["result"]
+    assert r["status"] == "complete" and "COGS ratio +2 points" in r["answer"]
+    t = ask(lyst, owner, "What happens to operating margin if revenue falls 5% and opex rises by $200k?")
+    r = t["result"]
+    assert r["status"] == "unverified" and "I couldn't apply: opex rises by $200k" in r["answer"]
+    assert any("Not applied" in f for f in r["evidence"])
+    for q_ in r["supporting"]["queries"]:  # the same keys as every other query in Supporting work
+        assert {"purpose", "sql", "query_id", "rows", "ms", "datasets"} <= set(q_)

@@ -511,7 +511,8 @@ try:
                   "query it.", action="Add data" if editor else None, icon=":material/add:"):
         add_data()
     view = kit.sections(["Datasets", "Dashboards", "Saved analyses", "SQL"], key="view")
-    {"Datasets": lambda: (datasets(catalog), onboarding.data_suggestions(), connections()), "Dashboards": dashboards_view,
+    {"Datasets": lambda: (datasets(catalog), onboarding.data_suggestions(), waiting_review(), connections()),
+     "Dashboards": dashboards_view,
      "Saved analyses": reports.workflows, "SQL": lambda: sql(catalog)}[view]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

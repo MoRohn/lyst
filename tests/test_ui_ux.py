@@ -237,9 +237,6 @@ def test_the_discussion_names_the_assignee_not_their_id(seeded, ui):  # noqa: F8
 def test_suggestions_from_the_data_can_be_accepted_where_people_work(seeded, ui):  # noqa: F811
     lyst, owner = seeded  # the same instance the ui fixture serves
     lyst.onboarding.discover(owner, "northwind")
-def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
-    lyst, owner = seeded  # the same instance the ui fixture serves
-    lyst.ingest.inspect(owner, "northwind", b"region,amount\nEMEA,1\nAPAC,2\n", filename="regions.csv")
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
@@ -251,6 +248,17 @@ def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(m.label == "Industry" for m in at.multiselect)
+
+
+def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    lyst.ingest.inspect(owner, "northwind", b"region,amount\nEMEA,1\nAPAC,2\n", filename="regions.csv")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "regions.csv" in _texts(at) and any(b.label == "Review" for b in at.button)
 
 
 def test_a_built_dataset_explains_how_it_is_made(seeded, ui):  # noqa: F811
@@ -265,4 +273,48 @@ def test_a_built_dataset_explains_how_it_is_made(seeded, ui):  # noqa: F811
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Build a dataset from data Lyst has" for b in at.button)
-    assert "regions.csv" in _texts(at) and any(b.label == "Review" for b in at.button)
+
+
+def test_study_it_runs_discovery_without_crashing(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    out = lyst.onboarding.discover(owner, "northwind")
+    from lyst.ui.onboarding import _count  # noqa: PLC0415
+
+    assert _count(out.get("new_proposals")) >= 0 and _count([1, 2]) == 2 and _count(None) == 0
+
+
+def test_work_shows_what_lyst_prepared_ahead(seeded, ui):  # noqa: F811
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    s = lyst.runtime.create_schedule(owner, "northwind", "Monthly finance review",
+                                     "Review revenue and operating margin for the latest month", 2592000)
+    lyst.runtime.decide(owner, s["approval_id"], True)
+    lyst.stores.control.execute("UPDATE schedules SET next_run_at = ? WHERE id = ?",
+                                [datetime.now(UTC) + timedelta(minutes=30), s["schedule_id"]])
+    lyst.anticipation.set_settings(owner, "northwind", {"level": 2})
+    assert lyst.anticipation.cycle("northwind")["prepared"] >= 1  # earlier answers may add next steps too
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/work.py")
+    at.query_params["view"] = "recurring"  # ready work waits in Coming up; only what wants a person is in Needs you
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Monthly finance review" in body and any(b.label == "Run now" for b in at.button)
+    assert any("badge[" in m.value and "Ready" in m.value for m in at.markdown)
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "checks the data and definitions an upcoming run needs" in _texts(at)
+
+
+def test_next_steps_sit_under_their_answer_not_in_work(seeded, ui):  # noqa: F811
+    from lyst.ui import anticipate  # noqa: PLC0415
+
+    assert not anticipate._wants_person({"kind": "next_best_action", "verdict": "blocked"})
+    assert anticipate._wants_person({"kind": "early_warning", "verdict": "verified"})
+    assert not anticipate._wants_person({"kind": "early_warning", "verdict": "unverified"})
+    assert anticipate._wants_person({"kind": "recurring_prep", "verdict": "blocked", "status": "surfaced"})
+    assert not anticipate._wants_person({"kind": "recurring_prep", "verdict": "ready", "status": "prepared"})

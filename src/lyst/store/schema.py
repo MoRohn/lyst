@@ -1178,6 +1178,17 @@ WORKSPACE.append((
         spec JSON NOT NULL,
         status VARCHAR NOT NULL,
         decision JSON,
+
+# Living project specifications: requirements with acceptance criteria, traced to the tasks, artifacts, assets and
+# decisions that satisfy them; every revision is a version.
+WORKSPACE.append((
+    32,
+    """
+    CREATE TABLE project_specs (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
         created_by VARCHAR NOT NULL,
         created_at TIMESTAMPTZ DEFAULT now(),
         updated_at TIMESTAMPTZ DEFAULT now()
@@ -1201,5 +1212,14 @@ WORKSPACE.append((
         created_at TIMESTAMPTZ DEFAULT now()
     );
     CREATE INDEX experiment_runs_by_experiment ON experiment_runs (experiment_id)
+    CREATE TABLE spec_versions (
+        spec_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        body JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (spec_id, version)
+    )
     """,
 ))

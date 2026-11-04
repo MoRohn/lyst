@@ -69,7 +69,15 @@ def forecast_period(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     y, r = _series(ctx, spec)
     grain = args.get("grain", "quarter")
     last = y.index[-1]
-    if grain == "quarter":
+    from ..onboarding import fiscal_start  # noqa: PLC0415 - the business profile's fiscal calendar
+
+    fs = fiscal_start(ctx.services.semantic.stores.workspace(ctx.workspace_id))
+    if grain == "quarter" and fs != 1:  # the next fiscal quarter after the last month of data
+        from . import periods as _periods  # noqa: PLC0415
+
+        nxt = _periods._add_months(_periods._q_start(last.date(), fs), 3)
+        months = pd.date_range(pd.Timestamp(nxt), periods=3, freq="MS")
+    elif grain == "quarter":
         nxt_start = (last + pd.offsets.QuarterBegin(startingMonth=1)).normalize()
         if nxt_start <= last:
             nxt_start = nxt_start + pd.offsets.QuarterBegin(startingMonth=1)
@@ -80,7 +88,12 @@ def forecast_period(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     f = timeseries.forecast(y, horizon=horizon, grain="month", level=0.8)
     tbl = f.table[f.table["period"].isin(months)]
     agg = planning.quarter_from_monthly(tbl["yhat"].tolist(), tbl["lo"].tolist(), tbl["hi"].tolist(), level=0.8)
-    label = f"Q{(months[0].month - 1) // 3 + 1} {months[0].year}" if grain == "quarter" else months[0].strftime("%b %Y")
+    if grain == "quarter" and fs != 1:
+        from . import periods as _periods  # noqa: PLC0415
+
+        label = _periods._quarter(months[0].date(), fs).label
+    else:
+        label = f"Q{(months[0].month - 1) // 3 + 1} {months[0].year}" if grain == "quarter" else months[0].strftime("%b %Y")
     return {"metric": spec.name, "period_label": label, "months": [m.date().isoformat() for m in months],
             "monthly": [{"period": p.date().isoformat(), "yhat": float(a), "lo": float(b), "hi": float(c)}
                         for p, a, b, c in zip(tbl["period"], tbl["yhat"], tbl["lo"], tbl["hi"], strict=True)],

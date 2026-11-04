@@ -506,7 +506,8 @@ def _year_ago(p: dict[str, Any]) -> dict[str, Any] | None:
         return None
     label = (periods.year_ago(periods.Period(p["label"], start, end, p["grain"]), p.get("fiscal_start", 1)).label
              if p["grain"] in ("quarter", "month") else f"{p['label']} a year earlier")
-    return {"label": label, "start": s2.isoformat(), "end": e2.isoformat(), "grain": p["grain"]}
+    fs = p.get("fiscal_start", 1)  # carried on, so the period before the year-ago period is labelled fiscally too
+    return {"label": label, "start": s2.isoformat(), "end": e2.isoformat(), "grain": p["grain"], **({"fiscal_start": fs} if fs != 1 else {})}
 
 
 # ----------------------------------------------------------------- 4-5. investigate/execute
@@ -546,8 +547,10 @@ def metric_value(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             description="Apply the changes in a what-if question to a workspace driver model (hypothetical result).")
 def what_if(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     r = ctx.services.scenarios.ask(ctx.actor, ctx.workspace_id, args["question"], name=args["model"])
+    # the same keys as every other query in Supporting work
     r["evidence"] = [{"purpose": f"{n} observed for the scenario base", "sql": v["sql"], "query_id": v["query_id"],
-                      "datasets": [v["dataset"]]} for n, v in r["observed"].items()]
+                      "rows": v.get("rows", 1), "ms": v.get("ms", 0), "datasets": [v["dataset"]]}
+                     for n, v in r["observed"].items()]
     return _clean(r)
 
 
@@ -572,7 +575,8 @@ def metric_breakdown(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             description="A governed metric as a gap-free time series.")
 def metric_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     spec = _spec(ctx, args["metric"])
-    r = _query(ctx, compile_metric(spec, grain=args.get("grain", "month")))
+    fs = ((ctx.outputs.get("contextualize") or {}).get("period") or {}).get("fiscal_start", 1)
+    r = _query(ctx, compile_metric(spec, grain=args.get("grain", "month"), fiscal_start=fs))
     df = r.frame()
     df["period"] = pd.to_datetime(df["period"]).dt.tz_localize(None)
     return {"metric": spec.name, "grain": args.get("grain", "month"), "points": _frame_records(df),
@@ -1212,10 +1216,13 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         findings += [f"⚠ {chk['detail']}" for chk in sc["validation"] if chk["status"] != "pass"]
         if sc.get("unmatched"):
             findings.append("Not modelled (no matching driver): " + ", ".join(sc["unmatched"]))
+        findings += [f"⚠ Not applied: {x['phrase']} ({x['reason']})" for x in sc.get("unapplied") or []]
         actions.append(f"Explore ranges, sensitivity and best/worst cases for {sc['model']['name']} under Data › Saved analyses.")
         tables.append({"title": "Scenario vs observed basis", "columns": ["output", "observed basis", "scenario", "change"],
                        "rows": [[x["label"], x["base"], x["scenario"], x["delta"]] for x in sc["outputs"]]})
-        status = "complete" if all(chk["status"] != "fail" for chk in sc["validation"]) else "unverified"
+        # a stated change that was not applied means the figures answer a different question: never Verified
+        status = ("complete" if all(chk["status"] != "fail" for chk in sc["validation"]) and not sc.get("unapplied")
+                  else "unverified")
     elif u["intent"] == "sync":
         sy = o["sync"]
         answer = (f"Synced {sy['source_table']} into dataset {sy['dataset']} v{sy['version']}: {sy['rows_added']:,} rows added "
