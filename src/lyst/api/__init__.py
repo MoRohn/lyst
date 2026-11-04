@@ -136,9 +136,22 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         if start_workers:
             app.state.lyst.runtime.start(app.state.lyst.settings.workers)
         obs.WORKERS.set(len(app.state.lyst.runtime._threads))
+        from mcp.server.transport_security import TransportSecuritySettings  # noqa: PLC0415
+
+        from ..mcp_server import build_mcp  # noqa: PLC0415
+
+        hosts = [h.strip() for h in os.environ.get("LYST_MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*").split(",") if h.strip()]
+        mcp = build_mcp(app.state.lyst)
+        mcp_app = mcp.streamable_http_app(
+            streamable_http_path="/", stateless_http=True, json_response=True,
+            transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=True, allowed_hosts=hosts,
+                                                         allowed_origins=[f"http://{h}" for h in hosts] + [f"https://{h}" for h in hosts]))
+        app.mount("/mcp", mcp_app)
+        app.state.mcp = mcp
         log.info("lyst api ready", extra={"workers": len(app.state.lyst.runtime._threads),
                                           "oidc": bool(app.state.oidc), "model": bool(app.state.lyst.llm.info())})
-        yield
+        async with mcp.session_manager.run():
+            yield
         if lyst is None:
             app.state.lyst.close()
         else:

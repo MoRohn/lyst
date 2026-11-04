@@ -118,6 +118,14 @@ verifies by compiling and rendering headlessly with Streamlit's `AppTest`, and p
 The refresh is an ordinary task (`refresh dashboard <id>`) that rebuilds into a staging folder and only
 replaces the published extracts when every check passes; otherwise the dashboard is marked stale.
 
+## MCP
+
+`mcp_server.py` mounts Lyst at `/mcp` (streamable HTTP, stateless, JSON). Tools: `ask`, `workspaces`,
+`datasets`, `metrics`, `query`, `findings`, `task`. Each call authenticates the caller's Lyst bearer token
+and runs under that person's roles, so another agent can delegate work to Lyst with exactly the access its
+user has, and every action lands in the same audit log. `LYST_MCP_ALLOWED_HOSTS` sets the hosts the
+transport accepts (DNS-rebinding protection stays on).
+
 ## Security model
 
 * **Identity**: bearer API tokens, stored as SHA-256 hashes. OIDC is not built yet (Phase 2 remainder); the

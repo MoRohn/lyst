@@ -12,6 +12,7 @@ from lyst.config import load_settings
 @pytest.fixture
 def lyst(tmp_path, monkeypatch):
     monkeypatch.setenv("LYST_MASTER_KEY", "ab" * 32)
+    monkeypatch.setenv("LYST_MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*,testserver")
     for k in ("LYST_LLM_BASE_URL", "LYST_LLM_MODEL", "LYST_LLM_EXTERNAL"):
         monkeypatch.delenv(k, raising=False)
     app = Lyst.build(load_settings(tmp_path / "home"), lease_seconds=30)
