@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, governance, kit, onboarding, reports, scenarios, transforms
+from lyst.ui import anticipate, governance, integrations, kit, onboarding, reports, scenarios, transforms
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -169,6 +169,8 @@ OUTCOME = {"pass": ("Contract kept", "ok"), "warn": ("Contract: warnings", "warn
 def health(d: dict) -> tuple[str, str] | None:
     """One chip a business reader understands: can I rely on this table?"""
     risks = d.get("risks") or {}
+    if d.get("authority") == "authoritative" and not risks.get("high"):
+        return ("Source of truth", "verified")
     outcome = (d.get("contract") or {}).get("outcome")
     if outcome in ("fail", "breaking"):
         return OUTCOME[outcome]
@@ -199,6 +201,7 @@ def dataset_detail(d: dict) -> None:
             return
         anticipate.about("dataset", name, key=f"hf_d{name}")
         governance.classification(name, d.get("classification"))
+        integrations.authority(name, integrations.source_authority().get(name))
         risks = ins.get("risks") or []
         if not risks:
             st.markdown(md(ins.get("summary") or ""))
