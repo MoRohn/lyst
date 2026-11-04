@@ -11,7 +11,7 @@ const mailto = site.contactEmail
 const CONSENT_VERSION = '2026-11-04';
 ---
 
-<section class="section access" id="early-access" aria-labelledby="ea-title">
+<section class="section access" id="learn-more" aria-labelledby="ea-title">
   <div class="container">
     <div class="card" data-reveal>
       <div class="intro">
@@ -93,7 +93,7 @@ const CONSENT_VERSION = '2026-11-04';
               </div>
 
               <button class="btn btn-teal submit" type="submit">
-                <span data-label>Join Early Access</span>
+                <span data-label>Keep me posted</span>
                 <Icon name="ArrowRight" size={16} class="arrow" />
               </button>
 
@@ -102,7 +102,7 @@ const CONSENT_VERSION = '2026-11-04';
           ) : (
             <div class="closed" data-waitlist-closed>
               <Icon name="Mail" size={22} />
-              <h3>Early-access registration is not open on this site yet.</h3>
+              <h3>Sign-up isn’t open on this site yet.</h3>
               <p>
                 No sign-up form is shown because no registration service is connected, so nothing you type here could be
                 saved.
@@ -211,7 +211,7 @@ const CONSENT_VERSION = '2026-11-04';
             <Icon name="ArrowRight" size={16} class="arrow" />
           </a>
         ) : (
-          <p class="partner-closed">Design partner applications open with early-access registration.</p>
+          <p class="partner-closed">Design partner applications open when sign-up does.</p>
         )
       }
     </div>
@@ -598,7 +598,7 @@ const CONSENT_VERSION = '2026-11-04';
             form,
             'ok',
             body.message ??
-              'Thank you. You’re on the early-access list. We’ll be in touch with previews and release updates.',
+              'Thanks. We’ll keep you posted with product previews and release updates.',
           );
         } else if (res.status === 422 && body.errors) {
           let first: string | null = null;

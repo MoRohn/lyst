@@ -30,7 +30,7 @@ INTERESTS = {
     "Self-hosted AI", "Something else",
 }
 TEAM_SIZES = {"1–5", "6–20", "21–100", "100+"}
-OK_MESSAGE = "Thank you. You’re on the early-access list. We’ll be in touch with previews and release updates."
+OK_MESSAGE = "Thanks. We’ll keep you posted with product previews and release updates."
 PARTNER_MESSAGE = "Thank you. Your design partner application was received. We’ll reply by email."
 
 

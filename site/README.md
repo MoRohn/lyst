@@ -41,7 +41,7 @@ None of them may hold a secret: they are compiled into the HTML.
 | `PUBLIC_SITE_URL` | `http://localhost:4321` | Origin for canonical, Open Graph, sitemap and robots URLs. |
 | `PUBLIC_BASE_PATH` | `/` | `/lyst` for `https://USER.github.io/lyst/`; `/` for a custom domain. |
 | `PUBLIC_LAUNCH_MODE` | `stealth` | `stealth` or `public`. See below. |
-| `PUBLIC_WAITLIST_ENDPOINT` | empty | Base URL of the waitlist service. Empty shows a truthful "registration is not open" state instead of a form. |
+| `PUBLIC_WAITLIST_ENDPOINT` | empty | Base URL of the waitlist service. Empty shows a truthful "sign-up isn’t open" state instead of a form. |
 | `PUBLIC_CONTACT_EMAIL` | empty | Shown in the footer and as the design-partner fallback only when set. |
 | `PUBLIC_GITHUB_URL` | empty | Shown in the footer and the open-source section only when set. |
 
@@ -55,7 +55,7 @@ Copy lives in [`src/data/content.ts`](src/data/content.ts) and stage labels in
 linking to `PUBLIC_GITHUB_URL`), the footer status and the capability and enterprise notes. No layout
 changes. Update each capability's `status` in `content.ts` as features ship.
 
-## Early-access registration
+## Sign-up for updates
 
 GitHub Pages cannot receive form posts. The form posts JSON to `PUBLIC_WAITLIST_ENDPOINT` +
 `/v1/registrations`, served by the optional FastAPI + DuckDB service in [`waitlist/`](waitlist/README.md)
@@ -72,7 +72,7 @@ cd waitlist && LYST_WAITLIST_ENV=development uv run lyst-waitlist serve --port 8
 PUBLIC_WAITLIST_ENDPOINT=http://localhost:8787 npm run build && npm run preview
 ```
 
-Submit at http://localhost:4321/#early-access. The success message only appears when the service
+Submit at http://localhost:4321/#learn-more. The success message only appears when the service
 answers `200`; network errors, `5xx` and `429` each show a specific message that says nothing was stored.
 
 ## Deploying to GitHub Pages

@@ -185,8 +185,8 @@ export const workflow = {
 };
 
 export const earlyAccess = {
-  eyebrow: 'Early access',
-  body: 'Lyst is being developed for people who want to spend less time preparing analysis and more time using it. Join the early-access list for product previews, release updates, and opportunities to help shape what’s next.',
+  eyebrow: 'Stay in touch',
+  body: 'Lyst is being developed for people who want to spend less time preparing analysis and more time using it. Leave your email for product previews, release updates, and opportunities to help shape what’s next.',
   roles: [
     'Business analyst',
     'Analytics engineer',
@@ -206,7 +206,7 @@ export const earlyAccess = {
     'Something else',
   ],
   consent:
-    'I agree that Lyst may email me about early access, product previews and release updates. I can unsubscribe or ask for my data to be deleted at any time.',
+    'I agree that Lyst may email me product previews and release updates. I can unsubscribe or ask for my data to be deleted at any time.',
   partner: {
     title: 'Interested in becoming a design partner?',
     text: 'We are looking for a small number of teams with real analytical workloads to shape Lyst with us: early builds, direct access to the people building it, and influence over the roadmap.',
@@ -216,5 +216,5 @@ export const earlyAccess = {
 export const footer = {
   description: 'Lyst is an open-source AI Analyst in development, built to turn business questions into verified insights and completed analytical work.',
   privacy:
-    'This site sets no cookies and runs no analytics or third-party scripts. If you join the early-access list, your email and the optional details you choose to share are used only to contact you about Lyst, and you can ask for them to be deleted at any time.',
+    'This site sets no cookies and runs no analytics or third-party scripts. If you sign up for updates, your email and the optional details you choose to share are used only to contact you about Lyst, and you can ask for them to be deleted at any time.',
 };

@@ -1,1 +1,1 @@
-"""Optional early-access registration service for the Lyst website."""
+"""Optional sign-up service for the Lyst website."""

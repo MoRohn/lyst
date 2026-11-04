@@ -1,9 +1,9 @@
 # Lyst waitlist service (optional)
 
-A small FastAPI service that receives early-access and design-partner registrations from the
+A small FastAPI service that receives update sign-ups and design-partner applications from the
 static Lyst website and stores them in DuckDB. GitHub Pages cannot receive form posts, so the site
 talks to this service through one public URL set at build time (`PUBLIC_WAITLIST_ENDPOINT`). If that
-variable is empty, the site shows a truthful "registration is not open" state instead of a form.
+variable is empty, the site shows a truthful "sign-up isn’t open" state instead of a form.
 
 ## What it does
 
@@ -49,7 +49,7 @@ Then build the site against it, from `site/`:
 PUBLIC_WAITLIST_ENDPOINT=http://localhost:8787 npm run build && npm run preview
 ```
 
-Submit the form at http://localhost:4321/#early-access and confirm the record:
+Submit the form at http://localhost:4321/#learn-more and confirm the record:
 
 ```bash
 LYST_WAITLIST_ENV=development uv run lyst-waitlist count

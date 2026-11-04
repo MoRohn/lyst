@@ -62,20 +62,20 @@ export const stage =
         capabilityNote:
           'Each capability carries its current status. Planned items are on the public roadmap and are not yet released.',
         enterpriseNote: 'Items marked as design goals are architectural commitments still being implemented.',
-        accessHeadline: 'Meet the next generation of analytical work.',
-        primaryHref: github || '#early-access',
+        accessHeadline: 'Want to learn more?',
+        primaryHref: github || '#learn-more',
       }
     : {
         badge: 'Private Preview',
         heroNote: 'In development. Source code open on GitHub.',
-        primaryCta: 'Get Early Access',
+        primaryCta: 'Learn more',
         status: 'In development',
         capabilityNote:
           'Lyst is in active development. “Built” means implemented and tested in the private preview; nothing is generally released yet. The rest is being built in the open.',
         enterpriseNote:
           'Items marked Built are implemented and tested in the private preview. The rest are architectural design goals. None of this is a certification.',
-        accessHeadline: 'Meet the next generation of analytical work.',
-        primaryHref: '#early-access',
+        accessHeadline: 'Want to learn more?',
+        primaryHref: '#learn-more',
       };
 
 export const nav = [
@@ -83,5 +83,5 @@ export const nav = [
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Capabilities', href: '#capabilities' },
   { label: 'Open Source', href: '#open-source' },
-  { label: 'Early Access', href: '#early-access' },
+  { label: 'Learn More', href: '#learn-more' },
 ] as const;
