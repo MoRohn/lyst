@@ -59,6 +59,9 @@ class Client:
     def post(self, path: str, json: Any | None = None, **kw) -> Any:
         return self._do("POST", path, json=json, **kw)
 
+    def patch(self, path: str, json: Any) -> Any:
+        return self._do("PATCH", path, json=json)
+
 
 def client() -> Client:
     return Client()

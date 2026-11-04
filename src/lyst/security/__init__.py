@@ -96,7 +96,8 @@ class Guard:
 
     def create_workspace(self, owner: Principal, workspace_id: str, name: str) -> None:
         def tx(c):
-            c.execute("INSERT INTO workspaces (id, name) VALUES (?, ?)", [workspace_id, name])
+            c.execute("INSERT INTO workspaces (id, name, allow_external_llm) VALUES (?, ?, ?)",
+                      [workspace_id, name, self.stores.settings.llm.external_default])
             c.execute(
                 "INSERT INTO memberships (workspace_id, user_id, role) VALUES (?, ?, 'owner')",
                 [workspace_id, owner.user_id],

@@ -18,7 +18,9 @@
 | Analyst | Breakdown, trend, anomaly scan, ETS forecast with backtest | Tested | `test_runtime.py::test_trend_and_forecast` |
 | Analyst | Data-quality investigation | Tested | Scenario C |
 | Analyst | Independent validation and evidence package | Tested | Scenario A |
-| Analyst | Model-written narrative with number verification | Tested (mock model) | `test_llm.py` |
+| Analyst | Model-written narrative with number verification | Tested (stub model) | `test_llm.py` |
+| Models | OpenRouter gateway: tiers, workload routing, admission, adaptive limits, retries, fallback, 402 handling, per-call cost | Tested against a stub OpenRouter | `test_gateway.py`, `test_llm.py::test_openrouter_end_to_end_through_the_analyst` |
+| Models | Real OpenRouter call | Not yet: needs a Lyst OpenRouter key | — |
 | Runtime | Leases, checkpoints, resume after crash | Tested | Scenario H |
 | Runtime | Pause, resume, cancel, retry, step budget | Tested | `test_runtime.py` |
 | Runtime | Approval-gated schedules | Tested | `test_schedule_needs_approval_then_runs` |
@@ -33,4 +35,4 @@
 | Build | Skill authoring, sandboxed tests, promotion | Planned (Phase 6); only the approval rule exists | `test_proposer_cannot_approve_own_capability` |
 | Deliverables | Excel, PDF, slides, generated dashboards | Planned (Phase 6) | — |
 | Ops | Metrics/tracing, backup automation, load tests | Planned (Phase 7) | — |
-| Model | Local model actually exercised end to end | Not yet: no local model is installed on the dev machine | — |
+| Models | Local model exercised end to end | Not yet: no local model is installed on the dev machine | — |

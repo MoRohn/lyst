@@ -46,3 +46,45 @@ def test_model_narrative_with_invented_numbers_is_rejected(seeded):
 
     r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
     assert "47.3" not in r["answer"] and r["supporting"]["narrative_by"] == "template"
+
+
+def test_openrouter_end_to_end_through_the_analyst(tmp_path, monkeypatch):
+    """A workspace on OpenRouter: the analyst's model calls go through the gateway, are recorded with
+    workload, pool and cost, and numbers in the model's narrative are still checked."""
+    from lyst import demo
+    from lyst.app import Lyst
+    from lyst.config import load_settings
+
+    monkeypatch.setenv("LYST_MASTER_KEY", "cd" * 32)
+    monkeypatch.setenv("LYST_OPENROUTER_API_KEY", "sk-or-test")
+    monkeypatch.setenv("LYST_LLM_TIER", "economy")
+    bodies = []
+
+    def handler(request: httpx.Request):
+        body = json.loads(request.content)
+        bodies.append(body)
+        text = "{}" if body.get("response_format") else "EMEA drove the decline in operating margin."
+        return httpx.Response(200, json={"choices": [{"message": {"content": text}}], "provider": "Stub",
+                                         "usage": {"prompt_tokens": 50, "completion_tokens": 9, "cost": 0.00002}})
+
+    app = Lyst.build(load_settings(tmp_path / "h"))
+    app.services.llm = LLMClient(app.settings.llm, app.stores, transport=httpx.MockTransport(handler))
+    try:
+        assert app.settings.llm.provider == "openrouter"
+        owner = app.guard.create_user("o@x.test", "O")
+        demo.seed(app, owner)
+        assert app.stores.control.scalar("SELECT allow_external_llm FROM workspaces WHERE id = 'northwind'")
+        tid = app.runtime.submit(owner, "northwind", "Why did operating margin decline last quarter?")
+        app.runtime.drain()
+        r = app.runtime.get(owner, tid)["result"]
+        assert r["answer"] == "EMEA drove the decline in operating margin."
+        assert r["supporting"]["narrative_by"] == "model (numbers verified)"
+        assert bodies[0]["model"] == "anthropic/claude-haiku-5.5"  # first economy model in the catalog
+        rows = app.stores.control.query("SELECT workload, pool, provider, cost_usd, outcome FROM llm_calls")
+        assert rows == [{"workload": "chat", "pool": "interactive", "provider": "Stub", "cost_usd": 0.00002,
+                         "outcome": "ok"}]
+        # only findings were sent, never dataset rows (the first month of data never appears)
+        sent = json.dumps(bodies)
+        assert "2024-01-01" not in sent
+    finally:
+        app.close()

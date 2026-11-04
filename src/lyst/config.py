@@ -4,10 +4,14 @@ LYST_HOME            where databases, keys and artifacts live (default ./var)
 LYST_MASTER_KEY      hex master key for encryption at rest; if unset a keyfile is created
                      at $LYST_HOME/.lyst-key with mode 0600 (development only)
 LYST_ENCRYPT         "1" (default) encrypts every DuckDB file; "0" disables (tests only)
-LYST_LLM_BASE_URL    an OpenAI-compatible endpoint, e.g. http://localhost:11434/v1 (Ollama)
-LYST_LLM_MODEL       model name at that endpoint
-LYST_LLM_API_KEY     optional bearer key for that endpoint
-LYST_LLM_EXTERNAL    "1" marks the endpoint as an external provider (data policy applies)
+LYST_OPENROUTER_API_KEY  an OpenRouter key; when set, OpenRouter is the provider (Acumane's rails)
+LYST_LLM_TIER        economy | balanced (default) | frontier: the model list a call walks
+LYST_LLM_MODEL       pin one model (an OpenRouter slug, or the local model's name)
+LYST_LLM_PROVIDER    openrouter | local; inferred when unset
+LYST_LLM_BASE_URL    a local OpenAI-compatible endpoint, e.g. http://localhost:11434/v1 (Ollama)
+LYST_LLM_API_KEY     optional bearer key for the local endpoint
+LYST_LLM_EXTERNAL    "1" marks a non-OpenRouter endpoint as external (data policy applies)
+LYST_EXTERNAL_LLM_DEFAULT  "1" lets new workspaces use an external provider (default: on with OpenRouter)
 LYST_API_URL         where the Streamlit UI finds the API (default http://127.0.0.1:8770)
 """
 
@@ -25,10 +29,30 @@ class LLMSettings:
     model: str | None = None
     api_key: str | None = None
     external: bool = False
+    provider: str | None = None  # "openrouter" | "local" | None
+    tier: str = "balanced"
+    external_default: bool = False
 
     @property
     def configured(self) -> bool:
+        if self.provider == "openrouter":
+            return bool(self.api_key)
         return bool(self.base_url and self.model)
+
+
+def llm_settings_from_env() -> LLMSettings:
+    env = os.environ
+    key = env.get("LYST_OPENROUTER_API_KEY") or None
+    provider = env.get("LYST_LLM_PROVIDER") or ("openrouter" if key else ("local" if env.get("LYST_LLM_BASE_URL") else None))
+    if provider == "openrouter":
+        return LLMSettings(base_url=env.get("LYST_OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+                           model=env.get("LYST_LLM_MODEL") or None, api_key=key, external=True,
+                           provider="openrouter", tier=env.get("LYST_LLM_TIER", "balanced"),
+                           external_default=env.get("LYST_EXTERNAL_LLM_DEFAULT", "1") == "1")
+    return LLMSettings(base_url=env.get("LYST_LLM_BASE_URL") or None, model=env.get("LYST_LLM_MODEL") or None,
+                       api_key=env.get("LYST_LLM_API_KEY") or None, external=env.get("LYST_LLM_EXTERNAL", "0") == "1",
+                       provider=provider, tier=env.get("LYST_LLM_TIER", "balanced"),
+                       external_default=env.get("LYST_EXTERNAL_LLM_DEFAULT", "0") == "1")
 
 
 @dataclass(frozen=True)
@@ -77,11 +101,6 @@ def load_settings(home: str | Path | None = None) -> Settings:
         master_key=_master_key(root),
         encrypt=os.environ.get("LYST_ENCRYPT", "1") != "0",
         api_url=os.environ.get("LYST_API_URL", "http://127.0.0.1:8770"),
-        llm=LLMSettings(
-            base_url=os.environ.get("LYST_LLM_BASE_URL") or None,
-            model=os.environ.get("LYST_LLM_MODEL") or None,
-            api_key=os.environ.get("LYST_LLM_API_KEY") or None,
-            external=os.environ.get("LYST_LLM_EXTERNAL", "0") == "1",
-        ),
+        llm=llm_settings_from_env(),
         workers=int(os.environ.get("LYST_WORKERS", "2")),
     )

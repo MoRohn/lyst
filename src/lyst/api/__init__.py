@@ -44,6 +44,11 @@ class Term(BaseModel):
     source: str | None = None
 
 
+class WorkspacePatch(BaseModel):
+    allow_external_llm: bool | None = None
+    autonomy: str | None = None
+
+
 class Correction(BaseModel):
     content: str
     analysis_id: str | None = None
@@ -238,7 +243,31 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True) -> FastA
             "SELECT count(*) AS calls, coalesce(sum(input_tokens), 0) AS input_tokens, "
             "coalesce(sum(output_tokens), 0) AS output_tokens FROM llm_calls WHERE workspace_id = ?", [ws])[0]
         return {"workspace": w, "role": role, "model": info.__dict__ if info else None, "llm_usage": calls,
+                "gateway": lyst.llm.status() if role in ("admin", "owner") else None,
                 "encrypted": lyst.settings.encrypt, "home": str(lyst.settings.home) if role == "owner" else None}
+
+    @app.patch("/v1/workspaces/{ws}/settings")
+    def patch_settings(request: Request, ws: str, body: WorkspacePatch, user: User):
+        lyst = L(request)
+        lyst.guard.require(user, ws, "workspace.admin")
+        if body.autonomy is not None and body.autonomy not in ("assist", "delegate", "autonomous", "governed"):
+            raise ValueError("unknown autonomy mode")
+        for col, val in (("allow_external_llm", body.allow_external_llm), ("autonomy", body.autonomy)):
+            if val is not None:
+                lyst.stores.control.execute(f"UPDATE workspaces SET {col} = ? WHERE id = ?", [val, ws])
+                lyst.guard.audit(user, ws, f"settings.{col}", ws, "ok", {"value": val})
+        return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/model-usage")
+    def model_usage(request: Request, ws: str, user: User):
+        lyst = L(request)
+        lyst.guard.require(user, ws, "audit.read")
+        return lyst.stores.control.query(
+            "SELECT coalesce(workload, purpose) AS workload, model, provider, count(*) AS calls, "
+            "count(*) FILTER (WHERE outcome = 'ok') AS ok, coalesce(sum(input_tokens), 0) AS input_tokens, "
+            "coalesce(sum(output_tokens), 0) AS output_tokens, round(coalesce(sum(cost_usd), 0), 6) AS cost_usd, "
+            "quantile_cont(latency_ms, 0.95) AS p95_ms FROM llm_calls WHERE workspace_id = ? GROUP BY ALL ORDER BY calls DESC",
+            [ws])
 
     return app
 

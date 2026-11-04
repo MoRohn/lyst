@@ -13,7 +13,7 @@ measured load calls for them.
                                          ├─ Data: ingest, catalog, SQL guard           (data/)
                                          ├─ Semantic: metrics, glossary                (semantic/)
                                          ├─ Memory: layers, trust, revocation          (memory.py)
-                                         ├─ LLM: OpenAI-compatible, optional           (llm/)
+                                         ├─ LLM gateway: OpenRouter or local, optional (llm/)
                                          └─ Store: encrypted DuckDB, one writer each   (store/)
                                                   control.duckdb  +  workspaces/<id>.duckdb
 ```
@@ -57,6 +57,13 @@ with the task so a resumed task follows the same plan.
 Specialist roles (lead analyst, business analyst, data discovery, analytics engineer, statistical analyst,
 data scientist, quality, communications, knowledge curator) are labels on capabilities, not separate model
 processes. They are composable; nothing runs that the plan did not ask for.
+
+## Inference
+
+Every model call goes through the gateway in `llm/gateway.py`, a port of Acumane's AcuRout: workload-based
+pools and routing, admission limits, adaptive per-model limits, retries with fallback through the tier's
+models, and a row per upstream call. OpenRouter is the main provider (decision 0005); a local
+OpenAI-compatible server is the alternative. See [MODELS.md](MODELS.md).
 
 ## Durable execution
 

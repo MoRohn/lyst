@@ -5,9 +5,10 @@ it on approved data definitions with SQL and Python, checks its own numbers, and
 answer with the evidence behind it. It is judged by completed, verifiable work, not by conversation.
 
 * **Python 3.12+, Streamlit, FastAPI, DuckDB.** Open-source core, self-hosted, no managed database.
-* **Runs without any model.** Rules plan the work and templates write the answer. Add any OpenAI-compatible
-  endpoint (Ollama, llama.cpp, vLLM, LiteLLM) to let a model interpret requests and word the findings; every
-  number still comes from a query.
+* **Models through OpenRouter, on Acumane's rails.** Set `LYST_OPENROUTER_API_KEY` and every call goes
+  through Lyst's gateway: tiers, workload routing, admission, adaptive limits, retries with fallback, cost per
+  call ([details](docs/MODELS.md)). A local OpenAI-compatible server works too, and with no model at all Lyst
+  runs on rules and templates. Every number comes from a query either way.
 * Derived from Acumane's design (see [the audit](docs/ACUMANE_AUDIT.md)) but a separate product with its own
   code, data, configuration and license.
 
@@ -20,7 +21,7 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 46 tests
+uv run pytest                # 65 tests
 ```
 
 Ask "Why did operating margin decline last quarter?" in the demo. Lyst finds that operating margin fell from
@@ -58,7 +59,7 @@ automation and load tests. The [roadmap](docs/ROADMAP.md) orders them.
 
 ## Documents
 
-[Architecture](docs/ARCHITECTURE.md) · [DuckDB design](docs/DUCKDB.md) ·
+[Architecture](docs/ARCHITECTURE.md) · [Models](docs/MODELS.md) · [DuckDB design](docs/DUCKDB.md) ·
 [Acumane audit](docs/ACUMANE_AUDIT.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [SBOM](docs/SBOM.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/decisions/)
 

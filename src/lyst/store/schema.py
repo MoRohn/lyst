@@ -132,6 +132,19 @@ CONTROL: list[Migration] = [
     ),
 ]
 
+CONTROL.append((
+    2,
+    """
+    ALTER TABLE llm_calls ADD COLUMN pool VARCHAR;
+    ALTER TABLE llm_calls ADD COLUMN workload VARCHAR;
+    ALTER TABLE llm_calls ADD COLUMN provider VARCHAR;
+    ALTER TABLE llm_calls ADD COLUMN status INTEGER;
+    ALTER TABLE llm_calls ADD COLUMN attempt INTEGER;
+    ALTER TABLE llm_calls ADD COLUMN queue_ms INTEGER;
+    ALTER TABLE llm_calls ADD COLUMN cost_usd DOUBLE
+    """,
+))
+
 WORKSPACE: list[Migration] = [
     (
         1,

@@ -31,3 +31,18 @@ def test_ask_over_http_with_background_workers(seeded):
         assert q["rows"] == [["EMEA", 0.3]]
         assert any(cap["name"] == "driver_analysis" for cap in c.get("/v1/capabilities", headers=h).json())
         assert c.get("/v1/workspaces/northwind/audit", headers=h).status_code == 200
+
+
+def test_settings_patch_and_model_usage_need_admin(seeded):
+    lyst, owner = seeded
+    viewer = lyst.guard.create_user("v@n.test", "V")
+    lyst.guard.add_member(owner, "northwind", viewer.user_id, "viewer")
+    ho = {"Authorization": f"Bearer {lyst.guard.issue_token(owner)}"}
+    hv = {"Authorization": f"Bearer {lyst.guard.issue_token(viewer)}"}
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        assert c.patch("/v1/workspaces/northwind/settings", json={"allow_external_llm": True}, headers=hv).status_code == 403
+        assert c.patch("/v1/workspaces/northwind/settings", json={"allow_external_llm": True}, headers=ho).status_code == 200
+        assert c.get("/v1/workspaces/northwind/settings", headers=ho).json()["workspace"]["allow_external_llm"] is True
+        assert c.get("/v1/workspaces/northwind/model-usage", headers=ho).json() == []
+        assert c.get("/v1/workspaces/northwind/model-usage", headers=hv).status_code == 403
+        assert c.patch("/v1/workspaces/northwind/settings", json={"autonomy": "reckless"}, headers=ho).status_code == 400
