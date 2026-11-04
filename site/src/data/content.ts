@@ -56,7 +56,7 @@ export const pillars = {
       icon: 'ShieldCheck',
       title: 'Verify',
       text: 'Lyst emphasizes traceable evidence, reproducible calculations, transparent assumptions, and reviewable results.',
-      detail: ['Cited queries', 'Reproducible runs', 'Stated assumptions', 'Adversarial checks'],
+      detail: ['Cited queries', 'Reproducible runs', 'Imperfect data flagged', 'Adversarial checks'],
     },
   ],
 };
@@ -168,7 +168,7 @@ export const enterprise = {
     { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
-    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.', status: 'dev' as Status },
+    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Docker packaging and encrypted backups; run it where your policies require.', status: 'available' as Status },
   ],
 };
@@ -227,9 +227,10 @@ export const proof = [
 ];
 
 export const studio = {
-  eyebrow: 'Lyst Studio',
+  eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Ask for “an operating margin dashboard by region, refreshed weekly” and Studio builds a standalone dashboard app from governed data. This screenshot is unedited output from the private preview, on sample data.',
+  lede: 'Unedited screenshots from the private preview, on sample data: a verified answer in the Analyst, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
     { icon: 'Database', title: 'Governed extracts', text: 'Every number comes from governed metrics, with ratios kept as numerator and denominator.' },

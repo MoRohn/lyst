@@ -5,10 +5,10 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 820,
-      "CLS": 0,
+      "LCP_ms": 811,
+      "CLS": 0.049,
       "TBT_ms": 0,
-      "FCP_ms": 820
+      "FCP_ms": 811
     },
     "runs": [
       {
@@ -16,30 +16,30 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 816,
+        "LCP_ms": 813,
         "CLS": 0.049,
         "TBT_ms": 0,
-        "FCP_ms": 816
+        "FCP_ms": 813
       },
       {
         "performance": 100,
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 820,
-        "CLS": 0,
+        "LCP_ms": 811,
+        "CLS": 0.049,
         "TBT_ms": 0,
-        "FCP_ms": 820
+        "FCP_ms": 811
       },
       {
         "performance": 100,
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 805,
+        "LCP_ms": 806,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 805
+        "FCP_ms": 806
       }
     ]
   },
@@ -49,12 +49,22 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 215,
+      "LCP_ms": 218,
       "CLS": 0,
       "TBT_ms": 0,
-      "FCP_ms": 215
+      "FCP_ms": 218
     },
     "runs": [
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 216,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 216
+      },
       {
         "performance": 100,
         "accessibility": 100,
@@ -64,16 +74,6 @@
         "CLS": 0,
         "TBT_ms": 0,
         "FCP_ms": 218
-      },
-      {
-        "performance": 100,
-        "accessibility": 100,
-        "best-practices": 100,
-        "seo": 100,
-        "LCP_ms": 215,
-        "CLS": 0,
-        "TBT_ms": 0,
-        "FCP_ms": 215
       },
       {
         "performance": 100,
@@ -89,5 +89,5 @@
   },
   "url": "http://localhost:4399/",
   "lighthouse": "13.6.0",
-  "date": "2026-11-04T13:56:27.250Z"
+  "date": "2026-11-04T14:19:37.165Z"
 }

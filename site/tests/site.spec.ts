@@ -173,7 +173,17 @@ test.describe('studio showcase and verification', () => {
   test('switches between real dashboard pages and loads responsive images', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/#studio');
-    const list = page.getByRole('tablist', { name: 'Dashboard pages' });
+    const list = page.getByRole('tablist', { name: 'Product views' });
+    const answer = page.locator('#st-view-answer img.light-img');
+    await answer.scrollIntoViewIfNeeded();
+    await expect(answer).toBeVisible();
+    const toggle = page.locator('[data-theme-toggle]');
+    await toggle.click();
+    await expect(page.locator('#st-view-answer img.dark-img')).toBeVisible();
+    await expect(answer).toBeHidden();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await list.getByRole('tab', { name: 'Dashboard' }).click();
+    await expect(toggle).toBeHidden();
     const overview = page.locator('#st-view-overview img');
     await overview.scrollIntoViewIfNeeded();
     await expect(overview).toBeVisible();
@@ -182,7 +192,7 @@ test.describe('studio showcase and verification', () => {
     await list.getByRole('tab', { name: 'By region' }).click();
     await expect(page.locator('#st-view-region img')).toBeVisible();
     await expect(overview).toBeHidden();
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
     await expect(overview).toBeVisible();
     await expect(page.getByText('Real output · sample data')).toBeVisible();
     expect(errors).toEqual([]);

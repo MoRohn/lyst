@@ -10,7 +10,7 @@ const nodes: N[] = [
   { id: 'py', x: 445, y: 140, label: 'Python', sub: 'sandboxed', tone: 'exec' },
   { id: 'st', x: 445, y: 225, label: 'Statistics', sub: 'tests, models', tone: 'exec' },
   { id: 'rc', x: 660, y: 95, label: 'Recompute', sub: 'a second, independent way', tone: 'check' },
-  { id: 'ad', x: 660, y: 185, label: 'Adversarial checks', sub: 'gaps, conflicts, injection', tone: 'check' },
+  { id: 'ad', x: 660, y: 185, label: 'Adversarial checks', sub: 'data quality, conflicts, injection', tone: 'check' },
   { id: 'v', x: 852, y: 140, label: 'Verified answer', tone: 'done' },
   { id: 'e', x: 1028, y: 140, label: 'Evidence', sub: 'queries, versions, hashes', tone: 'done' },
 ];
@@ -86,7 +86,7 @@ const stage: Record<string, number> = { q: 0, p: 1, sql: 2, py: 2, st: 2, rc: 3,
     <li><strong>Question.</strong> Asked in plain language.</li>
     <li><strong>Plan.</strong> Lyst builds a task graph of the work.</li>
     <li><strong>Execute.</strong> SQL on DuckDB (read-only), sandboxed Python and statistics run in parallel.</li>
-    <li><strong>Check.</strong> High-consequence results are recomputed independently, and adversarial checks look for gaps, conflicting definitions and injected instructions.</li>
+    <li><strong>Check.</strong> High-consequence results are recomputed independently, and adversarial checks look for duplicates, mixed currencies, partial periods, conflicting definitions and injected instructions. Any of these blocks the “verified” label.</li>
     <li><strong>Verified answer.</strong> Delivered with an evidence package: queries, dataset versions and hashes.</li>
   </ol>
 </div>
