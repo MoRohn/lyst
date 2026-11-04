@@ -99,8 +99,8 @@ export const capabilities: {
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Databases, APIs and files today. Every connection reports its health in plain words and checks schema changes against its contract.',
-    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files by URL', 'Local files and documents', 'MCP server', 'Warehouses and SaaS'],
+    text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health in plain words and checks schema changes against its contract.',
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
