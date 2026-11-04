@@ -260,7 +260,8 @@ where they point, with Mark all read and "What to tell me about".
   avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
   suggested savings cite the numbers behind them.
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
-  year to date and their comparisons, labelled like "Q2 FY2027".
+  year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
+  group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
@@ -287,7 +288,11 @@ where they point, with Mark all read and "What to tell me about".
   forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. On
   watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained
   trend, forecast drift, projected breach), investigates it first, and surfaces a verified warning in Work ›
-  Needs you with the answer, drivers, implications and next steps. Through the API today
+  Needs you with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Work ›
+  Recurring (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for
+  items that need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and
+  **Working ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The
+  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
