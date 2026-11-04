@@ -276,7 +276,11 @@ where they point, with Mark all read and "What to tell me about".
   before the run. Each workspace picks a level: Off, Suggest (the default, where nothing executes), Prepare,
   Investigate or Automate, with daily budgets for preparation, investigation, compute and notices. Every item
   explains from recorded evidence why it appeared, and preparation never distributes reports, edits data or
-  bypasses approvals. Through the API today ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
+  bypasses approvals. After an answer, Lyst also offers up to three next steps grounded in what it found (look
+  inside the main driver, watch a metric that moved, make a repeated question recurring, extend a review into a
+  forecast), and on watched metrics it raises an early warning only when two kinds of evidence agree (change
+  point, sustained trend, forecast drift, projected breach). Through the API today
+  ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -303,14 +307,22 @@ where they point, with Mark all read and "What to tell me about".
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Speaks to the rest of your stack.** Every change in a workspace, from a new dataset version to a finished
+  analysis, a contract check or an approval, becomes one event with a stable id. Stream the events, or have them
+  delivered as signed webhooks with retries, dead-lettering and replay; webhooks never reach private network
+  addresses. The Python SDK `lyst-client` (`pip install ./sdk/python`) covers files, questions, SQL, events and
+  webhooks with typed errors and safe retries, and a recorded API contract keeps the HTTP API from breaking
+  callers. The MCP server marks which tools only read, audits every call, keeps results within a size budget,
+  and can read files and report what changed.
 * **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
   every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
-  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML,
-  Markdown and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range,
-  whether a total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it**
-  or **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable
-  so answers can cite it, and unsupported files (legacy Office, password-protected, images) are refused in plain
-  words ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown
+  and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range, whether a
+  total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it** or
+  **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable so
+  answers can cite it. Macros, embedded objects and formulas are reported but never run, and unsupported files
+  (legacy Office, password-protected, images) are refused in plain words
+  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
   verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
