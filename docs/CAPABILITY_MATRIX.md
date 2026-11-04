@@ -24,6 +24,8 @@
 | Analyst | Reasoning depth (fast / analytical / deep / project) chosen from the request | Tested | `test_reasoning.py` |
 | Analyst | Deep investigation: quarterly horizon, change points, seven competing hypotheses decided by computation, related-metric corroboration | Tested | `test_reasoning.py::test_a_deep_investigation_tests_competing_explanations` |
 | Analyst | Model-written narrative with number verification | Tested (stub model) | `test_llm.py` |
+| Analyst | Workflow compiler: verified analyses become typed, versioned workflows (period input by grain, dependencies, permissions, required checks, budget, provenance); matching requests reuse them without re-reading; stale schemas or metric versions invalidate and recompile; direct runs for a period | Tested | `test_workflows.py`, `scripts/bench_workflows.py`, docs/PRODUCT_EXCELLENCE.md |
+| Analyst | Consistency with prior answers compares only the same question for the same period | Tested | `test_knowledge.py::test_questions_about_different_periods_are_not_reported_as_contradictions` |
 | Models | OpenRouter gateway: tiers, workload routing, admission, adaptive limits, retries, fallback, 402 handling, per-call cost | Tested against a stub OpenRouter | `test_gateway.py`, `test_llm.py::test_openrouter_end_to_end_through_the_analyst` |
 | Models | Real OpenRouter call | Not yet: needs a Lyst OpenRouter key | — |
 | Runtime | Leases, checkpoints, resume after crash (also mid-wave with parallel steps) | Tested | Scenario H, `test_execution.py` |
