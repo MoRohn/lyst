@@ -92,7 +92,7 @@ export const capabilities: {
   {
     icon: 'Workflow',
     title: 'Automate',
-    text: 'Recurring work that runs on its own schedule.',
+    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
     items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Calendar schedules', 'Fair queueing and quotas'],
     status: 'available',
   },
