@@ -86,15 +86,15 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Deliverables people can use on Monday.',
-    items: ['Excel and Markdown deliverables', 'Dashboards', 'Pipelines', 'Decks and PDFs'],
+    items: ['Generated dashboards', 'Excel and Markdown deliverables', 'Pipelines', 'Decks and PDFs'],
     status: 'dev',
   },
   {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work that runs on its own schedule.',
-    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Recurring reports'],
-    status: 'dev',
+    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Scheduled dashboard refresh'],
+    status: 'available',
   },
   {
     icon: 'Cable',
@@ -106,9 +106,9 @@ export const capabilities: {
   {
     icon: 'Sprout',
     title: 'Evolve',
-    text: 'Get better with every validated task.',
-    items: ['Living knowledge', 'Lineage', 'Governed skills', 'Reusable workflows'],
-    status: 'dev',
+    text: 'Learns new methods, with an owner’s approval.',
+    items: ['Living knowledge', 'Lineage', 'Governed skills', 'New skills drafted, tested and approved'],
+    status: 'available',
   },
 ];
 
