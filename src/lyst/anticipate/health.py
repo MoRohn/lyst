@@ -202,7 +202,7 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
                 objective = f"Rotate the credential for {c['name']}"
                 hours = max((when - now).total_seconds() / 3600, 0)
             out.append(_cand(k, objective, "connection", c["id"], reasons, risk, hours, key, dep,
-                             [{"id": "renew", "label": "Renew in Settings", "kind": "link",
+                             [{"id": "renew", "label": "Renew in Settings", "kind": "link", "credential_id": cr["id"], "connection_id": c["id"],
                                "href": f"settings/secrets?credential={cr['id']}",
                                "effect": "opens Settings > Secrets, where you paste the new secret; Lyst never shows the current one"}],
                              {"credential": {"id": cr["id"], "fields_expiry": str(sig.get("expires_at") or ""),
@@ -220,7 +220,8 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
             out.append(_cand(k, f"{labels[k]} {c['name']}", "connection", c["id"], reasons, risk, max(hours, 0), f"health|conn|{c['id']}|{k}",
                              dep, [{"id": "test_connection", "label": "Test the connection now",
                                     "effect": "runs the connector's read-only test, as you"},
-                                   {"id": "open_source", "label": "Open the source", "kind": "link", "href": f"data/sources?connection={c['id']}"}],
+                                   {"id": "open_source", "label": "Open the source", "kind": "link", "connection_id": c["id"],
+                                    "href": f"data/sources?connection={c['id']}"}],
                              {"connection": {"consecutive_failures": c["consecutive_failures"], "category": c["failure_category"]}},
                              {"signal": {"kind": k, "connection_id": c["id"], "detail": sig["detail"]}}, now, [c["created_by"]]))
         elif k == "schema_change":
@@ -244,7 +245,8 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
             hours = (dep["next_run_at"] - now).total_seconds() / 3600 if dep["next_run_at"] else 48.0
             cand = _cand(k, f"Prevent breakage from the {sig['dataset']} change", "dataset", sig["dataset"], reasons,
                          bool(dep["schedules"] or dep["assets"]), max(hours, 0), f"health|schema|{sig['dataset']}|v{sig['version']}", dep,
-                         [{"id": "open_dataset", "label": "Open the dataset", "kind": "link", "href": f"data?dataset={sig['dataset']}"}],
+                         [{"id": "open_dataset", "label": "Open the dataset", "kind": "link", "dataset": sig["dataset"],
+                           "href": f"data?dataset={sig['dataset']}"}],
                          {"dataset_version": sig["version"]}, {"signal": {"kind": k, "dataset": sig["dataset"], "version": sig["version"],
                                                                           "removed": sig["removed"], "retyped": sig["retyped"],
                                                                           "added": sig["added"]}}, now,
@@ -347,8 +349,8 @@ def summary(a: dict[str, Any]) -> str:
 
 def run(svc, actor: Principal, ws: str, a: dict[str, Any], action: str) -> dict[str, Any]:
     act = next(x for x in a["actions"] if x["id"] == action)
-    if act.get("kind") == "link":
-        return {"open": act["href"]}
+    if act.get("kind") == "link":   # the UI routes by the action's id and these ids; href is a fallback
+        return {"open": act["href"], **{k: act[k] for k in ("credential_id", "connection_id", "dataset") if k in act}}
     if action == "test_connection":
         r = svc.connections.test(actor, ws, a["subject_id"])
         return {"test": {"ok": bool(r.get("ok", True))}}

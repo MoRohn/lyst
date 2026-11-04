@@ -67,7 +67,9 @@ def test_f_expiring_credential_is_flagged_before_the_run_without_exposing_it(api
     with TestClient(create_app(lyst, start_workers=False)) as c:
         body = c.get(f"/v1/workspaces/{WS}/anticipations/{a['id']}", headers={"Authorization": f"Bearer {token}"}).text
         assert TOKEN not in body
-    assert lyst.anticipation.act(owner, WS, a["id"], "renew") == {"id": a["id"], "status": "accepted", "open": a["actions"][0]["href"]}
+    assert a["actions"][0]["credential_id"] == cred and a["actions"][0]["connection_id"] == conn["id"]
+    assert lyst.anticipation.act(owner, WS, a["id"], "renew") == {"id": a["id"], "status": "accepted", "open": a["actions"][0]["href"],
+                                                                  "credential_id": cred, "connection_id": conn["id"]}
 
 
 def test_f_renewal_resolves_the_warning(api_source):

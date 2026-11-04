@@ -115,7 +115,7 @@ From metadata Lyst already records; no source is contacted. Level 1 lists these 
 
 | Signal | Source | Pushed when | Offered |
 | --- | --- | --- | --- |
-| Credential expiry | `expires_at` recorded with the credential behind a connection | expired, within 3 days, or before the next scheduled run that reads the connection's data | link to Settings > Secrets (the secret is never shown) |
+| Credential expiry | `expires_at` recorded with the credential behind a connection | expired, within 3 days, or before the next scheduled run that reads the connection's data | link to Settings (`credential_id`, `connection_id` in the action; the secret is never shown) |
 | Credential age | connected or last replaced more than `LYST_CREDENTIAL_MAX_AGE_DAYS` (180) ago | never (activity center) | same link |
 | Authentication failure | the latest connection event failed with category `auth` | always | test the connection, open the source |
 | Intermittent failures | 2+ of the last 10 attempts failed, the latest succeeded | a dependent run within 48 h | same |
