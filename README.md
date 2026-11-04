@@ -91,6 +91,27 @@ and model call with its timing.
   </tr>
 </table>
 
+### What if?
+
+Ask a what-if in plain words on Home, such as "What happens to operating margin if labor costs increase 6% while
+revenue grows 3%?". Lyst answers from a driver model whose observed inputs are read from governed data for a named
+period, with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
+hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
+formulas as evidence, and is recomputed independently. A driver the model does not have is listed as "Not
+modelled", never guessed. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
+P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
+any drift reported.
+
+Decisions get the same care. Lyst tells an analytical question apart from a decision that needs authority,
+compares options on weighted criteria and constraints under uncertainty, finds where the leading option would
+change, and allocates budgets with an exact solver. It says "insufficient evidence" or "no clear winner" rather
+than claim one. A **decision record** goes from analyzed to submitted to approved or rejected by a person, who
+may pick a different option, and is later reviewed against what actually happened. Nothing is executed.
+
+<p align="center">
+  <img src="docs/images/what-if.png" alt="A what-if answer: operating margin from 36.03% to 35.96% under the stated assumptions, labelled hypothetical, with the assumed labor share and the observed inputs as evidence" width="80%">
+</p>
+
 ### Dashboards from a sentence
 
 Data › Dashboards › **New dashboard** turns a request into a Plotly Dash app on Lyst's own kit
@@ -99,6 +120,16 @@ verified SQL, KPI cards, a trend with a forecast band, click-to-filter breakdown
 Every generated app is checked in a separate interpreter before it is offered.
 
 ![A generated dashboard: KPI cards, trend with forecast and breakdowns](docs/images/dash-overview-light.png)
+
+### A look before loading
+
+**Add data › Upload a file** reads spreadsheets, CSV and other tables, and documents, then shows what it found
+before anything loads: each table with its rows, sheet and range, whether a total row adds up, notes and a
+preview. Keep or drop each table, name it, then **Load it** or **Discard**.
+
+<p align="center">
+  <img src="docs/images/upload-review.png" alt="Add data: a workbook with two tables found, a total row that does not add up called out, editable dataset names, and Load it or Discard" width="80%">
+</p>
 
 ### Lyst knows your data
 
@@ -208,6 +239,28 @@ where they point, with Mark all read and "What to tell me about".
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
   raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
   model wording verified against the computed numbers.
+* **Shows its working on request.** Any figure in an answer or a generated report traces back through the step
+  that computed it, the SQL that ran, the metric version and the dataset version (rows, checksum, load time,
+  classification) to its source, with the checks, assumptions, citations and approvals involved. A figure counts as
+  traced only when a stored result backs it at the precision written. Ask how it was figured, what it rests on,
+  what would change it, or have Lyst reproduce it under your current permissions; the answers come from those
+  records, not invented explanations, and Lyst says when the data behind an answer has a newer version.
+* **Enforces data classification.** Administrators classify datasets on four levels plus personal, financial and
+  regulated tags, with a reason kept for every change. A versioned policy sets who may read each level and what
+  may reach an external model or an export, and it is enforced in the data service, the model gateway and the
+  exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from
+  it never reach an external model or an exported file. Anyone can check ahead of time whether work would be
+  allowed, narrowed or refused, and why; administrators also see the rule.
+* **Explains what it asks you to approve.** Each approval and review states the action, why, what it affects
+  (including reports built on a changed definition), the expected result, how to undo it, and a risk level from
+  what it actually does. A "where things stand" summary tells a returning person what they asked for, what
+  finished, what is running, what needs them and what comes next.
+* **Accounts for cost and value.** Model cost, tokens, retries, compute and query time, rows and connector work by
+  person, task, schedule, model or purpose, beside verified answers, time to a verified answer and reuse. Effort
+  avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
+  suggested savings cite the numbers behind them.
+* **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
+  year to date and their comparisons, labelled like "Q2 FY2027".
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
@@ -216,6 +269,14 @@ where they point, with Mark all read and "What to tell me about".
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
+* **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
+  owner that the run will work: its datasets have new data, its connections are healthy, its definitions are still
+  approved and unchanged, its contracts hold, and its saved analysis still matches its inputs. Ready work waits
+  quietly in the activity center with **Run it now**; a problem that would break the run reaches the inbox once,
+  before the run. Each workspace picks a level: Off, Suggest (the default, where nothing executes), Prepare,
+  Investigate or Automate, with daily budgets for preparation, investigation, compute and notices. Every item
+  explains from recorded evidence why it appeared, and preparation never distributes reports, edits data or
+  bypasses approvals. Through the API today ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -231,19 +292,25 @@ where they point, with Mark all read and "What to tell me about".
   citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
 * **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
   a sandbox with adversarial cases, and registers it only after another role approves.
+* **Knows which source wins.** An administrator can mark a dataset as the authoritative source (optionally for a
+  subject such as "P&L") or as secondary. When one term names two definitions that compute the same number from
+  different sources, the authoritative one answers instead of the question bouncing back as ambiguous, and the
+  answer says which source was used and why; if the calculations differ, Lyst still asks. The semantic audit
+  flags definitions built on secondary sources, a secondary source is never marked trusted, and search ranks
+  authoritative sources first.
 * **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
   with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
-* **Reads any file, and shows you first.** One upload path takes Excel workbooks (every table on every sheet,
-  merged and two-row headers folded, units and scale read from headers, formula columns reported, error values
-  counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown and PDF
-  text. Lyst returns a plan before anything loads: the tables it found, whether a total row adds up, and what
-  needs a look. You choose what to keep and what to call it. Document text becomes searchable so answers can cite
-  it, and unsupported files (legacy Office, password-protected, images)
-  are refused in plain words. Through the API today; the review screen in Add data is on the way
-  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+* **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
+  every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
+  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML,
+  Markdown and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range,
+  whether a total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it**
+  or **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable
+  so answers can cite it, and unsupported files (legacy Office, password-protected, images) are refused in plain
+  words ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
   verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
@@ -342,7 +409,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
