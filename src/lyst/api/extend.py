@@ -8,16 +8,29 @@ No ``from __future__ import annotations`` here: FastAPI resolves the ``User`` de
 
 from typing import Annotated, Any
 
-from fastapi import File, Form, HTTPException, Request, UploadFile
+from fastapi import File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 MAX_UPLOAD = 200 * 1024 * 1024
+API_VERSION = "1"  # bumped only for a breaking change; docs/api/contract.txt is the compatibility record
 
 
 class IngestChoice(BaseModel):
     key: str
     name: str | None = None
     include: bool = True
+
+
+class WebhookIn(BaseModel):
+    url: str
+    types: list[str] = ["*"]
+    description: str | None = None
+
+
+class WebhookPatch(BaseModel):
+    active: bool | None = None
+    rotate_secret: bool = False
 
 
 class IngestCommit(BaseModel):
@@ -65,3 +78,56 @@ def register(app, L, User) -> None:
     @app.delete("/v1/workspaces/{ws}/ingest/{jid}")
     def ingest_discard(request: Request, ws: str, jid: str, user: User):
         return L(request).ingest.discard(user, ws, jid)
+
+    # -- events and webhooks ----------------------------------------------------------------
+
+    @app.middleware("http")
+    async def _api_version(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Lyst-API-Version"] = API_VERSION
+        return response
+
+    @app.get("/v1/events/types")
+    def event_types(user: User) -> dict[str, Any]:
+        from .. import events  # noqa: PLC0415
+
+        return {"schema": events.SCHEMA, "types": events.types(), "member_visible": list(events.MEMBER_TYPES)}
+
+    @app.get("/v1/workspaces/{ws}/events")
+    async def workspace_events(request: Request, ws: str, user: User, after: int = 0,
+                               types: Annotated[list[str] | None, Query()] = None, limit: int = 100, wait: float = 0):
+        """Events after the ``after`` cursor that this member may see; ``wait`` (seconds, at most 25) long-polls.
+        Returns ``{"events": [...], "next": cursor}``; pass ``next`` back as ``after``."""
+        pats = [p for t in (types or []) for p in t.split(",") if p]
+        return await run_in_threadpool(L(request).events.list, user, ws, after=after, types=pats or None,
+                                       limit=min(limit, 500), wait=wait)
+
+    @app.get("/v1/workspaces/{ws}/webhooks")
+    def webhooks_list(request: Request, ws: str, user: User):
+        return L(request).webhooks.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/webhooks", status_code=201)
+    def webhooks_create(request: Request, ws: str, body: WebhookIn, user: User):
+        """The response carries the signing secret once; store it with the receiver."""
+        return L(request).webhooks.create(user, ws, body.url, types_=body.types, description=body.description)
+
+    @app.patch("/v1/workspaces/{ws}/webhooks/{sid}")
+    def webhooks_update(request: Request, ws: str, sid: str, body: WebhookPatch, user: User):
+        return L(request).webhooks.update(user, ws, sid, active=body.active, rotate_secret=body.rotate_secret)
+
+    @app.delete("/v1/workspaces/{ws}/webhooks/{sid}")
+    def webhooks_delete(request: Request, ws: str, sid: str, user: User):
+        return {"deleted": L(request).webhooks.delete(user, ws, sid)}
+
+    @app.post("/v1/workspaces/{ws}/webhooks/{sid}/ping")
+    def webhooks_ping(request: Request, ws: str, sid: str, user: User):
+        return L(request).webhooks.ping(user, ws, sid)
+
+    @app.get("/v1/workspaces/{ws}/webhooks/{sid}/deliveries")
+    def webhooks_deliveries(request: Request, ws: str, sid: str, user: User, status: str | None = None, limit: int = 50):
+        return L(request).webhooks.deliveries(user, ws, sid, status=status, limit=limit)
+
+    @app.post("/v1/workspaces/{ws}/webhook-deliveries/{did}/redeliver")
+    def webhooks_redeliver(request: Request, ws: str, did: str, user: User):
+        return L(request).webhooks.redeliver(user, ws, did)
+

@@ -942,6 +942,56 @@ WORKSPACE.append((
     )
     """,
 ))
+CONTROL.append((
+    40,
+    """
+    CREATE TABLE platform_events (
+        seq BIGINT PRIMARY KEY,
+        id VARCHAR UNIQUE NOT NULL,
+        type VARCHAR NOT NULL,
+        workspace_id VARCHAR,
+        occurred_at TIMESTAMPTZ NOT NULL,
+        actor VARCHAR,
+        subject_kind VARCHAR,
+        subject_id VARCHAR,
+        data JSON NOT NULL,
+        source VARCHAR NOT NULL
+    );
+    CREATE SEQUENCE platform_event_seq;
+    CREATE INDEX platform_events_by_ws ON platform_events (workspace_id, seq);
+    CREATE TABLE event_cursors (
+        name VARCHAR PRIMARY KEY,
+        position VARCHAR NOT NULL
+    );
+    CREATE TABLE webhook_subscriptions (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        url VARCHAR NOT NULL,
+        types JSON NOT NULL,
+        secret VARCHAR NOT NULL,
+        description VARCHAR,
+        active BOOLEAN NOT NULL DEFAULT true,
+        disabled_reason VARCHAR,
+        consecutive_failures INTEGER NOT NULL DEFAULT 0,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        after_seq BIGINT NOT NULL DEFAULT 0
+    );
+    CREATE TABLE webhook_deliveries (
+        id VARCHAR PRIMARY KEY,
+        subscription_id VARCHAR NOT NULL,
+        event_seq BIGINT NOT NULL,
+        status VARCHAR NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TIMESTAMPTZ DEFAULT now(),
+        last_status INTEGER,
+        last_error VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        delivered_at TIMESTAMPTZ,
+        UNIQUE (subscription_id, event_seq)
+    )
+    """,
+))
 
 # Anticipation (migrations 50-59): prepared-work objects with their signals, scores, preparation, verification, validity
 # and outcome; an append-only event trail per object; the workspace's autonomy level and budgets; per-day usage; and each

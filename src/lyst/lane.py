@@ -10,4 +10,9 @@ from __future__ import annotations
 
 
 def attach(lyst) -> None:
-    return None
+    from .events import EventService
+    from .webhooks import WebhookService
+
+    lyst.events = EventService(lyst.stores, lyst.guard)
+    lyst.webhooks = WebhookService(lyst.stores, lyst.guard, lyst.events)
+    lyst.runtime.periodic.append(lyst.webhooks.run)  # collects events, then delivers what is due
