@@ -3,7 +3,8 @@
 """Next-best analytical action: specific follow-ups grounded in what a finished analysis actually found.
 
 Each suggestion names the finding it comes from and is checked before it is shown. Nothing generic: a suggestion is made
-only when the analysis left a concrete thread to pull, and never for something the person already asked.
+only when the analysis left a concrete thread to pull, and never for something the person already asked, and one
+suggestion per person and thread however often the analysis is repeated (it follows the latest answer).
 
 * **Look inside the driver.** One member explains most of a change (``share >= 50%``) and the metric has another
   dimension the analysis did not use: "What drove operating margin for region EMEA in Q3 2026 by product line?".
@@ -97,7 +98,7 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
 
     db = svc.stores.workspace(ws)
     out: list[dict[str, Any]] = []
-    for sig in signals:
+    for sig in reversed(signals):   # oldest first, so a suggestion repeated by a later analysis follows the latest answer
         t = sig["task"]
         parsed = _parse(t)
         if not parsed:
@@ -134,7 +135,7 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
                                             "evidence": min(d["share"], 1.0), "urgency": 0.3, "cost": 0.05, "risk": 0.0, "interruption": 0.0},
                                  "actions": [{"id": "run_now", "label": "Run this analysis", "question": q,
                                               "effect": "asks this question now, as you"}],
-                                 "dedupe_key": f"nba|{t['id']}|drill|{pattern(q)}",
+                                 "dedupe_key": f"nba|drill|{user}|{pattern(q)}",
                                  "_ctx": {"check": "slice", "actor": user, "spec": spec, "dimension": d["dimension"], "member": d["member"],
                                           "period": period}})
         # 2. watch the metric
@@ -147,7 +148,7 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
                                     "interruption": 0.0},
                          "actions": [{"id": "watch", "label": "Watch this metric", "metric": spec.name, "grain": "month",
                                       "effect": "requests a monthly monitor; an admin approves it before it runs"}],
-                         "dedupe_key": f"nba|{t['id']}|watch|{spec.name}", "_ctx": {"check": "metric", "spec": spec}})
+                         "dedupe_key": f"nba|watch|{user}|{spec.name}", "_ctx": {"check": "metric", "spec": spec}})
         # 3. make it recurring
         same = sorted(_aware(a["created_at"]) for a in asked if pattern((_j(a["request"]) or {}).get("question", "")) == pattern(parsed["question"]))
         scheduled = {pattern(_j(s["request"]).get("question", "")) for s in svc.stores.control.query(
@@ -177,7 +178,7 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
                          "scores": {"value": 0.4, "likelihood": 0.5, "evidence": 0.6, "urgency": 0.2, "cost": 0.05, "risk": 0.0,
                                     "interruption": 0.0},
                          "actions": [{"id": "run_now", "label": "Forecast it", "question": q, "effect": "asks this question now, as you"}],
-                         "dedupe_key": f"nba|{t['id']}|forecast|{spec.name}", "_ctx": {"check": "history", "actor": user, "spec": spec}})
+                         "dedupe_key": f"nba|forecast|{user}|{spec.name}", "_ctx": {"check": "history", "actor": user, "spec": spec}})
         out += sorted(mine, key=lambda c: -c["scores"]["value"])[:MAX_PER_ANALYSIS]
     return out
 

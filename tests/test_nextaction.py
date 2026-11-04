@@ -128,3 +128,12 @@ def test_viewer_without_rights_gets_no_runnable_slice_for_restricted_data(suppli
     lyst.anticipation.cycle(WS)
     drills = db.query("SELECT status FROM anticipations WHERE subject_id = ? AND dedupe_key LIKE '%|drill|%'", [t["id"]])
     assert drills and drills[0]["status"] == "suppressed"
+
+
+def test_repeating_an_analysis_does_not_repeat_its_suggestions(suppliers):
+    lyst, owner = suppliers
+    q = "Why did on-time delivery rate fall in Q3 2026?"
+    first, second = _analyse(lyst, owner, q), _analyse(lyst, owner, q)
+    lyst.anticipation.cycle(WS)
+    watch = [s for s in lyst.anticipation.list(owner, WS) if s["actions"][0]["id"] == "watch"]
+    assert len(watch) == 1 and watch[0]["subject_id"] == second["id"] != first["id"]   # one, under the latest answer

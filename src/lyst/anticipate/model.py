@@ -89,10 +89,10 @@ def upsert(db, cand: dict[str, Any]) -> tuple[dict[str, Any], str]:
                     cand.get("needed_at"), cand.get("valid_until"), prior["id"]])
         event(db, prior["id"], "invalidated", detail={"changed": what})
         return get(db, prior["id"]), "invalidated"
-    db.execute("UPDATE anticipations SET depends = ?, signals = ?, reasons = ?, scores = ?, score = ?, needed_at = ?, valid_until = ?, "
-               "updated_at = now() WHERE id = ?",
-               [j(cand["depends"]), j(cand["signals"]), j(cand["reasons"]), j(cand["scores"]), cand["score"], cand.get("needed_at"),
-                cand.get("valid_until"), prior["id"]])
+    db.execute("UPDATE anticipations SET subject_id = ?, depends = ?, signals = ?, reasons = ?, scores = ?, score = ?, needed_at = ?, "
+               "valid_until = ?, updated_at = now() WHERE id = ?",
+               [cand["subject_id"], j(cand["depends"]), j(cand["signals"]), j(cand["reasons"]), j(cand["scores"]), cand["score"],
+                cand.get("needed_at"), cand.get("valid_until"), prior["id"]])
     return get(db, prior["id"]), "updated"
 
 
