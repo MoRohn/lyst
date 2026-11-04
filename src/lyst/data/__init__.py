@@ -66,57 +66,79 @@ class DataService:
         classification: str = "internal",
     ) -> dict[str, Any]:
         """Load a CSV or Parquet file as a new version of a dataset. Earlier versions stay."""
+        table = _read_table(content, filename)
+        return self.ingest_arrow(actor, workspace_id, name, table, source=filename, sha=hashlib.sha256(content).hexdigest(),
+                                 title=title, description=description, classification=classification)
+
+    def ingest_arrow(
+        self,
+        actor: Principal,
+        workspace_id: str,
+        name: str,
+        table: pa.Table,
+        *,
+        source: str,
+        sha: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        classification: str = "internal",
+        append_to_previous: bool = False,
+    ) -> dict[str, Any]:
+        """A new dataset version from an Arrow table. With ``append_to_previous`` the new version is the current
+        version's rows plus these (an incremental sync); otherwise it replaces them."""
         self.guard.require(actor, workspace_id, "data.ingest", name)
         name = normalise_name(name)
         if not _NAME.match(name):
             raise ValueError("invalid dataset name")
-        table = _read_table(content, filename)
         table = table.rename_columns([normalise_name(c) for c in table.column_names])
-        sha = hashlib.sha256(content).hexdigest()
-        frame = table.to_pandas()
-        prof = profile_frame(frame)
-        prof_json = json.loads(json.dumps(prof.to_dict(), default=str))
-        schema = [{"name": f.name, "type": str(f.type)} for f in table.schema]
+        if sha is None:
+            import io as _io  # noqa: PLC0415
+
+            buf = _io.BytesIO()
+            pq.write_table(table, buf)
+            sha = hashlib.sha256(buf.getvalue()).hexdigest()
         db = self.stores.workspace(workspace_id)
 
         def tx(c):
-            current = c.execute("SELECT current_version FROM datasets WHERE name = ?", [name]).fetchone()
+            found = c.execute("SELECT current_version FROM datasets WHERE name = ?", [name]).fetchall()
+            current = found[0] if found else None
             version = (current[0] + 1) if current else 1
-            prev_sha = None
+            prev_sha, prev_physical = None, None
             if current:
-                prev_sha = c.execute(
-                    "SELECT source_sha256 FROM dataset_versions WHERE dataset = ? AND version = ?",
-                    [name, current[0]],
-                ).fetchone()[0]
-            if prev_sha == sha:
+                prev_sha, prev_physical = c.execute(
+                    "SELECT source_sha256, physical_table FROM dataset_versions WHERE dataset = ? AND version = ?",
+                    [name, current[0]]).fetchall()[0]
+            if prev_sha == sha and not append_to_previous:
                 return {"dataset": name, "version": current[0], "unchanged": True, "rows": table.num_rows}
             physical = f"{name}__v{version}"
             c.register("_incoming", table)
-            c.execute(f'CREATE TABLE data."{physical}" AS SELECT * FROM _incoming')
+            if append_to_previous and prev_physical:
+                c.execute(f'CREATE TABLE data."{physical}" AS SELECT * FROM data."{prev_physical}" UNION ALL BY NAME SELECT * FROM _incoming')
+            else:
+                c.execute(f'CREATE TABLE data."{physical}" AS SELECT * FROM _incoming')
             c.unregister("_incoming")
+            rows = c.execute(f'SELECT count(*) FROM data."{physical}"').fetchall()[0][0]
+            frame = c.execute(f'SELECT * FROM data."{physical}" LIMIT 200000').df()
+            prof_json = json.loads(json.dumps(profile_frame(frame).to_dict(), default=str)) if len(frame) else {}
+            schema = [{"name": r[0], "type": str(r[1]).lower()} for r in c.execute(f'DESCRIBE data."{physical}"').fetchall()]
             c.execute(
                 "INSERT INTO dataset_versions (dataset, version, physical_table, source, source_sha256, "
                 "row_count, schema, profile, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [name, version, physical, filename, sha, table.num_rows, json.dumps(schema),
-                 json.dumps(prof_json, default=str), actor.user_id],
+                [name, version, physical, source, sha, rows, json.dumps(schema), json.dumps(prof_json, default=str), actor.user_id],
             )
             if current:
-                c.execute(
-                    "UPDATE datasets SET current_version = ?, updated_at = now() WHERE name = ?",
-                    [version, name],
-                )
+                c.execute("UPDATE datasets SET current_version = ?, updated_at = now() WHERE name = ?", [version, name])
             else:
                 c.execute(
                     "INSERT INTO datasets (name, title, description, owner, classification, current_version) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    [name, title or name.replace("_", " ").title(), description, actor.user_id,
-                     classification, version],
+                    [name, title or name.replace("_", " ").title(), description, actor.user_id, classification, version],
                 )
-            return {"dataset": name, "version": version, "unchanged": False, "rows": table.num_rows}
+            return {"dataset": name, "version": version, "unchanged": False, "rows": rows}
 
         result = db.write(tx)
-        self.guard.audit(actor, workspace_id, "data.ingest", name, "ok", {"version": result["version"],
-                                                                         "rows": result["rows"]})
+        self.guard.audit(actor, workspace_id, "data.ingest", name, "ok", {"version": result["version"], "rows": result["rows"],
+                                                                         "source": source})
         return result
 
     def set_column_policy(self, actor: Principal, workspace_id: str, dataset: str, column: str,

@@ -190,6 +190,38 @@ CONTROL.append((
 ))
 
 CONTROL.append((
+    7,
+    """
+    CREATE TABLE connections (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        name VARCHAR NOT NULL,
+        config JSON NOT NULL,
+        secrets JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        last_tested_at TIMESTAMPTZ,
+        last_error VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE connection_syncs (
+        connection_id VARCHAR NOT NULL,
+        workspace_id VARCHAR NOT NULL,
+        source_table VARCHAR NOT NULL,
+        dataset VARCHAR NOT NULL,
+        cursor_column VARCHAR,
+        last_cursor JSON,
+        last_sync_at TIMESTAMPTZ,
+        last_rows_added BIGINT,
+        rows_total BIGINT,
+        syncs INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (connection_id, source_table)
+    )
+    """,
+))
+
+CONTROL.append((
     5,
     """
     ALTER TABLE api_tokens ADD COLUMN expires_at TIMESTAMPTZ;

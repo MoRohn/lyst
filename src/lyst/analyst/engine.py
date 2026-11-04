@@ -46,6 +46,7 @@ class Services:
     monitors: Any = None  # monitoring.MonitorService
     runtime: Any = None  # runtime.TaskRuntime (for approvals raised by capabilities)
     studio: Any = None  # studio.StudioService
+    connections: Any = None  # connectors.ConnectionService
 
 
 # ------------------------------------------------------------------------------- helpers
@@ -212,8 +213,11 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     elif causal and not impact and intent not in ("gap", "skill", "sql"):
         intent = "causal_unsupported"
     refresh = re.match(r"^\s*refresh dashboard (db_[0-9a-f]+)\s*$", text, re.I)
+    sync = re.match(r"^\s*sync connection (c_[0-9a-f]+) table ([A-Za-z0-9_.]+)(?: by ([A-Za-z0-9_]+))?(?: into ([a-z0-9_]+))?\s*$", text, re.I)
     if refresh:
         intent = "refresh"
+    elif sync:
+        intent = "sync"
     elif studio_mod.wants_dashboard(text) and resolved["metrics"]:
         intent = "dashboard"
     horizon = reasoning.horizon_of(text)
@@ -226,6 +230,8 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
             "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
             "refresh_dashboard": refresh.group(1) if refresh else None, "second_metric": second,
+            "sync": {"connection_id": sync.group(1), "source_table": sync.group(2), "cursor_column": sync.group(3),
+                     "dataset": sync.group(4)} if sync else None,
             "audience": ("executive" if re.search(r"\b(board|executive|ceo|cfo|leadership|briefing)\b", text, re.I) else "analyst"),
             "refresh_every": studio_mod.refresh_interval(text)}
 
@@ -298,6 +304,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         add("correlate_metrics", "correlation", metric=u["metrics"][0], other=u["second_metric"])
     elif u["intent"] == "refresh":
         add("refresh_dashboard", "refresh", dashboard_id=u["refresh_dashboard"])
+    elif u["intent"] == "sync":
+        add("sync_connection", "sync", **u["sync"])
     elif u["intent"] == "dashboard":
         if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "data.ingest"):
             add("design_dashboard", "design", metrics=u["metrics"], dimension=u.get("by"), every_seconds=u.get("refresh_every"))
@@ -591,6 +599,14 @@ def refresh_dashboard(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     return _clean(ctx.services.studio.refresh(ctx.actor, ctx.workspace_id, args["dashboard_id"], task_id=ctx.task_id))
 
 
+@capability(REGISTRY, "sync_connection", agent="operations", phase="execute", permission="data.ingest", mutating=True,
+            description="Sync a source table through a connection into a governed dataset (incremental when a cursor column is set).")
+def sync_connection(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    r = ctx.services.connections.sync(ctx.actor, ctx.workspace_id, args["connection_id"], source_table=args["source_table"],
+                                      dataset=args.get("dataset"), cursor_column=args.get("cursor_column"), task_id=ctx.task_id)
+    return _clean(r.__dict__)
+
+
 @capability(REGISTRY, "run_skill", agent="software_engineer", phase="execute", permission="data.query",
             description="Run an approved, registered skill on its governed input query, in the sandbox.")
 def run_skill(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
@@ -638,7 +654,7 @@ def quality_scan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     ds = args["dataset"]
     cat = {d["name"]: d for d in ctx.services.data.catalog(ctx.actor, ctx.workspace_id)}[ds]
     cols = [c["name"] for c in cat["schema"]]
-    numeric = [c["name"] for c in cat["schema"] if any(t in c["type"] for t in ("int", "double", "float", "decimal"))]
+    numeric = [c["name"] for c in cat["schema"] if any(t in c["type"].lower() for t in ("int", "double", "float", "decimal"))]
     null_sql = "SELECT " + ", ".join(f'count(*) - count("{c}") AS "{c}"' for c in cols) + f' FROM "{ds}"'
     r1 = _query(ctx, null_sql)
     nulls = {k: v for k, v in zip(r1.columns, r1.rows[0], strict=True) if v}
@@ -889,6 +905,11 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         assumptions.append("The app reads only the Parquet extracts beside it; Lyst refreshes them, the app never touches a database.")
         tables.append({"title": "Files", "columns": ["file"], "rows": [[f] for f in db_["files"]]})
         status = "complete" if ok else "unverified"
+    elif u["intent"] == "sync":
+        sy = o["sync"]
+        answer = (f"Synced {sy['source_table']} into dataset {sy['dataset']} v{sy['version']}: {sy['rows_added']:,} rows added "
+                  f"({sy['mode']}), {sy['rows_total']:,} rows in total, {sy['seconds']:.1f} s.")
+        status = "complete"
     elif u["intent"] == "refresh":
         rf = o["refresh"]
         answer = f"Dashboard {rf['dashboard_id']} refreshed: {rf['status']}."

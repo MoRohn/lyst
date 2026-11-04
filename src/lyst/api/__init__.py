@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from .. import observability as obs
 from ..app import Lyst
+from ..connectors import ConnectorError, manifests
 from ..data.sqlguard import QueryRejected
 from ..security import AccessDenied, Principal
 from ..security.oidc import OIDC, OIDCError, OIDCSettings
@@ -81,6 +82,19 @@ class SkillIn(BaseModel):
     tests: list[dict[str, Any]]
     triggers: list[str]
     params: dict[str, Any] | None = None
+
+
+class ConnectionIn(BaseModel):
+    kind: str
+    name: str
+    values: dict[str, Any]
+
+
+class SyncIn(BaseModel):
+    source_table: str
+    dataset: str | None = None
+    cursor_column: str | None = None
+    every_seconds: int | None = None
 
 
 class MemberIn(BaseModel):
@@ -169,6 +183,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.exception_handler(QueryRejected)
     async def _rejected(_: Request, exc: QueryRejected):
         return JSONResponse({"error": "query_rejected", "detail": str(exc)}, status_code=400)
+
+    @app.exception_handler(ConnectorError)
+    async def _connector(_: Request, exc: ConnectorError):
+        return JSONResponse({"error": "connector", "detail": str(exc)}, status_code=400)
 
     @app.exception_handler(KeyError)
     async def _missing(_: Request, exc: KeyError):
@@ -281,6 +299,48 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.get("/v1/workspaces/{ws}/queries")
     def queries(request: Request, ws: str, user: User):
         return L(request).data.history(user, ws)
+
+    # -- connections ------------------------------------------------------------------------
+
+    @app.get("/v1/connectors")
+    def connectors(request: Request, user: User):
+        return manifests()
+
+    @app.get("/v1/workspaces/{ws}/connections")
+    def connections(request: Request, ws: str, user: User):
+        return L(request).connections.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/connections")
+    def create_connection(request: Request, ws: str, body: ConnectionIn, user: User):
+        return L(request).connections.create(user, ws, kind=body.kind, name=body.name, values=body.values)
+
+    @app.post("/v1/workspaces/{ws}/connections/{cid}/test")
+    def test_connection(request: Request, ws: str, cid: str, user: User):
+        return L(request).connections.test(user, ws, cid)
+
+    @app.delete("/v1/workspaces/{ws}/connections/{cid}")
+    def delete_connection(request: Request, ws: str, cid: str, user: User):
+        L(request).connections.delete(user, ws, cid)
+        return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/connections/{cid}/tables")
+    def discover(request: Request, ws: str, cid: str, user: User):
+        return L(request).connections.discover(user, ws, cid)
+
+    @app.get("/v1/workspaces/{ws}/connections/{cid}/syncs")
+    def syncs(request: Request, ws: str, cid: str, user: User):
+        return L(request).connections.syncs(user, ws, cid)
+
+    @app.post("/v1/workspaces/{ws}/connections/{cid}/sync")
+    def sync_now(request: Request, ws: str, cid: str, body: SyncIn, user: User):
+        lyst = L(request)
+        r = lyst.connections.sync(user, ws, cid, source_table=body.source_table, dataset=body.dataset, cursor_column=body.cursor_column)
+        out = r.__dict__
+        if body.every_seconds:
+            q = f"sync connection {cid} table {body.source_table}" + (f" by {body.cursor_column}" if body.cursor_column else "") \
+                + (f" into {body.dataset}" if body.dataset else "")
+            out["schedule"] = lyst.runtime.create_schedule(user, ws, f"Sync {body.source_table}", q, body.every_seconds)
+        return out
 
     # -- semantic ---------------------------------------------------------------------------
 

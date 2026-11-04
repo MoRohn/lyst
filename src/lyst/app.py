@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from .analyst.engine import REGISTRY, Services
 from .config import Settings, load_settings
+from .connectors import ConnectionService
 from .data import DataService
 from .deliverables import ArtifactService
 from .knowledge import KnowledgeService
@@ -38,6 +39,7 @@ class Lyst:
     knowledge: KnowledgeService
     monitors: MonitorService
     studio: StudioService
+    connections: ConnectionService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -59,7 +61,10 @@ class Lyst:
         services.runtime = runtime
         studio = StudioService(stores, guard, data, semantic, runtime, settings.home, knowledge)
         services.studio = studio
-        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors, studio)
+        connections = ConnectionService(stores, guard, data)
+        services.connections = connections
+        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
+                   studio, connections)
 
     def close(self) -> None:
         self.runtime.stop()
