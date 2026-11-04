@@ -1,0 +1,59 @@
+# Lint, tests, the evaluation suite and the license gate on every pull request and every push to main.
+# Before this workflow nothing ran the test suite automatically, and a commit on main went out with a failing test.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['site/**', '.github/workflows/site.yml']
+  pull_request:
+    paths-ignore: ['site/**', '.github/workflows/site.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Lint, test, evaluate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      # the PostgreSQL connector tests run against a real server, as they do on the development machine
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: runner   # the connector test connects as $USER, which is runner on GitHub runners
+          POSTGRES_PASSWORD: lyst-ci
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U runner" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGUSER: runner
+      PGPASSWORD: lyst-ci
+      LYST_KEYRING: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+      - name: Lockfile matches pyproject (reproducible install)
+        run: uv lock --check
+      - run: uv sync --frozen
+      - name: Ruff
+        run: uv run ruff check src tests scripts
+      - name: Every Python file carries the AGPL SPDX header
+        run: |
+          missing=$(grep -L "SPDX-License-Identifier: AGPL-3.0-only" $(git ls-files 'src/*.py' 'tests/*.py' 'scripts/*.py') || true)
+          if [ -n "$missing" ]; then echo "Missing SPDX header:"; echo "$missing"; exit 1; fi
+      - name: Tests
+        run: uv run pytest -q -rfE
+      - name: Evaluation suite (golden questions)
+        run: uv run lyst eval
+      - name: Dependency licenses (AGPL-compatible, open source only)
+        run: uv run python scripts/licenses.py

@@ -60,6 +60,9 @@ def classify_failure(exc: BaseException) -> str:
     return "transient"
 AUTONOMY = ("assist", "delegate", "autonomous", "governed")
 MAX_STEP_ATTEMPTS = 2
+# A task whose worker died this many times (lease expired while running) is failed instead of re-claimed:
+# something in it kills workers, and re-running it forever would starve every other task.
+MAX_TAKEOVERS = int(os.environ.get("LYST_TASK_MAX_TAKEOVERS", "5"))
 
 
 def _now() -> datetime:
@@ -292,19 +295,55 @@ class TaskRuntime:
         until = now + timedelta(seconds=self.lease_seconds)
 
         def tx(c):
+            # a task whose worker died too often is failed, not re-claimed (see MAX_TAKEOVERS)
+            dead = c.execute("SELECT id, takeovers FROM tasks WHERE status = 'running' AND lease_until < ? "
+                             "AND takeovers >= ?", [now, MAX_TAKEOVERS]).fetchall()
+            for did, n in dead:
+                c.execute("UPDATE tasks SET status = 'failed', error = ?, updated_at = now(), lease_owner = NULL, "
+                          "lease_until = NULL WHERE id = ?",
+                          [f"abandoned: its worker stopped {n} times while running it", did])
             row = c.execute(
-                "SELECT id FROM tasks WHERE status = 'queued' OR (status = 'running' AND lease_until < ?) "
+                "SELECT id, status FROM tasks WHERE status = 'queued' OR (status = 'running' AND lease_until < ?) "
                 "ORDER BY CASE WHEN kind = 'scheduled' THEN 1 ELSE 0 END, created_at LIMIT 1", [now]).fetchone()
             if not row:
-                return None
+                return None, dead
+            # attempts counts every claim; takeovers only those of a dead worker's expired lease
             c.execute("UPDATE tasks SET status = 'running', lease_owner = ?, lease_until = ?, attempts = attempts + 1, "
+                      "takeovers = takeovers + CASE WHEN status = 'running' THEN 1 ELSE 0 END, "
                       "updated_at = now() WHERE id = ?", [self.worker_id, until, row[0]])
-            return row[0]
+            return row[0], dead
 
-        tid = self.db.write(tx)
+        tid, dead = self.db.write(tx)
+        for did, n in dead:
+            log.error("task %s abandoned after %s worker takeovers", did, n)
+            self.event(did, "failed", f"Abandoned: its worker stopped {n} times while running it")
         if tid:
             self.event(tid, "claimed", f"Worker {self.worker_id} started")
         return tid
+
+    def _finish(self, task_id: str, sets: str, params: list[Any]) -> str | None:
+        """A terminal (or gate) write fenced on this worker's lease: a cancel, pause or takeover that landed while
+        a step ran wins, and the stale worker's write is dropped. Returns None when written, else the status found."""
+
+        def tx(c):
+            row = c.execute("SELECT status, lease_owner FROM tasks WHERE id = ?", [task_id]).fetchone()
+            if not row or row[0] != "running" or row[1] != self.worker_id:
+                return row[0] if row else "missing"
+            c.execute(f"UPDATE tasks SET {sets}, updated_at = now() WHERE id = ?", [*params, task_id])
+            return None
+
+        return self.db.write(tx)
+
+    def _heartbeat(self, task_id: str, stop: threading.Event) -> None:
+        """Keep the lease alive while a step runs: a step longer than the lease must not let a second worker
+        claim the task and run the same step again."""
+        interval = max(0.2, self.lease_seconds / 3)
+        while not stop.wait(interval):
+            try:
+                if self._renew(task_id) != "running":
+                    return
+            except Exception:  # noqa: BLE001 - the wave loop's own renew reports the state
+                log.warning("lease renewal for %s failed", task_id, exc_info=True)
 
     def _renew(self, task_id: str) -> str:
         def tx(c):
@@ -322,7 +361,15 @@ class TaskRuntime:
         try:
             with obs.tracer().start_as_current_span("task") as span:
                 span.set_attribute("lyst.task_id", task_id)
-                state = self._run_task(task_id)
+                stop = threading.Event()
+                beat = threading.Thread(target=self._heartbeat, args=(task_id, stop), daemon=True,
+                                        name=f"lease-{task_id[-6:]}")
+                beat.start()
+                try:
+                    state = self._run_task(task_id)
+                finally:
+                    stop.set()
+                    beat.join(timeout=5)
                 span.set_attribute("lyst.status", state)
         finally:
             obs.task_id.reset(ctx_token)
@@ -386,8 +433,11 @@ class TaskRuntime:
         finally:
             pool.shutdown(wait=True, cancel_futures=True)
         result = ctx.outputs.get("deliver")
-        self.db.execute("UPDATE tasks SET status = 'done', result = ?, updated_at = now(), lease_owner = NULL, "
-                        "lease_until = NULL WHERE id = ?", [json.dumps(result, default=str), task_id])
+        found = self._finish(task_id, "status = 'done', result = ?, lease_owner = NULL, lease_until = NULL",
+                             [json.dumps(result, default=str)])
+        if found is not None:
+            self.event(task_id, "stopped", f"Finished all steps but the task was already {found}; result discarded")
+            return found
         self.event(task_id, "done", (result or {}).get("answer", "Done")[:200])
         return "done"
 
@@ -411,7 +461,9 @@ class TaskRuntime:
         if not pending:
             self.request_approval(t["workspace_id"], actor.user_id, f"step:{seq}", f"Run {cap.name}: {cap.description}",
                                   step.get("args", {}), task_id)
-        self.db.execute("UPDATE tasks SET status = 'awaiting_approval', lease_owner = NULL WHERE id = ?", [task_id])
+        found = self._finish(task_id, "status = 'awaiting_approval', lease_owner = NULL, lease_until = NULL", [])
+        if found is not None:
+            return found
         self.event(task_id, "awaiting_approval", f"{cap.name} needs approval")
         return "awaiting_approval"
 
@@ -470,12 +522,17 @@ class TaskRuntime:
             payload = json.dumps(output, default=str)
 
             def commit(c):
+                owner = c.execute("SELECT lease_owner FROM tasks WHERE id = ?", [task_id]).fetchone()
+                if not owner or owner[0] not in (self.worker_id, None):
+                    return False  # another worker took the task over; its run owns the checkpoints now
                 c.execute("UPDATE task_steps SET status = 'done', output = ?, finished_at = now() "
                           "WHERE task_id = ? AND seq = ?", [payload, task_id, seq])
                 if key == "plan":
                     c.execute("UPDATE tasks SET plan = ? WHERE id = ?", [payload, task_id])
+                return True
 
-            self.db.write(commit)
+            if not self.db.write(commit):
+                return {"status": "failed", "failure_class": "transient", "error": "lease lost to another worker"}
             self.event(task_id, "step_done", f"{cap.name} done", {"seq": seq})
             return {"status": "done", "output": output}
         finally:
@@ -488,8 +545,9 @@ class TaskRuntime:
                     pass
 
     def _fail(self, task_id: str, error: str) -> str:
-        self.db.execute("UPDATE tasks SET status = 'failed', error = ?, updated_at = now(), lease_owner = NULL "
-                        "WHERE id = ?", [error, task_id])
+        found = self._finish(task_id, "status = 'failed', error = ?, lease_owner = NULL, lease_until = NULL", [error])
+        if found is not None:
+            return found
         self.event(task_id, "failed", error)
         return "failed"
 
