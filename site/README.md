@@ -114,8 +114,9 @@ last good "Website" workflow run from the Actions tab.
 
 ## Known limitations
 
-- The brand assets are a vector recreation of the supplied logo. Compare them with the original PNG and
-  adjust `scripts/build-brand.mjs` if the proportions need to match more closely.
+- The brand assets are traced by hand from the supplied logo (`brand/lyst-logo-original.png`); the
+  wordmark is Inter ExtraBold converted to outlines. Adjust `scripts/build-brand.mjs` and run
+  `npm run brand` to refine proportions.
 - The GitHub link, contact address and waitlist endpoint are unset until those exist.
 - The waitlist service must be hosted separately (one process, persistent encrypted disk). It sends no
   email; confirmations and removal requests are handled by an operator with the CLI.
