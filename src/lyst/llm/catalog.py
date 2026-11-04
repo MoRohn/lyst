@@ -145,6 +145,15 @@ def _created(value: Any) -> str | None:
     return None
 
 
+def _reasoning_info(r: Any) -> dict | None:
+    """OpenRouter's per-model ``reasoning`` block: whether thinking is mandatory, on by default, and which efforts exist."""
+    if not isinstance(r, dict):
+        return None
+    efforts = [e for e in r.get("supported_efforts") or [] if isinstance(e, str)]
+    default_on = r["default_enabled"] if isinstance(r.get("default_enabled"), bool) else r.get("default_effort") not in (None, "none")
+    return {"mandatory": r.get("mandatory") is True, "defaultOn": bool(default_on), "efforts": efforts}
+
+
 def normalize(payload: Any, *, now: datetime | None = None) -> list[dict]:
     """OpenRouter ``/models`` rows → Lyst's model rows (one per id), with vendor, family and role."""
     rows = payload.get("data", []) if isinstance(payload, dict) else payload if isinstance(payload, list) else []
@@ -166,7 +175,7 @@ def normalize(payload: Any, *, now: datetime | None = None) -> list[dict]:
             "inputUsdPerToken": _num(pricing.get("prompt")), "outputUsdPerToken": _num(pricing.get("completion")),
             "cachedInputUsdPerToken": _num(pricing.get("input_cache_read")), "perRequestUsd": _num(pricing.get("request")),
             "tools": "tools" in params, "structured": "structured_outputs" in params or "response_format" in params,
-            "reasoning": "reasoning" in params, "vision": "image" in (arch.get("input_modalities") or []),
+            "reasoning": "reasoning" in params, "reasoningInfo": _reasoning_info(row.get("reasoning")), "vision": "image" in (arch.get("input_modalities") or []),
             "text": not out_mod or "text" in out_mod,
             "createdAt": _created(row.get("created")), "expiresOn": expires,
             "deprecated": row.get("deprecated") is True or bool(expires and expires[:10] <= today),
@@ -205,7 +214,8 @@ def _newest_key(m: dict) -> tuple:
 
 
 TIER_FIELDS = ("modelId", "modelLabel", "vendor", "context", "inputUsdPerToken", "outputUsdPerToken",
-               "cachedInputUsdPerToken", "perRequestUsd")
+               "cachedInputUsdPerToken", "perRequestUsd", "reasoningInfo")
+SCHEMA = 2  # 2: models carry reasoningInfo; a stored release of an older schema is refreshed
 
 
 def select_tiers(models: list[dict]) -> dict[str, list[dict]]:
@@ -219,7 +229,7 @@ def select_tiers(models: list[dict]) -> dict[str, list[dict]]:
             candidates = [m for m in pool if m["vendor"] == vendor and m["role"] == role]
             if candidates:
                 chosen = max(candidates, key=_newest_key)
-                tiers[tier].append({k: chosen.get(k, 0.0) for k in TIER_FIELDS})
+                tiers[tier].append({k: chosen.get(k) if k == "reasoningInfo" else chosen.get(k, 0.0) for k in TIER_FIELDS})
         tiers[tier].sort(key=lambda m: (typical_call_usd(m), -m["context"]))
     return tiers
 
@@ -247,7 +257,7 @@ def build_release(payload: Any, *, now: datetime | None = None) -> dict:
     models = normalize(payload, now=now)
     picker = sorted((m for m in models if selectable(m)), key=lambda m: m.get("createdAt") or "", reverse=True)
     picker.sort(key=lambda m: (m["vendor"] is None, VENDOR_LABEL.get(m["vendor"] or "", m["modelId"].split("/")[0])))
-    return {"source": "openrouter", "policyId": POLICY_ID, "lastRefreshedAt": now.isoformat(),
+    return {"source": "openrouter", "schema": SCHEMA, "policyId": POLICY_ID, "lastRefreshedAt": now.isoformat(),
             "modelCount": len(models), "tiers": select_tiers(models),
             "models": [{k: m[k] for k in (*TIER_FIELDS, "structured", "reasoning", "vision", "createdAt", "expiresOn", "family", "role")}
                        for m in picker]}
@@ -324,7 +334,7 @@ def tier_of_model(model_id: str, release: dict | None = None) -> str | None:
 
 
 def stale(release: dict, now: datetime | None = None) -> bool:
-    if release.get("source") != "openrouter":
+    if release.get("source") != "openrouter" or release.get("schema", 1) < SCHEMA:
         return True
     try:
         at = datetime.fromisoformat(release["lastRefreshedAt"].replace("Z", "+00:00"))

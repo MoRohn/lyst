@@ -248,3 +248,63 @@ def test_tiers_follow_acumane_catalog():
     assert policy.attempts("balanced")[0] == policy.tier_models("balanced")[0]["modelId"]
     assert policy.attempts("balanced", "openai/gpt-5.4") == ["openai/gpt-5.4"]
     assert len(policy.attempts("economy")) >= 2
+
+
+def test_quick_workloads_lower_reasoning_and_prefer_fast_endpoints():
+    seen = []
+
+    def handler(req):
+        seen.append(json.loads(req.content))
+        return httpx.Response(200, json=OK)
+
+    g, _, _ = gw(handler)
+    quick = lambda model, workload: {"effort": "none"} if workload == "classify" else None  # noqa: E731
+    g.complete([{"role": "user", "content": "hi"}], models=["a/one"], workload="classify", pool="interactive", reasoning_for=quick)
+    g.complete([{"role": "user", "content": "hi"}], models=["a/one"], workload="classify", pool="background", reasoning_for=quick)
+    g.complete([{"role": "user", "content": "hi"}], models=["a/one"], workload="chat", reasoning_for=quick)
+    g.complete([{"role": "user", "content": "hi"}], models=["a/one"], workload="classify", reasoning_effort="high", reasoning_for=quick)
+    assert seen[0]["reasoning"] == {"effort": "none"}
+    assert seen[0]["provider"] == {"preferred_max_latency": {"p50": 2, "p90": 5}}  # a person waits on it
+    assert "provider" not in seen[1] and seen[1]["reasoning"] == {"effort": "none"}  # background keeps price balancing
+    assert "reasoning" not in seen[2]                                                 # chat keeps the model's default
+    assert seen[3]["reasoning"] == {"effort": "high"}                                 # an explicit effort wins
+
+
+def test_rejected_reasoning_setting_is_retried_without_it_and_remembered():
+    seen = []
+
+    def handler(req):
+        body = json.loads(req.content)
+        seen.append(body.get("reasoning"))
+        if body.get("reasoning"):
+            return httpx.Response(400, json={"error": {"message": "reasoning_effort none is not supported for this model"}})
+        return httpx.Response(200, json=OK)
+
+    g, _, calls = gw(handler)
+    quick = lambda model, workload: {"effort": "none"}  # noqa: E731
+    r = g.complete([{"role": "user", "content": "hi"}], models=["m/large"], workload="classify", reasoning_for=quick)
+    assert r.text == "fine" and seen == [{"effort": "none"}, None]
+    assert [c.outcome for c in calls] == ["rejected", "ok"]
+    g.complete([{"role": "user", "content": "hi"}], models=["m/large"], workload="classify", reasoning_for=quick)
+    assert seen[-1] is None and len(seen) == 3  # not sent again to that model
+    # any other 400 still fails the call
+    g2, _, _ = gw(lambda req: httpx.Response(400, json={"error": {"message": "bad messages"}}))
+    with pytest.raises(RequestRejected):
+        g2.complete([{"role": "user", "content": "hi"}], models=["m/x"], workload="classify", reasoning_for=quick)
+
+
+def test_refused_reasoning_setting_moves_a_tier_walk_to_the_next_model():
+    seen = []
+
+    def handler(req):
+        body = json.loads(req.content)
+        seen.append((body["model"], body.get("reasoning")))
+        if body["model"] == "m/large" and body.get("reasoning"):
+            return httpx.Response(400, json={"error": {"message": "reasoning_effort none is not supported"}})
+        return httpx.Response(200, json=OK)
+
+    g, _, _ = gw(handler)
+    quick = lambda model, workload: {"effort": "none"}  # noqa: E731
+    r = g.complete([{"role": "user", "content": "hi"}], models=["m/large", "m/next"], workload="classify", reasoning_for=quick)
+    assert r.model == "m/next" and seen == [("m/large", {"effort": "none"}), ("m/next", {"effort": "none"})]
+    assert g.reasoning_refused == {"m/large"}

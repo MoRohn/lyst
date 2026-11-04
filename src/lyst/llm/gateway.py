@@ -38,7 +38,7 @@ from typing import Any
 
 import httpx
 
-from .policy import DEFAULT_POOL, WORKLOAD_ROUTING, AdmissionLimits, admission_limits
+from .policy import DEFAULT_POOL, INTERACTIVE_LATENCY, WORKLOAD_ROUTING, AdmissionLimits, admission_limits
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_SITE = "https://github.com/MoRohn/lyst"
@@ -305,12 +305,17 @@ class Gateway:
         self.rng = rng or random.Random()  # noqa: S311 - retry jitter, not security
         self.on_call = on_call or (lambda r: None)
         self.timeout_s = timeout_s
+        self.reasoning_refused: set[str] = set()  # models whose provider rejected a reasoning setting the catalog listed
 
     # -- request shaping --------------------------------------------------------------------
 
     def _body(self, model: str, messages: list[dict], workload: str, *, json_mode: bool, max_tokens: int | None,
-              reasoning_effort: str | None, extra: dict | None) -> dict[str, Any]:
+              reasoning_effort: str | None, extra: dict | None, pool: str = "interactive",
+              reasoning: dict | None = None) -> dict[str, Any]:
         routing = WORKLOAD_ROUTING.get(workload, {})
+        if pool == "interactive" and not routing.get("provider"):
+            # a person is waiting even on a short classification: prefer fast endpoints, as chat does
+            routing = {**routing, "provider": INTERACTIVE_LATENCY}
         body: dict[str, Any] = {"model": model, "messages": messages, "temperature": 0,
                                 "max_tokens": max_tokens or routing.get("max_tokens") or 1024}
         if json_mode:
@@ -321,6 +326,8 @@ class Gateway:
                 body["provider"] = routing["provider"]
             if reasoning_effort:
                 body["reasoning"] = {"effort": reasoning_effort}
+            elif reasoning and model not in self.reasoning_refused:
+                body["reasoning"] = reasoning
             if json_mode:
                 body["plugins"] = [{"id": "response-healing"}]
         if extra:
@@ -341,7 +348,11 @@ class Gateway:
 
     def complete(self, messages: list[dict], *, models: list[str], workload: str = "chat", tenant: str = "platform",
                  pool: str | None = None, json_mode: bool = False, max_tokens: int | None = None,
-                 reasoning_effort: str | None = None, extra: dict | None = None) -> CallResult:
+                 reasoning_effort: str | None = None, extra: dict | None = None,
+                 reasoning_for: Callable[[str, str], dict | None] | None = None) -> CallResult:
+        """``reasoning_for(model, workload)`` may lower a model's reasoning for a quick call (``policy.quick_reasoning``).
+        If the provider rejects that setting the model is remembered and never sent it again; the call moves to the
+        next model, or, on the last (or only, pinned) model, retries it once without the setting."""
         pool = pool or DEFAULT_POOL.get(workload, "interactive")
         est = sum(len(m.get("content") or "") for m in messages) // 4 + (
             max_tokens or WORKLOAD_ROUTING.get(workload, {}).get("max_tokens") or 1024)
@@ -350,6 +361,7 @@ class Gateway:
         for model in models:
             in_flight_budget_retried = False
             length_retried = False
+            reasoning = reasoning_for(model, workload) if reasoning_for and not reasoning_effort else None
             attempt = 0
             while attempt < self.MAX_TRIES:
                 attempt += 1
@@ -362,7 +374,7 @@ class Gateway:
                     resp = self.http.post(f"{self.base_url}/chat/completions", headers=self._headers(tenant),
                                           json=self._body(model, messages, workload, json_mode=json_mode,
                                                           max_tokens=max_tokens, reasoning_effort=reasoning_effort,
-                                                          extra=extra),
+                                                          extra=extra, pool=pool, reasoning=reasoning),
                                           timeout=self.timeout_s)
                     status = resp.status_code
                     retry_after = _retry_after(resp)
@@ -408,6 +420,15 @@ class Gateway:
                                       rec.input_tokens, rec.output_tokens, rec.cost_usd, tries_total,
                                       lease.queue_ms, latency, data)
                 self.on_call(rec)
+                if outcome == "rejected" and reasoning and model not in self.reasoning_refused and "reasoning" in resp.text.lower():
+                    # the provider refused the lower thinking setting the catalog listed: remember it; walking a tier,
+                    # go to the next model (it would think at length here), else retry this one without the setting
+                    self.reasoning_refused.add(model)
+                    if model != models[-1]:
+                        last_error = f"{model}: reasoning setting refused"
+                        break
+                    attempt -= 1
+                    continue
                 if outcome == "rejected":
                     raise RequestRejected(f"{model} rejected the request ({status})")
                 if outcome == "credits":

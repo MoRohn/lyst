@@ -208,3 +208,48 @@ def test_migration_versions_are_unique():
     for migrations in (CONTROL, WORKSPACE):
         versions = [v for v, _ in migrations]
         assert len(versions) == len(set(versions)), sorted(versions)
+
+
+def test_quick_reasoning_follows_each_models_reasoning_info():
+    def r(mid, info):
+        return row(mid, 1e-6, 2e-6, reasoning=info)
+
+    rel = catalog.build_release({"data": PAYLOAD["data"] + [
+        r("acme/thinks-by-default", {"mandatory": False, "default_effort": "high", "supported_efforts": ["high", "low", "none"]}),
+        r("acme/always-thinks", {"mandatory": True, "default_enabled": True, "supported_efforts": ["high", "low", "minimal"]}),
+        r("acme/always-thinks-high", {"mandatory": True, "supported_efforts": ["high"]}),
+        r("acme/off-by-default", {"mandatory": False, "default_enabled": False, "supported_efforts": ["high", "none"]}),
+        r("acme/no-efforts", {"mandatory": False, "default_enabled": True}),
+    ]})
+    assert rel["schema"] == catalog.SCHEMA
+    catalog.activate(rel)
+    try:
+        q = policy.quick_reasoning
+        assert q("acme/thinks-by-default", "classify") == {"effort": "none"}
+        assert q("acme/always-thinks", "extract") == {"effort": "minimal"}
+        assert q("acme/always-thinks-high", "classify") is None
+        assert q("acme/off-by-default", "classify") is None
+        assert q("acme/no-efforts", "structured") == {"enabled": False}
+        assert q("acme/thinks-by-default", "chat") is None and q("acme/thinks-by-default", "reasoning") is None
+        assert q("nobody/unknown", "classify") is None
+        # a release stored before reasoning info existed is refreshed
+        assert catalog.stale({**rel, "schema": 1}) and not catalog.stale(rel)
+    finally:
+        catalog.activate(catalog.bundled())
+
+
+def test_quick_calls_order_and_short_chat():
+    rel = catalog.build_release({"data": PAYLOAD["data"] + [
+        row("acme/a-thinker", 1e-6, 2e-6, reasoning={"mandatory": True, "supported_efforts": ["high"]}),
+        row("acme/b-plain", 1e-6, 2e-6),
+        row("acme/c-lowerable", 1e-6, 2e-6, reasoning={"default_effort": "high", "supported_efforts": ["high", "none"]})]})
+    catalog.activate(rel)
+    try:
+        order = policy.quick_order(["acme/a-thinker", "acme/b-plain", "acme/c-lowerable"])
+        assert order == ["acme/b-plain", "acme/c-lowerable", "acme/a-thinker"]
+        assert policy.quick_order(["acme/c-lowerable", "acme/b-plain"], {"acme/c-lowerable"}) == ["acme/b-plain", "acme/c-lowerable"]
+        assert policy.is_quick("classify") and policy.is_quick("chat", 600)
+        assert not policy.is_quick("chat") and not policy.is_quick("chat", 2048) and not policy.is_quick("long_form", 600)
+        assert policy.quick_reasoning("acme/c-lowerable", "quick") == {"effort": "none"}
+    finally:
+        catalog.activate(catalog.bundled())
