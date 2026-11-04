@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Event impact'],
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Your fiscal calendar'],
     status: 'available',
   },
   {
@@ -163,10 +163,10 @@ export const enterprise = {
   headline: 'Built for serious analytical work.',
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
-    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person. Decisions are recorded, approved and later checked against what happened.', status: 'available' as Status },
+    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Any figure traces to its step, query, definition version, dataset version and source, and can be reproduced.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. Decisions are recorded and later checked against what happened.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
-    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, and row and column policies decide what each person sees. Reports stay private, go to named people or are published.', status: 'available' as Status },
+    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging, plus encrypted backups that run while Lyst is up and are checked before any restore.', status: 'available' as Status },
