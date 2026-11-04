@@ -1,0 +1,139 @@
+{
+ "id": "manufacturing",
+ "version": "1.0.0",
+ "title": "Manufacturing and operations",
+ "summary": "Output, yield, scrap, downtime and equipment effectiveness.",
+ "signals": [
+  "plant",
+  "line",
+  "machine",
+  "equipment",
+  "work_order",
+  "batch",
+  "yield",
+  "scrap",
+  "defect",
+  "downtime",
+  "oee",
+  "throughput",
+  "units_produced",
+  "shift",
+  "cycle_time",
+  "production",
+  "rework"
+ ],
+ "concepts": [
+  {
+   "name": "plant",
+   "synonyms": [
+    "plant",
+    "site",
+    "factory"
+   ]
+  },
+  {
+   "name": "line",
+   "synonyms": [
+    "line",
+    "production_line",
+    "machine",
+    "equipment"
+   ]
+  },
+  {
+   "name": "work_order",
+   "synonyms": [
+    "work_order",
+    "batch",
+    "lot"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "units_produced",
+   "title": "Units produced",
+   "agg": "sum",
+   "columns": [
+    "units_produced",
+    "output",
+    "quantity_produced",
+    "good_units"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "scrap_units",
+   "title": "Scrap units",
+   "agg": "sum",
+   "columns": [
+    "scrap",
+    "scrap_units",
+    "defects",
+    "rejected_units"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "downtime_minutes",
+   "title": "Downtime (minutes)",
+   "agg": "sum",
+   "columns": [
+    "downtime",
+    "downtime_minutes"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "cycle_time",
+   "title": "Cycle time",
+   "agg": "avg",
+   "columns": [
+    "cycle_time",
+    "cycle_time_seconds"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Which lines had the most unplanned downtime last month?",
+  "How has scrap rate trended by plant?",
+  "Which shifts produce the highest yield?"
+ ],
+ "sources": [
+  {
+   "name": "Manufacturing execution system",
+   "signals": [
+    "work_order",
+    "batch",
+    "units_produced"
+   ]
+  },
+  {
+   "name": "Maintenance",
+   "signals": [
+    "downtime",
+    "machine",
+    "equipment"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "oee",
+   "definition": "Overall equipment effectiveness: availability times performance times quality."
+  },
+  {
+   "term": "yield",
+   "definition": "Good units as a share of units started."
+  }
+ ]
+}

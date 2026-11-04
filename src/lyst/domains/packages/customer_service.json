@@ -1,0 +1,138 @@
+{
+ "id": "customer_service",
+ "version": "1.0.0",
+ "title": "Customer service",
+ "summary": "Tickets, response and resolution times, backlog and satisfaction.",
+ "signals": [
+  "ticket",
+  "case",
+  "incident",
+  "priority",
+  "agent",
+  "queue",
+  "first_response",
+  "resolution",
+  "resolved",
+  "sla",
+  "csat",
+  "nps",
+  "backlog",
+  "escalation",
+  "contact",
+  "channel",
+  "satisfaction"
+ ],
+ "concepts": [
+  {
+   "name": "ticket",
+   "synonyms": [
+    "ticket",
+    "ticket_id",
+    "case",
+    "case_id"
+   ]
+  },
+  {
+   "name": "agent",
+   "synonyms": [
+    "agent",
+    "assignee",
+    "owner"
+   ]
+  },
+  {
+   "name": "queue",
+   "synonyms": [
+    "queue",
+    "team",
+    "group"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "tickets",
+   "title": "Tickets",
+   "agg": "count_distinct",
+   "columns": [
+    "ticket_id",
+    "case_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "resolution_hours",
+   "title": "Resolution time (hours)",
+   "agg": "avg",
+   "columns": [
+    "resolution_hours",
+    "resolution_time",
+    "time_to_resolve"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "first_response_minutes",
+   "title": "First response (minutes)",
+   "agg": "avg",
+   "columns": [
+    "first_response_minutes",
+    "first_response_time"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "csat",
+   "title": "Customer satisfaction",
+   "agg": "avg",
+   "columns": [
+    "csat",
+    "satisfaction",
+    "csat_score"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Is the ticket backlog growing, and in which queues?",
+  "How has first response time changed by priority?",
+  "Which issue categories drive the lowest satisfaction?"
+ ],
+ "sources": [
+  {
+   "name": "Help desk",
+   "signals": [
+    "ticket",
+    "case",
+    "queue"
+   ]
+  },
+  {
+   "name": "Surveys",
+   "signals": [
+    "csat",
+    "nps",
+    "satisfaction"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "sla",
+   "definition": "Service-level agreement: the response or resolution time promised for a priority."
+  },
+  {
+   "term": "csat",
+   "definition": "Customer satisfaction score from post-contact surveys.",
+   "metric": "csat"
+  }
+ ]
+}

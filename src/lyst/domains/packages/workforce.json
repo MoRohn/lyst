@@ -1,0 +1,141 @@
+{
+ "id": "workforce",
+ "version": "1.0.0",
+ "title": "Workforce and HR analytics",
+ "summary": "Headcount, hiring, attrition, compensation and absence.",
+ "signals": [
+  "employee",
+  "headcount",
+  "hire",
+  "hire_date",
+  "termination",
+  "attrition",
+  "turnover",
+  "salary",
+  "compensation",
+  "department",
+  "job",
+  "grade",
+  "manager",
+  "tenure",
+  "absence",
+  "fte",
+  "payroll",
+  "worker"
+ ],
+ "concepts": [
+  {
+   "name": "employee",
+   "synonyms": [
+    "employee",
+    "employee_id",
+    "worker",
+    "worker_id"
+   ]
+  },
+  {
+   "name": "department",
+   "synonyms": [
+    "department",
+    "org_unit",
+    "team"
+   ]
+  },
+  {
+   "name": "position",
+   "synonyms": [
+    "job",
+    "job_title",
+    "position",
+    "grade"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "headcount",
+   "title": "Headcount",
+   "agg": "count_distinct",
+   "columns": [
+    "employee_id",
+    "worker_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "fte",
+   "title": "Full-time equivalents",
+   "agg": "sum",
+   "columns": [
+    "fte"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "payroll_cost",
+   "title": "Payroll cost",
+   "agg": "sum",
+   "columns": [
+    "salary",
+    "payroll",
+    "compensation",
+    "total_compensation"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "absence_days",
+   "title": "Absence days",
+   "agg": "sum",
+   "columns": [
+    "absence_days",
+    "sick_days",
+    "days_absent"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "How has headcount changed by department this year?",
+  "Which teams have the highest attrition?",
+  "How does payroll cost per FTE compare across locations?"
+ ],
+ "sources": [
+  {
+   "name": "HR information system",
+   "signals": [
+    "employee",
+    "hire",
+    "termination",
+    "job"
+   ]
+  },
+  {
+   "name": "Payroll",
+   "signals": [
+    "payroll",
+    "salary",
+    "compensation"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "attrition",
+   "definition": "Employees who left during a period, as a share of average headcount."
+  },
+  {
+   "term": "fte",
+   "definition": "Full-time equivalent: hours worked expressed as a number of full-time employees.",
+   "metric": "fte"
+  }
+ ]
+}

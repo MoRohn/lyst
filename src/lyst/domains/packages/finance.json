@@ -1,0 +1,177 @@
+{
+ "id": "finance",
+ "version": "1.0.0",
+ "title": "Finance and FP&A",
+ "summary": "Revenue, cost, margin, budget and variance across accounts, entities and periods.",
+ "signals": [
+  "revenue",
+  "sales",
+  "cost",
+  "cogs",
+  "expense",
+  "opex",
+  "capex",
+  "margin",
+  "budget",
+  "forecast",
+  "plan",
+  "actual",
+  "variance",
+  "ledger",
+  "gl",
+  "account",
+  "journal",
+  "invoice",
+  "ebitda",
+  "profit",
+  "pnl",
+  "p_l",
+  "entity",
+  "cost_center"
+ ],
+ "concepts": [
+  {
+   "name": "account",
+   "synonyms": [
+    "account",
+    "gl_account",
+    "ledger_account",
+    "account_code"
+   ]
+  },
+  {
+   "name": "cost_center",
+   "synonyms": [
+    "cost_center",
+    "cost_centre",
+    "department"
+   ]
+  },
+  {
+   "name": "entity",
+   "synonyms": [
+    "entity",
+    "legal_entity",
+    "company"
+   ]
+  },
+  {
+   "name": "scenario",
+   "synonyms": [
+    "scenario",
+    "version",
+    "actual",
+    "budget",
+    "forecast"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "revenue",
+   "title": "Revenue",
+   "agg": "sum",
+   "columns": [
+    "revenue",
+    "net_revenue",
+    "sales",
+    "net_sales"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": "Income from goods and services sold."
+  },
+  {
+   "name": "cost_of_goods_sold",
+   "title": "Cost of goods sold",
+   "agg": "sum",
+   "columns": [
+    "cogs",
+    "cost_of_goods_sold",
+    "cost_of_sales"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "operating_expense",
+   "title": "Operating expense",
+   "agg": "sum",
+   "columns": [
+    "opex",
+    "operating_expense",
+    "expense",
+    "expenses"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "gross_profit",
+   "title": "Gross profit",
+   "agg": "sum",
+   "columns": [
+    "gross_profit",
+    "gross_margin_amount"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "budget",
+   "title": "Budget",
+   "agg": "sum",
+   "columns": [
+    "budget",
+    "budget_amount",
+    "plan",
+    "plan_amount"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "How did revenue change versus the prior quarter, and what drove it?",
+  "Which cost centers are furthest over budget this year?",
+  "What is the trend in gross margin by region?"
+ ],
+ "sources": [
+  {
+   "name": "General ledger",
+   "signals": [
+    "ledger",
+    "gl",
+    "journal",
+    "account"
+   ]
+  },
+  {
+   "name": "Budget and forecast",
+   "signals": [
+    "budget",
+    "forecast",
+    "plan"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "gross margin",
+   "definition": "Revenue minus cost of goods sold, as a share of revenue."
+  },
+  {
+   "term": "opex",
+   "definition": "Operating expenses: costs of running the business that are not cost of goods sold.",
+   "metric": "operating_expense"
+  },
+  {
+   "term": "variance",
+   "definition": "The difference between an actual figure and its budget or forecast."
+  }
+ ]
+}

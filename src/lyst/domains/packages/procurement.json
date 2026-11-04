@@ -1,0 +1,142 @@
+{
+ "id": "procurement",
+ "version": "1.0.0",
+ "title": "Procurement and supply chain",
+ "summary": "Spend, suppliers, purchase orders, lead times and inventory.",
+ "signals": [
+  "supplier",
+  "vendor",
+  "purchase",
+  "po",
+  "purchase_order",
+  "spend",
+  "procurement",
+  "sku",
+  "inventory",
+  "stock",
+  "lead_time",
+  "receipt",
+  "requisition",
+  "contract",
+  "category",
+  "on_hand",
+  "reorder"
+ ],
+ "concepts": [
+  {
+   "name": "supplier",
+   "synonyms": [
+    "supplier",
+    "vendor",
+    "supplier_id",
+    "vendor_id"
+   ]
+  },
+  {
+   "name": "purchase_order",
+   "synonyms": [
+    "po",
+    "po_number",
+    "purchase_order"
+   ]
+  },
+  {
+   "name": "item",
+   "synonyms": [
+    "sku",
+    "item",
+    "material",
+    "part"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "spend",
+   "title": "Spend",
+   "agg": "sum",
+   "columns": [
+    "spend",
+    "po_amount",
+    "purchase_amount",
+    "amount_spent"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": "Money committed to suppliers."
+  },
+  {
+   "name": "purchase_orders",
+   "title": "Purchase orders",
+   "agg": "count_distinct",
+   "columns": [
+    "po_number",
+    "po_id",
+    "purchase_order_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "lead_time_days",
+   "title": "Lead time (days)",
+   "agg": "avg",
+   "columns": [
+    "lead_time",
+    "lead_time_days"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "inventory_on_hand",
+   "title": "Inventory on hand",
+   "agg": "sum",
+   "columns": [
+    "on_hand",
+    "quantity_on_hand",
+    "stock_level",
+    "inventory"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Which suppliers account for most of our spend this year?",
+  "How have supplier lead times changed over the last six months?",
+  "Which items are below reorder level?"
+ ],
+ "sources": [
+  {
+   "name": "Purchasing system",
+   "signals": [
+    "po",
+    "purchase",
+    "requisition"
+   ]
+  },
+  {
+   "name": "Inventory",
+   "signals": [
+    "inventory",
+    "stock",
+    "on_hand"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "spend under management",
+   "definition": "The share of spend that goes through approved suppliers and contracts."
+  },
+  {
+   "term": "lead time",
+   "definition": "Days between placing an order and receiving it.",
+   "metric": "lead_time_days"
+  }
+ ]
+}

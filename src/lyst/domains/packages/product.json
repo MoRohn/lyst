@@ -1,0 +1,134 @@
+{
+ "id": "product",
+ "version": "1.0.0",
+ "title": "Product analytics",
+ "summary": "Active users, engagement, feature adoption, retention and funnels.",
+ "signals": [
+  "user",
+  "user_id",
+  "session",
+  "event",
+  "event_name",
+  "feature",
+  "dau",
+  "mau",
+  "active",
+  "retention",
+  "cohort",
+  "signup",
+  "activation",
+  "funnel",
+  "page",
+  "screen",
+  "platform",
+  "app_version"
+ ],
+ "concepts": [
+  {
+   "name": "user",
+   "synonyms": [
+    "user",
+    "user_id",
+    "account_id"
+   ]
+  },
+  {
+   "name": "event",
+   "synonyms": [
+    "event",
+    "event_name",
+    "action"
+   ]
+  },
+  {
+   "name": "feature",
+   "synonyms": [
+    "feature",
+    "module",
+    "screen",
+    "page"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "active_users",
+   "title": "Active users",
+   "agg": "count_distinct",
+   "columns": [
+    "user_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "sessions",
+   "title": "Sessions",
+   "agg": "count_distinct",
+   "columns": [
+    "session_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "events",
+   "title": "Events",
+   "agg": "sum",
+   "columns": [
+    "event_count",
+    "events"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "signups",
+   "title": "Sign-ups",
+   "agg": "sum",
+   "columns": [
+    "signups",
+    "signup_count"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "How have weekly active users trended over the last quarter?",
+  "Which features are adopted most by new users?",
+  "How does retention differ by sign-up cohort?"
+ ],
+ "sources": [
+  {
+   "name": "Product events",
+   "signals": [
+    "event",
+    "event_name",
+    "session"
+   ]
+  },
+  {
+   "name": "Accounts",
+   "signals": [
+    "signup",
+    "user",
+    "plan"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "dau",
+   "definition": "Daily active users: distinct users with at least one event that day."
+  },
+  {
+   "term": "activation",
+   "definition": "A new user reaching the first moment of value the product defines."
+  }
+ ]
+}

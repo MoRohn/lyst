@@ -1,0 +1,164 @@
+{
+ "id": "sales",
+ "version": "1.0.0",
+ "title": "Sales and revenue operations",
+ "summary": "Pipeline, bookings, win rates, quota attainment and accounts.",
+ "signals": [
+  "opportunity",
+  "pipeline",
+  "deal",
+  "stage",
+  "bookings",
+  "quota",
+  "win",
+  "won",
+  "lost",
+  "close_date",
+  "account",
+  "rep",
+  "territory",
+  "arr",
+  "mrr",
+  "acv",
+  "customer",
+  "order",
+  "orders",
+  "sales"
+ ],
+ "concepts": [
+  {
+   "name": "opportunity",
+   "synonyms": [
+    "opportunity",
+    "deal",
+    "opportunity_id",
+    "deal_id"
+   ]
+  },
+  {
+   "name": "account",
+   "synonyms": [
+    "account",
+    "customer",
+    "account_id",
+    "customer_id"
+   ]
+  },
+  {
+   "name": "rep",
+   "synonyms": [
+    "rep",
+    "owner",
+    "sales_rep",
+    "account_executive"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "bookings",
+   "title": "Bookings",
+   "agg": "sum",
+   "columns": [
+    "bookings",
+    "booking_amount",
+    "amount_won",
+    "acv"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "pipeline_value",
+   "title": "Pipeline value",
+   "agg": "sum",
+   "columns": [
+    "pipeline",
+    "pipeline_amount",
+    "opportunity_amount",
+    "deal_amount"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "orders",
+   "title": "Orders",
+   "agg": "count_distinct",
+   "columns": [
+    "order_id",
+    "order_number"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "arr",
+   "title": "Annual recurring revenue",
+   "agg": "sum",
+   "columns": [
+    "arr",
+    "annual_recurring_revenue"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "quota",
+   "title": "Quota",
+   "agg": "sum",
+   "columns": [
+    "quota",
+    "quota_amount",
+    "target"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "How much pipeline is expected to close this quarter, by stage?",
+  "Which territories are behind quota?",
+  "How have bookings trended by month this year?"
+ ],
+ "sources": [
+  {
+   "name": "CRM",
+   "signals": [
+    "opportunity",
+    "deal",
+    "pipeline",
+    "stage"
+   ]
+  },
+  {
+   "name": "Order management",
+   "signals": [
+    "order",
+    "orders",
+    "invoice"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "bookings",
+   "definition": "The value of contracts signed in a period.",
+   "metric": "bookings"
+  },
+  {
+   "term": "win rate",
+   "definition": "Opportunities won as a share of opportunities closed."
+  },
+  {
+   "term": "arr",
+   "definition": "Annual recurring revenue: the yearly value of active subscriptions.",
+   "metric": "arr"
+  }
+ ]
+}

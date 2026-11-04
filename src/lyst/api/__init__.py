@@ -1285,6 +1285,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
             "quantile_cont(latency_ms, 0.95) AS p95_ms FROM llm_calls WHERE workspace_id = ? GROUP BY ALL ORDER BY calls DESC",
             [ws])
 
+    from .adapt import register as register_adapt  # noqa: PLC0415
+
+    register_adapt(app, L, User)
     return app
 
 

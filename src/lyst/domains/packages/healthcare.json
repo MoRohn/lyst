@@ -1,0 +1,138 @@
+{
+ "id": "healthcare",
+ "version": "1.0.0",
+ "title": "Healthcare operations",
+ "summary": "Encounters, admissions, length of stay, capacity and readmissions.",
+ "signals": [
+  "patient",
+  "encounter",
+  "admission",
+  "discharge",
+  "los",
+  "length_of_stay",
+  "bed",
+  "ward",
+  "department",
+  "provider",
+  "diagnosis",
+  "readmission",
+  "appointment",
+  "no_show",
+  "claim",
+  "payer",
+  "procedure"
+ ],
+ "concepts": [
+  {
+   "name": "encounter",
+   "synonyms": [
+    "encounter",
+    "encounter_id",
+    "visit",
+    "admission"
+   ]
+  },
+  {
+   "name": "provider",
+   "synonyms": [
+    "provider",
+    "physician",
+    "clinician"
+   ]
+  },
+  {
+   "name": "unit",
+   "synonyms": [
+    "ward",
+    "unit",
+    "department"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "encounters",
+   "title": "Encounters",
+   "agg": "count_distinct",
+   "columns": [
+    "encounter_id",
+    "visit_id",
+    "admission_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "length_of_stay",
+   "title": "Length of stay (days)",
+   "agg": "avg",
+   "columns": [
+    "length_of_stay",
+    "los",
+    "los_days"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "occupied_beds",
+   "title": "Occupied beds",
+   "agg": "sum",
+   "columns": [
+    "occupied_beds",
+    "beds_occupied"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "no_shows",
+   "title": "No-shows",
+   "agg": "sum",
+   "columns": [
+    "no_show",
+    "no_shows"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "How has average length of stay changed by ward?",
+  "Which clinics have the highest no-show rates?",
+  "Where is bed occupancy above target?"
+ ],
+ "sources": [
+  {
+   "name": "Patient administration",
+   "signals": [
+    "admission",
+    "discharge",
+    "encounter"
+   ]
+  },
+  {
+   "name": "Scheduling",
+   "signals": [
+    "appointment",
+    "no_show"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "alos",
+   "definition": "Average length of stay: inpatient days divided by discharges.",
+   "metric": "length_of_stay"
+  },
+  {
+   "term": "readmission rate",
+   "definition": "Patients readmitted within 30 days, as a share of discharges."
+  }
+ ],
+ "notes": "Patient-level data is personal and regulated; Lyst proposes column policies for identifying fields."
+}

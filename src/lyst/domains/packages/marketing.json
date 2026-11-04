@@ -1,0 +1,147 @@
+{
+ "id": "marketing",
+ "version": "1.0.0",
+ "title": "Marketing analytics",
+ "summary": "Campaigns, channels, spend, leads, conversion and acquisition cost.",
+ "signals": [
+  "campaign",
+  "channel",
+  "impressions",
+  "clicks",
+  "ctr",
+  "leads",
+  "lead",
+  "mql",
+  "sql",
+  "conversion",
+  "conversions",
+  "ad_spend",
+  "cpc",
+  "cpa",
+  "cac",
+  "utm",
+  "source",
+  "medium",
+  "sessions"
+ ],
+ "concepts": [
+  {
+   "name": "campaign",
+   "synonyms": [
+    "campaign",
+    "campaign_id",
+    "campaign_name"
+   ]
+  },
+  {
+   "name": "channel",
+   "synonyms": [
+    "channel",
+    "medium",
+    "source",
+    "utm_source"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "ad_spend",
+   "title": "Marketing spend",
+   "agg": "sum",
+   "columns": [
+    "ad_spend",
+    "spend",
+    "cost",
+    "media_spend"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "impressions",
+   "title": "Impressions",
+   "agg": "sum",
+   "columns": [
+    "impressions"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "clicks",
+   "title": "Clicks",
+   "agg": "sum",
+   "columns": [
+    "clicks"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "leads",
+   "title": "Leads",
+   "agg": "sum",
+   "columns": [
+    "leads",
+    "lead_count",
+    "mqls"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "conversions",
+   "title": "Conversions",
+   "agg": "sum",
+   "columns": [
+    "conversions",
+    "conversion_count"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Which channels produced the most leads per dollar last quarter?",
+  "How has click-through rate changed by campaign?",
+  "What is our cost per conversion by channel?"
+ ],
+ "sources": [
+  {
+   "name": "Ad platforms",
+   "signals": [
+    "impressions",
+    "clicks",
+    "ad_spend",
+    "cpc"
+   ]
+  },
+  {
+   "name": "Marketing automation",
+   "signals": [
+    "lead",
+    "mql",
+    "campaign"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "ctr",
+   "definition": "Click-through rate: clicks divided by impressions."
+  },
+  {
+   "term": "cac",
+   "definition": "Customer acquisition cost: sales and marketing cost divided by new customers won."
+  },
+  {
+   "term": "mql",
+   "definition": "Marketing-qualified lead."
+  }
+ ]
+}

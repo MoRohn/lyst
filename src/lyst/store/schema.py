@@ -832,3 +832,40 @@ CONTROL.append((
     )
     """,
 ))
+
+# Onboarding (this lane uses WORKSPACE 30-39 and CONTROL 30-39; numbers may be applied out of order).
+# Proposals from discovery wait here until an administrator accepts or dismisses them; each discovery run is kept;
+# the business profile (domain packages, the organization's terms, fiscal calendar, objectives) is versioned.
+WORKSPACE.append((
+    30,
+    """
+    CREATE TABLE onboarding_proposals (
+        id VARCHAR PRIMARY KEY,
+        kind VARCHAR NOT NULL,
+        title VARCHAR NOT NULL,
+        domain VARCHAR,
+        status VARCHAR NOT NULL DEFAULT 'proposed',
+        payload JSON NOT NULL,
+        evidence JSON NOT NULL,
+        result JSON,
+        decided_by VARCHAR,
+        decided_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE onboarding_discoveries (
+        id VARCHAR PRIMARY KEY,
+        domains JSON NOT NULL,
+        datasets INTEGER NOT NULL,
+        proposals INTEGER NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE domain_profiles (
+        version INTEGER PRIMARY KEY,
+        spec JSON NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
