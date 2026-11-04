@@ -163,7 +163,9 @@ class AnticipationService:
                 log.exception("anticipation cycle failed for %s", ws)
         return n
 
-    def cycle(self, ws: str, now: datetime | None = None) -> dict[str, Any]:
+    def cycle(self, ws: str, now: datetime | None = None, *, only: tuple[Any, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
+        """One pass of the lifecycle. ``only`` = (anticipator, signals) runs just those signals through it (the next steps for
+        one answer, on demand); it skips expiry, resolution, investigations and pushing."""
         now = now or datetime.now(UTC)
         db = self._db(ws)
         s = policy.load(db)
@@ -173,12 +175,13 @@ class AnticipationService:
             return out
         self._local.busy = True
         try:
-            out["expired"] = self._expire(db, now)
+            if only is None:
+                out["expired"] = self._expire(db, now)
+                self._complete(db, now)                                     # learn: did accepted work finish?
             self._local.weights = None
             irrelevant = learning.irrelevant(db, now)
-            self._complete(db, now)                                         # learn: did accepted work finish?
-            for mod in self.anticipators:
-                signals = mod.observe(self, ws, now)                       # observe
+            for mod in ([only[0]] if only else self.anticipators):
+                signals = only[1] if only else mod.observe(self, ws, now)   # observe
                 out["observed"] += len(signals)
                 produced: set[str] = set()
                 for cand in mod.candidates(self, ws, now, signals):       # contextualize, forecast, anticipate
@@ -205,12 +208,14 @@ class AnticipationService:
                     prep = mod.prepare(self, ws, cand, now, automate=s.allows("automate"))   # prepare + verify
                     policy.charge(db, "prepare", prep["resources"]["compute_ms"], now)
                     self._apply(ws, s, mod, stored["id"], cand["scores"], prep, now, out)
-                if getattr(mod, "RESOLVES", False):                       # the condition went away: close it
+                if getattr(mod, "RESOLVES", False) and only is None:      # the condition went away: close it
                     for r in db.query(f"SELECT id, dedupe_key FROM anticipations WHERE status IN {model.OPEN} AND kind IN "
                                       f"({', '.join('?' for _ in mod.KINDS)})", list(mod.KINDS)):
                         if r["dedupe_key"] not in produced:
                             model.transition(db, r["id"], "resolved", detail={"reason": "the signal is no longer present"})
                             out["resolved"] = out.get("resolved", 0) + 1
+            if only is not None:
+                return out
             for mod in self.anticipators:                                   # investigations that were running
                 if not hasattr(mod, "resume"):
                     continue
@@ -382,6 +387,9 @@ class AnticipationService:
         if subject_id:
             sql += " AND subject_id = ?"
             params.append(subject_id)
+        if subject_id and status == "open" and not self._db(ws).scalar("SELECT count(*) FROM anticipations WHERE subject_id = ?",
+                                                                        [subject_id]):
+            self._next_steps_now(ws, subject_id)        # an answer just finished: its next steps without waiting for a cycle
         rows = [model.row(r) for r in self._db(ws).query(sql + " ORDER BY score DESC, created_at DESC", params)]
         mine = attention.prefs(self._db(ws), actor.user_id)
         out = []
@@ -392,6 +400,16 @@ class AnticipationService:
                 continue
             out.append(_public(a))
         return out[:limit]
+
+    def _next_steps_now(self, ws: str, task_id: str) -> None:
+        r = self.stores.control.query("SELECT id, created_by, kind, request, plan, result, created_at FROM tasks WHERE id = ? "
+                                      "AND workspace_id = ? AND status = 'done' AND kind IN ('analysis', 'investigation', 'followup')",
+                                      [task_id, ws])
+        if r and r[0]["result"]:
+            try:
+                self.cycle(ws, only=(nextaction, [{"kind": "analysis_completed", "task": r[0]}]))
+            except Exception:  # noqa: BLE001 - next steps are a convenience; the answer stands without them
+                log.exception("next steps for %s failed", task_id)
 
     def get(self, actor: Principal, ws: str, aid: str) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.read")

@@ -137,3 +137,13 @@ def test_repeating_an_analysis_does_not_repeat_its_suggestions(suppliers):
     lyst.anticipation.cycle(WS)
     watch = [s for s in lyst.anticipation.list(owner, WS) if s["actions"][0]["id"] == "watch"]
     assert len(watch) == 1 and watch[0]["subject_id"] == second["id"] != first["id"]   # one, under the latest answer
+
+
+def test_next_steps_appear_as_soon_as_the_answer_is_read(suppliers):
+    """At the default level, with no cycle having run yet, asking for an answer's next steps computes them on the spot."""
+    lyst, owner = suppliers
+    t = _analyse(lyst, owner, "Why did on-time delivery rate fall in Q3 2026?")
+    assert lyst.anticipation.settings(owner, WS)["level"] == 1
+    assert lyst.stores.workspace(WS).scalar("SELECT count(*) FROM anticipations") == 0
+    sugg = lyst.anticipation.list(owner, WS, subject_id=t["id"])
+    assert sugg and any("Acme Metals" in (s["actions"][0].get("question") or "") for s in sugg)

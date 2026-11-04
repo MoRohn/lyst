@@ -91,7 +91,7 @@ analysis found and checked before it is shown; at most three per analysis, never
 | Make it recurring | the same question asked 3+ times in 60 days, no schedule | - | propose a schedule at the observed rhythm (day, week or month); an admin still approves it |
 | Extend into a forecast | a quarter or year reviewed, no forecast of it in 30 days | at least 12 months of history | run the forecast question now |
 
-`GET /v1/workspaces/{ws}/anticipations?subject=<task id>` lists the suggestions for one answer.
+`GET /v1/workspaces/{ws}/anticipations?subject=<task id>` lists the suggestions for one answer, computing them on the spot when no cycle has looked at that answer yet (so they show as soon as the answer is read).
 
 ## Early warning (scenario B)
 
