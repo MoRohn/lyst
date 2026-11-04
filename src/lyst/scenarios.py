@@ -396,8 +396,12 @@ def cases(model: Model, base: dict[str, float], output: str, overrides: dict[str
 
 _UP = r"(?:increase|increases|rise|rises|grow|grows|go(?:es)? up|up)"
 _DOWN = r"(?:decrease|decreases|fall|falls|drop|drops|decline|declines|go(?:es)? down|down|shrink|shrinks|cut)"
+_UNIT = r"(?P<unit>percentage points?|pp\b|points?\b|pts\b|%|percent\b|pct\b)"
 _CHANGE = re.compile(rf"(?P<subj>[a-z][a-z \-]*?)\s+(?:(?:were|was|is|are)\s+)?(?:to\s+)?(?P<dir>{_UP}|{_DOWN})\s+(?:by\s+)?"
-                     r"(?P<num>\d+(?:\.\d+)?)\s*(?:%|percent|pct)", re.I)
+                     rf"(?P<num>\d+(?:\.\d+)?)\s*{_UNIT}", re.I)
+# any stated change with an amount, recognised or not: whatever _CHANGE does not apply is reported, never dropped
+_ANY_CHANGE = re.compile(rf"(?P<subj>[a-z][a-z \-]*?)\s+(?:(?:were|was|is|are)\s+)?(?:to\s+)?(?P<dir>{_UP}|{_DOWN})\s+(?:by\s+)?"
+                         r"(?P<amt>[$€£]?\s?\d[\d,.]*\s*[a-z%]*)", re.I)
 _TARGET = re.compile(r"(?:happens?|happen) to (?:the |our )?(?P<t>[a-z][a-z \-]*?)(?:\s+if\b|\s+when\b|\?|$)", re.I)
 
 
@@ -425,24 +429,46 @@ def parse_what_if(model: Model, question: str) -> dict[str, Any]:
     """Changes and target output from a sentence such as "What happens to operating margin if labor costs increase
     6% while revenue grows 3%?". Unmatched phrases are returned, never guessed."""
     q = question.replace("’", "'")
-    overrides, unmatched = {}, []
+    overrides, unmatched, unapplied, described = {}, [], [], {}
     tail = q.split(" if ", 1)[-1] if " if " in q.lower() else q
+    covered: list[tuple[int, int]] = []
+    clean = lambda t: re.sub(r"^(?:and|while|with|but|if|when|the|our)\s+", "", t.strip(), flags=re.I)  # noqa: E731
     for m in _CHANGE.finditer(tail):
-        subj = re.sub(r"^(?:and|while|with|but|if|when)\s+", "", m.group("subj").strip(), flags=re.I)
+        subj = clean(clean(m.group("subj")))
         node = _match(model, subj)
-        pct = float(m.group("num")) * (1 if re.fullmatch(_UP, m.group("dir"), re.I) else -1)
-        if node:
-            overrides[node] = {"change_pct": pct}
-        else:
+        sign = 1 if re.fullmatch(_UP, m.group("dir"), re.I) else -1
+        num, unit = float(m.group("num")), m.group("unit").lower()
+        phrase = m.group(0).strip()
+        covered.append(m.span())
+        if not node:
             unmatched.append(subj)
+            unapplied.append({"phrase": clean(phrase), "reason": f"the model has no driver for {subj}"})
+            continue
+        if unit.startswith(("%", "percent", "pct")) and "point" not in unit:
+            overrides[node] = {"change_pct": sign * num}
+            described[node] = f"{model.label(node)} {sign * num:+g}%"
+        else:  # points: on a ratio or percentage, 2 points is 0.02
+            info = model.inputs.get(node) or {}
+            out = next((o for o in model.outputs if o["name"] == node), {})
+            ratio = info.get("unit") == "ratio" or out.get("format") == "percent" or node.endswith(("_ratio", "_share", "_margin", "_rate"))
+            if not ratio:
+                unapplied.append({"phrase": clean(phrase), "reason": f"'points' is ambiguous for {model.label(node)}, which is not a ratio"})
+                continue
+            overrides[node] = {"change_abs": sign * num / 100}
+            described[node] = f"{model.label(node)} {sign * num:+g} points"
+    for m in _ANY_CHANGE.finditer(tail):
+        if any(a <= m.start() < b or a < m.end() <= b for a, b in covered):
+            continue
+        unapplied.append({"phrase": clean(m.group(0)), "reason": "the amount is not a percentage or points change Lyst can apply"})
     target = None
     if m := _TARGET.search(q):
         target = _match(model, m.group("t"))
-    return {"overrides": overrides, "target": target or model.outputs[0]["name"], "unmatched": unmatched}
+    return {"overrides": overrides, "target": target or model.outputs[0]["name"], "unmatched": unmatched,
+            "unapplied": unapplied, "described": described}
 
 
 WHAT_IF = re.compile(r"\bwhat(?:'s| is| would)? (?:happens?|happen|be the (?:impact|effect))\b|\bwhat[- ]if\b|"
-                     r"\bif\b[^?]*\b(?:increase|grow|rise|fall|drop|decrease|decline|go up|go down|cut)s?\b[^?]*\d+(?:\.\d+)?\s*(?:%|percent)",
+                     r"\bif\b[^?]*\b(?:increase|grow|rise|fall|drop|decrease|decline|go up|go down|cut)s?\b[^?]*\d+(?:\.\d+)?\s*(?:%|percent|points?|pts|pp)",
                      re.I)
 
 
@@ -476,10 +502,17 @@ def summary(result: dict[str, Any]) -> str:
             move = ("+" if o["delta"] > 0 else "") + move
         parts.append(f"{o['label']} would go from {_fmt(o['base'], o.get('format'))} to "
                      f"{_fmt(o['scenario'], o.get('format'))} ({move})")
-    changes = ", ".join(f"{k.replace('_', ' ')} {v['change_pct']:+g}%" if isinstance(v, dict) and "change_pct" in v
-                        else f"{k.replace('_', ' ')} = {v.get('value') if isinstance(v, dict) else v}"
-                        for k, v in result["overrides"].items())
-    return "; ".join(parts) + f". Assumed: {changes}. These are hypothetical figures, not observed results."
+    described = result.get("described") or {}
+    changes = ", ".join(described.get(k) or (
+        f"{k.replace('_', ' ')} {v['change_pct']:+g}%" if isinstance(v, dict) and "change_pct" in v
+        else f"{k.replace('_', ' ')} {v['change_abs']:+g}" if isinstance(v, dict) and "change_abs" in v
+        else f"{k.replace('_', ' ')} = {v.get('value') if isinstance(v, dict) else v}")
+        for k, v in result["overrides"].items())
+    text = "; ".join(parts) + f". Assumed: {changes}."
+    if result.get("unapplied"):
+        text += " I couldn't apply: " + "; ".join(f"{u['phrase']} ({u['reason']})" for u in result["unapplied"]) + \
+                ", so these figures leave it out."
+    return text + " These are hypothetical figures, not observed results."
 
 
 # ----------------------------------------------------------------------------- service
@@ -583,7 +616,7 @@ class ScenarioService:
         if not r.rows or r.rows[0][0] is None:
             raise ModelError(f"{item['name']}: the data returned no value for {period['label'] if period else 'all rows'}")
         meta = {"observed": True, "dataset": dataset, "dataset_version": ver, "period": period, "data_through": through,
-                "sql": r.sql, "query_id": r.query_id}
+                "sql": r.sql, "query_id": r.query_id, "rows": len(r.rows), "ms": r.ms}
         out = (float(r.rows[0][0]), meta)
         self._observed[key] = out
         return out
@@ -675,6 +708,7 @@ class ScenarioService:
         _s, n, parsed = best
         result = self.evaluate(actor, ws, n, parsed["overrides"])
         result["question"], result["target"], result["unmatched"] = question, parsed["target"], parsed["unmatched"]
+        result["unapplied"], result["described"] = parsed["unapplied"], parsed["described"]
         result["summary"] = summary(result)
         return result
 
