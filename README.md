@@ -191,14 +191,16 @@ where they point, with Mark all read and "What to tell me about".
 
 ## What Lyst does
 
-* **Learns a new business on its own.** Thirteen versioned domain packages (finance and FP&A, sales, marketing,
-  procurement, workforce, manufacturing, customer service, product, logistics, IT operations, healthcare
-  operations, professional services, financial services) let Lyst recognise what an organization does from
-  metadata alone, never rows. It then proposes metrics, glossary terms, personal-data column policies, contracts,
-  starter questions and sources to connect. Accepting a proposal goes through the same governed path as doing it
-  by hand. A versioned business profile keeps the adopted packages, the organization's own terms, its fiscal year
-  and objectives, and Lyst measures time to first value. Available through the API; screens are on the way
-  ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
+* **Gets itself ready for a new organization.** Connect or upload data and Lyst studies the metadata only (names,
+  types and shape, never rows), recognises the business areas from thirteen versioned industry packages (finance,
+  procurement, sales, marketing, HR, manufacturing, customer service, product, logistics, IT, healthcare,
+  professional services, financial services), and suggests metrics, business terms, privacy limits for personal
+  data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
+  official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
+  business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
+  resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
+  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer.
+  Available through the API; screens are on the way ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
