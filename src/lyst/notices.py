@@ -15,8 +15,10 @@ from .store import Stores
 
 
 def raise_notice(stores: Stores, ws: str, *, source: str, kind: str, label: str, summary: str, priority: float,
-                 dedupe_key: str, metric: str = "", period: str = "", recipients: set[str] | None = None) -> str | None:
+                 dedupe_key: str, metric: str = "", period: str = "", recipients: set[str] | None = None,
+                 exclude: set[str] | None = None) -> str | None:
     """Record a finding and an inbox notification for the workspace's owners and admins plus ``recipients``.
+    ``exclude`` leaves out people who asked not to be interrupted (anticipation's attention preferences).
     Returns the finding id, or None when the same condition was already raised."""
     db = stores.workspace(ws)
     if db.scalar("SELECT count(*) FROM findings WHERE dedupe_key = ?", [dedupe_key]):
@@ -27,7 +29,7 @@ def raise_notice(stores: Stores, ws: str, *, source: str, kind: str, label: str,
                [fid, source, kind, period, label, metric, summary, priority, dedupe_key])
     rows = stores.control.query("SELECT user_id FROM memberships WHERE workspace_id = ? AND role IN ('owner', 'admin')", [ws])
     muted = {r["user_id"] for r in db.query("SELECT user_id FROM notification_prefs WHERE kind = ? AND NOT enabled", [kind])}
-    for uid in ({r["user_id"] for r in rows} | {r for r in (recipients or set()) if r}) - muted:
+    for uid in ({r["user_id"] for r in rows} | {r for r in (recipients or set()) if r}) - muted - (exclude or set()):
         db.execute("INSERT INTO notifications (id, user_id, finding_id, channel, status) VALUES (?, ?, ?, 'inbox', 'unread')",
                    ["n_" + uuid.uuid4().hex[:10], uid, fid])
     return fid

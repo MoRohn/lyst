@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 OPEN = ("candidate", "preparing", "prepared", "surfaced", "snoozed")
-TERMINAL = ("accepted", "dismissed", "expired", "withdrawn", "completed", "suppressed")
+TERMINAL = ("accepted", "dismissed", "expired", "withdrawn", "completed", "suppressed", "resolved")
 JSON_COLS = ("audience", "signals", "reasons", "scores", "prepared", "verification", "actions", "depends", "resources")
 
 
@@ -82,7 +82,7 @@ def upsert(db, cand: dict[str, Any]) -> tuple[dict[str, Any], str]:
     changed = fingerprint(prior["depends"]) != fingerprint(cand["depends"])
     if changed and prior["status"] != "candidate":
         what = _diff(prior["depends"], cand["depends"])
-        db.execute("UPDATE anticipations SET status = 'candidate', verdict = NULL, prepared = NULL, verification = NULL, "
+        db.execute("UPDATE anticipations SET status = 'candidate', verdict = NULL, prepared = NULL, verification = NULL, surfaced_at = NULL, "
                    "revision = revision + 1, depends = ?, signals = ?, reasons = ?, scores = ?, score = ?, actions = ?, needed_at = ?, "
                    "valid_until = ?, updated_at = now() WHERE id = ?",
                    [j(cand["depends"]), j(cand["signals"]), j(cand["reasons"]), j(cand["scores"]), cand["score"], j(cand["actions"]),

@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import earlywarning, model, nextaction, policy, recurring
+from . import attention, earlywarning, health, model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -49,7 +49,8 @@ class AnticipationService:
         self.runtime = runtime
         self.semantic = semantic
         self.connections = connections
-        self.anticipators = [recurring, nextaction, earlywarning]
+        self.anticipators = [recurring, nextaction, earlywarning, health]
+        self.collab = None  # set by the composition root; health foresight files definition fixes as reviews
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0
         self._local = threading.local()
@@ -138,7 +139,9 @@ class AnticipationService:
             for mod in self.anticipators:
                 signals = mod.observe(self, ws, now)                       # observe
                 out["observed"] += len(signals)
+                produced: set[str] = set()
                 for cand in mod.candidates(self, ws, now, signals):       # contextualize, forecast, anticipate
+                    produced.add(cand["dedupe_key"])
                     if cand["level_required"] > s.level:
                         continue
                     cand["score"] = combine(cand["scores"], self.learned(ws, cand["kind"]))   # prioritize
@@ -158,6 +161,12 @@ class AnticipationService:
                     prep = mod.prepare(self, ws, cand, now, automate=s.allows("automate"))   # prepare + verify
                     policy.charge(db, "prepare", prep["resources"]["compute_ms"], now)
                     self._apply(ws, s, mod, stored["id"], cand["scores"], prep, now, out)
+                if getattr(mod, "RESOLVES", False):                       # the condition went away: close it
+                    for r in db.query(f"SELECT id, dedupe_key FROM anticipations WHERE status IN {model.OPEN} AND kind IN "
+                                      f"({', '.join('?' for _ in mod.KINDS)})", list(mod.KINDS)):
+                        if r["dedupe_key"] not in produced:
+                            model.transition(db, r["id"], "resolved", detail={"reason": "the signal is no longer present"})
+                            out["resolved"] = out.get("resolved", 0) + 1
             for mod in self.anticipators:                                   # investigations that were running
                 if not hasattr(mod, "resume"):
                     continue
@@ -167,6 +176,7 @@ class AnticipationService:
                     prep = mod.resume(self, ws, a, now)
                     if prep is not None:
                         self._apply(ws, s, mod, a["id"], a["scores"], prep, now, out)
+            out["surfaced"] += self._surface_all(ws, s, now)                   # surface, most valuable first
         finally:
             self._local.busy = False
         return out
@@ -190,10 +200,10 @@ class AnticipationService:
         score = combine(scores, self.learned(ws, a["kind"]))
         model.set_prepared(db, aid, verdict=prep["verdict"], prepared=prep["prepared"], verification=prep["verification"],
                            resources=prep["resources"], reasons=prep["reasons"])
+        if prep.get("actions") is not None:   # preparation may add an action it validated (a definition fix)
+            db.execute("UPDATE anticipations SET actions = ? WHERE id = ?", [json.dumps(prep["actions"]), aid])
         db.execute("UPDATE anticipations SET scores = ?, score = ? WHERE id = ?", [json.dumps(scores), score, aid])
         out["prepared"] += 1
-        if prep["verdict"] in getattr(mod, "SURFACE", SURFACE_VERDICTS) and score >= SURFACE_MIN_SCORE:
-            out["surfaced"] += self._surface(ws, s, model.get(db, aid), now, mod)
 
     # -- services the anticipators use ----------------------------------------------------------------------------------
 
@@ -226,20 +236,67 @@ class AnticipationService:
             model.transition(db, r["id"], "expired", detail={"at": now.isoformat()})
         return len(rows)
 
-    def _surface(self, ws: str, s: policy.Settings, a: dict[str, Any], now: datetime, mod=None) -> int:
+    def _surface_all(self, ws: str, s: policy.Settings, now: datetime) -> int:
         db = self._db(ws)
+        eligible = []
+        for mod in self.anticipators:
+            verdicts = getattr(mod, "SURFACE", SURFACE_VERDICTS)
+            rows = db.query(f"SELECT * FROM anticipations WHERE status = 'prepared' AND surfaced_at IS NULL AND score >= ? "
+                            f"AND verdict IN ({', '.join('?' for _ in verdicts)}) AND kind IN ({', '.join('?' for _ in mod.KINDS)})",
+                            [SURFACE_MIN_SCORE, *verdicts, *mod.KINDS])
+            eligible += [(model.row(r), mod) for r in rows]
+        n = 0
+        for a, mod in sorted(eligible, key=lambda x: -x[0]["score"]):
+            n += self._surface(ws, s, a, now, mod)
+        return n
+
+    def _surface(self, ws: str, s: policy.Settings, a: dict[str, Any], now: datetime, mod=None) -> int:
+        """Push one item to the people whose attention preferences allow it now. Quiet hours and daily caps hold it for its
+        audience (retried next cycle); the other reasons leave it in the activity center only."""
+        db = self._db(ws)
+        admins = {r["user_id"] for r in self.stores.control.query(
+            "SELECT user_id FROM memberships WHERE workspace_id = ? AND role IN ('owner', 'admin')", [ws])}
+        people = set(a["audience"]) | admins
+        decisions = {u: attention.push_decision(db, u, a, now) for u in people}
+        allowed = {u for u, d in decisions.items() if d is None}
+        held = [u for u in people if decisions[u] in attention.HOLD]
+        # the person it is for comes first: while they are in quiet hours or at their cap, nobody is told yet
+        if any(decisions.get(u) in attention.HOLD for u in a["audience"]) or (not allowed and held):
+            detail = {"held_for": {u: decisions[u] for u in held}}
+            last = db.query("SELECT event, detail FROM anticipation_events WHERE anticipation_id = ? ORDER BY id DESC LIMIT 1", [a["id"]])
+            if not last or last[0]["event"] != "held" or json.loads(last[0]["detail"]) != detail:
+                model.event(db, a["id"], "held", detail=detail)
+            return 0
+        if not allowed:
+            db.execute("UPDATE anticipations SET surfaced_at = ? WHERE id = ?", [now, a["id"]])
+            model.event(db, a["id"], "not_pushed", detail={"reasons": decisions})
+            return 0
         reason = policy.admit(db, s, "surface", now)
         if reason:
             model.event(db, a["id"], "held", detail={"reason": reason})
             return 0
         summary = mod.summary(a) if hasattr(mod, "summary") else " ".join(a["reasons"][:3])
         fid = notices.raise_notice(self.stores, ws, source=f"anticipate:{a['id']}", kind=f"anticipation.{a['kind']}",
-                                   label=a["objective"], summary=summary[:900],
+                                   label=a["objective"], summary=summary[:900], metric=f"{a['subject_kind']}:{a['subject_id']}",
                                    priority=round(a["score"] / 10, 2), dedupe_key=f"anticipate|{a['id']}|{a['revision']}",
-                                   recipients=set(a["audience"]))
+                                   recipients=allowed, exclude=people - allowed)
         policy.charge(db, "surface", 0, now)
-        model.transition(db, a["id"], "surfaced", detail={"finding_id": fid}, finding_id=fid, surfaced_at=now)
+        model.transition(db, a["id"], "surfaced", detail={"finding_id": fid, "to": sorted(allowed),
+                                                          "not_to": {u: d for u, d in decisions.items() if d}},
+                         finding_id=fid, surfaced_at=now)
         return 1
+
+    # -- attention ------------------------------------------------------------------------------------------------------
+
+    def attention(self, actor: Principal, ws: str) -> dict[str, Any]:
+        self.guard.require(actor, ws, "workspace.read")
+        return {**attention.prefs(self._db(ws), actor.user_id), "kinds": list(attention.KINDS)}
+
+    def set_attention(self, actor: Principal, ws: str, changes: dict[str, Any]) -> dict[str, Any]:
+        self.guard.require(actor, ws, "workspace.read")
+        p = attention.save(self._db(ws), actor.user_id, changes)
+        self.guard.audit(actor, ws, "anticipation.attention", actor.user_id, "ok", {k: v for k, v in changes.items()})
+        return {**p, "kinds": list(attention.KINDS)}
 
     # -- hooks ----------------------------------------------------------------------------------------------------------
 
@@ -269,9 +326,10 @@ class AnticipationService:
             sql += " AND subject_id = ?"
             params.append(subject_id)
         rows = [model.row(r) for r in self._db(ws).query(sql + " ORDER BY score DESC, created_at DESC", params)]
+        mine = attention.prefs(self._db(ws), actor.user_id)
         out = []
         for a in rows:
-            if not self._visible(actor, ws, a):
+            if not self._visible(actor, ws, a) or not attention.shown(mine, a):
                 continue
             if a["status"] == "snoozed" and a["snoozed_until"] and _aware(a["snoozed_until"]) > now:
                 continue
