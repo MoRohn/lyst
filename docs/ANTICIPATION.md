@@ -102,5 +102,5 @@ inside a 5 s bound; at level 2 the same item only warns and writes nothing.
 | N5 | Learning from outcomes and anticipation quality metrics; offline verification (scenario I) | Planned, slice 6 |
 | N6 | Capability-gap forecasting through the Capability Foundry (scenario G) | Planned, slice 7 |
 | N7 | Consume the unified event model (CONTROL 40) instead of after-ingest hooks once it is merged | Planned |
-| N8 | Use the operations calendar (`schedule_next`) for later occurrences and submit preparation tasks at maintenance priority once operations is merged | Planned |
+| N8 | Use the operations calendar (`schedule_next`) for later occurrences; submit investigation tasks at maintenance priority with a deadline (operations is merged; the model-budget check already uses it) | Planned |
 | N9 | Activity center, inline suggestions and Settings controls in the UI (UX thread) | Handed over |
