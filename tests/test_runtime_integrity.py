@@ -93,3 +93,17 @@ def test_a_write_that_times_out_in_the_queue_is_withdrawn_not_applied_later(tmp_
     db.execute("INSERT INTO t VALUES (2)")
     assert [r["v"] for r in db.query("SELECT v FROM t")] == [2]
     db.close()
+
+
+def test_model_wording_with_spelled_out_scales_is_verified_not_dropped():
+    """N1 (seen live on OpenRouter, 4 of 5 answers): "$25.41 million" parsed as 25.41, so correct model wording was
+    rejected as unverified and the template kept. Invented figures must still be caught."""
+    from lyst.analyst.engine import _numbers, unbacked_numbers
+
+    answer = "Revenue was $25.41M in Q3 2026, +$316.0K (+1.3%) versus Q2 2026 ($25.10M), and +$2.69M versus Q3 2025."
+    allowed = [x for n in _numbers(answer) for x in (n, n / 100, n * 100)]
+    good = ("Q3 2026 revenue of $25.41 million rose 1.3% ($316,000) from Q2 2026's $25.10 million and was "
+            "$2.69 million above Q3 2025.")
+    assert unbacked_numbers(good, allowed) == []
+    assert unbacked_numbers("Revenue of $30 million rose 4.2% in Q3 2026.", allowed) == [30e6, 0.042]
+    assert _numbers("down 3.5 percentage points") == [0.035] and _numbers("12 m units") == [12.0]

@@ -987,19 +987,27 @@ def _independent_recompute(ctx: Context, current: dict[str, Any]) -> dict[str, A
 # ----------------------------------------------------------------- 7-8. interpret, deliver
 
 
+_SCALE_WORDS = {"thousand": 1e3, "k": 1e3, "million": 1e6, "mn": 1e6, "m": 1e6, "billion": 1e9, "bn": 1e9, "b": 1e9}
+_NUMBER = re.compile(r"-?\$?\d[\d,]*\.?\d*(?:\s*(?:%|per ?cent\b|percent\b|(?:percentage )?points?\b|pts\b|"
+                     r"(?:thousand|million|billion|mn|bn)\b|[KMB]\b))?")
+
+
 def _numbers(text: str) -> list[float]:
+    """Figures in text, scaled: "$2.69M", "$2.69 million", "1.3%", "3.5 pts" and "3.5 percentage points" all parse.
+    Spelled-out scales are how a model words money, so leaving them unscaled rejected correct wording (N1)."""
     out = []
-    for m in re.finditer(r"-?\$?\d[\d,]*\.?\d*\s*(?:%|pts|[KMB])?", text):
-        tok = m.group(0).replace("$", "").replace(",", "").strip()
-        mult = 1.0
-        if tok.endswith("%") or tok.endswith("pts"):
-            tok = tok.rstrip("%").replace("pts", "").strip()
+    for m in _NUMBER.finditer(text):
+        tok = m.group(0).replace("$", "").replace(",", "")
+        num = re.match(r"-?\d+\.?\d*", tok)
+        if not num:
+            continue
+        unit = tok[num.end():].strip().lower()
+        if unit in ("%", "pts", "point", "points", "percent", "per cent", "percentage point", "percentage points"):
             mult = 0.01
-        elif tok[-1:] in "KMB":
-            mult = {"K": 1e3, "M": 1e6, "B": 1e9}[tok[-1]]
-            tok = tok[:-1]
+        else:
+            mult = _SCALE_WORDS.get(unit, 1.0)
         try:
-            out.append(float(tok) * mult)
+            out.append(float(num.group(0)) * mult)
         except ValueError:
             pass
     return out

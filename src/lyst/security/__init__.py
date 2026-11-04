@@ -12,6 +12,8 @@ import hashlib
 import json
 import re
 import secrets
+import threading
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -64,9 +66,17 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+TOKEN_TOUCH_SECONDS = 60  # last_used_at is recorded at most once a minute per token
+
+
 class Guard:
     def __init__(self, stores: Stores) -> None:
         self.stores = stores
+        # Authentication is a read. Recording last_used_at on every request made every poll a write on the
+        # control database's single writer, so reads queued behind writes (P1). Once a minute is enough to say
+        # when a token was last used.
+        self._touched: dict[str, float] = {}
+        self._touch_lock = threading.Lock()
 
     # -- identity ---------------------------------------------------------------------------
 
@@ -99,7 +109,13 @@ class Guard:
         if not rows:
             self.audit(Principal("anonymous", ""), None, "auth.token", None, "denied")
             raise AccessDenied("invalid or expired credentials")
-        self.stores.control.execute("UPDATE api_tokens SET last_used_at = now() WHERE token_hash = ?", [h])
+        now = time.monotonic()
+        with self._touch_lock:
+            due = self._touched.get(h, -TOKEN_TOUCH_SECONDS) <= now - TOKEN_TOUCH_SECONDS
+            if due:
+                self._touched[h] = now
+        if due:
+            self.stores.control.execute("UPDATE api_tokens SET last_used_at = now() WHERE token_hash = ?", [h])
         return Principal(rows[0]["id"], rows[0]["email"], token_label=rows[0]["label"], auth_age_seconds=float(rows[0]["age"] or 0))
 
     def user_from_oidc(self, subject: str, email: str, name: str) -> Principal:
