@@ -104,10 +104,12 @@ class TaskRuntime:
                kind: str = "analysis", schedule_id: str | None = None, max_steps: int = 40,
                budget_seconds: int = 600, workflow: dict[str, Any] | None = None,
                idempotency_key: str | None = None, priority: int | None = None,
-               deadline_at: datetime | None = None) -> str:
-        """Queue a task. With an ``idempotency_key``, a repeat of the same submission by the same person in the same
-        workspace (a double click, a client retry after a timeout) returns the first task instead of running the
-        work twice. The check and the insert are one write transaction, so two concurrent repeats cannot both win."""
+               deadline_at: datetime | None = None, extra: dict[str, Any] | None = None) -> str:
+        """Queue a task. ``extra`` adds keys to the stored request (the Universal Analyst Core records the assembled
+        expertise and the channel there); it cannot replace the question or the workflow.
+
+        With an ``idempotency_key``, a repeat of the same submission by the same person in the same workspace (a double
+        click, a client retry after a timeout) returns the first task instead of running the work twice. The check and the insert are one write transaction, so two concurrent repeats cannot both win."""
         self.services.guard.require(actor, workspace_id, "task.create")
         autonomy = autonomy or self.db.scalar("SELECT autonomy FROM workspaces WHERE id = ?", [workspace_id]) or "delegate"
         if autonomy not in AUTONOMY:
@@ -135,7 +137,8 @@ class TaskRuntime:
                 "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
                 "budget_seconds, schedule_id, idempotency_key, priority, deadline_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?)",
-                [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
+                [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({k: v for k, v in (extra or {}).items() if k not in ("question", "workflow")}
+                                                                          | {"question": question} | ({"workflow": workflow} if workflow else {}), default=str),
                  autonomy, max_steps, budget_seconds, schedule_id, key, prio, deadline_at],
             )
             return None

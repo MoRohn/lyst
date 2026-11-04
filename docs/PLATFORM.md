@@ -216,7 +216,7 @@ tests in `tests/test_precedence.py`.
   catalog shows each dataset's authority, a secondary source is never "trusted", search ranks authoritative sources
   first among equals, and metric lineage shows the authority of its source.
 
-## PR G: fiscal buckets (gap G5, the adapt thread's O6)
+## PR G: fiscal buckets (gap G5, the adapt thread's O6, #64, merged)
 
 #51 resolves fiscal periods from the business profile. This completes it where numbers are grouped:
 `compile_metric(..., fiscal_start=)` buckets quarters and years from the fiscal start month (calendar workspaces get
@@ -224,6 +224,24 @@ byte-identical SQL), and the Analyst's quarterly horizons and deep investigation
 dashboards and the next-quarter forecast use it, with fiscal labels throughout (for example "Q4 FY2027").
 Tests in `tests/test_fiscal.py`: fiscal quarter starts for a February year, totals equal to calendar buckets, July
 fiscal years, every quarter label in a deep investigation fiscal, and the next fiscal quarter forecast.
+
+## PR H: connector drafts from an API description (gap G13)
+
+`src/lyst/connectors/drafts.py`; control migration 14 (`connector_drafts`); tests in `tests/test_connector_drafts.py`.
+
+* From an OpenAPI 3 or Swagger 2 document Lyst proposes one connection per GET endpoint that returns a list of records:
+  URL, where the list sits, page numbers or a cursor/next link (nested `meta.next` too), page size within the API's
+  maximum, the "updated since" parameter and a cursor column for incremental syncs, and the declared auth header;
+  each proposal says why. Item endpoints and non-list responses are skipped; offset paging is named as unsupported.
+* Drafts are configuration for the reviewed REST connector, never generated code. A dry-run test reads two pages
+  with a token used for that call only, reports fields (declared versus seen) and masked samples, and writes no data;
+  failures carry the normalized category and its action.
+* Promotion needs an admin who did not draft it; it goes through the normal connection path (tested again, secret
+  sealed). Drafts can be edited (only the connector's own non-secret settings; an edit needs a new test) or rejected.
+* REST: `/v1/workspaces/{ws}/connector-drafts` (create from `{name, openapi, base_url?}`, list), `/{id}` (get, PATCH),
+  `/{id}/test`, `/{id}/promote`, `/{id}/reject`.
+
+Not built: drafts for GraphQL, SQL drivers or SDK-based sources, and offset pagination in the REST connector.
 
 ## Where it surfaces (handed to the UX thread)
 
@@ -258,7 +276,7 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | G9 | Platform health page (workers, queues, DuckDB, storage, backups, connections) | 3 | open |
 | G10 | Extension manifest beyond skills and connectors | 3 | open |
 | G11 | Embedding-based search across catalog items (documents already have it) | 3 | open |
-| G13 | Generated connectors: Lyst drafts an adapter from an API description, tests it in the skill sandbox, and an admin promotes it | 2 | open |
+| G13 | Connector drafts from an API description, dry-run tested, promoted by another admin | 2 | done for REST/OpenAPI (PR H); GraphQL, offset paging open |
 | G14 | Connectors for MySQL, SQL Server, Snowflake, Databricks, Redshift, object storage and SaaS systems | 2 | waiting (servers to test against) |
 | G12 | Insights on very large tables run exact distinct counts for keys; fine to tens of millions of rows on one machine, not measured beyond that | 3 | open |
 

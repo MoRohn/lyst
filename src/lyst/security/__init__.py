@@ -46,6 +46,8 @@ PERMISSIONS: dict[str, str] = {
     "audit.read": "admin",
     "scenario.define": "editor",
     "decision.create": "editor",
+    "voice.use": "viewer",
+    "voice.admin": "admin",
 }
 
 

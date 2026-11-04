@@ -355,7 +355,8 @@ class ExperimentService:
             "INSERT INTO experiment_runs (id, experiment_id, method, params, status, metrics, detail, inputs, environment, "
             "input_digest, result_digest, seconds, created_by) VALUES (?, ?, ?, ?, 'ok', ?, ?, ?, ?, ?, ?, ?, ?)",
             [rid, eid, summary.get("model") or "configured model", json.dumps({"batch": batch, "label": spec.get("label")}),
-             json.dumps(metrics), json.dumps({"summary": shaped}), json.dumps(inputs), json.dumps(env),
+             json.dumps(metrics), json.dumps({"summary": shaped, "results": summary["results"]}, default=str), json.dumps(inputs),
+             json.dumps(env),
              _digest(inputs["cases"]), _digest(shaped["cases"]), round(time.perf_counter() - start, 3), actor.user_id])
         return rid
 
@@ -379,8 +380,9 @@ class ExperimentService:
 
         base, cur = runs[0], runs[-1]
         cmp = getattr(evals, "compare", None)
-        if cmp and base is not cur:
-            gate = cmp(cur["detail"]["summary"], base["detail"]["summary"])
+        if cmp and base is not cur and "results" in cur["detail"]:
+            # compare(run summary with its results, baseline-shaped earlier run): the regression gate's own contract
+            gate = cmp({"results": cur["detail"]["results"]}, base["detail"]["summary"])
         else:
             bc, cc = base["detail"]["summary"]["cases"], cur["detail"]["summary"]["cases"]
             gate = {"regressions": [{"case": k, "kind": "accuracy"} for k in cc if k in bc and bc[k]["passed"] and not cc[k]["passed"]],

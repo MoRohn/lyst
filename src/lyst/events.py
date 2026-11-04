@@ -67,6 +67,7 @@ CATALOG: dict[str, tuple[str, str]] = {
     "experiment.create": ("experiment.created", "experiment"),
     "experiment.run": ("experiment.ran", "experiment"),
     "experiment.decide": ("experiment.decided", "experiment"),
+    "workbench.python": ("workbench.ran", "workbench_run"),
     # operations (quotas, scenarios, decision records)
     "quota.set": ("quota.set", "workspace"),
     "scenario.define": ("scenario.defined", "scenario"),
@@ -78,6 +79,8 @@ CATALOG: dict[str, tuple[str, str]] = {
     # adaptability (onboarding, classification, governance)
     "onboarding.discover": ("onboarding.discovered", "workspace"),
     "onboarding.accept": ("onboarding.accepted", "proposal"),
+    "anticipation.accept": ("anticipation.accepted", "anticipation"),
+    "anticipation.settings": ("anticipation.settings_changed", "workspace"),
     "onboarding.profile": ("onboarding.profiled", "workspace"),
     "data.classify": ("dataset.classified", "dataset"),
     "data.policy": ("policy.changed", "dataset"),

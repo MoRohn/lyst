@@ -221,7 +221,7 @@ export const footer = {
  */
 export const proof = [
   { value: '350+', label: 'automated tests, run on every change' },
-  { value: '5', label: 'data connectors' },
+  { value: '21', label: 'real questions gate every change' },
   { value: 'Every', label: 'finding ships with its evidence' },
   { value: 'AGPL-3.0', label: 'open source, self-hosted' },
 ];

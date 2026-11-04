@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import attention, earlywarning, health, model, nextaction, policy, recurring
+from . import attention, capability, earlywarning, health, learning, model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -49,10 +49,13 @@ class AnticipationService:
         self.runtime = runtime
         self.semantic = semantic
         self.connections = connections
-        self.anticipators = [recurring, nextaction, earlywarning, health]
+        self.anticipators = [recurring, nextaction, earlywarning, health, capability]
         self.collab = None  # set by the composition root; health foresight files definition fixes as reviews
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0
+        self._dirty: dict[str, float] = {}   # workspace -> when an event asked for a fresh look
+        self._last_cycle: dict[str, float] = {}
+        self.min_gap = float(os.environ.get("LYST_ANTICIPATE_MIN_GAP", "30"))
         self._local = threading.local()
 
     # -- helpers --------------------------------------------------------------------------------------------------------
@@ -73,16 +76,25 @@ class AnticipationService:
             return None
         return operations.model_budget_block(self.stores.control, ws)
 
-    def learned(self, ws: str, kind: str) -> float:
-        return 1.0
+    def learned(self, ws: str, kind: str, actions: list[dict[str, Any]] | None = None) -> float:
+        """The family's weight from judged outcomes (see learning.py); 1.0 until people have judged it."""
+        w = getattr(self._local, "weights", None)
+        if w is None or w[0] != ws:
+            w = (ws, learning.weights(self._db(ws)))
+            self._local.weights = w
+        return w[1].get(learning.family(kind, actions), 1.0)
 
     # -- settings -------------------------------------------------------------------------------------------------------
 
     def settings(self, actor: Principal, ws: str) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.read")
         s = policy.load(self._db(ws))
-        return {**s.public(), "usage_today": policy.usage(self._db(ws)), "external_services": False,
-                "methods": "deterministic statistics and metadata checks on this installation; no model calls"}
+        llm = getattr(self.services, "llm", None)
+        external = bool(s.allows("investigate") and llm is not None and llm.settings.external and llm.allowed_for(ws))
+        return {**s.public(), "usage_today": policy.usage(self._db(ws)), "external_services": external,
+                "methods": ("detection, preparation and ranking are deterministic and run on this installation; "
+                            + ("level-3 investigations run the analyst, which may call the workspace's external model for wording"
+                               if external else "no model is called and nothing leaves this installation"))}
 
     def set_settings(self, actor: Principal, ws: str, changes: dict[str, Any]) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.admin", "anticipation")
@@ -112,20 +124,48 @@ class AnticipationService:
 
     # -- the cycle ------------------------------------------------------------------------------------------------------
 
+    # events that can change what is worth anticipating; anything else is ignored
+    WATCH = ("dataset.version_created", "task.completed", "task.failed", "approval.decided", "metric.defined", "metric.deprecated",
+             "contract.checked", "connection.synced", "connection.created", "connection.deleted", "member.added", "member.removed",
+             "schedule.created", "assignment.created", "assignment.completed", "skill.registered", "monitor.created")
+
+    def on_event(self, event: dict[str, Any]) -> None:
+        """Unified event model subscriber: mark the workspace for an early cycle. Cheap and never raises; the cycle itself runs
+        on the worker tick, at most once per ``min_gap`` seconds per workspace, so a burst of events costs one cycle."""
+        if event.get("type") in self.WATCH and event.get("workspace_id"):
+            self._dirty.setdefault(event["workspace_id"], time.monotonic())
+
     def tick_all(self, now: datetime | None = None, *, force: bool = False) -> int:
-        """Worker-tick entry: every workspace at most once per ``every`` seconds."""
-        if not force and time.monotonic() - self._last_tick < self.every:
+        """Worker-tick entry. Workspaces an event marked are cycled within ``min_gap`` seconds; every workspace is cycled at
+        least once per ``every`` seconds as a fallback, so nothing depends on continuous polling."""
+        mono = time.monotonic()
+        full = force or mono - self._last_tick >= self.every
+        due = [ws for ws in list(self._dirty) if mono - self._last_cycle.get(ws, -1e9) >= self.min_gap]
+        if not full and not due:
             return 0
-        self._last_tick = time.monotonic()
+        prune = full and mono - getattr(self, "_last_prune", -1e9) > 86400
+        if prune:
+            self._last_prune = mono
+        if full:
+            self._last_tick = mono
+            targets = [w["id"] for w in self.stores.control.query("SELECT id FROM workspaces")]
+        else:
+            targets = due
         n = 0
-        for w in self.stores.control.query("SELECT id FROM workspaces"):
+        for ws in targets:
+            self._dirty.pop(ws, None)
+            self._last_cycle[ws] = mono
             try:
-                n += self.cycle(w["id"], now)["anticipated"]
+                if prune:
+                    learning.prune(self._db(ws), now)
+                n += self.cycle(ws, now)["anticipated"]
             except Exception:  # noqa: BLE001 - one workspace never stops the others
-                log.exception("anticipation cycle failed for %s", w["id"])
+                log.exception("anticipation cycle failed for %s", ws)
         return n
 
-    def cycle(self, ws: str, now: datetime | None = None) -> dict[str, Any]:
+    def cycle(self, ws: str, now: datetime | None = None, *, only: tuple[Any, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
+        """One pass of the lifecycle. ``only`` = (anticipator, signals) runs just those signals through it (the next steps for
+        one answer, on demand); it skips expiry, resolution, investigations and pushing."""
         now = now or datetime.now(UTC)
         db = self._db(ws)
         s = policy.load(db)
@@ -135,16 +175,23 @@ class AnticipationService:
             return out
         self._local.busy = True
         try:
-            out["expired"] = self._expire(db, now)
-            for mod in self.anticipators:
-                signals = mod.observe(self, ws, now)                       # observe
+            if only is None:
+                out["expired"] = self._expire(db, now)
+                self._complete(db, now)                                     # learn: did accepted work finish?
+            self._local.weights = None
+            irrelevant = learning.irrelevant(db, now)
+            for mod in ([only[0]] if only else self.anticipators):
+                signals = only[1] if only else mod.observe(self, ws, now)   # observe
                 out["observed"] += len(signals)
                 produced: set[str] = set()
                 for cand in mod.candidates(self, ws, now, signals):       # contextualize, forecast, anticipate
                     produced.add(cand["dedupe_key"])
                     if cand["level_required"] > s.level:
                         continue
-                    cand["score"] = combine(cand["scores"], self.learned(ws, cand["kind"]))   # prioritize
+                    if (learning.family(cand["kind"], cand["actions"]), cand["subject_id"]) in irrelevant \
+                            and model.by_key(db, cand["dedupe_key"]) is None:
+                        continue                                            # dismissed twice lately: not again for now
+                    cand["score"] = combine(cand["scores"], self.learned(ws, cand["kind"], cand["actions"]))   # prioritize
                     ctx = cand.pop("_ctx", None)
                     stored, what = model.upsert(db, cand)
                     if what == "new":
@@ -161,12 +208,14 @@ class AnticipationService:
                     prep = mod.prepare(self, ws, cand, now, automate=s.allows("automate"))   # prepare + verify
                     policy.charge(db, "prepare", prep["resources"]["compute_ms"], now)
                     self._apply(ws, s, mod, stored["id"], cand["scores"], prep, now, out)
-                if getattr(mod, "RESOLVES", False):                       # the condition went away: close it
+                if getattr(mod, "RESOLVES", False) and only is None:      # the condition went away: close it
                     for r in db.query(f"SELECT id, dedupe_key FROM anticipations WHERE status IN {model.OPEN} AND kind IN "
                                       f"({', '.join('?' for _ in mod.KINDS)})", list(mod.KINDS)):
                         if r["dedupe_key"] not in produced:
                             model.transition(db, r["id"], "resolved", detail={"reason": "the signal is no longer present"})
                             out["resolved"] = out.get("resolved", 0) + 1
+            if only is not None:
+                return out
             for mod in self.anticipators:                                   # investigations that were running
                 if not hasattr(mod, "resume"):
                     continue
@@ -197,7 +246,7 @@ class AnticipationService:
             return
         scores = {**scores, **prep.get("scores", {})}   # what preparation learned about value and evidence
         a = model.get(db, aid)
-        score = combine(scores, self.learned(ws, a["kind"]))
+        score = combine(scores, self.learned(ws, a["kind"], a["actions"]))
         model.set_prepared(db, aid, verdict=prep["verdict"], prepared=prep["prepared"], verification=prep["verification"],
                            resources=prep["resources"], reasons=prep["reasons"])
         if prep.get("actions") is not None:   # preparation may add an action it validated (a definition fix)
@@ -229,6 +278,19 @@ class AnticipationService:
             prio = None
         return self.runtime.submit(actor, ws, question, kind="investigation", autonomy="autonomous", priority=prio,
                                    deadline_at=deadline_at)
+
+    def _complete(self, db, now: datetime) -> None:
+        for r in db.query("SELECT id, task_id FROM anticipations WHERE status = 'accepted' AND task_id IS NOT NULL"):
+            st = self.stores.control.scalar("SELECT status FROM tasks WHERE id = ?", [r["task_id"]])
+            if st == "done":
+                model.transition(db, r["id"], "completed", detail={"task_id": r["task_id"]}, outcome="completed")
+
+    def quality(self, actor: Principal, ws: str, *, days: int = 30) -> dict[str, Any]:
+        """Anticipation quality from recorded outcomes: relevance, timeliness, accuracy, efficiency, attention, governance."""
+        self.guard.require(actor, ws, "audit.read", "anticipation")
+        if not 1 <= days <= 400:
+            raise ValueError("days must be between 1 and 400")
+        return {**learning.quality(self.stores, ws, days), "weights": learning.weights(self._db(ws))}
 
     def _expire(self, db, now: datetime) -> int:
         rows = db.query(f"SELECT id FROM anticipations WHERE status IN {model.OPEN} AND valid_until IS NOT NULL AND valid_until < ?", [now])
@@ -325,6 +387,9 @@ class AnticipationService:
         if subject_id:
             sql += " AND subject_id = ?"
             params.append(subject_id)
+        if subject_id and status == "open" and not self._db(ws).scalar("SELECT count(*) FROM anticipations WHERE subject_id = ?",
+                                                                        [subject_id]):
+            self._next_steps_now(ws, subject_id)        # an answer just finished: its next steps without waiting for a cycle
         rows = [model.row(r) for r in self._db(ws).query(sql + " ORDER BY score DESC, created_at DESC", params)]
         mine = attention.prefs(self._db(ws), actor.user_id)
         out = []
@@ -335,6 +400,16 @@ class AnticipationService:
                 continue
             out.append(_public(a))
         return out[:limit]
+
+    def _next_steps_now(self, ws: str, task_id: str) -> None:
+        r = self.stores.control.query("SELECT id, created_by, kind, request, plan, result, created_at FROM tasks WHERE id = ? "
+                                      "AND workspace_id = ? AND status = 'done' AND kind IN ('analysis', 'investigation', 'followup')",
+                                      [task_id, ws])
+        if r and r[0]["result"]:
+            try:
+                self.cycle(ws, only=(nextaction, [{"kind": "analysis_completed", "task": r[0]}]))
+            except Exception:  # noqa: BLE001 - next steps are a convenience; the answer stands without them
+                log.exception("next steps for %s failed", task_id)
 
     def get(self, actor: Principal, ws: str, aid: str) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.read")
