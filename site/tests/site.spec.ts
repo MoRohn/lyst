@@ -174,6 +174,8 @@ test.describe('studio showcase and verification', () => {
     const errors = trackErrors(page);
     await page.goto('/#studio');
     const list = page.getByRole('tablist', { name: 'Product views' });
+    await expect(page.locator('#st-view-home img.light-img')).toBeVisible();
+    await list.getByRole('tab', { name: 'Answer' }).click();
     const answer = page.locator('#st-view-answer img.light-img');
     await answer.scrollIntoViewIfNeeded();
     await expect(answer).toBeVisible();
