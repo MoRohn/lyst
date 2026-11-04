@@ -16,6 +16,7 @@ from .collab import CollaborationService
 from .config import Settings, load_settings
 from .connectors import ConnectionService
 from .contracts import ContractService
+from .costs import CostService
 from .data import DataService
 from .deliverables import ArtifactService
 from .ingest import IngestService
@@ -67,6 +68,7 @@ class Lyst:
     evidence: EvidenceService | None = None
     governance: GovernanceService | None = None
     standing: StandingService | None = None
+    costs: CostService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -139,7 +141,8 @@ class Lyst:
                    studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, services=services, anticipation=anticipation, ingest=ingest, transforms=transforms, governance=governance,
                    evidence=EvidenceService(stores, guard, runtime, artifacts),
                    standing=StandingService(stores, guard, runtime=runtime, registry=REGISTRY, collab=collab, assets=assets,
-                                            connections=connections, onboarding=onboarding, semantic=semantic))
+                                            connections=connections, onboarding=onboarding, semantic=semantic),
+                   costs=CostService(stores, guard, settings))
 
     def close(self) -> None:
         self.runtime.stop()

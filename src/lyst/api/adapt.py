@@ -129,6 +129,20 @@ def register(app: FastAPI, L, User) -> None:  # noqa: N803 - the names match the
     def approvals_explained(request: Request, ws: str, user: User):
         return L(request).standing.approvals(user, ws)
 
+    # -- cost and value --------------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/costs")
+    def costs(request: Request, ws: str, user: User, days: int = 30, by: str = "user"):
+        return L(request).costs.costs(user, ws, days=min(max(days, 1), 365), by=by)
+
+    @app.get("/v1/workspaces/{ws}/value")
+    def value(request: Request, ws: str, user: User, days: int = 30, manual_minutes_per_answer: float | None = None):
+        return L(request).costs.value(user, ws, days=min(max(days, 1), 365), manual_minutes_per_answer=manual_minutes_per_answer)
+
+    @app.get("/v1/workspaces/{ws}/costs/recommendations")
+    def cost_recommendations(request: Request, ws: str, user: User, days: int = 30):
+        return L(request).costs.recommendations(user, ws, days=min(max(days, 1), 365))
+
     @app.get("/v1/workspaces/{ws}/profile")
     def business_profile(request: Request, ws: str, user: User, history: bool = False):
         o = L(request).onboarding

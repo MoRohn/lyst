@@ -154,3 +154,34 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
   existing paths: ask, the investigate depth, dashboard building, schedules and monitors.
 - C3. Corrections to assumptions and data-source choices are captured only as memory and collaboration comments.
   There is no scoped "correction" record yet that later analyses apply automatically.
+
+## 5. Cost and value attribution
+
+**Built and verified** (`src/lyst/costs.py`, `tests/test_costs.py`; administrators, `audit.read`):
+
+- **Costs.** `GET /v1/workspaces/{ws}/costs?days=30&by=user|task|schedule|model|purpose|workflow` covers:
+  - model calls, failures and retries, with retry overhead in dollars;
+  - cost (provider-reported, or catalog-priced) and tokens;
+  - external calls and model time;
+  - tasks, steps and compute time;
+  - queries, query time, rows processed and failed queries;
+  - connector operations and attempts (external API use);
+  - database and artifact bytes on disk.
+- **Value, counted rather than claimed.** `GET /v1/workspaces/{ws}/value` counts verified answers, finished and
+  failed tasks, the verification rate, the median time from request to a verified answer, scheduled reports
+  run, answers served by a compiled workflow, monitor findings, onboarding suggestions accepted, and active
+  reports and dashboards. Effort avoided appears only when an administrator passes
+  `manual_minutes_per_answer`, and the assumption is returned with the number. No ROI figure.
+- **Grounded recommendations.** `GET /v1/workspaces/{ws}/costs/recommendations` suggests four things, each
+  citing the numbers and the tasks or model behind it:
+  - schedule a question asked three or more times;
+  - route away from a model whose failure rate is 20% or more;
+  - pre-aggregate datasets whose 95th-percentile query time is two seconds or more;
+  - reuse the verified method for questions planned from scratch three or more times.
+
+**Open**
+
+- V1. Costs are not yet attributed to projects (there is no project object) or to integrations beyond connector
+  operation counts. The decision-intelligence thread's quotas read the same `llm_calls`, and these numbers
+  should agree with its usage view.
+- V2. User acceptance (thumbs up or down on answers) is not recorded anywhere yet, so it is not counted.
