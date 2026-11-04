@@ -260,13 +260,20 @@ where they point, with Mark all read and "What to tell me about".
   avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
   suggested savings cite the numbers behind them.
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
-  year to date and their comparisons, labelled like "Q2 FY2027".
+  year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
+  group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
   data and definition change, with verified repair and every version kept.
 * **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
+* **Turns a request into a living project spec.** The spec records the objective, stakeholders, the approved
+  metrics and datasets it uses (never invented ones), deliverables, deadlines, scope limits, assumptions and the
+  approvals it needs. Each requirement has a priority and acceptance criteria, and is met only by linked evidence
+  (a verified task, an existing report, a current dashboard), by hand with a note, or waived by an admin with a
+  reason. A project cannot complete while a must-have is open. Revisions keep the work that is still valid, flag
+  changed requirements with their old wording, record dropped ones, and keep every version readable.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
@@ -276,7 +283,17 @@ where they point, with Mark all read and "What to tell me about".
   before the run. Each workspace picks a level: Off, Suggest (the default, where nothing executes), Prepare,
   Investigate or Automate, with daily budgets for preparation, investigation, compute and notices. Every item
   explains from recorded evidence why it appeared, and preparation never distributes reports, edits data or
-  bypasses approvals. Through the API today ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
+  bypasses approvals. After an answer, Lyst also offers up to three next steps grounded in what it found (look
+  inside the main driver, watch a metric that moved, make a repeated question recurring, extend a review into a
+  forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. On
+  watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained
+  trend, forecast drift, projected breach), investigates it first, and surfaces a verified warning in Work ›
+  Needs you with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Work ›
+  Recurring (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for
+  items that need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and
+  **Working ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The
+  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback
+  ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -303,14 +320,22 @@ where they point, with Mark all read and "What to tell me about".
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Speaks to the rest of your stack.** Every change in a workspace, from a new dataset version to a finished
+  analysis, a contract check or an approval, becomes one event with a stable id. Stream the events, or have them
+  delivered as signed webhooks with retries, dead-lettering and replay; webhooks never reach private network
+  addresses. The Python SDK `lyst-client` (`pip install ./sdk/python`) covers files, questions, SQL, events and
+  webhooks with typed errors and safe retries, and a recorded API contract keeps the HTTP API from breaking
+  callers. The MCP server marks which tools only read, audits every call, keeps results within a size budget,
+  and can read files and report what changed.
 * **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
   every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
-  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML,
-  Markdown and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range,
-  whether a total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it**
-  or **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable
-  so answers can cite it, and unsupported files (legacy Office, password-protected, images) are refused in plain
-  words ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown
+  and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range, whether a
+  total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it** or
+  **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable so
+  answers can cite it. Macros, embedded objects and formulas are reported but never run, and unsupported files
+  (legacy Office, password-protected, images) are refused in plain words
+  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
   verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
