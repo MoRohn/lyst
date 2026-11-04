@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Your fiscal calendar'],
+    items: ['SQL', 'Python', 'Statistics', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
@@ -99,7 +99,7 @@ export const capabilities: {
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health in plain words and checks schema changes against its contract.',
+    text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health, warns before credentials expire and tests a fix for schema changes.',
     items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
@@ -177,7 +177,7 @@ export const workflow = {
   eyebrow: 'How Lyst works',
   headline: 'A better way to get analytical work done.',
   steps: [
-    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
+    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question, or hand over a vague project. It becomes a living spec whose requirements count as met only with evidence.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, a connected source, an analysis that knows it is out of date, work waiting on a teammate, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a what-if, a dataset’s trust check, a connected source, an analysis that knows it is out of date, work waiting on a teammate, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
