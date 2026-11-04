@@ -85,7 +85,7 @@ export const capabilities: {
   {
     icon: 'Blocks',
     title: 'Build',
-    text: 'Deliverables people can use on Monday, verified on every refresh.',
+    text: 'Self-contained deliverables people can use on Monday, verified on every refresh.',
     items: ['Interactive Dash dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Governed extracts'],
     status: 'available',
   },
