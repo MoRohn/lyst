@@ -119,6 +119,16 @@ def register(app: FastAPI, L, User) -> None:  # noqa: N803 - the names match the
     def policy_check(request: Request, ws: str, body: PolicyCheckIn, user: User):
         return L(request).governance.evaluate(user, ws, datasets=body.datasets, metrics=body.metrics, purpose=body.purpose)
 
+    # -- where things stand and what approvals would do ------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/standing")
+    def standing(request: Request, ws: str, user: User, days: int = 7):
+        return L(request).standing.standing(user, ws, days=min(max(days, 1), 90))
+
+    @app.get("/v1/workspaces/{ws}/approvals/explained")
+    def approvals_explained(request: Request, ws: str, user: User):
+        return L(request).standing.approvals(user, ws)
+
     @app.get("/v1/workspaces/{ws}/profile")
     def business_profile(request: Request, ws: str, user: User, history: bool = False):
         o = L(request).onboarding

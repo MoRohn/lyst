@@ -31,6 +31,7 @@ from .secrets import CredentialService, backend_from_env
 from .security import Guard
 from .semantic import SemanticService
 from .skills import SkillService
+from .standing import StandingService
 from .store import Stores
 from .studio import StudioService
 from .transforms import TransformService
@@ -65,6 +66,7 @@ class Lyst:
     anticipation: AnticipationService | None = None
     evidence: EvidenceService | None = None
     governance: GovernanceService | None = None
+    standing: StandingService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -134,8 +136,10 @@ class Lyst:
         llm.gates.append(governance.model_gate)
         artifacts.before_build.append(governance.check_export)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, anticipation=anticipation, connections=connections, semantic=semantic, services=services, ingest=ingest, transforms=transforms, governance=governance,
-                   evidence=EvidenceService(stores, guard, runtime, artifacts))
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, services=services, anticipation=anticipation, ingest=ingest, transforms=transforms, governance=governance,
+                   evidence=EvidenceService(stores, guard, runtime, artifacts),
+                   standing=StandingService(stores, guard, runtime=runtime, registry=REGISTRY, collab=collab, assets=assets,
+                                            connections=connections, onboarding=onboarding, semantic=semantic))
 
     def close(self) -> None:
         self.runtime.stop()

@@ -126,3 +126,31 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
   document classification.
 - G5. No UI yet: per the UX thread, classification belongs on the dataset dialog (Data) and the data policy in
   Settings › Workspace.
+
+## 4. Approval summaries and continuity
+
+**Built and verified** (`src/lyst/standing.py`, `tests/test_standing.py`):
+
+- **Every pending decision explained.** `GET /v1/workspaces/{ws}/approvals/explained` merges the runtime's
+  approvals (schedules, monitors, skills, gated steps, decisions) with the collaboration reviews (metric and
+  contract definitions, publishing). Each item gives the proposed action, the reason, what it affects (the
+  schedule and its cadence, the metric, and every report or dashboard built on a changed definition), the
+  consequences, the expected outcome, how to undo it, how long it has waited, and whether the caller can decide.
+- **Risk follows what the action does.** Reading only is low. A recurring run is medium. Changing an
+  authoritative definition or adding code is high, while a brand-new metric is medium because nothing existing
+  changes. A gated step that only reads is low. Items the caller can decide come first, riskiest first.
+- **Where things stand.** `GET /v1/workspaces/{ws}/standing?days=7` returns a one-line headline and five lists:
+  what the caller asked for, what finished (with not-verified or needs-input flagged), what is running or paused,
+  what needs them (tasks waiting for approval, failed, or needing input; approvals they can decide;
+  assignments; reports and dashboards that no longer match the data; failing connections), and what happens next
+  (the next set-up step, upcoming scheduled runs).
+
+**Open**
+
+- C1. Approval *requirements* still follow each capability's own flag and the workspace autonomy. Risk is
+  explained but does not yet decide whether to ask. Next: let read-only steps proceed in `delegate` mode and
+  require approval for mutating ones, after agreeing the runtime change with the decision-intelligence thread.
+- C2. Task modes (assist, investigate, build, automate, monitor) are not separate settings. Today they map onto
+  existing paths: ask, the investigate depth, dashboard building, schedules and monitors.
+- C3. Corrections to assumptions and data-source choices are captured only as memory and collaboration comments.
+  There is no scoped "correction" record yet that later analyses apply automatically.
