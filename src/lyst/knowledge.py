@@ -45,6 +45,12 @@ def tokens(text: str) -> list[str]:
     return [t for t in _TOKEN.findall(text.lower()) if t not in STOP]
 
 
+def _question_key(text: str) -> str:
+    """Identity of a question for consistency checks. Unlike search tokens it keeps periods ("q4", "2025"), so
+    "... in Q4 2025" is never compared with "... in Q3 2026" and reported as a contradiction."""
+    return " ".join(t for t in re.findall(r"[a-z0-9]+", text.lower()) if t not in STOP)
+
+
 def split_passages(text: str, *, max_chars: int = 900) -> list[str]:
     parts: list[str] = []
     heading = ""
@@ -327,12 +333,12 @@ class KnowledgeService:
 
     def prior_answers(self, actor: Principal, ws: str, question: str, *, limit: int = 3) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.read")
-        key = " ".join(tokens(question))
+        key = _question_key(question)
         rows = self._db(ws).query(
             "SELECT id, task_id, question, answer, evidence, created_at FROM analyses ORDER BY created_at DESC LIMIT 200")
         out = []
         for r in rows:
-            if " ".join(tokens(r["question"])) == key:
+            if _question_key(r["question"]) == key:
                 ans, ev = json.loads(r["answer"]), json.loads(r["evidence"])
                 out.append({"analysis_id": r["id"], "task_id": r["task_id"], "answer": ans.get("answer"),
                             "status": ans.get("status"), "sources": ev.get("sources", []), "at": str(r["created_at"])})
