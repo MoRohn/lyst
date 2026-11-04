@@ -291,7 +291,7 @@ class ContractService:
                 impacted: list[dict[str, Any]], owner: str | None) -> None:
         """A finding in the inbox, deduplicated per dataset version, for the owner and the workspace's owners and admins."""
         problems = [r["text"] for r in results if r["severity"] in ("breaking", "fail")]
-        order = {"dashboard": 0, "workflow": 1, "monitor": 2, "metric": 3}
+        order = {"dashboard": 0, "report": 1, "presentation": 1, "workbook": 1, "workflow": 2, "monitor": 3, "metric": 4}
         assets = [f"{i['kind']} {i.get('title') or i['name']}" for i in sorted(impacted, key=lambda i: order.get(i["kind"], 9))
                   if i["kind"] in order]
         summary = (f"{dataset} v{version} {'breaks' if outcome == 'breaking' else 'fails'} its contract: {problems[0]}"

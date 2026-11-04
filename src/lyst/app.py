@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from . import observability as obs
 from .analyst.engine import REGISTRY, Services
+from .assets import AssetService
 from .catalog import CatalogService
 from .config import Settings, load_settings
 from .connectors import ConnectionService
@@ -49,6 +50,7 @@ class Lyst:
     credentials: CredentialService
     catalog: CatalogService
     contracts: ContractService
+    assets: AssetService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -92,8 +94,13 @@ class Lyst:
         connections.catalog = catalog
         data.after_ingest += [catalog.after_ingest, contracts.after_ingest]
         services.catalog = catalog
+        assets = AssetService(stores, guard, semantic=semantic, runtime=runtime, artifacts=artifacts, studio=studio)
+        artifacts.assets = studio.assets = services.workflows.assets = assets
+        data.after_ingest.append(assets.after_ingest)  # after the contract check, so a breaking version reads as broken
+        semantic.after_change.append(assets.after_definition)
+        runtime.periodic.append(assets.complete_all)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts)
+                   studio, connections, credentials, catalog, contracts, assets)
 
     def close(self) -> None:
         self.runtime.stop()

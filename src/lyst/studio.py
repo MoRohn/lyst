@@ -210,7 +210,8 @@ class StudioService:
                                          attributes={"kind": "dashboard"}, source="system")
             for m in design["metrics"]:
                 self.knowledge.relate(actor, ws, "artifact", did, "reads", "metric", m["name"], source="system")
-        return {"dashboard_id": did, "title": design["title"], "path": str(folder), "status": status, "checks": checks,
+        reg = self.assets.on_dashboard(actor, ws, did, design, checks, task_id=task_id) if getattr(self, "assets", None) else None
+        return {"dashboard_id": did, "asset": reg, "title": design["title"], "path": str(folder), "status": status, "checks": checks,
                 "schedule": schedule, "target": design.get("target", "streamlit"),
                 "files": sorted(str(p.relative_to(folder)) for p in folder.rglob("*") if p.is_file() and ".cache" not in p.parts
                                 and "__pycache__" not in p.parts)}
@@ -330,6 +331,8 @@ class StudioService:
             shutil.rmtree(staging, ignore_errors=True)
             self._db(ws).execute("UPDATE dashboards SET status = 'stale', checks = ? WHERE id = ?", [json.dumps(checks), dashboard_id])
         self.guard.audit(actor, ws, "dashboard.refresh", dashboard_id, "ok" if ok else "failed")
+        if ok and getattr(self, "assets", None):
+            self.assets.on_dashboard(actor, ws, dashboard_id, design, checks, refreshed=True, task_id=task_id)
         return {"dashboard_id": dashboard_id, "status": "published" if ok else "stale", "checks": checks}
 
     def retire(self, actor: Principal, ws: str, dashboard_id: str) -> dict[str, Any]:

@@ -188,6 +188,16 @@ class SemanticService:
         self.stores = stores
         self.guard = guard
         self.knowledge = knowledge
+        self.after_change: list = []  # called with (actor, workspace_id, metric name) after a definition changes
+
+    def _changed(self, actor: Principal, workspace_id: str, name: str) -> None:
+        for hook in self.after_change:
+            try:
+                hook(actor, workspace_id, name)
+            except Exception:  # noqa: BLE001 - the definition is saved; dependants are advisory
+                import logging  # noqa: PLC0415
+
+                logging.getLogger("lyst.semantic").exception("after-change hook failed for %s", name)
 
     def define(self, actor: Principal, workspace_id: str, spec: MetricSpec, note: str = "") -> int:
         self.guard.require(actor, workspace_id, "metric.define", spec.name)
@@ -227,6 +237,7 @@ class SemanticService:
         if self.knowledge:
             self.knowledge.record_metric(actor, workspace_id, spec)
         self.guard.audit(actor, workspace_id, "metric.define", spec.name, "ok", {"version": version})
+        self._changed(actor, workspace_id, spec.name)
         return version
 
     def metrics(self, actor: Principal, workspace_id: str) -> list[MetricSpec]:
@@ -290,6 +301,7 @@ class SemanticService:
                 raise ValueError(f"{replaced_by} is not an approved metric")
         db.execute("UPDATE metrics SET status = 'deprecated', replaced_by = ? WHERE name = ?", [replaced_by, name])
         self.guard.audit(actor, workspace_id, "metric.deprecate", name, "ok", {"replaced_by": replaced_by, "note": note})
+        self._changed(actor, workspace_id, name)
         return {"name": name, "status": "deprecated", "replaced_by": replaced_by}
 
     def deprecated(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:

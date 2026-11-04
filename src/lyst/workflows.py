@@ -300,6 +300,8 @@ class WorkflowService:
 
         db.write(tx)
         self.guard.audit(actor, ws, "workflow.compile", f"{wf_id}:v{version}", "ok")
+        if getattr(self, "assets", None):
+            self.assets.on_workflow(actor, ws, wf_id, version, title, deps, task_id, understanding.get("question"))
         return {"id": wf_id, "version": version, "created": True}
 
     def plan_steps(self, wf: dict[str, Any], period: dict[str, Any] | None, prior: dict | None,

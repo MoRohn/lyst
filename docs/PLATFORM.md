@@ -108,13 +108,46 @@ Not built: connectors for MySQL, SQL Server, warehouses and SaaS systems (no ser
 `docs/CONNECTORS.md`); generated connectors with sandbox tests and approved promotion (G13 below); webhook-driven
 (push) syncs.
 
+## PR C: artifact intelligence and lifecycle
+
+Built in `src/lyst/assets.py` with hooks in `deliverables.py`, `studio.py`, `workflows.py`, `semantic` and the
+runtime's worker tick; workspace migration 10 (`assets`, `asset_versions`); tests in `tests/test_assets.py`.
+
+* **One registry** for reports (PDF), workbooks, decks, briefings, dashboards and compiled workflows: identity, owner,
+  visibility, version, validation status (from the analysis's own verification or the dashboard's checks), the task
+  and question that produced it, and its dependencies (dataset versions and metric definition versions).
+* **Every version kept**: rebuilt reports are new files beside the old; a dashboard's previous folder is copied to
+  `<folder>.versions/v<n>` before a refresh overwrites it; `asset_versions` records hash, dependencies and validation.
+* **Maintenance**: after every ingest and every definition change, each active asset is assessed as current, stale
+  (newer data), invalidated (a metric it uses was redefined or retired; also a stale workflow) or broken (a dataset
+  gone, a contract breach, a failed dashboard). Invalidated and broken assets notify their owner once; a contract
+  breach is not repeated per asset because its own notice lists them.
+* **Repair**: a proposal per asset (refresh a dashboard; re-run and rebuild a report; re-run and recompile a workflow;
+  or "needs a person" when the cause is upstream). Repairs are verified like the original and only a verified result
+  becomes a new version; a failed repair restores the earlier state with the reason. Repairs started as tasks finish
+  on the worker tick.
+* **Cross-artifact**: `catalog.impact_of` (used by contracts and lineage) now includes registered reports, so a
+  source change names the reports built on it.
+* REST: `/v1/workspaces/{ws}/assets` (filters `kind`, `health`, `retired`), `/assets/{id}`, `/assets/scan`,
+  `/assets/{id}/proposal`, `/assets/{id}/repair`, `/assets/{id}/retire`.
+
+Verified: 315 tests pass (6 new), ruff, eval 19/19. Scenario **F** end to end: new data marks a report stale without
+a notice, a redefined metric invalidates it with a notice, a breaking source version marks it broken with a
+"needs a person" proposal; scenario **C** for a dashboard: built, refreshed as version 2 with its checks passing, old
+folder kept, history inspected, retired. A stale report rebuilt through a real task becomes version 2 with the new
+dataset version, and version 1's file is untouched.
+
+Not built: polished output standards beyond the existing PDF, Excel and slide builders (citations are carried; no
+template review); editing an asset in place; repairs that rewrite a broken definition (they stop and ask).
+
 ## Where it surfaces (handed to the UX thread)
 
 The API is complete; the screens are the UX thread's call. Proposed placement, following their layout:
 catalog rows, insights and contracts in **Data › Datasets** (a dataset dialog with Summary · Detail · Method tabs:
 summary sentence and risks; columns and relationships; contract and check history); metric lineage, history,
 deprecation and the semantic audit in **Brain › Definitions**; search in the single box on Home or the sidebar;
-contract findings already arrive in the existing inbox. Connection health and events go in **Data › Datasets ›
+contract findings already arrive in the existing inbox. Assets go in **Data › Dashboards** and **Saved analyses** (a health
+badge, the reason, the proposal and a Repair button, and the version list). Connection health and events go in **Data › Datasets ›
 Sources** (a state badge, the reasons and the required action per connection, the event list on open).
 
 ## Prioritized record of remaining gaps
@@ -125,7 +158,8 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | # | Gap | Priority | Status |
 |---|---|---|---|
 | G1 | Connector health and diagnostics, shared retries and rate limits, schema evolution on sync | 1 | done (PR B) |
-| G2 | Unified artifact registry: one identity, owner, version, validation status and dependencies for reports, decks, workbooks, dashboards, workflows; stale detection when sources or definitions change (builds on `impact`) | 1 | next (PR C) |
+| G2 | Unified artifact registry with versions, dependencies, health and verified repair | 1 | done (PR C) |
+| G15 | Output standards review: house templates, citation formatting and an automated layout check for PDF and slides | 2 | open |
 | G3 | Collaboration: share an investigation, comments on artifacts, review and approval of metric changes and contracts, ownership transfer, notification preferences | 1 | next (PR D) |
 | G4 | Natural-language transformations: derived datasets from a DuckDB SQL or Polars definition, verified by running them and checking the result against a contract, with lineage | 2 | open |
 | G5 | Fiscal calendars: periods such as "last fiscal quarter" resolved by a workspace calendar; today metric periods are calendar periods only | 2 | open |

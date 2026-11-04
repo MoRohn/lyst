@@ -675,9 +675,13 @@ def impact_of(db, semantic, actor: Principal, ws: str, dataset: str, columns: li
             continue
         out.append({"kind": "analysis", "name": a["id"], "title": (a["question"] or a["id"])[:120], "metric": metric,
                     "metrics": [metric] if metric else [], "why": f"read {dataset}"})
-        for art in db.query("SELECT from_name FROM relations WHERE from_kind = 'artifact' AND rel = 'produced_from' AND to_name = ?", [a["id"]]):
-            out.append({"kind": "artifact", "name": art["from_name"], "title": art["from_name"], "metrics": [metric] if metric else [],
-                        "why": f"produced from analysis {a['id']}"})
+    # registered deliverables (reports, workbooks, decks, briefings); dashboards and workflows are listed above
+    for a in db.query("SELECT id, kind, title, depends, health FROM assets WHERE status = 'active' AND kind NOT IN ('dashboard', 'workflow')"):
+        deps = json.loads(a["depends"])
+        ms = [m for m in deps.get("metrics", {}) if m in affected_metrics]
+        if dataset in deps.get("datasets", {}) and (not cols or ms):
+            out.append({"kind": a["kind"], "name": a["id"], "title": a["title"], "status": a["health"], "metrics": ms,
+                        "why": f"built on {dataset} v{deps['datasets'][dataset]}"})
     return out
 
 

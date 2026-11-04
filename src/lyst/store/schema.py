@@ -683,3 +683,46 @@ CONTROL.append((
     ALTER TABLE connection_syncs ADD COLUMN last_schema JSON
     """,
 ))
+
+# The asset registry: one identity, owner, version, validation and dependency record for every deliverable Lyst
+# produces (reports, workbooks, decks, briefings, dashboards, workflows), and every version of each.
+WORKSPACE.append((
+    10,
+    """
+    CREATE TABLE assets (
+        id VARCHAR PRIMARY KEY,
+        kind VARCHAR NOT NULL,
+        title VARCHAR NOT NULL,
+        owner VARCHAR NOT NULL,
+        visibility VARCHAR NOT NULL DEFAULT 'workspace',
+        status VARCHAR NOT NULL DEFAULT 'active',
+        health VARCHAR NOT NULL DEFAULT 'current',
+        health_reason VARCHAR,
+        validation VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        ref_kind VARCHAR NOT NULL,
+        ref_id VARCHAR NOT NULL,
+        task_id VARCHAR,
+        question VARCHAR,
+        depends JSON NOT NULL,
+        repair JSON,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        checked_at TIMESTAMPTZ
+    );
+    CREATE TABLE asset_versions (
+        asset_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        ref_id VARCHAR NOT NULL,
+        sha256 VARCHAR,
+        depends JSON NOT NULL,
+        validation VARCHAR NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (asset_id, version)
+    );
+    CREATE INDEX assets_by_ref ON assets (ref_kind, ref_id)
+    """,
+))
