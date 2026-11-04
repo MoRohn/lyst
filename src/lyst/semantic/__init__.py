@@ -259,7 +259,7 @@ class SemanticService:
                 phrases.setdefault(g["term"], set()).add(g["maps_to_metric"])
         hits: list[tuple[str, set[str]]] = []
         for phrase in sorted(phrases, key=len, reverse=True):
-            if f" {phrase} " in lowered:
+            if any(f" {variant} " in lowered for variant in (phrase, phrase + "s", phrase + "es")):
                 if any(phrase in longer for longer, _ in hits):
                     continue
                 hits.append((phrase, phrases[phrase]))

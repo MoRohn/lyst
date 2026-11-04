@@ -16,7 +16,7 @@ import math
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import numpy as np
@@ -28,8 +28,8 @@ from ..llm import LLMClient, LLMUnavailable
 from ..memory import MemoryService
 from ..security import Guard, untrusted
 from ..semantic import Measure, MetricSpec, SemanticService, _cond, _q, compile_metric, value_expr
-from . import periods
-from .registry import Context, Registry, capability
+from . import periods, reasoning
+from .registry import REGISTRY, Context, Registry, capability
 
 
 @dataclass
@@ -42,8 +42,6 @@ class Services:
     registry: Registry
     skills: Any = None  # skills.SkillService
 
-
-REGISTRY = Registry()
 
 # ------------------------------------------------------------------------------- helpers
 
@@ -122,7 +120,8 @@ INTENT_RULES: list[tuple[str, re.Pattern]] = [
     ("sql", re.compile(r"^\s*(select|with)\b", re.I)),
     ("profile", re.compile(r"\b(profile|data quality|quality of|inconsisten|describe the data|nulls?|duplicates?)\b", re.I)),
     ("forecast", re.compile(r"\b(forecast|predict|project(ion)?|next \d+ (months|quarters))\b", re.I)),
-    ("explain", re.compile(r"\b(why|explain|driver|drove|decline|drop|fell|increase|rose|change|variance|cause)\b", re.I)),
+    ("explain", re.compile(r"\b(why|explain|driver|drove|declin\w*|drop|fell|increas\w*|rose|chang\w*|variance|cause|"
+                           r"investigat\w*|contribut\w*|root cause)\b", re.I)),
     ("trend", re.compile(r"\b(trend|over time|monthly|by month|by quarter|history|anomal)\w*", re.I)),
     ("breakdown", re.compile(r"\bby (\w+)|\bper (\w+)|\bsplit\b|\bbreak ?down\b", re.I)),
     ("value", re.compile(r"\b(what|how much|how many|total|value|was|is)\b", re.I)),
@@ -183,9 +182,12 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
     if skill and intent not in ("sql",):
         intent = "skill"
+    horizon = reasoning.horizon_of(text)
+    depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
             "ambiguous": resolved["ambiguous"], "by": by, "dataset": dataset, "method": method,
-            "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None}
+            "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
+            "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None}
 
 
 # ------------------------------------------------------------------- 2. contextualize
@@ -268,6 +270,14 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 add("metric_breakdown", "breakdown", metric=m, period=p, by=u["by"])
             if u["intent"] == "explain":
                 add("driver_analysis", "drivers", metric=m, current=p, prior=prev)
+                if u["depth"] == "deep":
+                    h = u.get("horizon") or {"periods": 6, "grain": "quarter"}
+                    if h["grain"] in ("quarter", "month", "year"):
+                        add("horizon_series", "horizon", metric=m, grain=h["grain"], periods=h["periods"])
+                        add("change_points", "changepoints", series_key="horizon")
+                    add("hypothesize", "hypotheses", metric=m)
+                    add("test_hypotheses", "tests", metric=m, current=p, prior=prev)
+                    add("related_metrics", "related", metric=m, current=p, prior=prev)
         if u["intent"] in ("trend", "explain"):
             add("metric_series", "series", metric=m, grain="month")
             add("anomaly_scan", "anomalies", series_key="series")
@@ -280,9 +290,10 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     for s in steps:
         cap = ctx.services.registry.get(s["capability"])
         s["agent"], s["phase"] = cap.agent, cap.phase
-    return {"steps": steps, "blockers": blockers,
+    return {"steps": steps, "blockers": blockers, "depth": u.get("depth", "analytical"),
             "success_criteria": ["every number comes from an executed query", "all validation checks pass",
-                                 "the answer follows Answer, Evidence, Implications, Actions"]}
+                                 "the answer follows Answer, Evidence, Implications, Actions"]
+            + (["each hypothesis has a computed verdict"] if u.get("depth") == "deep" else [])}
 
 
 def _prev_period(p: dict[str, Any]) -> dict[str, Any]:
@@ -539,6 +550,22 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         mape = o["forecast"]["backtest_mape"]
         check("forecast_backtest", mape < 0.2, f"backtest MAPE {mape:.1%} over {o['forecast']['backtest_points']} months",
               "warning")
+    t = o.get("tests")
+    if t:
+        decided = [v for v in t["verdicts"] if v["verdict"] != "untestable"]
+        check("hypotheses_decided", len(decided) >= 3, f"{len(decided)} of {len(t['verdicts'])} hypotheses decided by computation")
+        if t.get("data_artifact"):
+            check("no_data_artifact", False, "data problems inside the period; the business reading is provisional", "warning")
+        parts = next((v for v in t["verdicts"] if v["id"] == "parts" and v["verdict"] != "untestable"), None)
+        if parts and "current" in o and "prior" in o:
+            n0, n1 = parts["numbers"]["numerator"]
+            d0, d1 = parts["numbers"]["denominator"]
+            ok = (n1 / d1 if d1 else None) is not None and math.isclose(n1 / d1, o["current"]["value"], rel_tol=1e-9) \
+                and math.isclose(n0 / d0, o["prior"]["value"], rel_tol=1e-9)
+            check("parts_reconcile", ok, "numerator ÷ denominator equals the metric in both periods")
+    cp = o.get("changepoints")
+    if cp and cp.get("latest") and "current" in o:
+        check("changepoint_consistent", cp["points"] >= 4, f"{cp['points']} periods scanned, {len(cp['breaks'])} break(s)", "warning")
     errors = [c for c in checks if not c["passed"] and c["severity"] == "error"]
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")
@@ -695,6 +722,67 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 implications.append(f"{b['member']} is carrying the change; check whether it is repeatable.")
         elif d and d.get("skipped"):
             findings.append(f"Driver attribution was skipped: {d['skipped']}.")
+        cp = o.get("changepoints")
+        if cp and cp.get("latest"):
+            b = cp["latest"]
+            findings.insert(0, f"The level shifted at {b['label']}: the {o['horizon']['grain']}ly average went from "
+                               f"{fmt(b['before'], spec)} to {fmt(b['after'], spec)} ({fmt(b['shift'], spec, delta=True)}) "
+                               f"over the last {cp['points']} {o['horizon']['grain']}s.")
+        elif cp and o.get("horizon") and cp.get("latest_outlier"):
+            lo = cp["latest_outlier"]
+            findings.insert(0, f"The move is confined to {lo['label']}: it sits {lo['sigma']:.1f} standard deviations "
+                               f"below the mean of the previous {cp['points'] - 1} {o['horizon']['grain']}s "
+                               f"({fmt(lo['prior_mean'], spec)}); no earlier shift in level was found."
+                            if lo["deviation"] < 0 else
+                            f"The move is confined to {lo['label']}: it sits {lo['sigma']:.1f} standard deviations "
+                               f"above the mean of the previous {cp['points'] - 1} {o['horizon']['grain']}s "
+                               f"({fmt(lo['prior_mean'], spec)}); no earlier shift in level was found.")
+        elif cp and o.get("horizon"):
+            findings.insert(0, f"No sustained level shift across the last {cp['points']} {o['horizon']['grain']}s; "
+                               "the change is within the range of normal variation.")
+        if o.get("horizon"):
+            hz = o["horizon"]
+            charts.insert(0, {"type": "bar", "title": f"{spec.title} by {hz['grain']}", "x": [p["label"] for p in hz["points"]],
+                              "y": [p["value"] for p in hz["points"]], "format": spec.format})
+        t = o.get("tests")
+        if t:
+            fav = t.get("favoured")
+            if fav:
+                names = {"concentration": "concentration in one segment", "parts": "a move in one part of the ratio",
+                         "single_month": "a single month", "mix": "a mix shift", "seasonality": "a seasonal pattern",
+                         "broad": "a broad-based move"}
+                findings.append(f"Of {len(t['verdicts'])} competing explanations tested, the evidence favours "
+                                f"{names.get(fav, fav)}; the others are listed under Hypotheses.")
+            if t.get("data_artifact"):
+                implications.insert(0, "Data problems were found inside the period, so treat the business reading as "
+                                       "provisional until they are resolved.")
+                actions.insert(0, "Fix the duplicate or missing rows in the period and rerun this investigation.")
+            parts = next((v for v in t["verdicts"] if v["id"] == "parts" and v["verdict"] == "supported"), None)
+            if parts:
+                nc, dc = parts["numbers"]["numerator_change"], parts["numbers"]["denominator_change"]
+                findings.append(f"Numerator {nc:+.1%} and denominator {dc:+.1%} between the periods: the "
+                                f"{parts['numbers']['mover']} moved.")
+            seas = next((v for v in t["verdicts"] if v["id"] == "seasonality"), None)
+            if seas and seas["verdict"] == "refuted":
+                implications.append("This is not the usual seasonal pattern: a year earlier the same transition did not move this way.")
+            elif seas and seas["verdict"] == "supported":
+                implications.append("The same move happened a year earlier, so part of it is seasonal rather than new.")
+        rel = o.get("related")
+        if rel and rel.get("metrics"):
+            moves = []
+            for m in rel["metrics"]:
+                if m["change"] is None:
+                    continue
+                arrow = "up" if m["change"] > 0 else "down"
+                if m["format"] == "percent":
+                    pct = f" ({m['change'] * 100:+.1f} pts)"
+                else:
+                    pct = f" ({m['relative']:+.1%})" if m.get("relative") is not None else ""
+                moves.append(f"{m['title']} {arrow}{pct}")
+            if moves:
+                findings.append("Related metrics over the same periods: " + "; ".join(moves) + ".")
+            tables.append({"title": "Related metrics", "columns": ["metric", "prior", "current", "change"],
+                           "rows": [[m["title"], m["prior"], m["current"], m["change"]] for m in rel["metrics"]]})
         if o.get("breakdown"):
             bd = o["breakdown"]
             tables.append({"title": f"{spec.title} by {bd['by']}", "columns": [bd["by"], "value"],
@@ -746,10 +834,21 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
     confidence = {"passed": "verified", "passed_with_warnings": "verified with warnings",
                   "failed": "not verified"}[v["status"]]
+    sources = []
+    for m in c.get("metrics", []):
+        ver = ctx.services.data.stores.workspace(ctx.workspace_id).query(
+            "SELECT dataset, version, source_sha256, row_count, created_at FROM dataset_versions "
+            "WHERE dataset = ? AND version = ?", [m["spec"]["dataset"], m["dataset_version"]])
+        if ver:
+            vr = ver[0]
+            sources.append({"dataset": vr["dataset"], "version": vr["version"], "sha256": vr["source_sha256"],
+                            "rows": vr["row_count"], "loaded_at": str(vr["created_at"]), "data_through": m["max_date"]})
     result = {
         "status": status,
+        "depth": pl.get("depth", "analytical"),
         "question": u["question"],
         "answer": answer,
+        "hypotheses": o.get("tests", {}).get("verdicts", []),
         "evidence": findings,
         "implications": implications,
         "actions": actions,
@@ -759,6 +858,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                        "checks": v["checks"]},
         "supporting": {
             "queries": evidence_queries,
+            "sources": sources,
+            "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "metric": (c["metrics"][0] if c.get("metrics") else None),
             "assumptions": assumptions,
             "plan": [{"capability": s["capability"], "agent": s["agent"]} for s in pl["steps"]],

@@ -17,7 +17,9 @@
 | Analyst | Driver attribution (exact rate/mix for ratios, contribution for totals) | Tested | `test_a_operating_margin_decline_finds_emea` |
 | Analyst | Breakdown, trend, anomaly scan, ETS forecast with backtest | Tested | `test_runtime.py::test_trend_and_forecast` |
 | Analyst | Data-quality investigation | Tested | Scenario C |
-| Analyst | Independent validation and evidence package | Tested | Scenario A |
+| Analyst | Independent validation and evidence package (checks, queries, dataset versions with hashes, timestamps) | Tested | Scenario A |
+| Analyst | Reasoning depth (fast / analytical / deep / project) chosen from the request | Tested | `test_reasoning.py` |
+| Analyst | Deep investigation: quarterly horizon, change points, seven competing hypotheses decided by computation, related-metric corroboration | Tested | `test_reasoning.py::test_a_deep_investigation_tests_competing_explanations` |
 | Analyst | Model-written narrative with number verification | Tested (stub model) | `test_llm.py` |
 | Models | OpenRouter gateway: tiers, workload routing, admission, adaptive limits, retries, fallback, 402 handling, per-call cost | Tested against a stub OpenRouter | `test_gateway.py`, `test_llm.py::test_openrouter_end_to_end_through_the_analyst` |
 | Models | Real OpenRouter call | Not yet: needs a Lyst OpenRouter key | — |

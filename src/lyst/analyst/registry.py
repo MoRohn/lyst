@@ -68,6 +68,9 @@ class Registry:
         return cap.fn(ctx, args)
 
 
+REGISTRY = Registry()
+
+
 def capability(registry: Registry, name: str, *, agent: str, phase: str, permission: str,
                description: str, mutating: bool = False, requires_approval: bool = False):
     def wrap(fn):

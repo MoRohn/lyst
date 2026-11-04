@@ -167,6 +167,10 @@ def demo_bank() -> list[EvalCase]:
                  "revenue: 1 nulls", "cogs: 1 negative values"], validation="passed_with_warnings"),
         EvalCase("forecast", "Forecast revenue", metric="revenue", contains=["backtest"]),
         EvalCase("trend", "Show the operating margin trend over time", metric="operating_margin"),
+        EvalCase("deep-investigation", "Investigate our declining operating margins across the last six quarters, "
+                 "isolate the strongest contributing factors, test alternative explanations, and prepare an executive "
+                 "briefing.", metric="operating_margin", value=margin(q3), driver="EMEA",
+                 contains=["favours concentration", "confined to Q3 2026"], max_seconds=15),
         EvalCase("prior-quarter-value", "What was operating margin in Q2 2026?", metric="operating_margin",
                  value=margin(q2), contains=["Q2 2026"]),
     ]

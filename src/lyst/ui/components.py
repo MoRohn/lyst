@@ -37,6 +37,8 @@ def chart(c: dict[str, Any]) -> None:
         fig.add_scatter(x=c["x"] + c["x"][::-1], y=c["hi"] + c["lo"][::-1], fill="toself", mode="lines",
                         line={"width": 0}, opacity=0.2, name="Interval", hoverinfo="skip")
         fig.add_scatter(x=c["x"], y=c["y"], mode="lines", line={"dash": "dot"}, name="Forecast")
+    elif c["type"] == "bar":
+        fig.add_bar(x=c["x"], y=c["y"], name=c["title"])
     else:
         fig.add_scatter(x=c["x"], y=c["y"], mode="lines+markers", marker={"size": 4}, name=c["title"])
     fig.update_layout(title=None, height=300, margin={"l": 8, "r": 8, "t": 8, "b": 8}, showlegend=c["type"] == "forecast",
@@ -86,8 +88,18 @@ def answer(r: dict[str, Any]) -> None:
                 st.markdown("\n".join(f"- {e}" for e in r["actions"]))
         for t in r.get("tables", []):
             table(t)
+        if r.get("hypotheses"):
+            with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:"):
+                icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
+                for h in r["hypotheses"]:
+                    st.markdown(f"{icons[h['verdict']]} **{h['id'].replace('_', ' ').capitalize()}** · {h['verdict']} · {h['detail']}")
         with st.expander("Supporting work: method, checks and queries", icon=":material/fact_check:"):
             sup = r.get("supporting", {})
+            if sup.get("sources"):
+                st.markdown("**Sources**")
+                for src in sup["sources"]:
+                    st.caption(f"{src['dataset']} v{src['version']} · {src['rows']:,} rows · data through {src['data_through']} · "
+                               f"sha256 {src['sha256'][:12]}… · loaded {str(src['loaded_at'])[:16]}")
             if sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown("\n".join(f"- {a}" for a in sup["assumptions"]))

@@ -65,6 +65,16 @@ pools and routing, admission limits, adaptive per-model limits, retries with fal
 models, and a row per upstream call. OpenRouter is the main provider (decision 0005); a local
 OpenAI-compatible server is the alternative. See [MODELS.md](MODELS.md).
 
+## Reasoning depth and hypotheses
+
+`understand` sets a depth: **fast** (values, breakdowns, guarded SQL, skills), **analytical** (one-period
+"why", trends, forecasts, profiles), **deep** ("why" over a horizon, or a request to investigate or test
+alternatives) and **project** (build or automate requests, the Studio). A deep plan adds `horizon_series`,
+`change_points`, `hypothesize`, `test_hypotheses` and `related_metrics` (`analyst/reasoning.py`). The seven
+hypotheses (concentration, broad-based, mix, seasonality, single month, data artifact, numerator vs
+denominator) each have a deterministic test; the answer separates established findings from hypothesis
+verdicts and names the explanation the evidence favours. Nothing in this path calls a model.
+
 ## Durable execution
 
 Tasks live in `control.duckdb`. A worker claims a task in one write transaction (queued, or running with an
