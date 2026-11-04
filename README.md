@@ -216,6 +216,15 @@ where they point, with Mark all read and "What to tell me about".
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
+* **Prepares recurring work before it runs.** Shortly before an approved schedule is due, Lyst checks it as its
+  owner would: access, each input's freshness since the last run, failing connections, broken contracts, changed
+  or retired definitions, out-of-date saved analyses, recent failures, expected run time and model budget. The
+  verdict is ready, ready with warnings, or blocked, and only a blocker is pushed to a person. Prepared work is
+  re-checked as soon as data or a definition changes, and each item explains why it was raised and can be run
+  now, dismissed, snoozed or rated. A per-workspace autonomy level (off, suggest by default, prepare, investigate,
+  automate) with daily budgets sets how far Lyst goes on its own. Levels never widen permissions, and
+  consequential actions still need approval. Deterministic and local, with no model calls. Through the API today
+  ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -342,7 +351,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
