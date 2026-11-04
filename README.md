@@ -76,6 +76,12 @@ it to a colleague or asks for a review, **Discuss** opens its thread, and **How 
 and model call with its timing. Four questions sit under every answer: **How was this figured? · Where is it from?
 · What could change it? · Can it be repeated?** Each opens the engine's own explanation from its records, and the
 last reruns the recorded queries under your current permissions.
+Below them, **Next steps** offers up to three follow-ups grounded in what the answer found, each with Run now (or
+Watch it), Later and Why.
+
+<p align="center">
+  <img src="docs/images/next-steps.png" alt="Under an answer: the act bar, the four questions about the answer, What if and Compare options, and three Next steps with Run now, Later and Why" width="80%">
+</p>
 
 <p align="center">
   <img src="docs/images/brief.png" alt="The Brief: the answer, the trust line, one chart, what to do and the PDF briefing" width="49%">
@@ -167,6 +173,9 @@ dimensions, and overlapping sources reconciled by their totals.
   </tr>
   <tr>
     <td colspan="2" align="center"><img src="docs/images/metric-lineage.png" alt="A metric definition: how it is calculated, where the number comes from, versions and retirement" width="60%"><br><b>Definition</b>: where the number comes from, versions and retirement</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/images/dataset-sensitivity.png" alt="A dataset's Overview: its sensitivity in words, marked as the source of truth for P&L, no quality risks, and what depends on it" width="70%"><br><b>Sensitivity and source of truth</b>: on every dataset</td>
   </tr>
 </table>
 
