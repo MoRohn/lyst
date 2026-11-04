@@ -71,6 +71,8 @@ class WorkspacePatch(BaseModel):
     allow_external_llm: bool | None = None
     autonomy: str | None = None
     webhook_url: str | None = None
+    llm_tier: str | None = None    # economy | balanced | frontier; "" follows the installation
+    llm_model: str | None = None   # an OpenRouter slug used alone; "" or "auto" walks the tier
 
 
 class MonitorIn(BaseModel):
@@ -507,10 +509,12 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         c = lyst.credentials
         if body.settings:
             for k, v in body.settings.items():
-                if k not in ("LYST_LLM_TIER", "LYST_LLM_MODEL", "LYST_EMBED_MODEL"):
+                if k not in ("LYST_LLM_TIER", "LYST_LLM_MODEL", "LYST_LLM_MAX_TIER", "LYST_EMBED_MODEL"):
                     raise ValueError(f"{k} is not an installation setting")
-                if k == "LYST_LLM_TIER" and v not in (None, "", "economy", "balanced", "frontier"):
+                if k in ("LYST_LLM_TIER", "LYST_LLM_MAX_TIER") and v not in (None, "", "economy", "balanced", "frontier"):
                     raise ValueError("tier must be economy, balanced or frontier")
+                if k == "LYST_LLM_MODEL" and v == "auto":
+                    v = None
                 c.set_setting(user, k, v)
         if body.policy:
             c.set_policy(user, body.policy.provider, workspace_override=body.policy.workspace_override,
@@ -919,17 +923,54 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
             updates.append(("autonomy", body.autonomy))
         if body.webhook_url is not None:  # "" clears it
             updates.append(("webhook_url", body.webhook_url or None))
+        if body.llm_tier is not None or body.llm_model is not None:
+            from ..llm import policy  # noqa: PLC0415
+
+            row = lyst.stores.control.query("SELECT llm_tier, llm_model FROM workspaces WHERE id = ?", [ws])[0]
+            tier = row["llm_tier"] if body.llm_tier is None else (body.llm_tier or None)
+            model = row["llm_model"] if body.llm_model is None else (None if body.llm_model in ("", "auto") else body.llm_model.strip())
+            if tier not in (None, "economy", "balanced", "frontier"):
+                raise ValueError("tier must be economy, balanced or frontier")
+            sel = lyst.llm.selection(ws)
+            reason = policy.choice_allowed(tier, model, sel.ceiling if sel else "frontier")
+            if reason:
+                raise AccessDenied(reason)
+            updates += [("llm_tier", tier), ("llm_model", model)]
         for col, val in updates:
             lyst.stores.control.execute(f"UPDATE workspaces SET {col} = ? WHERE id = ?", [val, ws])
             lyst.guard.audit(user, ws, f"settings.{col}", ws, "ok", {"value": val})
         return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/model-options")
+    def model_options(request: Request, ws: str, user: User):
+        """The tiers and models this workspace may choose, priced from OpenRouter's catalog, and what it uses now."""
+        from ..llm.options import model_options as options  # noqa: PLC0415
+
+        lyst = L(request)
+        lyst.guard.require(user, ws, "workspace.read")
+        if lyst.llm.catalog is not None:
+            lyst.llm.catalog.refresh_if_stale()
+        return options(lyst.llm, lyst.stores, ws)
+
+    @app.post("/v1/models/catalog/refresh")
+    def model_catalog_refresh(request: Request, user: User):
+        """Rebuild the tiers from OpenRouter's live model list now (installation administrators)."""
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("the model catalog is refreshed by installation administrators")
+        if lyst.llm.catalog is None:
+            raise ValueError("the model catalog applies to OpenRouter; this installation uses a local model")
+        out = lyst.llm.catalog.refresh(actor=user.user_id)
+        lyst.credentials._event(user, "models.catalog_refresh", None, "installation", None, "ok",  # noqa: SLF001
+                                {"models": out["modelCount"], "changes": out["changes"][:20]})
+        return out
 
     @app.get("/v1/workspaces/{ws}/model-usage")
     def model_usage(request: Request, ws: str, user: User):
         lyst = L(request)
         lyst.guard.require(user, ws, "audit.read")
         return lyst.stores.control.query(
-            "SELECT coalesce(workload, purpose) AS workload, model, provider, count(*) AS calls, "
+            "SELECT coalesce(tier, '') AS tier, coalesce(workload, purpose) AS workload, model, provider, count(*) AS calls, "
             "count(*) FILTER (WHERE outcome = 'ok') AS ok, coalesce(sum(input_tokens), 0) AS input_tokens, "
             "coalesce(sum(output_tokens), 0) AS output_tokens, round(coalesce(sum(cost_usd), 0), 6) AS cost_usd, "
             "quantile_cont(latency_ms, 0.95) AS p95_ms FROM llm_calls WHERE workspace_id = ? GROUP BY ALL ORDER BY calls DESC",

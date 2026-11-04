@@ -7,6 +7,7 @@ import streamlit as st
 
 from lyst.ui import kit
 from lyst.ui.client import APIError, client, workspace
+from lyst.ui.components import md
 
 api, ws = client(), workspace()
 kit.header("Settings", "Models, secrets and connections, members, and how this workspace is governed.")
@@ -160,6 +161,126 @@ elif s.get("provider") == "openrouter":
                 "the installation policy.", icon=":material/key:")
 else:
     st.write("No model configured. Set LYST_LLM_BASE_URL and LYST_LLM_MODEL for a local OpenAI-compatible model, or use OpenRouter.")
+def usd(v: float | None, *, per: int = 1) -> str:
+    """Dollar amounts too small for cents keep their significant digits: $0.00028, $1.40, $1,204."""
+    if v is None:
+        return "n/a"
+    v *= per
+    if v >= 100:
+        return f"${v:,.0f}"
+    if v >= 1:
+        return f"${v:,.2f}"
+    return f"${v:.2g}" if v >= 0.0001 else f"${v:.1e}"
+
+
+def price(v: float) -> str:
+    """A per-1M-token price as Acumane prints it: $15, $2.50, $0.10, $0.0825."""
+    if v >= 1:
+        return f"${v:.2f}".removesuffix(".00")
+    frac = f"{v:.4f}".split(".")[1].rstrip("0")
+    return f"$0.{frac.ljust(2, '0')}"
+
+
+def per_m(row: dict) -> str:
+    return f"{price(row['input_per_m'])} in · {price(row['output_per_m'])} out per 1M tokens"
+
+
+opts = None
+if m and m.get("provider") == "openrouter":
+    try:
+        opts = api.get(f"/v1/workspaces/{ws}/model-options")
+    except APIError as e:
+        st.caption(str(e))
+if opts and opts.get("selection"):
+    sel, b, cat = opts["selection"], opts["basis"], opts["catalog"]
+    st.markdown("**Model level**")
+    fetched = kit.when(cat.get("lastRefreshedAt"))
+    src = (f"OpenRouter's live catalog, updated {fetched}" if cat.get("source") == "openrouter"
+           else f"the snapshot shipped with Lyst ({fetched}); it is replaced by OpenRouter's live catalog on the next refresh")
+    basis_txt = (f"this workspace's average call over 30 days ({b['input_tokens']:,} tokens in, {b['output_tokens']:,} out)"
+                 if b["observed"] else "a typical call of 800 tokens in and 400 out")
+    st.caption(md(f"Prices are OpenRouter's published per-token prices, from {src}. Estimates use {basis_txt}; "
+                  "the cost OpenRouter reports for each call is what Model usage records."))
+    cols = st.columns(3)
+    for col, t in zip(cols, opts["tiers"], strict=True):
+        with col.container(border=True):
+            head = st.columns([3, 2], vertical_alignment="center")
+            head[0].markdown(f"**{t['label']}**")
+            if sel["mode"] == "auto" and sel["tier"] == t["id"]:
+                kit.chip("In use", "ok", head[1])
+            elif not t["allowed"]:
+                kit.chip("Not allowed", "off", head[1])
+            st.caption(t["purpose"])
+            if t["primary"]:
+                st.metric("Per call", usd(t["per_call_usd"]), help="On the tier's first model, with the token counts above.")
+                lo, hi = t["range_usd"]
+                st.caption(md(f"{usd(t['per_call_usd'], per=1000)} per 1,000 calls · {usd(lo)} to {usd(hi)} across the tier"
+                              + (f" · about {usd(t['primary']['per_question_usd'])} per question" if t["primary"].get("per_question_usd") else "")))
+                st.markdown(md(f"{t['primary']['modelLabel']} first, then {len(t['models']) - 1} fallbacks"))
+                st.caption(md(per_m(t["primary"])))
+    if sel["mode"] == "pinned":
+        st.info(md(f"Pinned to **{sel['model_label'] or sel['model']}** (used alone, about {usd(sel['per_call_usd'])} per call)."),
+                icon=":material/push_pin:")
+    where = {"workspace": "chosen for this workspace", "installation": "the installation default",
+             "default": "Lyst's default"}[sel["source"]]
+    st.caption(md(f"Now: {where}. Calls walk {' → '.join(f'`{x}`' for x in sel['attempts'][:6])}"
+                  + (" …" if len(sel["attempts"]) > 6 else "")
+                  + (f". This installation allows tiers up to {sel['ceiling']}." if sel["ceiling"] != "frontier" else ".")))
+    if admin:
+        with st.form("model-level", border=True):
+            ws_row = s["workspace"]
+            labels = {"": "Follow the installation default"} | {t["id"]: f"{t['label']} · about {usd(t['per_call_usd'])} per call"
+                                                                for t in opts["tiers"] if t["allowed"]}
+            cur_tier = ws_row.get("llm_tier") or ""
+            f = st.columns(2)
+            tier = f[0].selectbox("Level for this workspace", list(labels), format_func=labels.get,
+                                  index=list(labels).index(cur_tier) if cur_tier in labels else 0)
+            allowed = [r for r in opts["models"] if r["allowed"]]
+            by_id = {r["modelId"]: r for r in allowed}
+            choices = ["auto"] + [r["modelId"] for r in allowed]
+            cur_model = ws_row.get("llm_model") or "auto"
+            if cur_model not in choices:
+                choices.append(cur_model)
+
+            def model_label(mid: str) -> str:
+                if mid == "auto":
+                    return "Auto: the tier's best-priced model, with fallbacks (recommended)"
+                r = by_id.get(mid)
+                if not r:
+                    return mid
+                tier_tag = f" · {r['tier']}" if r.get("tier") else ""
+                return f"{r['vendorLabel']} · {r['modelLabel']}{tier_tag} · {price(r['input_per_m'])}/{price(r['output_per_m'])} per 1M · ≈{usd(r['per_call_usd'])}/call"
+
+            model = f[1].selectbox("Model", choices, index=choices.index(cur_model), format_func=model_label,
+                                   help="Auto walks the level's models cheapest first and falls back on errors, as in Acumane. "
+                                        "A specific model is used alone. Models above this installation's highest allowed "
+                                        "level are not listed.")
+            if st.form_submit_button("Save model choice", icon=":material/save:"):
+                try:
+                    api.patch(f"/v1/workspaces/{ws}/settings", {"llm_tier": tier, "llm_model": model})
+                    st.toast("Model choice saved; the next call uses it.", icon=":material/check:")
+                    st.rerun()
+                except APIError as e:
+                    st.error(str(e))
+    with st.expander("Every model in each level"):
+        rows = [{"Level": t["label"], "Order": i + 1, "Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"],
+                 "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Cached $/1M": r["cached_per_m"],
+                 "Per call": r["per_call_usd"], "Per 1,000 calls": r["per_call_usd"] * 1000, "Context": r["context"]}
+                for t in opts["tiers"] for i, r in enumerate(t["models"])]
+        money = {k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Cached $/1M", "Per 1,000 calls")}
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                     column_config=money | {"Per call": st.column_config.NumberColumn("Per call", format="$%.6f"),
+                                            "Context": st.column_config.NumberColumn("Context", format="%d")})
+    with st.expander(f"All {cat.get('selectable') or len(opts['models'])} OpenRouter models Lyst can use"):
+        st.caption("Text models that support tool calls, with a published price and at least 8,000 tokens of context. "
+                   "Newest first within each provider.")
+        allm = pd.DataFrame([{"Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"], "Level": r["tier"] or "",
+                              "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Per 1,000 calls": r["per_call_usd"] * 1000,
+                              "Context": r["context"], "Reasoning": bool(r["reasoning"]), "Allowed here": r["allowed"]}
+                             for r in opts["models"]])
+        st.dataframe(allm, hide_index=True, width="stretch",
+                     column_config={k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Per 1,000 calls")})
+
 if admin:
     allow = st.toggle("Allow this workspace to use external model providers", value=bool(s["workspace"]["allow_external_llm"]))
     mode = st.segmented_control("Autonomy", ["assist", "delegate", "autonomous", "governed"],
@@ -173,8 +294,20 @@ if admin:
     usage = api.get(f"/v1/workspaces/{ws}/model-usage")
     if usage:
         st.markdown("**Model usage**")
+        if opts and opts.get("spend"):
+            sp = opts["spend"]
+            u = st.columns(4)
+            u[0].metric("Spend, last 30 days", usd(sp["cost_usd"]) if sp["cost_usd"] else "$0")
+            u[1].metric("Calls, last 30 days", f"{sp['calls']:,}")
+            u[2].metric("Average per call", usd(sp["cost_usd"] / sp["calls"]) if sp["calls"] and sp["cost_usd"] else "n/a")
+            top = next((r for r in sp["by_tier"] if r["tier"] != "unrecorded"), None)
+            u[3].metric("Most spend on", top["tier"].capitalize() if top else "n/a")
         st.dataframe(pd.DataFrame(usage), hide_index=True, width="stretch",
-                     column_config={"cost_usd": st.column_config.NumberColumn("Cost", format="$%.4f")})
+                     column_config={"tier": st.column_config.TextColumn("Level", help="The level the call ran under; custom is a pinned model outside the levels"),
+                                    "cost_usd": st.column_config.NumberColumn("Cost", format="$%.4f", help="As reported by OpenRouter for each call, else priced from the catalog"),
+                                    "input_tokens": st.column_config.NumberColumn("Input tokens", format="%d"),
+                                    "output_tokens": st.column_config.NumberColumn("Output tokens", format="%d"),
+                                    "p95_ms": st.column_config.NumberColumn("p95 latency (ms)", format="%d")})
     if s.get("gateway") and s["gateway"].get("configured"):
         g = s["gateway"]
         st.caption(f"Gateway now: {g['inflight']} calls in flight, waiting {g['waiting']}, refusals {g['refusals'] or 'none'}")
@@ -215,18 +348,36 @@ if owner:
                 wo = p1[0].toggle("Workspaces may connect their own OpenRouter key", value=bool(pol.get("workspace_override")))
                 uc = p1[1].toggle("People may connect a personal OpenRouter key", value=bool(pol.get("user_credentials")))
                 st_ = inst["settings"]
-                p2 = st.columns(3)
-                tier = p2[0].selectbox("Model tier", ["economy", "balanced", "frontier"],
-                                       index=["economy", "balanced", "frontier"].index(st_.get("LYST_LLM_TIER") or "balanced"))
-                pinned = p2[1].text_input("Pinned model (optional)", value=st_.get("LYST_LLM_MODEL") or "")
-                embed = p2[2].text_input("Embedding model (optional)", value=st_.get("LYST_EMBED_MODEL") or "",
+                levels = ["economy", "balanced", "frontier"]
+                p2 = st.columns(2)
+                tier = p2[0].selectbox("Default level", levels, format_func=str.capitalize,
+                                       index=levels.index(st_.get("LYST_LLM_TIER") or "balanced"),
+                                       help="What every workspace uses unless it chooses its own.")
+                ceiling = p2[1].selectbox("Highest level a workspace may choose", levels, format_func=str.capitalize,
+                                          index=levels.index(st_.get("LYST_LLM_MAX_TIER") or "frontier"),
+                                          help="Also caps a workspace's specific model at the dearest model of this level. "
+                                               "A workspace above a lowered ceiling falls back to the default.")
+                p3 = st.columns(2)
+                pinned = p3[0].text_input("Pinned model for every workspace (optional)", value=st_.get("LYST_LLM_MODEL") or "",
+                                          help="An OpenRouter slug used alone, e.g. anthropic/claude-opus-5.5. Administrators may "
+                                               "pin a model outside the catalog.")
+                embed = p3[1].text_input("Embedding model (optional)", value=st_.get("LYST_EMBED_MODEL") or "",
                                          help="e.g. openai/text-embedding-3-small; turns on semantic search")
-                if st.button("Save installation settings", icon=":material/save:"):
+                b1, b2 = st.columns([1, 1])
+                if b1.button("Save installation settings", icon=":material/save:"):
                     try:
                         api.patch("/v1/installation", {"policy": {"provider": "openrouter", "workspace_override": wo, "user_credentials": uc},
-                                                       "settings": {"LYST_LLM_TIER": tier, "LYST_LLM_MODEL": pinned or None,
-                                                                    "LYST_EMBED_MODEL": embed or None}})
+                                                       "settings": {"LYST_LLM_TIER": tier, "LYST_LLM_MAX_TIER": ceiling,
+                                                                    "LYST_LLM_MODEL": pinned or None, "LYST_EMBED_MODEL": embed or None}})
                         st.rerun()
+                    except APIError as e:
+                        _reauth(e)
+                if inst.get("provider") == "openrouter" and b2.button("Refresh models and prices from OpenRouter",
+                                                                      icon=":material/sync:"):
+                    try:
+                        out = api.post("/v1/models/catalog/refresh", {})
+                        st.success(md(f"Catalog updated: {out['selectable']} usable models of {out['modelCount']}. "
+                                      + ("; ".join(out["changes"][:8]) or "No tier changes.")))
                     except APIError as e:
                         _reauth(e)
                 with st.expander("Trust anchors and administrators"):

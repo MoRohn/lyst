@@ -581,3 +581,18 @@ WORKSPACE.append((
     )
     """,
 ))
+
+CONTROL.append((
+    10,
+    """
+    CREATE TABLE model_catalog (
+        id VARCHAR PRIMARY KEY,
+        fetched_at TIMESTAMPTZ DEFAULT now(),
+        fetched_by VARCHAR,
+        payload VARCHAR NOT NULL
+    );
+    ALTER TABLE workspaces ADD COLUMN llm_tier VARCHAR;
+    ALTER TABLE workspaces ADD COLUMN llm_model VARCHAR;
+    ALTER TABLE llm_calls ADD COLUMN tier VARCHAR
+    """,
+))

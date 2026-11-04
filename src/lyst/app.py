@@ -62,6 +62,10 @@ class Lyst:
             logging.getLogger("lyst.credentials").error("credential audit chain broken at event %s: the history was altered", chain.get("broken_at"))
         data = DataService(stores, guard)
         llm = LLMClient(settings.llm, stores, credentials=credentials)
+        if settings.llm.provider == "openrouter":
+            from .llm.catalog import ModelCatalog  # noqa: PLC0415
+
+            llm.catalog = ModelCatalog(stores, base_url=settings.llm.base_url or "https://openrouter.ai/api/v1")
         knowledge = KnowledgeService(stores, guard, llm)
         semantic = SemanticService(stores, guard, knowledge)
         memory = MemoryService(stores, guard, llm)

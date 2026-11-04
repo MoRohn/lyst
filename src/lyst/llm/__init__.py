@@ -3,7 +3,7 @@
 """Inference on Acumane's rails: OpenRouter through the gateway, or a local OpenAI-compatible model.
 
 OpenRouter is the main provider when ``LYST_OPENROUTER_API_KEY`` is set: a call walks the tier's
-model list (economy, balanced, frontier, copied from Acumane's published catalog) or one pinned
+model list (economy, balanced, frontier, built from OpenRouter's live catalog by Acumane's policy; see catalog.py) or one pinned
 slug, through the admission, adaptive limits, retries and workload routing in ``gateway.py``. A
 local endpoint (Ollama, llama.cpp, vLLM) uses the same gateway with one model. With neither, Lyst
 runs on rules and templates.
@@ -42,6 +42,9 @@ class ModelInfo:
     provider: str = "local"
     tier: str | None = None
     attempts: tuple[str, ...] = ()
+    source: str | None = None       # where the choice came from: workspace | installation | default
+    ceiling: str | None = None      # the highest tier a workspace may choose
+    route_tier: str | None = None   # the tier calls are recorded under (a pin's own tier, or custom)
 
 
 class LLMClient:
@@ -51,6 +54,7 @@ class LLMClient:
         self.stores = stores
         self.gateway = gateway
         self.credentials = credentials  # the broker; None only in unit tests that pass a static key
+        self.catalog = None  # ModelCatalog when the provider is OpenRouter (set by Lyst.build)
         self._local = threading.local()
         if self.gateway is None and settings.configured:
             self.gateway = Gateway(provider=settings.provider or "local", base_url=settings.base_url or "",
@@ -102,19 +106,35 @@ class LLMClient:
     def available(self) -> bool:
         return self.available_for(None)
 
-    def models(self) -> list[str]:
+    def selection(self, workspace_id: str | None = None) -> policy.Selection | None:
+        """The tier and model this workspace's calls use (workspace choice, else installation, else default)."""
+        if self.settings.provider != "openrouter":
+            return None
+        ws = (None, None)
+        if workspace_id and workspace_id != "platform":
+            row = self.stores.control.query("SELECT llm_tier, llm_model FROM workspaces WHERE id = ?", [workspace_id])
+            if row:
+                ws = (row[0]["llm_tier"], row[0]["llm_model"])
+        return policy.resolve(workspace=ws,
+                              installation=(self._setting("LYST_LLM_TIER", None), self._setting("LYST_LLM_MODEL", None)),
+                              default_tier=self.settings.tier, ceiling=self._setting("LYST_LLM_MAX_TIER", "frontier"))
+
+    def models(self, workspace_id: str | None = None) -> list[str]:
         if self.settings.provider == "openrouter":
-            return policy.attempts(self._setting("LYST_LLM_TIER", self.settings.tier), self._setting("LYST_LLM_MODEL", self.settings.model))
+            return list(self.selection(workspace_id).attempts)
         return [self.settings.model] if self.settings.model else []
 
     def info(self, workspace_id: str | None = None) -> ModelInfo | None:
         if not self.available_for(workspace_id):
             return None
-        models = self.models()
-        pinned = self._setting("LYST_LLM_MODEL", self.settings.model)
-        return ModelInfo(models[0], self.settings.base_url or "", self.settings.external,
-                         self.settings.provider or "local",
-                         policy.tier_of(self._setting("LYST_LLM_TIER", self.settings.tier)) if not pinned else None, tuple(models))
+        sel = self.selection(workspace_id)
+        if sel is None:
+            models = self.models()
+            return ModelInfo(models[0], self.settings.base_url or "", self.settings.external, self.settings.provider or "local",
+                             None, tuple(models))
+        return ModelInfo(sel.attempts[0], self.settings.base_url or "", self.settings.external, "openrouter",
+                         sel.tier if not sel.model else None, sel.attempts, source=sel.source, ceiling=sel.ceiling,
+                         route_tier=sel.route_tier)
 
     def allowed_for(self, workspace_id: str) -> bool:
         if not self.available_for(workspace_id):
@@ -131,11 +151,11 @@ class LLMClient:
             obs.MODEL_COST.inc(cost)
         self.stores.control.execute(
             "INSERT INTO llm_calls (id, workspace_id, task_id, model, purpose, external, input_tokens, output_tokens, "
-            "latency_ms, outcome, pool, workload, provider, status, attempt, queue_ms, cost_usd) "
-            "VALUES (nextval('llm_call_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "latency_ms, outcome, pool, workload, provider, status, attempt, queue_ms, cost_usd, tier) "
+            "VALUES (nextval('llm_call_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [r.tenant, getattr(self._local, "task_id", None), r.model, getattr(self._local, "purpose", None), self.settings.external,
              r.input_tokens, r.output_tokens, r.latency_ms, r.outcome, r.pool, r.workload, r.provider, r.status,
-             r.attempt, r.queue_ms, cost],
+             r.attempt, r.queue_ms, cost, getattr(self._local, "tier", None)],
         )
 
     def chat(self, workspace_id: str, messages: list[dict[str, str]], *, purpose: str, task_id: str | None = None,
@@ -151,7 +171,9 @@ class LLMClient:
             with obs.tracer().start_as_current_span("model.call") as span:
                 span.set_attribute("lyst.workload", workload)
                 span.set_attribute("lyst.purpose", purpose)
-                r = self.gateway.complete(messages, models=self.models(), workload=workload, tenant=workspace_id,
+                sel = self.selection(workspace_id)
+                self._local.tier = sel.route_tier if sel else None
+                r = self.gateway.complete(messages, models=self.models(workspace_id), workload=workload, tenant=workspace_id,
                                           pool=pool, json_mode=json_mode, max_tokens=max_tokens)
                 span.set_attribute("lyst.model", r.model)
                 return r.text
@@ -172,7 +194,7 @@ class LLMClient:
             raise LLMUnavailable("no embedding model is allowed for this workspace")
         if self.settings.external:
             texts = [redact(t) for t in texts]
-        self._local.task_id, self._local.purpose = None, purpose
+        self._local.task_id, self._local.purpose, self._local.tier = None, purpose, None
         out: list[list[float]] = []
         for i in range(0, len(texts), 64):
             try:
