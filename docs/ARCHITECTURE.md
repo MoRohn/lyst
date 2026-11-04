@@ -6,7 +6,7 @@ measured load calls for them.
 
 ```
  Streamlit UI (src/lyst/ui)  ──HTTP──▶  FastAPI  (src/lyst/api)
-   Analyst · Work · Data ·               │
+   Home · Work · Data ·                  │
    Intelligence · Build · Settings       ├─ Guard: identity, roles, audit, redaction   (security/)
                                          ├─ Analyst engine + capability registry       (analyst/)
                                          ├─ Task runtime: workers, leases, checkpoints (runtime/)

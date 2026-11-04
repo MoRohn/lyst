@@ -34,7 +34,7 @@ here = Path(__file__).parent / "app_pages"
 def make_pages(waiting: int = 0) -> list:
     """The six areas, in one place: the sidebar. Work carries the count of things waiting on you."""
     return [
-        st.Page(here / "analyst.py", title="Analyst", icon=":material/insights:", default=True),
+        st.Page(here / "analyst.py", title="Home", icon=":material/home:", default=True),
         st.Page(here / "work.py", title=f"Work · {waiting}" if waiting else "Work", icon=":material/view_kanban:",
                 url_path="work"),
         st.Page(here / "data.py", title="Data", icon=":material/database:"),

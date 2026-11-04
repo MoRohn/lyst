@@ -14,7 +14,7 @@ answer with the evidence behind it. It is judged by completed, verifiable work, 
   (`src/lyst/dashkit`, vendored into every generated app so it runs anywhere), in the design language of Rohn's
   Tableau dashboards.
 
-![The Analyst workspace answering why operating margin declined](docs/images/analyst-light.png)
+![Lyst's Home answering why operating margin declined](docs/images/analyst-light.png)
 
 ## Quick start
 
@@ -54,7 +54,7 @@ workspace-scoped DuckDB storage with one writer per file; roles, audit and redac
 versioned metrics and a glossary; an analyst loop that answers value, breakdown, "why", trend, forecast,
 data-quality and SQL requests with validation and an evidence package; a durable task runtime with resume
 after a crash, approvals, budgets and schedules; a versioned API; and a six-area Streamlit interface
-(Analyst, Work, Data, Intelligence, Build, Settings) with light and dark themes.
+(Home, Work, Data, Intelligence, Build, Settings) with light and dark themes.
 
 ## What does not exist yet
 
