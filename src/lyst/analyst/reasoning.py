@@ -75,11 +75,13 @@ def _spec(ctx: Context, name: str) -> MetricSpec:
     return ctx.services.semantic.get(ctx.actor, ctx.workspace_id, name)
 
 
-def _label(ts: pd.Timestamp, grain: str) -> str:
+def _label(ts: pd.Timestamp, grain: str, fs: int = 1) -> str:
     if grain == "quarter":
-        return f"Q{(ts.month - 1) // 3 + 1} {ts.year}"
+        return periods._quarter(ts.date().replace(day=1), fs).label if fs != 1 else f"Q{(ts.month - 1) // 3 + 1} {ts.year}"
     if grain == "month":
         return ts.strftime("%b %Y")
+    if fs != 1 and grain == "year":
+        return f"FY{periods._fy_end_year(ts.date(), fs)}"
     return str(ts.year)
 
 
@@ -103,11 +105,12 @@ def horizon_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     end = last.end
     start = pd.Timestamp(end) - pd.DateOffset(**{f"{grain}s": n}) if grain != "quarter" else \
         pd.Timestamp(end) - pd.DateOffset(months=3 * n)
-    r = _q(ctx, compile_metric(spec, start=start.date().isoformat(), end=end.isoformat(), grain=grain))
+    fs = period.get("fiscal_start", 1)
+    r = _q(ctx, compile_metric(spec, start=start.date().isoformat(), end=end.isoformat(), grain=grain, fiscal_start=fs))
     pts = []
     for period, value in r.rows:
         ts = pd.Timestamp(period).tz_localize(None) if getattr(period, "tzinfo", None) else pd.Timestamp(period)
-        pts.append({"period": ts.date().isoformat(), "label": _label(ts, grain),
+        pts.append({"period": ts.date().isoformat(), "label": _label(ts, grain, fs),
                     "value": float(value) if value is not None else None})
     return {"metric": spec.name, "grain": grain, "points": pts, "evidence": [_ev(r, f"{spec.name} by {grain}, last {n}")]}
 

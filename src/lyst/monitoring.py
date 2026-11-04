@@ -93,7 +93,9 @@ class MonitorService:
     # -- detection --------------------------------------------------------------------------
 
     def _history(self, actor: Principal, ws: str, spec: MetricSpec, grain: str) -> pd.Series:
-        r = self.data.query(actor, ws, compile_metric(spec, grain=grain))
+        from .onboarding import fiscal_start  # noqa: PLC0415 - quarterly monitors follow the fiscal calendar
+
+        r = self.data.query(actor, ws, compile_metric(spec, grain=grain, fiscal_start=fiscal_start(self._db(ws))))
         pts = [(pd.Timestamp(p).tz_localize(None) if getattr(p, "tzinfo", None) else pd.Timestamp(p), v)
                for p, v in r.rows if v is not None]
         s = pd.Series([float(v) for _, v in pts], index=pd.DatetimeIndex([p for p, _ in pts]))

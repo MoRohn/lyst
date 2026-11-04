@@ -150,8 +150,13 @@ def compile_metric(
     by: list[str] | None = None,
     grain: Literal["day", "week", "month", "quarter", "year"] | None = None,
     extra_filters: list[Filter] | None = None,
+    fiscal_start: int = 1,
 ) -> str:
-    """SQL against the dataset name (the guard maps it to the physical table)."""
+    """SQL against the dataset name (the guard maps it to the physical table).
+
+    ``fiscal_start`` is the month the workspace's fiscal year starts (the business profile). With a value other than
+    1, quarter and year buckets are fiscal: each period is labelled by the first day of its fiscal quarter or year.
+    Calendar workspaces get exactly the SQL they always did."""
     by = by or []
     for d in by:
         if d not in spec.dimensions:
@@ -161,7 +166,14 @@ def compile_metric(
     if grain:
         if not spec.time_column:
             raise ValueError(f"{spec.name} has no time column")
-        select.append(f"date_trunc('{grain}', {_q(spec.time_column)}) AS period")
+        shift = int(fiscal_start) - 1 if grain in ("quarter", "year") else 0
+        if not 0 <= shift <= 11:
+            raise ValueError("fiscal_start is a month number from 1 to 12")
+        if shift:
+            t = _q(spec.time_column)
+            select.append(f"CAST(date_trunc('{grain}', {t} - INTERVAL {shift} MONTH) + INTERVAL {shift} MONTH AS DATE) AS period")
+        else:
+            select.append(f"date_trunc('{grain}', {_q(spec.time_column)}) AS period")
         group.append("period")
     for d in by:
         select.append(_q(d))

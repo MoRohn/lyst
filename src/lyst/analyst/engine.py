@@ -506,7 +506,8 @@ def _year_ago(p: dict[str, Any]) -> dict[str, Any] | None:
         return None
     label = (periods.year_ago(periods.Period(p["label"], start, end, p["grain"]), p.get("fiscal_start", 1)).label
              if p["grain"] in ("quarter", "month") else f"{p['label']} a year earlier")
-    return {"label": label, "start": s2.isoformat(), "end": e2.isoformat(), "grain": p["grain"]}
+    fs = p.get("fiscal_start", 1)  # carried on, so the period before the year-ago period is labelled fiscally too
+    return {"label": label, "start": s2.isoformat(), "end": e2.isoformat(), "grain": p["grain"], **({"fiscal_start": fs} if fs != 1 else {})}
 
 
 # ----------------------------------------------------------------- 4-5. investigate/execute
@@ -572,7 +573,8 @@ def metric_breakdown(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             description="A governed metric as a gap-free time series.")
 def metric_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     spec = _spec(ctx, args["metric"])
-    r = _query(ctx, compile_metric(spec, grain=args.get("grain", "month")))
+    fs = ((ctx.outputs.get("contextualize") or {}).get("period") or {}).get("fiscal_start", 1)
+    r = _query(ctx, compile_metric(spec, grain=args.get("grain", "month"), fiscal_start=fs))
     df = r.frame()
     df["period"] = pd.to_datetime(df["period"]).dt.tz_localize(None)
     return {"metric": spec.name, "grain": args.get("grain", "month"), "points": _frame_records(df),
