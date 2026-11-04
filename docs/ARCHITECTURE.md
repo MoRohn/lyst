@@ -58,6 +58,16 @@ Specialist roles (lead analyst, business analyst, data discovery, analytics engi
 data scientist, quality, communications, knowledge curator) are labels on capabilities, not separate model
 processes. They are composable; nothing runs that the plan did not ask for.
 
+## Data intelligence
+
+`catalog.py` computes insights for every dataset version as it lands (grain, keys, column meaning, outliers,
+missingness, continuity, freshness, risks) and relationships across datasets (foreign keys, shared dimensions,
+inconsistent definitions, overlapping sources with reconciled totals), all in DuckDB and stored per version in
+`dataset_insights`; relationships also go into the knowledge graph. `contracts.py` keeps versioned expectations per
+dataset and checks each new version through the same ingest hook, listing downstream assets through
+`catalog.impact_of` and raising an inbox finding. `semantic.audit`, `history` and `deprecate` keep definitions
+consistent; `catalog.explain_metric` answers where a metric comes from. The register is `docs/PLATFORM.md`.
+
 ## Inference
 
 Every model call goes through the gateway in `llm/gateway.py`, a port of Acumane's AcuRout: workload-based

@@ -10,9 +10,17 @@
 | Data | CSV/TSV/Parquet ingest with versions and source hash | Tested | `test_api.py`, demo seed |
 | Data | Profiling (roles, nulls, PII patterns, suggestions) | Tested | `test_c_ledger_discrepancies_are_found` |
 | Data | Read-only SQL guard with column policies | Tested | `test_sqlguard.py`, `test_security.py` |
+| Data | Catalog insights on every version: grain, keys, duplicates at the grain, column meaning, robust outliers, missingness concentration and co-missingness, time-series gaps, freshness, ranked risks with a summary | Tested | `test_catalog.py::test_a_catalog_finds_grain_keys_relationships_and_planted_problems`, docs/PLATFORM.md |
+| Data | Relationships across datasets (foreign-key candidates, shared dimensions, inconsistent definitions, overlapping sources reconciled by totals) recorded in the knowledge graph | Tested | `test_catalog.py` |
+| Data | Versioned data contracts (draft from data, checks on every ingest, breaking/fail/warn, downstream impact, deduplicated inbox finding) | Tested | `test_catalog.py::test_d_f_contract_catches_a_changed_schema_and_lists_affected_assets` |
+| Data | Search across metrics, datasets, columns, terms, workflows, dashboards, analyses and documents, policy-aware | Tested | `test_catalog.py::test_g_search_connects_metrics_datasets_terms_and_documents`, MCP `search` |
+| Data | Natural-language transformations and derived datasets | Planned | docs/PLATFORM.md G4 |
 | Data | Query history | Built | written on every query |
 | Semantic | Versioned metrics (simple, ratio, filtered), glossary | Tested | `test_scenarios.py` |
 | Semantic | Ambiguity surfaced instead of guessed | Tested | `test_ambiguous_term_asks_instead_of_guessing` |
+| Semantic | Owner, grain and currency on definitions; deprecation with a replacement that requests and terms follow; version history with field-level changes; semantic audit (duplicates, conflicting sources, ambiguous synonyms, dangling or undefined terms, stale definitions) | Tested | `test_catalog.py` |
+| Semantic | Metric lineage: definition, SQL, source and origin, contract, quality, related sources, downstream assets, history | Tested | `test_catalog.py::test_b_metric_lineage_from_definition_to_source_and_downstream`, MCP `metric_lineage` |
+| Semantic | Fiscal calendars | Planned | docs/PLATFORM.md G5 |
 | Analyst | Value with prior period and year-ago comparison | Tested | `test_a_values_match_pandas` |
 | Analyst | Driver attribution (exact rate/mix for ratios, contribution for totals) | Tested | `test_a_operating_margin_decline_finds_emea` |
 | Analyst | Breakdown, trend, anomaly scan, ETS forecast with backtest | Tested | `test_runtime.py::test_trend_and_forecast` |

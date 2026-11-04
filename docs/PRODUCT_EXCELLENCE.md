@@ -191,3 +191,10 @@ harmless, Streamlit behaviour). The Settings sections and the How this ran dialo
 A first-time user session with a person (scenario H); live model calls in the trace (no key on this instance; the trace
 reads the same `llm_calls` rows the gateway writes, exercised in the test by a recorded call); scenario A across
 several datasets.
+
+## Iteration 7: platform capability evolution
+
+Data intelligence (catalog insights, relationships, data contracts, metric lineage, semantic audit, search) is
+tracked in `docs/PLATFORM.md` with its own prioritized gap record. The screens for it are the UX thread's; the API
+and MCP tools are in place.
+

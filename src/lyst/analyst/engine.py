@@ -50,6 +50,7 @@ class Services:
     studio: Any = None  # studio.StudioService
     connections: Any = None  # connectors.ConnectionService
     workflows: Any = None  # workflows.WorkflowService
+    catalog: Any = None  # catalog.CatalogService
 
 
 # ------------------------------------------------------------------------------- helpers

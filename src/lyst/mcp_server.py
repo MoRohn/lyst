@@ -75,6 +75,20 @@ def build_mcp(lyst: Lyst) -> MCPServer:
         return [{"name": m.name, "title": m.title, "description": m.description, "dataset": m.dataset, "kind": m.kind,
                  "dimensions": m.dimensions, "format": m.format, "synonyms": m.synonyms} for m in lyst.semantic.metrics(user, workspace)]
 
+    @mcp.tool(description="Search the workspace's datasets, columns, metrics, glossary, saved analyses, dashboards and documents "
+                          "for a business question; each hit names its directly connected assets.")
+    @_guarded
+    def search(workspace: str, query: str, ctx: Context, limit: int = 20) -> dict[str, Any]:
+        user = _principal(lyst, ctx)
+        return json.loads(json.dumps(lyst.catalog.search(user, workspace, query, limit=min(limit, 100)), default=str))
+
+    @mcp.tool(description="Where a metric comes from: definition, compiled SQL, source dataset and origin, contract status, "
+                          "quality notes, version history, and the dashboards, workflows and monitors that depend on it.")
+    @_guarded
+    def metric_lineage(workspace: str, metric: str, ctx: Context) -> dict[str, Any]:
+        user = _principal(lyst, ctx)
+        return json.loads(json.dumps(lyst.catalog.explain_metric(user, workspace, metric), default=str))
+
     @mcp.tool(description="Ask the analyst a question or give it an assignment. Waits up to timeout_seconds for the verified answer "
                           "and returns it with evidence, checks and the queries it ran; returns the task id if still running.")
     @_guarded

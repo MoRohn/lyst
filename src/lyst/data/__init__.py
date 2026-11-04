@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass
@@ -51,6 +52,8 @@ class DataService:
     def __init__(self, stores: Stores, guard: Guard) -> None:
         self.stores = stores
         self.guard = guard
+        # called with (actor, workspace_id, result) after a new version commits: insights, contract checks
+        self.after_ingest: list = []
 
     # -- ingestion --------------------------------------------------------------------------
 
@@ -145,6 +148,11 @@ class DataService:
         result = db.write(tx)
         self.guard.audit(actor, workspace_id, "data.ingest", name, "ok", {"version": result["version"], "rows": result["rows"],
                                                                          "source": source})
+        for hook in self.after_ingest:
+            try:
+                hook(actor, workspace_id, result)
+            except Exception:  # noqa: BLE001 - the version is committed; advisory work never undoes it
+                logging.getLogger("lyst.data").exception("after-ingest hook failed for %s", name)
         return result
 
     def set_column_policy(self, actor: Principal, workspace_id: str, dataset: str, column: str,
