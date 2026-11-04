@@ -86,7 +86,7 @@ const stage: Record<string, number> = { q: 0, p: 1, sql: 2, py: 2, st: 2, rc: 3,
     <li><strong>Question.</strong> Asked in plain language.</li>
     <li><strong>Plan.</strong> Lyst builds a task graph of the work.</li>
     <li><strong>Execute.</strong> SQL on DuckDB (read-only), sandboxed Python and statistics run in parallel.</li>
-    <li><strong>Check.</strong> High-consequence results are recomputed independently, and adversarial checks look for duplicates, mixed currencies, partial periods, conflicting definitions and injected instructions. Any of these blocks the “verified” label.</li>
+    <li><strong>Check.</strong> High-consequence results are recomputed independently, and adversarial checks look for duplicates, mixed currencies, partial periods, totals inflated by a bad join, conflicting definitions and injected instructions. Any of these blocks the “verified” label.</li>
     <li><strong>Verified answer.</strong> Delivered with an evidence package: queries, dataset versions and hashes.</li>
   </ol>
 </div>

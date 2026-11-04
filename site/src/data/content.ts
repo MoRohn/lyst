@@ -121,7 +121,7 @@ export const openSource = {
     { icon: 'Code', title: 'Python-native', text: 'Analysis in the language analysts already use.' },
     { icon: 'Database', title: 'DuckDB-powered', text: 'Fast, in-process SQL on local and remote data.' },
     { icon: 'Server', title: 'Self-hostable', text: 'Deploy on a laptop, a server or your cloud.' },
-    { icon: 'Cpu', title: 'Local model compatible', text: 'Bring a local model or a hosted provider.' },
+    { icon: 'Cpu', title: 'Model choice, with real costs', text: 'Economy, Balanced or Frontier levels with automatic fallback, or a local model. Cost per call is shown.' },
     { icon: 'Eye', title: 'Transparent execution', text: 'Every query and calculation can be inspected.' },
     { icon: 'Puzzle', title: 'Extensible integrations', text: 'Add connectors and skills as plain code.' },
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
@@ -148,7 +148,7 @@ export const architecture = [
   },
   {
     layer: 'Models · your choice',
-    items: ['Local models', 'Hosted providers (optional)'],
+    items: ['Economy · Balanced · Frontier', 'Local models', 'Hosted providers (optional)'],
     tone: 'muted',
   },
   {
