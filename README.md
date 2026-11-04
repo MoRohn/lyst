@@ -91,6 +91,27 @@ and model call with its timing.
   </tr>
 </table>
 
+### What if?
+
+Ask a what-if in plain words on Home, such as "What happens to operating margin if labor costs increase 6% while
+revenue grows 3%?". Lyst answers from a driver model whose observed inputs are read from governed data for a named
+period, with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
+hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
+formulas as evidence, and is recomputed independently. A driver the model does not have is listed as "Not
+modelled", never guessed. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
+P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
+any drift reported.
+
+Decisions get the same care. Lyst tells an analytical question apart from a decision that needs authority,
+compares options on weighted criteria and constraints under uncertainty, finds where the leading option would
+change, and allocates budgets with an exact solver. It says "insufficient evidence" or "no clear winner" rather
+than claim one. A **decision record** goes from analyzed to submitted to approved or rejected by a person, who
+may pick a different option, and is later reviewed against what actually happened. Nothing is executed.
+
+<p align="center">
+  <img src="docs/images/what-if.png" alt="A what-if answer: operating margin from 36.03% to 35.96% under the stated assumptions, labelled hypothetical, with the assumed labor share and the observed inputs as evidence" width="80%">
+</p>
+
 ### Dashboards from a sentence
 
 Data › Dashboards › **New dashboard** turns a request into a Plotly Dash app on Lyst's own kit
@@ -99,6 +120,16 @@ verified SQL, KPI cards, a trend with a forecast band, click-to-filter breakdown
 Every generated app is checked in a separate interpreter before it is offered.
 
 ![A generated dashboard: KPI cards, trend with forecast and breakdowns](docs/images/dash-overview-light.png)
+
+### A look before loading
+
+**Add data › Upload a file** reads spreadsheets, CSV and other tables, and documents, then shows what it found
+before anything loads: each table with its rows, sheet and range, whether a total row adds up, notes and a
+preview. Keep or drop each table, name it, then **Load it** or **Discard**.
+
+<p align="center">
+  <img src="docs/images/upload-review.png" alt="Add data: a workbook with two tables found, a total row that does not add up called out, editable dataset names, and Load it or Discard" width="80%">
+</p>
 
 ### Lyst knows your data
 
@@ -244,14 +275,14 @@ where they point, with Mark all read and "What to tell me about".
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
   health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
   reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
-* **Reads any file, and shows you first.** One upload path takes Excel workbooks (every table on every sheet,
-  merged and two-row headers folded, units and scale read from headers, formula columns reported, error values
-  counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown and PDF
-  text. Lyst returns a plan before anything loads: the tables it found, whether a total row adds up, and what
-  needs a look. You choose what to keep and what to call it. Document text becomes searchable so answers can cite
-  it, and unsupported files (legacy Office, password-protected, images)
-  are refused in plain words. Through the API today; the review screen in Add data is on the way
-  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+* **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
+  every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
+  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML,
+  Markdown and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range,
+  whether a total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it**
+  or **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable
+  so answers can cite it, and unsupported files (legacy Office, password-protected, images) are refused in plain
+  words ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
   verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
