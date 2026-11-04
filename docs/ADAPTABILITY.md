@@ -45,6 +45,9 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
   "FY2026", "last year" and "year to date" follow the fiscal calendar, with labels such as "Q2 FY2027" (FY named
   for the year it ends in), and comparisons to the prior and year-ago periods follow it too. "In 2026" stays the
   calendar year. Calendar-year workspaces are unchanged (`tests/test_fiscal.py`).
+- O6. Metric time buckets (`compile_metric` in `semantic/__init__.py`) still use calendar `date_trunc`. Quarterly
+  and yearly trends therefore line up with fiscal periods only when the fiscal year starts in January, or for
+  quarters only, in April, July or October. The platform thread is adding fiscal buckets after this lands.
 - O2. Cross-domain models ("how did procurement, workforce and sales affect margin") are not built: recognition
   can return several domains, but there is no reconciled multi-dataset model yet.
 - O3. When the collaboration reviews (`reviews` table, PR #36) land, accepting a metric or contract proposal
