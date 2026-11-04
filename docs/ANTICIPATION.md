@@ -17,14 +17,14 @@ open. It is kept honest: "Planned" means not built.
 | `nextaction.py` | Anticipator: next-best analytical action after finished work |
 | `health.py` | Anticipator: credential expiry and age, connection reliability trends, schema-change impact with a validated fix |
 | `attention.py` | Per-person attention preferences applied to pushes and to the activity center |
+| `learning.py` | Outcome-based ranking, repeated-irrelevance suppression, retention, quality metrics |
 | `earlywarning.py` | Anticipator: developing adverse trends on monitored metrics, investigated before anyone is told |
 
 The cycle per workspace: **observe** (signals from authorized metadata) -> **contextualize** (the run's datasets and
 definitions, from its compiled workflow, the metrics its question names and the datasets its last run queried) ->
 **forecast** (the lead window from recent run durations) -> **anticipate** (a candidate per occurrence) ->
-**prioritize** (score) -> **prepare** and **verify** (read-only checks with a verdict) -> **surface** (only blockers are
-pushed; ready work waits in the activity center) -> **learn** (feedback recorded; ranking from outcomes is the next
-slice).
+**prioritize** (score, weighted by what people did with earlier items of the same family) -> **prepare** and **verify** (read-only checks with a verdict) -> **surface** (only blockers are
+pushed; ready work waits in the activity center) -> **learn** (accepted work that completes, and people's judgements, re-weight future ranking).
 
 It runs on the worker tick at most every `LYST_ANTICIPATE_EVERY` seconds (default 300), and right after a dataset
 version or a definition changes so prepared work is re-checked at once. Everything is deterministic and local: no model
@@ -60,7 +60,7 @@ when a dependency changes.
 
 `score = 100 * value * likelihood * (0.5 + 0.5 * evidence) * (0.4 + 0.6 * urgency) * learned - 10 * cost - 15 * risk -
 5 * interruption`, with urgency `1 / (1 + hours_until_needed / 6)`. Components are stored with the item and shown in the
-explanation. `learned` is 1.0 until outcome-based ranking lands. No component is a model-generated confidence.
+explanation. `learned` is the family's outcome weight (below). No component is a model-generated confidence.
 
 ## Recurring work (scenario A, E)
 
@@ -144,6 +144,32 @@ If nobody may be told and nothing is held, the item stays in the activity center
 leaves out muted kinds and items under the person's minimum score, and is empty for someone who opted out. The
 workspace's `daily_surface_limit` still caps all pushes. `notices.raise_notice` gained an `exclude` set for this.
 
+## Learning and quality (scenario I included)
+
+Outcomes are recorded per *family* (kind plus the first offered action). Accepted, completed (the accepted task finished)
+and marked useful count for; dismissed, not useful and incorrect count against; expired, withdrawn and resolved count
+neither way. Weight = `2 * (positive + 4) / (positive + negative + 8)` clamped to 0.5-1.5 over the last 180 days
+(`LYST_ANTICIPATION_LEARN_DAYS`): a Beta(4, 4) prior, so a single judgement moves it by about a tenth. A family dismissed
+twice about the same subject within 30 days is not raised about it again for 30 days. Closed items and their events
+older than `LYST_RETENTION_DAYS_ANTICIPATION` (180) are deleted daily.
+
+`GET /v1/workspaces/{ws}/anticipation/quality?days=30` (audit readers) reports, from recorded objects, events, the audit
+log and monitor findings only:
+
+| Area | Measures |
+| --- | --- |
+| Relevance | judged, positive, negative, useful rate, by family, repeatedly irrelevant families |
+| Timeliness | share prepared before it was needed, median lead in hours |
+| Accuracy | early warnings investigated, confirmed, closed as noise (observed false-positive rate), monitor alerts no warning preceded, marked incorrect |
+| Efficiency | compute ms, queries, model calls, background tasks, refreshes, scheduled runs blocked before they failed |
+| Attention | pushed, pushes per active day, held, not pushed, suppressed |
+| Governance | accepted items without an audit entry, background tasks run as someone outside the item's audience, denied attempts |
+
+Offline: detection, preparation and ranking never call a model or the network. `settings.external_services` is true only
+when the level allows investigations and the workspace allows an external model, because the analyst may use it for
+wording; `test_i_offline_anticipation_makes_no_network_request` runs every anticipator, a level-3 investigation included,
+with all non-loopback sockets and DNS refused and asserts no attempt was made.
+
 ## API
 
 | Route | Purpose |
@@ -154,6 +180,7 @@ workspace's `daily_surface_limit` still caps all pushes. `notices.raise_notice` 
 | `POST /v1/workspaces/{ws}/anticipations/refresh` | Run a cycle now (admins) |
 | `GET /v1/workspaces/{ws}/anticipations/{id}` | One item with its checks, dependencies, resources and event trail |
 | `GET /v1/workspaces/{ws}/anticipations/{id}/why` | The grounded explanation: `{short, detail[], why[], signals, checks, score, scores, depends_on, level_required, methods}` (`short`/`detail` match the evidence explain shape) |
+| `GET /v1/workspaces/{ws}/anticipation/quality?days=` | Quality metrics (audit readers) |
 | `GET /v1/workspaces/{ws}/attention` | The caller's attention preferences and the kinds they can mute |
 | `PUT /v1/workspaces/{ws}/attention` | `{opted_out, min_score, max_per_day, quiet_start, quiet_end, timezone, muted_kinds}` |
 | `POST /v1/workspaces/{ws}/anticipations/{id}/act` | `{action: run_now | dismiss | snooze | useful | not_useful | incorrect, until?, note?}` |
@@ -197,7 +224,7 @@ monitor would catch them at all. Earlier detection of fast moves without more fa
 | N2 | Early warning on unmonitored metrics, leading-indicator search across metrics (correlation without causal claims), capacity-exhaustion and cost-variance projections | Planned |
 | N3 | Health foresight: volume anomalies and incomplete ingestion, storage pressure, API deprecation notices, retyped-column repair candidates, predicting breakage before a connection sync commits the new version | Planned |
 | N4 | Attention: digest delivery for held items, per-person budgets on background compute | Planned |
-| N5 | Learning from outcomes and anticipation quality metrics; offline verification (scenario I) | Planned, slice 6 |
+| N5 | Learning per person (today per workspace family), time saved measured against manual runs, satisfaction prompts | Planned |
 | N6 | Capability-gap forecasting through the Capability Foundry (scenario G) | Planned, slice 7 |
 | N7 | Consume the unified event model (CONTROL 40) instead of after-ingest hooks once it is merged | Planned |
 | N8 | Use the operations calendar (`schedule_next`) for later occurrences; submit investigation tasks at maintenance priority with a deadline (operations is merged; the model-budget check already uses it) | Planned |

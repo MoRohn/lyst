@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import attention, earlywarning, health, model, nextaction, policy, recurring
+from . import attention, earlywarning, health, learning, model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -73,16 +73,25 @@ class AnticipationService:
             return None
         return operations.model_budget_block(self.stores.control, ws)
 
-    def learned(self, ws: str, kind: str) -> float:
-        return 1.0
+    def learned(self, ws: str, kind: str, actions: list[dict[str, Any]] | None = None) -> float:
+        """The family's weight from judged outcomes (see learning.py); 1.0 until people have judged it."""
+        w = getattr(self._local, "weights", None)
+        if w is None or w[0] != ws:
+            w = (ws, learning.weights(self._db(ws)))
+            self._local.weights = w
+        return w[1].get(learning.family(kind, actions), 1.0)
 
     # -- settings -------------------------------------------------------------------------------------------------------
 
     def settings(self, actor: Principal, ws: str) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.read")
         s = policy.load(self._db(ws))
-        return {**s.public(), "usage_today": policy.usage(self._db(ws)), "external_services": False,
-                "methods": "deterministic statistics and metadata checks on this installation; no model calls"}
+        llm = getattr(self.services, "llm", None)
+        external = bool(s.allows("investigate") and llm is not None and llm.settings.external and llm.allowed_for(ws))
+        return {**s.public(), "usage_today": policy.usage(self._db(ws)), "external_services": external,
+                "methods": ("detection, preparation and ranking are deterministic and run on this installation; "
+                            + ("level-3 investigations run the analyst, which may call the workspace's external model for wording"
+                               if external else "no model is called and nothing leaves this installation"))}
 
     def set_settings(self, actor: Principal, ws: str, changes: dict[str, Any]) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.admin", "anticipation")
@@ -117,9 +126,14 @@ class AnticipationService:
         if not force and time.monotonic() - self._last_tick < self.every:
             return 0
         self._last_tick = time.monotonic()
+        prune = time.monotonic() - getattr(self, "_last_prune", -1e9) > 86400
+        if prune:
+            self._last_prune = time.monotonic()
         n = 0
         for w in self.stores.control.query("SELECT id FROM workspaces"):
             try:
+                if prune:
+                    learning.prune(self._db(w["id"]), now)
                 n += self.cycle(w["id"], now)["anticipated"]
             except Exception:  # noqa: BLE001 - one workspace never stops the others
                 log.exception("anticipation cycle failed for %s", w["id"])
@@ -136,6 +150,9 @@ class AnticipationService:
         self._local.busy = True
         try:
             out["expired"] = self._expire(db, now)
+            self._local.weights = None
+            irrelevant = learning.irrelevant(db, now)
+            self._complete(db, now)                                         # learn: did accepted work finish?
             for mod in self.anticipators:
                 signals = mod.observe(self, ws, now)                       # observe
                 out["observed"] += len(signals)
@@ -144,7 +161,10 @@ class AnticipationService:
                     produced.add(cand["dedupe_key"])
                     if cand["level_required"] > s.level:
                         continue
-                    cand["score"] = combine(cand["scores"], self.learned(ws, cand["kind"]))   # prioritize
+                    if (learning.family(cand["kind"], cand["actions"]), cand["subject_id"]) in irrelevant \
+                            and model.by_key(db, cand["dedupe_key"]) is None:
+                        continue                                            # dismissed twice lately: not again for now
+                    cand["score"] = combine(cand["scores"], self.learned(ws, cand["kind"], cand["actions"]))   # prioritize
                     ctx = cand.pop("_ctx", None)
                     stored, what = model.upsert(db, cand)
                     if what == "new":
@@ -197,7 +217,7 @@ class AnticipationService:
             return
         scores = {**scores, **prep.get("scores", {})}   # what preparation learned about value and evidence
         a = model.get(db, aid)
-        score = combine(scores, self.learned(ws, a["kind"]))
+        score = combine(scores, self.learned(ws, a["kind"], a["actions"]))
         model.set_prepared(db, aid, verdict=prep["verdict"], prepared=prep["prepared"], verification=prep["verification"],
                            resources=prep["resources"], reasons=prep["reasons"])
         if prep.get("actions") is not None:   # preparation may add an action it validated (a definition fix)
@@ -229,6 +249,19 @@ class AnticipationService:
             prio = None
         return self.runtime.submit(actor, ws, question, kind="investigation", autonomy="autonomous", priority=prio,
                                    deadline_at=deadline_at)
+
+    def _complete(self, db, now: datetime) -> None:
+        for r in db.query("SELECT id, task_id FROM anticipations WHERE status = 'accepted' AND task_id IS NOT NULL"):
+            st = self.stores.control.scalar("SELECT status FROM tasks WHERE id = ?", [r["task_id"]])
+            if st == "done":
+                model.transition(db, r["id"], "completed", detail={"task_id": r["task_id"]}, outcome="completed")
+
+    def quality(self, actor: Principal, ws: str, *, days: int = 30) -> dict[str, Any]:
+        """Anticipation quality from recorded outcomes: relevance, timeliness, accuracy, efficiency, attention, governance."""
+        self.guard.require(actor, ws, "audit.read", "anticipation")
+        if not 1 <= days <= 400:
+            raise ValueError("days must be between 1 and 400")
+        return {**learning.quality(self.stores, ws, days), "weights": learning.weights(self._db(ws))}
 
     def _expire(self, db, now: datetime) -> int:
         rows = db.query(f"SELECT id FROM anticipations WHERE status IN {model.OPEN} AND valid_until IS NOT NULL AND valid_until < ?", [now])
