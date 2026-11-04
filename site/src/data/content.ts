@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
+    items: ['SQL', 'Python', 'Statistics', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
@@ -99,7 +99,7 @@ export const capabilities: {
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health in plain words and checks schema changes against its contract.',
+    text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health, warns before credentials expire and tests a fix for schema changes.',
     items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
