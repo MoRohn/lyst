@@ -127,6 +127,31 @@ dimensions, and overlapping sources reconciled by their totals.
   </tr>
 </table>
 
+### Sources that tell you what is wrong
+
+Data › Datasets › **Sources** lists each connection with a health chip (**Healthy**, **Degraded**, **Failing**,
+**Needs action**, **Not tested**). When something is wrong, the row says the one thing to do instead of the
+usual details. A source's dialog shows the cause in plain words (sign-in, permissions, rate limit, time-out, the
+source itself), the last 24 hours of operations, errors and retries, every table it feeds with its sync mode,
+freshness, schedule and contract, and the credential's status (never the secret), with Test and Sync at hand.
+
+<table>
+  <tr>
+    <td width="45%"><img src="docs/images/sources.png" alt="Sources: a degraded source with the action to take, and a healthy one"><br><b>Sources</b>: one chip and one action per connection</td>
+    <td width="55%"><img src="docs/images/source-health.png" alt="A degraded source's dialog: the action, the cause, failures and retries, and the table it feeds"><br><b>A degraded source</b>: the action, the cause and what it feeds</td>
+  </tr>
+</table>
+
+### What Lyst makes stays current
+
+Reports (PDF briefings, workbooks, decks), dashboards and saved analyses share one registry with an owner,
+versions, validation status, and the question, dataset versions and metric versions each was built from. Every
+new data load and definition change re-assesses them as **current**, **stale** (newer data), **invalidated** (a
+metric was redefined or retired) or **broken** (a dataset is gone, a contract breached, or checks failed), and the
+owner hears once. Each asset comes with a repair proposal: dashboards refresh with the previous version kept,
+reports rerun their question, saved analyses rerun and recompile, and an upstream cause says a person is needed.
+Only a verified result becomes a new version; a failed repair restores the earlier state with the reason.
+
 ## What Lyst does
 
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
@@ -138,6 +163,8 @@ dimensions, and overlapping sources reconciled by their totals.
   model wording verified against the computed numbers.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
+* **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
+  data and definition change, with verified repair and every version kept.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
@@ -147,8 +174,8 @@ dimensions, and overlapping sources reconciled by their totals.
 * **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
   with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
-  health, and added, removed or retyped columns are caught on every sync. A versioned API and an MCP server at
-  `/mcp` expose the same capabilities.
+  health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
+  reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
 
 The [capability matrix](docs/CAPABILITY_MATRIX.md) lists each capability with its state and the test that proves
 it, and [known gaps](docs/GAPS.md) lists what is missing.
