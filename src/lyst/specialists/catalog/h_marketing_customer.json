@@ -1,0 +1,1347 @@
+{
+ "domain": {
+  "id": "marketing_customer_commerce",
+  "letter": "H",
+  "title": "Digital Marketing, Customer Intelligence & Online Commerce",
+  "summary": "Measuring acquisition, conversion, retention and customer value with honest attribution.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Consumer and B2B businesses that acquire and serve customers online"
+   ],
+   "expertise.technical_concepts": [
+    "conversion definitions",
+    "cohorts",
+    "attribution windows",
+    "incrementality"
+   ],
+   "expertise.standards": [
+    "IAB measurement guidelines",
+    "privacy and consent requirements for tracking (GDPR, ePrivacy)",
+    "governed conversion definitions in the workspace"
+   ],
+   "analytics.statistical_methods": [
+    "conversion rate intervals",
+    "cohort retention curves",
+    "significance of differences between groups"
+   ],
+   "analytics.computational_methods": [
+    "sessionization and funnel SQL",
+    "cohort tables"
+   ],
+   "analytics.modeling_approaches": [
+    "funnel models",
+    "customer lifetime value models",
+    "attribution models"
+   ],
+   "analytics.data_transformations": [
+    "identity stitching where consented",
+    "channel and campaign normalization",
+    "cohort assignment"
+   ],
+   "analytics.visualization_methods": [
+    "funnels",
+    "cohort heatmaps",
+    "channel trend lines"
+   ],
+   "analytics.reporting": [
+    "performance report with uncertainty",
+    "recommendation with expected effect"
+   ],
+   "data.structures": [
+    "web and app events",
+    "campaign and spend exports",
+    "orders and customer tables"
+   ],
+   "data.quality_requirements": [
+    "consistent campaign tagging",
+    "deduplicated conversions",
+    "spend and conversions on the same calendar"
+   ],
+   "data.temporal": [
+    "attribution windows stated",
+    "cohorts compared at equal age"
+   ],
+   "data.semantic_assumptions": [
+    "a conversion means the governed definition across every compared group"
+   ],
+   "resources.sql": [
+    "DuckDB SQL through the SQL guard"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy",
+    "scipy",
+    "statsmodels"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (narrative, numbers checked)"
+   ],
+   "resources.environment": [
+    "in-process analysis of workspace datasets"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "fix conversion definition and window",
+    "compute funnel or cohort",
+    "compare groups with uncertainty",
+    "attribute cautiously",
+    "recommend"
+   ],
+   "execution.resource_constraints": [
+    "task budget of the workspace"
+   ],
+   "execution.approval_conditions": [
+    "changing budgets or campaigns",
+    "exporting customer-level data"
+   ],
+   "execution.verification_rules": [
+    "conversion_definition",
+    "attribution_limits",
+    "uncertainty_stated"
+   ],
+   "quality.correctness_criteria": [
+    "conversions follow the governed definition",
+    "attribution assumptions are stated",
+    "differences carry uncertainty"
+   ],
+   "quality.domain_tests": [
+    "recompute conversion rates",
+    "check group sizes before testing"
+   ],
+   "quality.expected_evidence": [
+    "definitions, windows and filters used",
+    "group sizes"
+   ],
+   "quality.reproducibility": [
+    "recorded queries and dataset versions"
+   ],
+   "quality.performance_measures": [
+    "CAC",
+    "ROAS",
+    "conversion rate",
+    "retention"
+   ],
+   "quality.known_limitations": [
+    "Platform-reported conversions are not deduplicated across ad platforms unless the data is supplied."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "confidential",
+   "governance.sensitive_handling": [
+    "aggregate customer data in outputs",
+    "honour consent flags",
+    "never export identifiers without approval"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "customer-level data is personal data"
+   ],
+   "governance.review_requirements": [
+    "marketing owner review before budget decisions"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "digital_marketing_analyst",
+   "name": "Digital Marketing Analyst",
+   "kind": "job_title",
+   "sub": "Marketing performance",
+   "desc": "Measures campaign performance, audience engagement, acquisition channels, spending efficiency, and marketing outcomes. Evaluates which digital initiatives contribute to meaningful business results.",
+   "alt": [
+    "Marketing Analyst",
+    "Campaign Analyst"
+   ],
+   "resp": [
+    "Report channel and campaign performance",
+    "Explain changes in acquisition",
+    "Recommend budget shifts"
+   ],
+   "know": [
+    "digital channels",
+    "marketing measurement",
+    "campaign management"
+   ],
+   "terms": [
+    "CAC",
+    "ROAS",
+    "CTR",
+    "CPA",
+    "campaign"
+   ],
+   "methods": [
+    "channel performance analysis",
+    "cohort-based ROI",
+    "test-and-learn"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "attribution",
+    "recommendation"
+   ],
+   "techniques": [
+    "decompose conversions by channel",
+    "compare CPA trends",
+    "measure campaign lift"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "reporting"
+   ],
+   "opt": [
+    "statistical_testing",
+    "optimization",
+    "causal_impact"
+   ],
+   "sources": [
+    "ad platforms",
+    "web analytics",
+    "CRM"
+   ],
+   "entities": [
+    "campaigns",
+    "channels",
+    "conversions"
+   ],
+   "fields": [
+    "date",
+    "campaign",
+    "spend",
+    "conversions"
+   ],
+   "verify": [],
+   "outputs": [
+    "marketing performance report",
+    "budget recommendation"
+   ],
+   "limits": [
+    "Budget allocation uses greedy marginal returns, not a fitted response curve."
+   ],
+   "examples": [
+    "Evaluate our campaign's conversion performance using appropriate attribution and experimental evidence.",
+    "Why did CAC rise in October?"
+   ],
+   "related": [
+    "paid_media_analyst",
+    "marketing_attribution_analyst",
+    "growth_analyst"
+   ],
+   "keywords": [
+    "marketing",
+    "campaign",
+    "cac",
+    "roas",
+    "conversion",
+    "channel",
+    "ads"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 91)"
+   ]
+  },
+  {
+   "id": "web_analytics_analyst",
+   "name": "Web Analytics Analyst",
+   "kind": "job_title",
+   "sub": "Web analytics",
+   "desc": "Investigates website traffic, user journeys, event tracking, conversion funnels, and content interactions. Identifies usability problems, acquisition patterns, and opportunities to improve digital experiences.",
+   "alt": [
+    "Digital Analytics Analyst",
+    "Web Analyst"
+   ],
+   "resp": [
+    "Analyse traffic and conversion paths",
+    "Audit tracking quality",
+    "Recommend journey improvements"
+   ],
+   "know": [
+    "web analytics platforms",
+    "tag management",
+    "behavioural analytics"
+   ],
+   "terms": [
+    "session",
+    "bounce rate",
+    "landing page",
+    "event",
+    "conversion path"
+   ],
+   "methods": [
+    "funnel analysis",
+    "landing page analysis",
+    "tracking audits"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "data_quality",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "compare landing page conversion",
+    "audit event volumes",
+    "trace paths to conversion"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query",
+    "data_quality_monitoring"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "statistical_testing"
+   ],
+   "sources": [
+    "web analytics exports",
+    "tag manager",
+    "event streams"
+   ],
+   "entities": [
+    "sessions",
+    "pages",
+    "events",
+    "users"
+   ],
+   "fields": [
+    "session id",
+    "page",
+    "event",
+    "timestamp",
+    "source"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "web performance report",
+    "tracking audit"
+   ],
+   "limits": [
+    "Path analysis is SQL-based; no clickstream sequence mining."
+   ],
+   "examples": [
+    "Which landing pages convert worst?",
+    "Did our tracking break after the site release?"
+   ],
+   "related": [
+    "digital_marketing_analyst",
+    "search_seo_analyst",
+    "ecommerce_analyst"
+   ],
+   "keywords": [
+    "web analytics",
+    "traffic",
+    "sessions",
+    "bounce",
+    "landing page",
+    "google analytics",
+    "tracking"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 92)"
+   ]
+  },
+  {
+   "id": "growth_analyst",
+   "name": "Growth Analyst",
+   "kind": "job_title",
+   "sub": "Growth",
+   "desc": "Studies acquisition, activation, engagement, retention, monetization, and referrals. Uses experiments, cohort analysis, and behavioral modeling to identify scalable growth opportunities.",
+   "alt": [
+    "Growth Marketing Analyst",
+    "Growth Data Analyst"
+   ],
+   "resp": [
+    "Model the growth funnel",
+    "Prioritize growth experiments",
+    "Measure the impact of growth initiatives"
+   ],
+   "know": [
+    "growth loops",
+    "product-led growth",
+    "experimentation"
+   ],
+   "terms": [
+    "AARRR",
+    "activation",
+    "viral coefficient",
+    "payback period",
+    "growth loop"
+   ],
+   "methods": [
+    "growth accounting",
+    "funnel modeling",
+    "experiment prioritization (ICE)"
+   ],
+   "tasks": [
+    "experiment_analysis",
+    "variance_explanation",
+    "forecasting",
+    "recommendation"
+   ],
+   "techniques": [
+    "new vs retained vs resurrected accounting",
+    "size funnel levers",
+    "read out experiments"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "statistical_testing"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "scenario_modeling"
+   ],
+   "sources": [
+    "product events",
+    "marketing data",
+    "billing"
+   ],
+   "entities": [
+    "users",
+    "accounts",
+    "cohorts",
+    "experiments"
+   ],
+   "fields": [
+    "user id",
+    "signup date",
+    "activity dates",
+    "revenue"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "growth model",
+    "experiment priorities",
+    "growth readout"
+   ],
+   "limits": [
+    "Viral and loop dynamics are modeled with driver scenarios, not fitted models."
+   ],
+   "examples": [
+    "What is driving our slowdown in new user growth?",
+    "Which growth lever has the most upside?"
+   ],
+   "related": [
+    "product_analyst",
+    "digital_marketing_analyst",
+    "customer_lifecycle_analyst"
+   ],
+   "keywords": [
+    "growth",
+    "user growth",
+    "activation",
+    "acquisition",
+    "aarrr",
+    "growth model"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 93)"
+   ]
+  },
+  {
+   "id": "customer_insights_analyst",
+   "name": "Customer Insights Analyst",
+   "kind": "job_title",
+   "sub": "Customer insight",
+   "desc": "Combines transactional, behavioral, survey, and customer-service data to understand customer needs and experiences. Produces segmentation, satisfaction, and value insights.",
+   "alt": [
+    "Consumer Insights Analyst",
+    "Customer Analyst"
+   ],
+   "resp": [
+    "Profile and segment customers",
+    "Synthesize survey and feedback findings",
+    "Translate insights into recommendations"
+   ],
+   "know": [
+    "customer research",
+    "segmentation",
+    "survey analysis"
+   ],
+   "terms": [
+    "segment",
+    "NPS",
+    "persona",
+    "share of wallet",
+    "voice of customer"
+   ],
+   "methods": [
+    "rule-based segmentation",
+    "survey analysis",
+    "driver analysis of satisfaction"
+   ],
+   "tasks": [
+    "segmentation",
+    "research_synthesis",
+    "text_analytics",
+    "descriptive_reporting"
+   ],
+   "techniques": [
+    "profile segments on value and behaviour",
+    "compare NPS by segment",
+    "theme open-ended feedback"
+   ],
+   "req": [
+    "metric_computation",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "clustering",
+    "text_analytics",
+    "statistical_testing"
+   ],
+   "sources": [
+    "CRM",
+    "survey platform",
+    "orders",
+    "support tickets"
+   ],
+   "entities": [
+    "customers",
+    "segments",
+    "responses"
+   ],
+   "fields": [
+    "customer id",
+    "segment attributes",
+    "survey score"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "customer insight report",
+    "segment profiles"
+   ],
+   "limits": [
+    "Clustering is not implemented; segments are defined by rules."
+   ],
+   "examples": [
+    "Who are our most valuable customers and what do they have in common?",
+    "What drives low NPS?"
+   ],
+   "related": [
+    "customer_lifecycle_analyst",
+    "audience_intelligence_analyst",
+    "user_experience_analyst"
+   ],
+   "keywords": [
+    "customer insights",
+    "segments",
+    "nps",
+    "survey",
+    "voice of customer",
+    "personas"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 94)"
+   ]
+  },
+  {
+   "id": "customer_lifecycle_analyst",
+   "name": "Customer Lifecycle Analyst",
+   "kind": "job_title",
+   "sub": "Lifecycle",
+   "desc": "Examines customer onboarding, activation, retention, churn, reactivation, and lifetime value. Identifies interventions that may improve long-term customer relationships.",
+   "alt": [
+    "Retention Analyst",
+    "CLV Analyst",
+    "Churn Analyst"
+   ],
+   "resp": [
+    "Measure retention and churn",
+    "Estimate customer lifetime value",
+    "Identify intervention points"
+   ],
+   "know": [
+    "customer lifecycle management",
+    "retention analytics",
+    "lifetime value"
+   ],
+   "terms": [
+    "churn rate",
+    "CLV",
+    "cohort",
+    "win-back",
+    "engagement score"
+   ],
+   "methods": [
+    "cohort retention analysis",
+    "lifetime value estimation",
+    "churn driver analysis"
+   ],
+   "tasks": [
+    "segmentation",
+    "forecasting",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "retention curves by cohort",
+    "compare churned vs retained behaviour",
+    "estimate CLV by segment"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "classification",
+    "time_series_forecasting",
+    "statistical_testing"
+   ],
+   "sources": [
+    "subscriptions or orders",
+    "product events",
+    "CRM"
+   ],
+   "entities": [
+    "customers",
+    "cohorts",
+    "subscriptions"
+   ],
+   "fields": [
+    "customer id",
+    "start date",
+    "end date",
+    "revenue"
+   ],
+   "verify": [],
+   "outputs": [
+    "retention report",
+    "CLV estimates",
+    "churn driver analysis"
+   ],
+   "limits": [
+    "Individual churn scoring needs classification, which is not implemented."
+   ],
+   "examples": [
+    "How has 90-day retention changed by signup cohort?",
+    "Which customers churn after onboarding?"
+   ],
+   "related": [
+    "subscription_monetization_analyst",
+    "crm_analyst",
+    "predictive_analytics_analyst"
+   ],
+   "keywords": [
+    "churn",
+    "retention",
+    "lifetime value",
+    "clv",
+    "ltv",
+    "cohort",
+    "win-back",
+    "worth the most",
+    "lifetime",
+    "most valuable customers"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 95)"
+   ]
+  },
+  {
+   "id": "marketing_attribution_analyst",
+   "name": "Marketing Attribution Analyst",
+   "kind": "functional",
+   "sub": "Attribution",
+   "desc": "Evaluates how marketing channels and customer touchpoints contribute to conversions and revenue. Applies attribution models and incrementality methods while accounting for measurement limitations.",
+   "alt": [
+    "Attribution Analyst",
+    "Marketing Measurement Analyst",
+    "MMM Analyst"
+   ],
+   "resp": [
+    "Compare attribution models",
+    "Estimate incremental impact",
+    "Explain attribution limits to stakeholders"
+   ],
+   "know": [
+    "multi-touch attribution",
+    "incrementality testing",
+    "marketing mix modeling"
+   ],
+   "terms": [
+    "first touch",
+    "last touch",
+    "incrementality",
+    "holdout",
+    "adstock"
+   ],
+   "methods": [
+    "rule-based attribution comparison",
+    "geo or holdout experiments",
+    "interrupted time series on spend changes"
+   ],
+   "tasks": [
+    "attribution",
+    "causal_estimation",
+    "experiment_analysis"
+   ],
+   "techniques": [
+    "compare credit under several rules",
+    "read out holdouts",
+    "estimate lift around spend changes"
+   ],
+   "req": [
+    "metric_computation",
+    "causal_impact",
+    "statistical_testing"
+   ],
+   "opt": [
+    "regression",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "touchpoint logs",
+    "ad spend",
+    "conversions"
+   ],
+   "entities": [
+    "touchpoints",
+    "channels",
+    "conversions"
+   ],
+   "fields": [
+    "user or journey id",
+    "touchpoint",
+    "timestamp",
+    "conversion"
+   ],
+   "verify": [
+    "causal_claims_guarded"
+   ],
+   "outputs": [
+    "attribution comparison",
+    "incrementality estimate"
+   ],
+   "limits": [
+    "Marketing mix modeling is not implemented; incrementality relies on experiments or event-based designs."
+   ],
+   "examples": [
+    "How much credit does paid social get under different attribution models?",
+    "Did the TV campaign drive incremental signups?"
+   ],
+   "related": [
+    "causal_inference_analyst",
+    "digital_marketing_analyst",
+    "paid_media_analyst"
+   ],
+   "keywords": [
+    "attribution",
+    "multi-touch",
+    "incrementality",
+    "mmm",
+    "last click",
+    "which channel"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 96)"
+   ]
+  },
+  {
+   "id": "search_seo_analyst",
+   "name": "Search & SEO Analyst",
+   "kind": "job_title",
+   "sub": "Search",
+   "desc": "Studies organic search visibility, search intent, indexing, content performance, technical site health, and ranking changes. Identifies opportunities to improve discoverability and search traffic quality.",
+   "alt": [
+    "SEO Analyst",
+    "Organic Search Analyst"
+   ],
+   "resp": [
+    "Track rankings, visibility and organic traffic",
+    "Diagnose visibility losses",
+    "Prioritize technical and content fixes"
+   ],
+   "know": [
+    "search engine optimization",
+    "information architecture",
+    "content strategy"
+   ],
+   "terms": [
+    "ranking",
+    "impressions",
+    "click-through rate",
+    "crawl",
+    "indexation"
+   ],
+   "methods": [
+    "visibility trend analysis",
+    "page-level loss diagnosis",
+    "keyword opportunity sizing"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "decompose traffic change by page and query",
+    "compare CTR by position",
+    "detect ranking drops"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "change_point_detection",
+    "text_analytics"
+   ],
+   "sources": [
+    "search console exports",
+    "web analytics",
+    "crawl reports"
+   ],
+   "entities": [
+    "pages",
+    "queries",
+    "rankings"
+   ],
+   "fields": [
+    "date",
+    "page",
+    "query",
+    "impressions",
+    "clicks"
+   ],
+   "verify": [],
+   "outputs": [
+    "SEO performance report",
+    "visibility loss diagnosis"
+   ],
+   "limits": [
+    "Lyst does not crawl sites or query search engines; analysis uses exports."
+   ],
+   "examples": [
+    "Which pages lost the most organic traffic this month?",
+    "Where are our biggest keyword opportunities?"
+   ],
+   "related": [
+    "web_analytics_analyst",
+    "content_performance_analyst",
+    "paid_media_analyst"
+   ],
+   "keywords": [
+    "seo",
+    "organic search",
+    "rankings",
+    "search console",
+    "keywords",
+    "impressions"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 97)"
+   ]
+  },
+  {
+   "id": "paid_media_analyst",
+   "name": "Paid Media Analyst",
+   "kind": "job_title",
+   "sub": "Paid media",
+   "desc": "Analyzes advertising expenditure, impressions, clicks, conversions, bidding, and campaign effectiveness. Optimizes advertising efficiency using attribution, experiments, and financial performance metrics.",
+   "alt": [
+    "PPC Analyst",
+    "Performance Marketing Analyst",
+    "Media Analyst"
+   ],
+   "resp": [
+    "Monitor spend pacing and efficiency",
+    "Diagnose cost and conversion changes",
+    "Recommend budget and bid changes"
+   ],
+   "know": [
+    "paid search and social platforms",
+    "auction dynamics",
+    "creative testing"
+   ],
+   "terms": [
+    "CPC",
+    "CPM",
+    "CPA",
+    "impression share",
+    "pacing"
+   ],
+   "methods": [
+    "pacing analysis",
+    "efficiency frontier analysis",
+    "creative test readouts"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "variance_explanation",
+    "optimization",
+    "experiment_analysis"
+   ],
+   "techniques": [
+    "decompose CPA into CPC and conversion rate",
+    "check pacing against budget",
+    "compare creatives"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "optimization",
+    "statistical_testing",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "ad platform exports",
+    "web analytics",
+    "budgets"
+   ],
+   "entities": [
+    "campaigns",
+    "ad groups",
+    "creatives"
+   ],
+   "fields": [
+    "date",
+    "campaign",
+    "spend",
+    "clicks",
+    "conversions"
+   ],
+   "verify": [
+    "parts_reconcile"
+   ],
+   "outputs": [
+    "paid media report",
+    "budget and bid recommendations"
+   ],
+   "limits": [
+    "Lyst cannot change campaigns in ad platforms."
+   ],
+   "examples": [
+    "Why did our cost per acquisition rise on paid search?",
+    "Are we on pace to spend this month's budget?"
+   ],
+   "related": [
+    "digital_marketing_analyst",
+    "marketing_attribution_analyst",
+    "search_seo_analyst"
+   ],
+   "keywords": [
+    "paid media",
+    "ppc",
+    "cpc",
+    "paid search",
+    "paid social",
+    "ad spend",
+    "pacing"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 98)"
+   ]
+  },
+  {
+   "id": "ecommerce_analyst",
+   "name": "E-Commerce Analyst",
+   "kind": "job_title",
+   "sub": "E-commerce",
+   "desc": "Investigates online merchandising, conversion rates, checkout behavior, product performance, order economics, and customer purchasing patterns. Improves digital retail performance through quantitative analysis.",
+   "alt": [
+    "Ecommerce Analyst",
+    "Online Trading Analyst"
+   ],
+   "resp": [
+    "Report sales, conversion and basket metrics",
+    "Find checkout and product page friction",
+    "Evaluate promotions and merchandising"
+   ],
+   "know": [
+    "online retail",
+    "merchandising",
+    "checkout optimization"
+   ],
+   "terms": [
+    "AOV",
+    "conversion rate",
+    "cart abandonment",
+    "basket size",
+    "promotion uplift"
+   ],
+   "methods": [
+    "funnel analysis",
+    "basket analysis",
+    "promotion uplift analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "causal_estimation"
+   ],
+   "techniques": [
+    "decompose revenue into traffic, conversion and AOV",
+    "measure abandonment by step",
+    "estimate promotion effect"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "causal_impact",
+    "statistical_testing",
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "e-commerce platform",
+    "web analytics",
+    "order data"
+   ],
+   "entities": [
+    "orders",
+    "products",
+    "sessions",
+    "promotions"
+   ],
+   "fields": [
+    "order id",
+    "date",
+    "revenue",
+    "items",
+    "session source"
+   ],
+   "verify": [
+    "parts_reconcile"
+   ],
+   "outputs": [
+    "trading report",
+    "funnel analysis",
+    "promotion evaluation"
+   ],
+   "limits": [
+    "Market-basket association mining is not implemented."
+   ],
+   "examples": [
+    "Why did online revenue fall last week?",
+    "Did the spring promotion increase sales beyond normal?"
+   ],
+   "related": [
+    "web_analytics_analyst",
+    "pricing_analyst",
+    "inventory_analyst"
+   ],
+   "keywords": [
+    "ecommerce",
+    "e-commerce",
+    "online store",
+    "checkout",
+    "aov",
+    "cart abandonment",
+    "shopify"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 99)"
+   ]
+  },
+  {
+   "id": "digital_experimentation_analyst",
+   "name": "Digital Experimentation Analyst",
+   "kind": "functional",
+   "sub": "Online experimentation",
+   "desc": "Designs tests for websites, applications, messaging, pricing, and customer journeys. Determines whether observed performance changes reflect meaningful effects.",
+   "alt": [
+    "CRO Analyst",
+    "Optimization Analyst (web)"
+   ],
+   "resp": [
+    "Design and read out web and app tests",
+    "Monitor guardrails and test health",
+    "Report program-level learnings"
+   ],
+   "know": [
+    "online controlled experiments",
+    "conversion rate optimization",
+    "test program management"
+   ],
+   "terms": [
+    "variant",
+    "guardrail",
+    "sample ratio mismatch",
+    "novelty effect",
+    "win rate"
+   ],
+   "methods": [
+    "two-proportion tests",
+    "power analysis",
+    "meta-analysis of test results"
+   ],
+   "tasks": [
+    "experiment_analysis",
+    "statistical_testing",
+    "recommendation"
+   ],
+   "techniques": [
+    "check SRM",
+    "compute lift with intervals",
+    "track win rate across tests"
+   ],
+   "req": [
+    "statistical_testing",
+    "metric_computation"
+   ],
+   "opt": [
+    "causal_impact"
+   ],
+   "sources": [
+    "experimentation platform exports",
+    "web analytics",
+    "orders"
+   ],
+   "entities": [
+    "experiments",
+    "variants",
+    "visitors"
+   ],
+   "fields": [
+    "variant",
+    "visitor id",
+    "conversion",
+    "timestamp"
+   ],
+   "verify": [
+    "sample_size",
+    "multiple_comparisons"
+   ],
+   "outputs": [
+    "test readout",
+    "program summary"
+   ],
+   "limits": [
+    "No sequential or Bayesian testing support."
+   ],
+   "examples": [
+    "Did the new checkout button variant win?",
+    "What has our test program learned this year?"
+   ],
+   "related": [
+    "experimentation_analyst",
+    "ecommerce_analyst",
+    "product_analyst"
+   ],
+   "keywords": [
+    "cro",
+    "conversion optimization",
+    "a/b test",
+    "split test",
+    "variant",
+    "experimentation program"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 100)"
+   ]
+  },
+  {
+   "id": "crm_analyst",
+   "name": "CRM Analyst",
+   "kind": "job_title",
+   "sub": "CRM",
+   "desc": "Evaluates customer records, engagement histories, segmentation, sales activities, and relationship-management workflows. Improves data quality, customer insights, and CRM effectiveness.",
+   "alt": [
+    "CRM Data Analyst",
+    "Lifecycle Marketing Analyst"
+   ],
+   "resp": [
+    "Measure CRM campaign performance",
+    "Maintain CRM data quality",
+    "Improve targeting and segmentation"
+   ],
+   "know": [
+    "CRM platforms",
+    "lifecycle marketing",
+    "customer data management"
+   ],
+   "terms": [
+    "open rate",
+    "click rate",
+    "unsubscribe",
+    "segment",
+    "holdout group"
+   ],
+   "methods": [
+    "campaign holdout analysis",
+    "segment performance",
+    "CRM data quality audits"
+   ],
+   "tasks": [
+    "experiment_analysis",
+    "segmentation",
+    "data_quality"
+   ],
+   "techniques": [
+    "compare treated vs holdout",
+    "audit duplicate contacts",
+    "measure engagement decay"
+   ],
+   "req": [
+    "metric_computation",
+    "statistical_testing",
+    "data_profiling"
+   ],
+   "opt": [
+    "driver_decomposition"
+   ],
+   "sources": [
+    "CRM",
+    "email platform",
+    "orders"
+   ],
+   "entities": [
+    "contacts",
+    "accounts",
+    "campaigns",
+    "sends"
+   ],
+   "fields": [
+    "contact id",
+    "campaign",
+    "send date",
+    "response"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "CRM campaign report",
+    "data quality audit",
+    "targeting recommendations"
+   ],
+   "limits": [
+    "Deduplication of contacts is rule-based."
+   ],
+   "examples": [
+    "Did the win-back email program drive incremental orders?",
+    "How many duplicate contacts are in the CRM?"
+   ],
+   "related": [
+    "customer_lifecycle_analyst",
+    "revenue_operations_analyst",
+    "master_data_analyst"
+   ],
+   "keywords": [
+    "crm",
+    "email campaign",
+    "salesforce",
+    "hubspot",
+    "contacts",
+    "lifecycle marketing",
+    "open rate"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 101)"
+   ]
+  },
+  {
+   "id": "subscription_monetization_analyst",
+   "name": "Subscription & Monetization Analyst",
+   "kind": "functional",
+   "sub": "Monetization",
+   "desc": "Investigates recurring revenue, billing, renewals, churn, upgrades, pricing tiers, and customer lifetime economics. Models revenue growth and retention opportunities.",
+   "alt": [
+    "Subscription Analyst",
+    "Monetization Analyst",
+    "SaaS Metrics Analyst"
+   ],
+   "resp": [
+    "Report MRR/ARR movements",
+    "Analyse plan mix and expansion",
+    "Model monetization changes"
+   ],
+   "know": [
+    "subscription economics",
+    "SaaS metrics",
+    "packaging and pricing"
+   ],
+   "terms": [
+    "MRR",
+    "ARR",
+    "net revenue retention",
+    "expansion",
+    "contraction"
+   ],
+   "methods": [
+    "MRR movement bridge",
+    "cohort net retention",
+    "pricing scenario modeling"
+   ],
+   "tasks": [
+    "variance_explanation",
+    "forecasting",
+    "simulation"
+   ],
+   "techniques": [
+    "bridge MRR into new, expansion, contraction and churn",
+    "net retention by cohort",
+    "model tier changes"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "scenario_modeling"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "simulation"
+   ],
+   "sources": [
+    "billing system",
+    "subscriptions",
+    "product usage"
+   ],
+   "entities": [
+    "subscriptions",
+    "plans",
+    "accounts"
+   ],
+   "fields": [
+    "account",
+    "plan",
+    "MRR",
+    "period"
+   ],
+   "verify": [
+    "bridge_closes"
+   ],
+   "outputs": [
+    "recurring revenue bridge",
+    "monetization scenarios"
+   ],
+   "limits": [
+    "Usage-based pricing models need a defined driver model."
+   ],
+   "examples": [
+    "Break down this quarter's ARR change into new, expansion and churn.",
+    "What happens to revenue if we add a premium tier?"
+   ],
+   "related": [
+    "customer_lifecycle_analyst",
+    "pricing_analyst",
+    "revenue_operations_analyst"
+   ],
+   "keywords": [
+    "subscription",
+    "mrr",
+    "arr",
+    "net revenue retention",
+    "saas metrics",
+    "expansion",
+    "monetization"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 102)"
+   ]
+  }
+ ]
+}

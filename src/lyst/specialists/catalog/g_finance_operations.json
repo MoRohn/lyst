@@ -1,0 +1,1386 @@
+{
+ "domain": {
+  "id": "finance_enterprise_ops",
+  "letter": "G",
+  "title": "Financial Systems, Commerce & Enterprise Operations",
+  "summary": "Planning, reconciling and improving the financial and operational engine of the enterprise.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Finance, operations and commercial functions of any enterprise"
+   ],
+   "expertise.technical_concepts": [
+    "accounting periods and accruals",
+    "reconciliation tolerance",
+    "price-volume-mix",
+    "unit economics"
+   ],
+   "expertise.standards": [
+    "GAAP / IFRS reporting conventions",
+    "COSO internal control framework",
+    "the workspace's fiscal calendar and chart of accounts"
+   ],
+   "analytics.statistical_methods": [
+    "variance analysis",
+    "trend and seasonality",
+    "distribution of transaction values"
+   ],
+   "analytics.computational_methods": [
+    "SQL aggregation and reconciliation joins",
+    "driver-based calculation"
+   ],
+   "analytics.modeling_approaches": [
+    "driver-based plans",
+    "bridges and waterfalls"
+   ],
+   "analytics.data_transformations": [
+    "currency and unit normalization",
+    "period alignment to the fiscal calendar",
+    "mapping to the chart of accounts"
+   ],
+   "analytics.visualization_methods": [
+    "waterfall bridges",
+    "plan vs actual charts",
+    "variance tables"
+   ],
+   "analytics.reporting": [
+    "management report with commentary",
+    "variance explanation",
+    "recommendation with financial effect"
+   ],
+   "data.structures": [
+    "general ledger and sub-ledger extracts",
+    "transaction tables",
+    "plans and budgets"
+   ],
+   "data.quality_requirements": [
+    "totals tie to the ledger",
+    "single currency per sum or explicit conversion",
+    "complete periods"
+   ],
+   "data.temporal": [
+    "fiscal periods and close dates",
+    "accrual vs cash timing stated"
+   ],
+   "data.semantic_assumptions": [
+    "account and cost center mappings follow the workspace's approved hierarchy"
+   ],
+   "resources.sql": [
+    "DuckDB SQL through the SQL guard"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy",
+    "statsmodels"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (commentary, numbers checked)"
+   ],
+   "resources.environment": [
+    "in-process analysis of workspace datasets"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "fix period, scope and currency",
+    "compute actuals",
+    "compare to plan or prior",
+    "bridge the variance",
+    "reconcile and report"
+   ],
+   "execution.resource_constraints": [
+    "task budget of the workspace"
+   ],
+   "execution.approval_conditions": [
+    "sharing financial results outside the workspace",
+    "changing plans, prices or approved definitions"
+   ],
+   "execution.verification_rules": [
+    "single_currency",
+    "fiscal_period",
+    "bridge_closes",
+    "independent_recompute"
+   ],
+   "quality.correctness_criteria": [
+    "figures tie to source totals",
+    "bridges close exactly",
+    "periods follow the fiscal calendar"
+   ],
+   "quality.domain_tests": [
+    "independent recompute of headline figures",
+    "bridge closure",
+    "currency consistency"
+   ],
+   "quality.expected_evidence": [
+    "SQL and row counts",
+    "period definitions",
+    "dataset versions"
+   ],
+   "quality.reproducibility": [
+    "same dataset versions reproduce every figure"
+   ],
+   "quality.performance_measures": [
+    "close-to-report time",
+    "forecast accuracy",
+    "reconciliation exceptions"
+   ],
+   "quality.known_limitations": [
+    "Lyst does not post journals or change source financial systems."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "confidential",
+   "governance.sensitive_handling": [
+    "respect financial data classification",
+    "aggregate compensation data to protect individuals"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "unreleased financial results are confidential"
+   ],
+   "governance.review_requirements": [
+    "finance owner review before results are distributed"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "financial_data_analyst",
+   "name": "Financial Data Analyst",
+   "kind": "job_title",
+   "sub": "Financial analysis",
+   "desc": "Investigates financial transactions, account balances, expenses, revenue, and reporting data. Reconciles systems, analyzes performance, and supports financial reporting and planning.",
+   "alt": [
+    "Financial Analyst",
+    "Finance Data Analyst"
+   ],
+   "resp": [
+    "Analyse revenue, cost and margin",
+    "Explain profitability drivers",
+    "Reconcile analysis to reported financials"
+   ],
+   "know": [
+    "financial statements",
+    "management accounting",
+    "profitability analysis"
+   ],
+   "terms": [
+    "gross margin",
+    "EBITDA",
+    "run rate",
+    "accrual",
+    "cost center"
+   ],
+   "methods": [
+    "margin analysis",
+    "price-volume-mix decomposition",
+    "ratio analysis"
+   ],
+   "tasks": [
+    "variance_explanation",
+    "descriptive_reporting",
+    "reconciliation",
+    "cost_analysis"
+   ],
+   "techniques": [
+    "bridge margin changes",
+    "segment profitability",
+    "tie to ledger totals"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "financial_reconciliation"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "general ledger",
+    "billing system",
+    "cost allocations"
+   ],
+   "entities": [
+    "accounts",
+    "products",
+    "customers",
+    "cost centers"
+   ],
+   "fields": [
+    "period",
+    "account",
+    "amount",
+    "currency"
+   ],
+   "verify": [
+    "parts_reconcile"
+   ],
+   "outputs": [
+    "financial analysis",
+    "margin bridge",
+    "management commentary"
+   ],
+   "limits": [
+    "Two-source ledger matching is partial: Lyst recomputes its own figures but does not match arbitrary ledgers."
+   ],
+   "examples": [
+    "Why did gross margin fall in Q3?",
+    "Which products are least profitable?"
+   ],
+   "related": [
+    "fpa_analyst",
+    "financial_systems_analyst",
+    "pricing_analyst"
+   ],
+   "keywords": [
+    "margin",
+    "profitability",
+    "financial analysis",
+    "revenue",
+    "cost",
+    "p&l",
+    "ebitda"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 79)"
+   ]
+  },
+  {
+   "id": "fpa_analyst",
+   "name": "FP&A Analyst",
+   "kind": "job_title",
+   "sub": "Planning and analysis",
+   "desc": "Examines budgets, forecasts, operating plans, financial drivers, and variances. Produces scenario models and management insights that support financial decision-making.",
+   "alt": [
+    "Financial Planning Analyst",
+    "Budget Analyst"
+   ],
+   "resp": [
+    "Build budgets and rolling forecasts",
+    "Explain plan vs actual variance",
+    "Model scenarios for decisions"
+   ],
+   "know": [
+    "financial planning",
+    "driver-based forecasting",
+    "budgeting"
+   ],
+   "terms": [
+    "budget",
+    "rolling forecast",
+    "plan vs actual",
+    "variance",
+    "scenario"
+   ],
+   "methods": [
+    "driver-based planning",
+    "variance analysis",
+    "scenario modeling",
+    "rolling forecasts"
+   ],
+   "tasks": [
+    "forecasting",
+    "variance_explanation",
+    "simulation",
+    "recommendation"
+   ],
+   "techniques": [
+    "bridge budget to actual",
+    "flex the plan for volume",
+    "compare best/base/worst cases"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "time_series_forecasting",
+    "scenario_modeling"
+   ],
+   "opt": [
+    "simulation",
+    "financial_reconciliation"
+   ],
+   "sources": [
+    "general ledger actuals",
+    "budgets and plans",
+    "operational drivers"
+   ],
+   "entities": [
+    "accounts",
+    "cost centers",
+    "periods",
+    "scenarios"
+   ],
+   "fields": [
+    "period",
+    "account",
+    "actual",
+    "plan"
+   ],
+   "verify": [
+    "forecast_backtest"
+   ],
+   "outputs": [
+    "forecast",
+    "variance commentary",
+    "scenario comparison"
+   ],
+   "limits": [
+    "Plans must exist as datasets; Lyst does not write back to planning systems."
+   ],
+   "examples": [
+    "Explain our Q3 actuals versus budget.",
+    "What does next year look like if volume drops 5%?"
+   ],
+   "related": [
+    "financial_data_analyst",
+    "forecasting_analyst",
+    "decision_intelligence_analyst"
+   ],
+   "keywords": [
+    "budget",
+    "fp&a",
+    "plan vs actual",
+    "variance to plan",
+    "rolling forecast",
+    "financial plan"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 80)"
+   ]
+  },
+  {
+   "id": "financial_systems_analyst",
+   "name": "Financial Systems Analyst",
+   "kind": "job_title",
+   "sub": "Finance systems",
+   "desc": "Evaluates ERP, general ledger, planning, reporting, and financial integration systems. Investigates business rules, data mappings, process controls, and system improvement opportunities.",
+   "alt": [
+    "Finance Systems Analyst",
+    "Accounting Systems Analyst"
+   ],
+   "resp": [
+    "Map financial data flows between systems",
+    "Investigate reconciliation breaks",
+    "Specify system and mapping changes"
+   ],
+   "know": [
+    "financial system architecture",
+    "chart of accounts design",
+    "integration controls"
+   ],
+   "terms": [
+    "sub-ledger",
+    "mapping table",
+    "interface",
+    "reconciliation break",
+    "close calendar"
+   ],
+   "methods": [
+    "interface reconciliation",
+    "mapping review",
+    "control testing"
+   ],
+   "tasks": [
+    "reconciliation",
+    "data_quality",
+    "process_analysis"
+   ],
+   "techniques": [
+    "compare totals by interface run",
+    "find unmapped accounts",
+    "trace break items"
+   ],
+   "req": [
+    "sql_query",
+    "schema_validation",
+    "financial_reconciliation"
+   ],
+   "opt": [
+    "data_profiling"
+   ],
+   "sources": [
+    "ERP",
+    "billing",
+    "consolidation system",
+    "interface logs"
+   ],
+   "entities": [
+    "interfaces",
+    "accounts",
+    "mappings",
+    "batches"
+   ],
+   "fields": [
+    "batch id",
+    "account",
+    "amount",
+    "source system"
+   ],
+   "verify": [
+    "two_source_reconciliation",
+    "contract_conformance"
+   ],
+   "outputs": [
+    "reconciliation break analysis",
+    "mapping review"
+   ],
+   "limits": [
+    "Two-source reconciliation is declared but not yet automated."
+   ],
+   "examples": [
+    "Why don't billing and the ledger agree for October?",
+    "Which accounts are unmapped in the consolidation?"
+   ],
+   "related": [
+    "erp_systems_analyst",
+    "financial_data_analyst",
+    "data_integration_analyst"
+   ],
+   "keywords": [
+    "financial systems",
+    "reconciliation break",
+    "sub-ledger",
+    "chart of accounts",
+    "interface",
+    "close"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 81)"
+   ]
+  },
+  {
+   "id": "revenue_operations_analyst",
+   "name": "Revenue Operations Analyst",
+   "kind": "job_title",
+   "sub": "Revenue operations",
+   "desc": "Analyzes the systems and processes connecting marketing, sales, customer success, and revenue reporting. Identifies pipeline inefficiencies, conversion issues, and inconsistent performance definitions.",
+   "alt": [
+    "RevOps Analyst",
+    "Sales Operations Analyst"
+   ],
+   "resp": [
+    "Measure pipeline and conversion",
+    "Forecast bookings",
+    "Find revenue leakage across the funnel"
+   ],
+   "know": [
+    "sales funnel management",
+    "CRM data",
+    "bookings and ARR"
+   ],
+   "terms": [
+    "pipeline",
+    "win rate",
+    "ARR",
+    "net revenue retention",
+    "sales cycle"
+   ],
+   "methods": [
+    "funnel conversion analysis",
+    "pipeline coverage",
+    "cohort retention analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "forecasting",
+    "variance_explanation",
+    "segmentation"
+   ],
+   "techniques": [
+    "stage-to-stage conversion",
+    "pipeline coverage ratios",
+    "win rate by segment"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "time_series_forecasting"
+   ],
+   "opt": [
+    "statistical_testing"
+   ],
+   "sources": [
+    "CRM",
+    "billing",
+    "marketing automation"
+   ],
+   "entities": [
+    "opportunities",
+    "accounts",
+    "reps",
+    "stages"
+   ],
+   "fields": [
+    "opportunity id",
+    "stage",
+    "amount",
+    "close date",
+    "owner"
+   ],
+   "verify": [
+    "conversion_definition"
+   ],
+   "outputs": [
+    "pipeline report",
+    "bookings forecast",
+    "leakage analysis"
+   ],
+   "limits": [
+    "Rep-level comparisons are reported with context; Lyst does not rank individuals for performance management."
+   ],
+   "examples": [
+    "What is our pipeline coverage for next quarter?",
+    "Where in the funnel are we losing deals?"
+   ],
+   "related": [
+    "crm_analyst",
+    "pricing_analyst",
+    "growth_analyst"
+   ],
+   "keywords": [
+    "revops",
+    "pipeline",
+    "bookings",
+    "win rate",
+    "arr",
+    "sales funnel",
+    "quota"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 82)"
+   ]
+  },
+  {
+   "id": "pricing_analyst",
+   "name": "Pricing Analyst",
+   "kind": "job_title",
+   "sub": "Pricing",
+   "desc": "Evaluates pricing structures, discounts, elasticity, margins, competitive conditions, and customer behavior. Models pricing alternatives and their financial consequences.",
+   "alt": [
+    "Price Analyst",
+    "Revenue Management Analyst"
+   ],
+   "resp": [
+    "Measure price realization and discounting",
+    "Estimate price effects on volume and margin",
+    "Model pricing scenarios"
+   ],
+   "know": [
+    "pricing strategy",
+    "price elasticity",
+    "discount governance"
+   ],
+   "terms": [
+    "price realization",
+    "elasticity",
+    "discount leakage",
+    "list price",
+    "price-volume-mix"
+   ],
+   "methods": [
+    "price-volume-mix analysis",
+    "discount waterfall",
+    "scenario modeling",
+    "interrupted time series around price changes"
+   ],
+   "tasks": [
+    "variance_explanation",
+    "causal_estimation",
+    "simulation",
+    "optimization"
+   ],
+   "techniques": [
+    "decompose revenue change into price, volume and mix",
+    "segment discount depth",
+    "measure before/after effects"
+   ],
+   "req": [
+    "driver_decomposition",
+    "scenario_modeling",
+    "metric_computation"
+   ],
+   "opt": [
+    "causal_impact",
+    "optimization",
+    "regression"
+   ],
+   "sources": [
+    "order lines",
+    "price lists",
+    "discount approvals"
+   ],
+   "entities": [
+    "products",
+    "customers",
+    "orders",
+    "price lists"
+   ],
+   "fields": [
+    "unit price",
+    "list price",
+    "quantity",
+    "discount"
+   ],
+   "verify": [
+    "parts_reconcile",
+    "causal_claims_guarded"
+   ],
+   "outputs": [
+    "pricing analysis",
+    "price change scenarios"
+   ],
+   "limits": [
+    "Elasticity is estimated from history; there is no demand model fitted across many price points."
+   ],
+   "examples": [
+    "How much of the revenue change was price versus volume?",
+    "What happens to margin if we cut list price 5%?"
+   ],
+   "related": [
+    "financial_data_analyst",
+    "subscription_monetization_analyst",
+    "optimization_analyst"
+   ],
+   "keywords": [
+    "pricing",
+    "price",
+    "discount",
+    "elasticity",
+    "price increase",
+    "price realization"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 83)"
+   ]
+  },
+  {
+   "id": "procurement_analyst",
+   "name": "Procurement Analyst",
+   "kind": "job_title",
+   "sub": "Procurement",
+   "desc": "Investigates purchasing patterns, supplier performance, contract utilization, spend categories, and procure-to-pay processes. Identifies savings opportunities, operational risks, and process inefficiencies.",
+   "alt": [
+    "Spend Analyst",
+    "Sourcing Analyst",
+    "Purchasing Analyst"
+   ],
+   "resp": [
+    "Analyse spend by category and supplier",
+    "Investigate expenditure variances",
+    "Find savings and non-compliant purchasing"
+   ],
+   "know": [
+    "strategic sourcing",
+    "spend analysis",
+    "supplier management"
+   ],
+   "terms": [
+    "spend cube",
+    "maverick spend",
+    "purchase order",
+    "contract compliance",
+    "supplier concentration"
+   ],
+   "methods": [
+    "spend cube analysis",
+    "supplier concentration (HHI, Pareto)",
+    "variance analysis",
+    "three-way match review"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "variance_explanation",
+    "reconciliation",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "classify spend by category",
+    "measure off-contract spend",
+    "bridge spend changes by supplier"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "financial_reconciliation"
+   ],
+   "opt": [
+    "concentration_analysis",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "purchase orders",
+    "invoices",
+    "contracts",
+    "supplier master"
+   ],
+   "entities": [
+    "suppliers",
+    "categories",
+    "purchase orders",
+    "invoices"
+   ],
+   "fields": [
+    "supplier",
+    "category",
+    "amount",
+    "date",
+    "contract flag"
+   ],
+   "verify": [
+    "two_source_reconciliation"
+   ],
+   "outputs": [
+    "spend analysis",
+    "variance report",
+    "savings opportunities"
+   ],
+   "limits": [
+    "Spend classification uses existing category fields; automatic categorization of free text is not available."
+   ],
+   "examples": [
+    "Investigate procurement expenditure variances, reconcile multiple sources and produce a verified management report.",
+    "How concentrated is our spend with top suppliers?"
+   ],
+   "related": [
+    "supply_chain_analyst",
+    "risk_controls_analyst",
+    "erp_systems_analyst"
+   ],
+   "keywords": [
+    "procurement",
+    "spend",
+    "suppliers",
+    "purchasing",
+    "sourcing",
+    "purchase orders",
+    "vendor",
+    "contract price",
+    "paying suppliers",
+    "overpaying"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 84)"
+   ]
+  },
+  {
+   "id": "supply_chain_analyst",
+   "name": "Supply Chain Analyst",
+   "kind": "job_title",
+   "sub": "Supply chain",
+   "desc": "Examines inventory, suppliers, transportation, demand, fulfillment, and production relationships. Identifies bottlenecks and improves cost, availability, and operational resilience.",
+   "alt": [
+    "Logistics Analyst",
+    "Supply Planner (analytics)"
+   ],
+   "resp": [
+    "Measure service levels and lead times",
+    "Find bottlenecks and disruption risk",
+    "Model network and policy changes"
+   ],
+   "know": [
+    "supply chain management",
+    "logistics",
+    "demand and supply planning"
+   ],
+   "terms": [
+    "fill rate",
+    "lead time",
+    "OTIF",
+    "safety stock",
+    "bullwhip"
+   ],
+   "methods": [
+    "lead-time variability analysis",
+    "service level analysis",
+    "scenario and simulation modeling"
+   ],
+   "tasks": [
+    "process_analysis",
+    "forecasting",
+    "simulation",
+    "optimization"
+   ],
+   "techniques": [
+    "decompose late deliveries by cause",
+    "measure lead-time variance by supplier",
+    "simulate disruption"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "time_series_forecasting"
+   ],
+   "opt": [
+    "simulation",
+    "optimization",
+    "geospatial_analysis"
+   ],
+   "sources": [
+    "orders and shipments",
+    "supplier deliveries",
+    "warehouse systems"
+   ],
+   "entities": [
+    "shipments",
+    "suppliers",
+    "warehouses",
+    "lanes"
+   ],
+   "fields": [
+    "order date",
+    "ship date",
+    "delivery date",
+    "quantity"
+   ],
+   "verify": [
+    "uncertainty_stated"
+   ],
+   "outputs": [
+    "service level report",
+    "bottleneck analysis",
+    "scenario plan"
+   ],
+   "limits": [
+    "Network optimization across sites is not solved; scenarios are driver-based."
+   ],
+   "examples": [
+    "Why did on-time delivery drop last month?",
+    "What happens to fill rate if supplier lead times grow 20%?"
+   ],
+   "related": [
+    "inventory_analyst",
+    "procurement_analyst",
+    "transportation_mobility_analyst"
+   ],
+   "keywords": [
+    "supply chain",
+    "logistics",
+    "lead time",
+    "otif",
+    "fill rate",
+    "shipments",
+    "delivery",
+    "shipping",
+    "delays",
+    "late deliveries",
+    "shipping delays"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 85)"
+   ]
+  },
+  {
+   "id": "inventory_analyst",
+   "name": "Inventory Analyst",
+   "kind": "job_title",
+   "sub": "Inventory",
+   "desc": "Models stock levels, replenishment, turnover, demand variability, and shortage risks. Recommends inventory policies balancing availability, carrying cost, and working capital.",
+   "alt": [
+    "Inventory Control Analyst",
+    "Stock Analyst"
+   ],
+   "resp": [
+    "Measure stock levels, turns and aging",
+    "Find excess, obsolete and short items",
+    "Recommend reorder policies"
+   ],
+   "know": [
+    "inventory management",
+    "demand variability",
+    "ABC/XYZ classification"
+   ],
+   "terms": [
+    "inventory turns",
+    "days of supply",
+    "safety stock",
+    "stockout",
+    "obsolescence"
+   ],
+   "methods": [
+    "ABC/XYZ analysis",
+    "safety stock calculation",
+    "aging analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "forecasting",
+    "optimization",
+    "segmentation"
+   ],
+   "techniques": [
+    "classify items by value and variability",
+    "compute days of supply",
+    "flag aged stock"
+   ],
+   "req": [
+    "metric_computation",
+    "time_series_forecasting"
+   ],
+   "opt": [
+    "optimization",
+    "simulation",
+    "concentration_analysis"
+   ],
+   "sources": [
+    "inventory snapshots",
+    "sales history",
+    "purchase orders"
+   ],
+   "entities": [
+    "items",
+    "locations",
+    "stock positions"
+   ],
+   "fields": [
+    "item",
+    "location",
+    "on hand",
+    "date",
+    "unit cost"
+   ],
+   "verify": [
+    "uncertainty_stated"
+   ],
+   "outputs": [
+    "inventory health report",
+    "reorder recommendations"
+   ],
+   "limits": [
+    "Multi-echelon optimization is not implemented."
+   ],
+   "examples": [
+    "Which items have more than a year of supply?",
+    "What safety stock do our top sellers need?"
+   ],
+   "related": [
+    "supply_chain_analyst",
+    "forecasting_analyst",
+    "ecommerce_analyst"
+   ],
+   "keywords": [
+    "inventory",
+    "stock",
+    "stockout",
+    "safety stock",
+    "days of supply",
+    "obsolete",
+    "reorder"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 86)"
+   ]
+  },
+  {
+   "id": "workforce_analytics_analyst",
+   "name": "Workforce Analytics Analyst",
+   "kind": "job_title",
+   "sub": "People analytics",
+   "desc": "Investigates staffing, compensation, productivity, hiring, turnover, and labor demand. Develops workforce forecasts and supports organizational planning within appropriate privacy boundaries.",
+   "alt": [
+    "People Analytics Analyst",
+    "HR Analyst"
+   ],
+   "resp": [
+    "Report headcount, hiring and attrition",
+    "Forecast workforce needs",
+    "Analyse drivers of retention"
+   ],
+   "know": [
+    "people analytics",
+    "workforce planning",
+    "HR data privacy"
+   ],
+   "terms": [
+    "attrition rate",
+    "time to hire",
+    "span of control",
+    "FTE",
+    "regretted attrition"
+   ],
+   "methods": [
+    "cohort attrition analysis",
+    "workforce planning models",
+    "driver analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "forecasting",
+    "variance_explanation",
+    "capacity_planning"
+   ],
+   "techniques": [
+    "attrition by tenure cohort",
+    "forecast headcount",
+    "decompose cost change"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "time_series_forecasting"
+   ],
+   "opt": [
+    "simulation",
+    "statistical_testing"
+   ],
+   "sources": [
+    "HRIS",
+    "recruiting system",
+    "payroll"
+   ],
+   "entities": [
+    "employees",
+    "positions",
+    "departments",
+    "requisitions"
+   ],
+   "fields": [
+    "employee id",
+    "department",
+    "hire date",
+    "termination date"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "workforce report",
+    "attrition analysis",
+    "headcount plan"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Small groups are suppressed; Lyst does not make predictions about individual employees."
+   ],
+   "examples": [
+    "What is our attrition rate by department this year?",
+    "How many hires do we need to meet next year's plan?"
+   ],
+   "related": [
+    "capacity_planning_analyst",
+    "fpa_analyst",
+    "privacy_data_protection_analyst"
+   ],
+   "keywords": [
+    "workforce",
+    "headcount",
+    "attrition",
+    "hr",
+    "hiring",
+    "people analytics",
+    "turnover",
+    "leaving the company",
+    "people leaving",
+    "employees"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 87)"
+   ]
+  },
+  {
+   "id": "process_mining_analyst",
+   "name": "Process Mining Analyst",
+   "kind": "job_title",
+   "sub": "Process mining",
+   "desc": "Uses timestamped event logs from enterprise systems to reconstruct actual business workflows. Identifies rework, delays, compliance deviations, handoff friction, and automation opportunities.",
+   "alt": [
+    "Process Analyst",
+    "Process Intelligence Analyst"
+   ],
+   "resp": [
+    "Discover processes from event logs",
+    "Measure cycle times, variants and rework",
+    "Check conformance to the intended process"
+   ],
+   "know": [
+    "process mining",
+    "business process management",
+    "lean"
+   ],
+   "terms": [
+    "case",
+    "activity",
+    "variant",
+    "rework loop",
+    "conformance"
+   ],
+   "methods": [
+    "process discovery",
+    "variant analysis",
+    "conformance checking",
+    "bottleneck analysis"
+   ],
+   "tasks": [
+    "process_analysis",
+    "root_cause",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "build directly-follows graphs",
+    "rank variants by frequency",
+    "measure waiting time per step"
+   ],
+   "req": [
+    "process_mining",
+    "sql_query"
+   ],
+   "opt": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "ERP event logs",
+    "workflow system logs",
+    "ticketing history"
+   ],
+   "entities": [
+    "cases",
+    "activities",
+    "resources"
+   ],
+   "fields": [
+    "case id",
+    "activity",
+    "timestamp",
+    "resource"
+   ],
+   "verify": [],
+   "outputs": [
+    "process map",
+    "variant and bottleneck analysis"
+   ],
+   "limits": [
+    "Process discovery is not implemented; cycle times between known steps can be computed with SQL."
+   ],
+   "examples": [
+    "Where does order-to-cash get stuck?",
+    "How many invoices skip the approval step?"
+   ],
+   "related": [
+    "business_analyst",
+    "automation_rpa_analyst",
+    "it_service_management_analyst"
+   ],
+   "keywords": [
+    "process mining",
+    "event log",
+    "cycle time",
+    "bottleneck",
+    "rework",
+    "variants",
+    "order to cash"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 88)"
+   ]
+  },
+  {
+   "id": "erp_systems_analyst",
+   "name": "ERP Systems Analyst",
+   "kind": "job_title",
+   "sub": "ERP",
+   "desc": "Evaluates enterprise resource planning modules, master data, transactions, workflow configuration, and cross-functional integrations. Diagnoses process and data issues across finance, procurement, inventory, and operations.",
+   "alt": [
+    "ERP Analyst",
+    "SAP Analyst",
+    "Oracle ERP Analyst"
+   ],
+   "resp": [
+    "Analyse ERP transaction and master data issues",
+    "Specify configuration and process changes",
+    "Support ERP reporting"
+   ],
+   "know": [
+    "ERP modules",
+    "master data",
+    "business process configuration"
+   ],
+   "terms": [
+    "module",
+    "transaction code",
+    "master record",
+    "posting",
+    "configuration"
+   ],
+   "methods": [
+    "transaction analysis",
+    "master data review",
+    "configuration impact analysis"
+   ],
+   "tasks": [
+    "data_quality",
+    "process_analysis",
+    "reconciliation"
+   ],
+   "techniques": [
+    "find blocked or failed postings",
+    "profile master data completeness",
+    "trace document flow"
+   ],
+   "req": [
+    "sql_query",
+    "data_profiling",
+    "financial_reconciliation"
+   ],
+   "opt": [
+    "process_mining"
+   ],
+   "sources": [
+    "ERP extracts",
+    "master data tables",
+    "interface logs"
+   ],
+   "entities": [
+    "documents",
+    "master records",
+    "modules"
+   ],
+   "fields": [
+    "document number",
+    "posting date",
+    "company code",
+    "status"
+   ],
+   "verify": [
+    "contract_conformance"
+   ],
+   "outputs": [
+    "ERP issue analysis",
+    "data quality review",
+    "change specification"
+   ],
+   "limits": [
+    "Reads ERP extracts; Lyst has no transaction access to ERP systems."
+   ],
+   "examples": [
+    "Which vendor master records are incomplete?",
+    "Why are these invoices stuck in posting?"
+   ],
+   "related": [
+    "financial_systems_analyst",
+    "master_data_analyst",
+    "procurement_analyst"
+   ],
+   "keywords": [
+    "erp",
+    "sap",
+    "oracle",
+    "netsuite",
+    "master data",
+    "posting",
+    "module"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 89)"
+   ]
+  },
+  {
+   "id": "risk_controls_analyst",
+   "name": "Risk & Controls Analyst",
+   "kind": "job_title",
+   "sub": "Internal control",
+   "desc": "Examines digital business processes, transaction controls, approvals, reconciliations, and exception evidence. Evaluates whether operational and financial safeguards work as intended.",
+   "alt": [
+    "Internal Controls Analyst",
+    "Internal Audit Analyst",
+    "SOX Analyst"
+   ],
+   "resp": [
+    "Test controls with data analytics",
+    "Monitor exceptions continuously",
+    "Report control deficiencies"
+   ],
+   "know": [
+    "internal control",
+    "audit analytics",
+    "SOX compliance"
+   ],
+   "terms": [
+    "key control",
+    "exception",
+    "segregation of duties",
+    "deficiency",
+    "sample"
+   ],
+   "methods": [
+    "full-population testing",
+    "exception analytics",
+    "statistical sampling"
+   ],
+   "tasks": [
+    "compliance_review",
+    "anomaly_detection",
+    "reconciliation",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "duplicate payment detection",
+    "approval threshold checks",
+    "Benford-style distribution tests"
+   ],
+   "req": [
+    "sql_query",
+    "anomaly_detection",
+    "statistical_testing"
+   ],
+   "opt": [
+    "financial_reconciliation",
+    "data_quality_monitoring"
+   ],
+   "sources": [
+    "general ledger",
+    "payments",
+    "approval logs",
+    "access records"
+   ],
+   "entities": [
+    "controls",
+    "transactions",
+    "approvals",
+    "exceptions"
+   ],
+   "fields": [
+    "transaction id",
+    "amount",
+    "approver",
+    "date"
+   ],
+   "verify": [
+    "human_review"
+   ],
+   "outputs": [
+    "control test results",
+    "exception report",
+    "deficiency summary"
+   ],
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Findings are inputs to auditors' judgment; Lyst does not issue audit opinions."
+   ],
+   "examples": [
+    "Find duplicate vendor payments this year.",
+    "Test that every payment over $50k had two approvers."
+   ],
+   "related": [
+    "fraud_detection_analyst",
+    "security_compliance_analyst",
+    "procurement_analyst"
+   ],
+   "keywords": [
+    "controls",
+    "internal audit",
+    "sox",
+    "exceptions",
+    "duplicate payments",
+    "control testing",
+    "overpayment",
+    "contract price"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 90)"
+   ]
+  }
+ ]
+}

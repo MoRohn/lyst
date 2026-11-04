@@ -79,6 +79,8 @@ CATALOG: dict[str, tuple[str, str]] = {
     # adaptability (onboarding, classification, governance)
     "onboarding.discover": ("onboarding.discovered", "workspace"),
     "onboarding.accept": ("onboarding.accepted", "proposal"),
+    "anticipation.accept": ("anticipation.accepted", "anticipation"),
+    "anticipation.settings": ("anticipation.settings_changed", "workspace"),
     "onboarding.profile": ("onboarding.profiled", "workspace"),
     "data.classify": ("dataset.classified", "dataset"),
     "data.policy": ("policy.changed", "dataset"),

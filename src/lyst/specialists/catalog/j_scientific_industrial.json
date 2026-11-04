@@ -1,0 +1,1349 @@
+{
+ "domain": {
+  "id": "scientific_industrial",
+  "letter": "J",
+  "title": "Scientific, Industrial & Specialized Computational Analytics",
+  "summary": "Reproducible quantitative work on scientific, health, industrial, energy and mobility data.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Life sciences, healthcare, manufacturing, energy, utilities, environment and transport"
+   ],
+   "expertise.technical_concepts": [
+    "units and dimensional consistency",
+    "measurement error",
+    "sensor sampling rates",
+    "reproducibility"
+   ],
+   "expertise.standards": [
+    "FAIR data principles",
+    "domain reporting guidelines (e.g. STROBE, CONSORT for health studies)",
+    "ISO measurement and quality standards relevant to the domain"
+   ],
+   "analytics.statistical_methods": [
+    "descriptive and inferential statistics",
+    "time-series analysis",
+    "uncertainty propagation"
+   ],
+   "analytics.computational_methods": [
+    "vectorized numerical computing",
+    "resampling and aggregation of sensor series"
+   ],
+   "analytics.modeling_approaches": [
+    "physical or mechanistic models where available",
+    "statistical baselines"
+   ],
+   "analytics.data_transformations": [
+    "unit conversion",
+    "resampling to a common grain",
+    "outlier and sensor fault handling"
+   ],
+   "analytics.visualization_methods": [
+    "time-series panels",
+    "distribution plots",
+    "control charts"
+   ],
+   "analytics.reporting": [
+    "reproducible analysis report with methods and units",
+    "operational recommendation"
+   ],
+   "data.structures": [
+    "sensor time series",
+    "experimental or clinical tables",
+    "equipment and asset registers"
+   ],
+   "data.quality_requirements": [
+    "units recorded for every measure",
+    "sensor calibration and gaps known",
+    "identifiers consistent across sources"
+   ],
+   "data.temporal": [
+    "timestamps in a stated time zone",
+    "regular sampling or documented irregularity"
+   ],
+   "data.semantic_assumptions": [
+    "variable definitions follow the source's data dictionary"
+   ],
+   "resources.sql": [
+    "DuckDB SQL for extraction and aggregation"
+   ],
+   "resources.python_packages": [
+    "numpy",
+    "scipy",
+    "statsmodels",
+    "pandas"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (method narrative, numbers checked)"
+   ],
+   "resources.environment": [
+    "in-process numerical Python; sandboxed approved skills for new methods"
+   ],
+   "execution.planning_depth": "deep",
+   "execution.decomposition": [
+    "state the question and units",
+    "check data adequacy and calibration",
+    "compute",
+    "validate method and units",
+    "report reproducibly"
+   ],
+   "execution.resource_constraints": [
+    "computation within the task budget; no HPC or GPU scheduling"
+   ],
+   "execution.approval_conditions": [
+    "acting on results that affect safety, patients or equipment"
+   ],
+   "execution.verification_rules": [
+    "units_consistent",
+    "uncertainty_stated"
+   ],
+   "quality.correctness_criteria": [
+    "units are consistent",
+    "methods suit the measurement process",
+    "results reproduce from recorded inputs"
+   ],
+   "quality.domain_tests": [
+    "known-answer tests",
+    "unit consistency checks",
+    "sensitivity to data gaps"
+   ],
+   "quality.expected_evidence": [
+    "method, parameters and units",
+    "data window and exclusions"
+   ],
+   "quality.reproducibility": [
+    "recorded inputs, seeds and environment fingerprint"
+   ],
+   "quality.performance_measures": [
+    "computation time",
+    "error against reference values"
+   ],
+   "quality.known_limitations": [
+    "Lyst is not a validated system for regulated clinical, safety or engineering decisions."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "confidential",
+   "governance.sensitive_handling": [
+    "de-identified data only for health work",
+    "suppress small cells"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "health data is restricted; operational technology data is confidential"
+   ],
+   "governance.review_requirements": [
+    "domain expert review before results are used operationally"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "bioinformatics_analyst",
+   "name": "Bioinformatics Analyst",
+   "kind": "job_title",
+   "sub": "Bioinformatics",
+   "desc": "Analyzes biological sequences, genomic information, molecular datasets, and computational biology workflows. Uses statistical and algorithmic methods to investigate biological relationships.",
+   "alt": [
+    "Computational Biologist",
+    "Genomics Analyst"
+   ],
+   "resp": [
+    "Analyse sequence, expression or variant data",
+    "Build reproducible analysis pipelines",
+    "Apply appropriate multiple-testing control"
+   ],
+   "know": [
+    "molecular biology",
+    "genomics",
+    "high-dimensional statistics"
+   ],
+   "terms": [
+    "differential expression",
+    "false discovery rate",
+    "alignment",
+    "variant calling",
+    "fold change"
+   ],
+   "methods": [
+    "differential expression analysis",
+    "FDR control",
+    "pathway enrichment (design review)"
+   ],
+   "tasks": [
+    "statistical_testing",
+    "research_synthesis",
+    "data_profiling"
+   ],
+   "techniques": [
+    "normalize counts",
+    "test many features with FDR control",
+    "check batch effects"
+   ],
+   "req": [
+    "statistical_testing",
+    "data_profiling",
+    "classification"
+   ],
+   "opt": [
+    "clustering",
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "expression matrices",
+    "variant tables",
+    "sample metadata"
+   ],
+   "entities": [
+    "samples",
+    "genes",
+    "variants"
+   ],
+   "fields": [
+    "sample id",
+    "feature id",
+    "value",
+    "condition"
+   ],
+   "verify": [
+    "multiple_comparisons",
+    "sample_size"
+   ],
+   "outputs": [
+    "analysis report",
+    "ranked feature table"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Sequence alignment and variant calling tools are not available; analysis starts from processed tables.",
+    "Multiple-testing correction is not automated."
+   ],
+   "examples": [
+    "Which genes are differentially expressed between conditions?",
+    "Is there a batch effect in these samples?"
+   ],
+   "related": [
+    "clinical_data_analyst",
+    "scientific_computing_analyst",
+    "statistical_analyst"
+   ],
+   "keywords": [
+    "bioinformatics",
+    "genomics",
+    "gene expression",
+    "sequencing",
+    "variants",
+    "rna-seq"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 113)"
+   ]
+  },
+  {
+   "id": "clinical_data_analyst",
+   "name": "Clinical Data Analyst",
+   "kind": "job_title",
+   "sub": "Clinical data",
+   "desc": "Evaluates clinical study data, patient-related measures, treatment outcomes, and data-quality controls. Supports reliable clinical evidence generation within regulated processes.",
+   "alt": [
+    "Clinical Data Manager (analytics)",
+    "Clinical Research Data Analyst"
+   ],
+   "resp": [
+    "Validate clinical data against the protocol",
+    "Produce analysis tables and listings",
+    "Support the statistical analysis plan"
+   ],
+   "know": [
+    "clinical trial design",
+    "CDISC standards",
+    "good clinical practice"
+   ],
+   "terms": [
+    "CRF",
+    "SDTM",
+    "ADaM",
+    "adverse event",
+    "protocol deviation"
+   ],
+   "methods": [
+    "edit checks",
+    "tables, listings and figures",
+    "analysis per the statistical analysis plan"
+   ],
+   "tasks": [
+    "data_quality",
+    "statistical_testing",
+    "descriptive_reporting"
+   ],
+   "techniques": [
+    "run edit checks",
+    "summarize by arm",
+    "reconcile adverse events"
+   ],
+   "req": [
+    "data_quality_monitoring",
+    "statistical_testing",
+    "metric_computation"
+   ],
+   "opt": [
+    "schema_validation"
+   ],
+   "sources": [
+    "EDC exports",
+    "lab data",
+    "safety databases"
+   ],
+   "entities": [
+    "subjects",
+    "visits",
+    "adverse events",
+    "arms"
+   ],
+   "fields": [
+    "subject id",
+    "visit",
+    "measurement",
+    "arm"
+   ],
+   "verify": [
+    "sample_size",
+    "human_review"
+   ],
+   "outputs": [
+    "data validation report",
+    "summary tables"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Not a validated (21 CFR Part 11) system; outputs are exploratory."
+   ],
+   "examples": [
+    "Which subjects have missing visit data?",
+    "Summarize adverse events by treatment arm."
+   ],
+   "related": [
+    "health_informatics_analyst",
+    "epidemiological_data_analyst",
+    "bioinformatics_analyst"
+   ],
+   "keywords": [
+    "clinical trial",
+    "clinical data",
+    "patients",
+    "adverse events",
+    "cdisc",
+    "protocol"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 114)"
+   ]
+  },
+  {
+   "id": "health_informatics_analyst",
+   "name": "Health Informatics Analyst",
+   "kind": "job_title",
+   "sub": "Health informatics",
+   "desc": "Investigates electronic health records, healthcare information systems, clinical workflows, and interoperability. Improves data availability, information quality, and healthcare operations.",
+   "alt": [
+    "Healthcare Data Analyst",
+    "Clinical Informatics Analyst"
+   ],
+   "resp": [
+    "Measure care quality and access",
+    "Analyse patient flow and utilization",
+    "Support quality reporting"
+   ],
+   "know": [
+    "healthcare data standards",
+    "clinical coding",
+    "quality measurement"
+   ],
+   "terms": [
+    "length of stay",
+    "readmission",
+    "ICD-10",
+    "HL7 FHIR",
+    "quality measure"
+   ],
+   "methods": [
+    "quality measure calculation",
+    "patient flow analysis",
+    "risk-adjusted comparison (design review)"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "process_analysis",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "trend readmissions",
+    "measure waits by step",
+    "compare units on quality measures"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "statistical_testing",
+    "process_mining"
+   ],
+   "sources": [
+    "EHR extracts",
+    "claims",
+    "scheduling systems"
+   ],
+   "entities": [
+    "encounters",
+    "patients (de-identified)",
+    "units",
+    "procedures"
+   ],
+   "fields": [
+    "encounter id",
+    "admit and discharge dates",
+    "unit",
+    "diagnosis code"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "quality and utilization report",
+    "patient flow analysis"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Risk adjustment models are not implemented; comparisons are unadjusted unless supplied."
+   ],
+   "examples": [
+    "What is our 30-day readmission rate by unit?",
+    "Where do patients wait longest in the emergency department?"
+   ],
+   "related": [
+    "clinical_data_analyst",
+    "epidemiological_data_analyst",
+    "process_mining_analyst"
+   ],
+   "keywords": [
+    "healthcare",
+    "hospital",
+    "readmission",
+    "length of stay",
+    "ehr",
+    "patients",
+    "clinical quality"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 115)"
+   ]
+  },
+  {
+   "id": "epidemiological_data_analyst",
+   "name": "Epidemiological Data Analyst",
+   "kind": "job_title",
+   "sub": "Epidemiology",
+   "desc": "Analyzes disease incidence, population health patterns, risk factors, and health outcomes. Uses statistical and temporal methods to support public-health investigations.",
+   "alt": [
+    "Epidemiology Analyst",
+    "Public Health Data Analyst"
+   ],
+   "resp": [
+    "Compute incidence and prevalence",
+    "Detect outbreaks and trends",
+    "Compare populations fairly"
+   ],
+   "know": [
+    "epidemiology",
+    "biostatistics",
+    "public health surveillance"
+   ],
+   "terms": [
+    "incidence",
+    "prevalence",
+    "relative risk",
+    "age standardization",
+    "surveillance"
+   ],
+   "methods": [
+    "rate calculation with denominators",
+    "direct age standardization",
+    "aberration detection"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "anomaly_detection",
+    "statistical_testing",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "rates per population",
+    "detect unusual case counts",
+    "compare standardized rates"
+   ],
+   "req": [
+    "metric_computation",
+    "anomaly_detection",
+    "statistical_testing"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "geospatial_analysis",
+    "causal_impact"
+   ],
+   "sources": [
+    "surveillance data",
+    "population denominators",
+    "study datasets"
+   ],
+   "entities": [
+    "cases",
+    "populations",
+    "regions",
+    "periods"
+   ],
+   "fields": [
+    "case date",
+    "region",
+    "age group",
+    "population"
+   ],
+   "verify": [
+    "sample_size",
+    "causal_claims_guarded"
+   ],
+   "outputs": [
+    "epidemiological report",
+    "trend and outbreak summary"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Age standardization and spatial methods are not automated."
+   ],
+   "examples": [
+    "Is the case count this week unusual for the season?",
+    "Compare incidence rates across regions."
+   ],
+   "related": [
+    "health_informatics_analyst",
+    "statistical_analyst",
+    "geospatial_analyst"
+   ],
+   "keywords": [
+    "epidemiology",
+    "incidence",
+    "prevalence",
+    "outbreak",
+    "public health",
+    "cases per"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 116)"
+   ]
+  },
+  {
+   "id": "scientific_computing_analyst",
+   "name": "Scientific Computing Analyst",
+   "kind": "functional",
+   "sub": "Scientific computing",
+   "desc": "Uses computational models, numerical methods, simulation, and scientific datasets to investigate research problems. Emphasizes methodological validity, numerical accuracy, and reproducibility.",
+   "alt": [
+    "Research Computing Analyst",
+    "Computational Scientist"
+   ],
+   "resp": [
+    "Run reproducible numerical analyses",
+    "Check numerical stability and units",
+    "Document methods for replication"
+   ],
+   "know": [
+    "numerical analysis",
+    "scientific programming",
+    "research reproducibility"
+   ],
+   "terms": [
+    "floating-point error",
+    "convergence",
+    "tolerance",
+    "random seed",
+    "provenance"
+   ],
+   "methods": [
+    "reproducible pipelines",
+    "convergence checks",
+    "bootstrap uncertainty"
+   ],
+   "tasks": [
+    "statistical_testing",
+    "simulation",
+    "data_profiling"
+   ],
+   "techniques": [
+    "fix seeds and versions",
+    "compare against analytic solutions",
+    "profile the dataset first"
+   ],
+   "req": [
+    "statistical_testing",
+    "data_profiling",
+    "simulation"
+   ],
+   "opt": [
+    "regression",
+    "model_evaluation"
+   ],
+   "sources": [
+    "research datasets",
+    "instrument output",
+    "simulation results"
+   ],
+   "entities": [
+    "observations",
+    "variables",
+    "runs"
+   ],
+   "fields": [
+    "variable",
+    "value",
+    "unit",
+    "run id"
+   ],
+   "verify": [
+    "numerical_stability",
+    "eval_reproducible"
+   ],
+   "outputs": [
+    "reproducible analysis report",
+    "method appendix"
+   ],
+   "limits": [
+    "No HPC scheduling, compiled solvers or PDE frameworks."
+   ],
+   "examples": [
+    "Perform a reproducible statistical investigation on this research dataset.",
+    "Is this simulation result stable across seeds?"
+   ],
+   "related": [
+    "statistical_analyst",
+    "engineering_simulation_analyst",
+    "bioinformatics_analyst"
+   ],
+   "keywords": [
+    "scientific",
+    "research dataset",
+    "reproducible",
+    "numerical",
+    "experiment data",
+    "lab data"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 117)"
+   ]
+  },
+  {
+   "id": "engineering_simulation_analyst",
+   "name": "Engineering Simulation Analyst",
+   "kind": "job_title",
+   "sub": "Engineering simulation",
+   "desc": "Evaluates simulated physical systems, design alternatives, operating conditions, and engineering performance. Compares model results with observed evidence and documented assumptions.",
+   "alt": [
+    "CAE Analyst",
+    "Simulation Engineer (analysis)"
+   ],
+   "resp": [
+    "Analyse simulation outputs",
+    "Validate simulations against test data",
+    "Quantify margins and sensitivities"
+   ],
+   "know": [
+    "finite element analysis",
+    "computational fluid dynamics",
+    "verification and validation"
+   ],
+   "terms": [
+    "mesh convergence",
+    "boundary condition",
+    "safety factor",
+    "validation",
+    "sensitivity"
+   ],
+   "methods": [
+    "simulation-to-test comparison",
+    "parameter sensitivity studies",
+    "margin analysis"
+   ],
+   "tasks": [
+    "simulation",
+    "statistical_testing",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "compare predicted to measured",
+    "sweep parameters",
+    "check convergence across meshes"
+   ],
+   "req": [
+    "simulation",
+    "statistical_testing"
+   ],
+   "opt": [
+    "scenario_modeling",
+    "regression"
+   ],
+   "sources": [
+    "simulation result exports",
+    "test rig data",
+    "design parameters"
+   ],
+   "entities": [
+    "designs",
+    "load cases",
+    "test runs"
+   ],
+   "fields": [
+    "parameter",
+    "predicted value",
+    "measured value",
+    "unit"
+   ],
+   "verify": [
+    "numerical_stability"
+   ],
+   "outputs": [
+    "validation report",
+    "sensitivity study"
+   ],
+   "limits": [
+    "Lyst does not run FEA or CFD solvers; it analyses their exported results."
+   ],
+   "examples": [
+    "How well does the simulation match the test rig data?",
+    "Which parameters most affect peak stress?"
+   ],
+   "related": [
+    "scientific_computing_analyst",
+    "digital_twin_analyst",
+    "simulation_analyst"
+   ],
+   "keywords": [
+    "fea",
+    "cfd",
+    "engineering simulation",
+    "finite element",
+    "stress",
+    "test rig"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 118)"
+   ]
+  },
+  {
+   "id": "manufacturing_analytics_analyst",
+   "name": "Manufacturing Analytics Analyst",
+   "kind": "job_title",
+   "sub": "Manufacturing",
+   "desc": "Investigates production throughput, process variation, equipment performance, quality defects, and manufacturing efficiency. Uses operational data to identify improvement opportunities.",
+   "alt": [
+    "Manufacturing Data Analyst",
+    "Production Analyst"
+   ],
+   "resp": [
+    "Measure OEE, yield and scrap",
+    "Find causes of downtime and defects",
+    "Quantify improvement opportunities"
+   ],
+   "know": [
+    "lean manufacturing",
+    "statistical process control",
+    "production systems"
+   ],
+   "terms": [
+    "OEE",
+    "yield",
+    "scrap rate",
+    "cycle time",
+    "control limit"
+   ],
+   "methods": [
+    "OEE decomposition",
+    "statistical process control",
+    "Pareto of loss reasons"
+   ],
+   "tasks": [
+    "variance_explanation",
+    "anomaly_detection",
+    "root_cause",
+    "process_analysis"
+   ],
+   "techniques": [
+    "decompose OEE into availability, performance and quality",
+    "control charts",
+    "rank downtime reasons"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "change_point_detection",
+    "concentration_analysis"
+   ],
+   "sources": [
+    "MES",
+    "quality systems",
+    "maintenance logs"
+   ],
+   "entities": [
+    "lines",
+    "machines",
+    "batches",
+    "defects"
+   ],
+   "fields": [
+    "timestamp",
+    "line",
+    "good and total count",
+    "downtime reason"
+   ],
+   "verify": [
+    "parts_reconcile"
+   ],
+   "outputs": [
+    "production performance report",
+    "loss analysis"
+   ],
+   "limits": [
+    "Control charts use robust scores; formal SPC rule sets (Western Electric) are not automated."
+   ],
+   "examples": [
+    "Why did OEE on line 3 drop last week?",
+    "What are the top causes of scrap?"
+   ],
+   "related": [
+    "industrial_iot_analyst",
+    "predictive_maintenance_analyst",
+    "supply_chain_analyst"
+   ],
+   "keywords": [
+    "manufacturing",
+    "oee",
+    "yield",
+    "scrap",
+    "downtime",
+    "production line",
+    "factory"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 119)"
+   ]
+  },
+  {
+   "id": "industrial_iot_analyst",
+   "name": "Industrial IoT Analyst",
+   "kind": "functional",
+   "sub": "Industrial IoT",
+   "desc": "Analyzes telemetry from connected machines, sensors, industrial equipment, and control systems. Detects anomalies, equipment deterioration, and operational patterns.",
+   "alt": [
+    "IIoT Analyst",
+    "Sensor Data Analyst"
+   ],
+   "resp": [
+    "Monitor asset telemetry",
+    "Detect abnormal behaviour",
+    "Turn sensor data into operational insight"
+   ],
+   "know": [
+    "industrial sensors",
+    "OT data systems",
+    "signal processing basics"
+   ],
+   "terms": [
+    "sensor",
+    "telemetry",
+    "sampling rate",
+    "historian",
+    "threshold"
+   ],
+   "methods": [
+    "resampling and aggregation",
+    "anomaly detection on telemetry",
+    "change-point detection"
+   ],
+   "tasks": [
+    "anomaly_detection",
+    "trend_analysis",
+    "performance_analysis"
+   ],
+   "techniques": [
+    "resample to a common grain",
+    "compare against asset baseline",
+    "detect level shifts"
+   ],
+   "req": [
+    "anomaly_detection",
+    "change_point_detection",
+    "metric_computation"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "data_quality_monitoring"
+   ],
+   "sources": [
+    "historians",
+    "IoT platforms",
+    "asset registers"
+   ],
+   "entities": [
+    "assets",
+    "sensors",
+    "readings"
+   ],
+   "fields": [
+    "timestamp",
+    "sensor id",
+    "value",
+    "unit"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "asset condition report",
+    "anomaly list"
+   ],
+   "limits": [
+    "Batch analysis of exported telemetry; no streaming ingestion."
+   ],
+   "examples": [
+    "Which pumps show unusual vibration this month?",
+    "When did the temperature pattern on chiller 2 change?"
+   ],
+   "related": [
+    "predictive_maintenance_analyst",
+    "manufacturing_analytics_analyst",
+    "digital_twin_analyst"
+   ],
+   "keywords": [
+    "iot",
+    "sensor",
+    "telemetry",
+    "industrial",
+    "scada",
+    "historian",
+    "vibration"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 120)"
+   ]
+  },
+  {
+   "id": "predictive_maintenance_analyst",
+   "name": "Predictive Maintenance Analyst",
+   "kind": "functional",
+   "sub": "Maintenance",
+   "desc": "Models equipment failure likelihood, degradation, operating conditions, and maintenance history. Recommends maintenance timing based on evidence and operational constraints.",
+   "alt": [
+    "Reliability Analyst (asset)",
+    "Maintenance Analytics Analyst"
+   ],
+   "resp": [
+    "Estimate failure risk from condition data",
+    "Analyse failure history and MTBF",
+    "Recommend maintenance timing"
+   ],
+   "know": [
+    "reliability engineering",
+    "condition monitoring",
+    "maintenance strategy"
+   ],
+   "terms": [
+    "MTBF",
+    "failure mode",
+    "remaining useful life",
+    "condition-based maintenance",
+    "P-F interval"
+   ],
+   "methods": [
+    "failure rate analysis",
+    "survival analysis (design review)",
+    "anomaly-based early warning"
+   ],
+   "tasks": [
+    "forecasting",
+    "anomaly_detection",
+    "risk_assessment",
+    "optimization"
+   ],
+   "techniques": [
+    "compute MTBF by asset class",
+    "flag precursors of failure",
+    "compare maintenance strategies"
+   ],
+   "req": [
+    "anomaly_detection",
+    "classification",
+    "metric_computation"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "simulation",
+    "optimization"
+   ],
+   "sources": [
+    "maintenance management system",
+    "sensor telemetry",
+    "failure records"
+   ],
+   "entities": [
+    "assets",
+    "work orders",
+    "failures"
+   ],
+   "fields": [
+    "asset id",
+    "failure date",
+    "work order",
+    "readings"
+   ],
+   "verify": [
+    "uncertainty_stated"
+   ],
+   "outputs": [
+    "failure risk report",
+    "maintenance recommendations"
+   ],
+   "limits": [
+    "Failure classification and survival models are not implemented; risk is anomaly- and history-based."
+   ],
+   "examples": [
+    "Which assets are most likely to fail next month?",
+    "What is the MTBF of our conveyor motors?"
+   ],
+   "related": [
+    "industrial_iot_analyst",
+    "manufacturing_analytics_analyst",
+    "predictive_analytics_analyst"
+   ],
+   "keywords": [
+    "predictive maintenance",
+    "failure",
+    "mtbf",
+    "remaining useful life",
+    "maintenance",
+    "asset health"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 121)"
+   ]
+  },
+  {
+   "id": "energy_analytics_analyst",
+   "name": "Energy Analytics Analyst",
+   "kind": "job_title",
+   "sub": "Energy",
+   "desc": "Investigates energy demand, consumption, efficiency, generation, pricing, and operational conditions. Builds forecasts and models for energy-related decision support.",
+   "alt": [
+    "Energy Analyst",
+    "Energy Data Analyst"
+   ],
+   "resp": [
+    "Analyse consumption and cost by site",
+    "Normalize for weather and activity",
+    "Forecast demand and identify savings"
+   ],
+   "know": [
+    "energy markets",
+    "building and industrial energy use",
+    "carbon accounting"
+   ],
+   "terms": [
+    "kWh",
+    "peak demand",
+    "degree days",
+    "load profile",
+    "emissions factor"
+   ],
+   "methods": [
+    "weather normalization",
+    "load profile analysis",
+    "demand forecasting"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "forecasting",
+    "variance_explanation",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "regress consumption on degree days",
+    "compare sites per square metre",
+    "detect baseload creep"
+   ],
+   "req": [
+    "metric_computation",
+    "time_series_forecasting",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "regression",
+    "anomaly_detection",
+    "optimization"
+   ],
+   "sources": [
+    "meter data",
+    "utility bills",
+    "weather data"
+   ],
+   "entities": [
+    "sites",
+    "meters",
+    "tariffs"
+   ],
+   "fields": [
+    "timestamp",
+    "meter id",
+    "consumption",
+    "unit"
+   ],
+   "verify": [
+    "single_currency"
+   ],
+   "outputs": [
+    "energy performance report",
+    "savings opportunities",
+    "demand forecast"
+   ],
+   "limits": [
+    "Weather normalization needs a fitted regression, which is only partially supported (correlation)."
+   ],
+   "examples": [
+    "Which sites use the most energy per square metre?",
+    "Forecast next winter's peak demand."
+   ],
+   "related": [
+    "environmental_data_analyst",
+    "capacity_planning_analyst",
+    "cloud_finops_analyst"
+   ],
+   "keywords": [
+    "energy",
+    "electricity",
+    "kwh",
+    "consumption",
+    "utility",
+    "emissions",
+    "carbon"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 122)"
+   ]
+  },
+  {
+   "id": "environmental_data_analyst",
+   "name": "Environmental Data Analyst",
+   "kind": "job_title",
+   "sub": "Environment",
+   "desc": "Evaluates environmental measurements, monitoring systems, geographic observations, and longitudinal trends. Investigates environmental changes, data quality, and potential impacts.",
+   "alt": [
+    "Sustainability Data Analyst",
+    "ESG Data Analyst"
+   ],
+   "resp": [
+    "Compute sustainability and emissions metrics",
+    "Detect exceedances and trends",
+    "Prepare defensible ESG reporting data"
+   ],
+   "know": [
+    "environmental monitoring",
+    "GHG Protocol",
+    "ESG reporting"
+   ],
+   "terms": [
+    "scope 1/2/3 emissions",
+    "emissions factor",
+    "exceedance",
+    "baseline year",
+    "intensity"
+   ],
+   "methods": [
+    "GHG Protocol calculation",
+    "exceedance detection",
+    "trend analysis against targets"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "anomaly_detection",
+    "trend_analysis",
+    "compliance_review"
+   ],
+   "techniques": [
+    "apply emissions factors with units",
+    "flag readings over limits",
+    "track intensity versus target"
+   ],
+   "req": [
+    "metric_computation",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "geospatial_analysis"
+   ],
+   "sources": [
+    "monitoring stations",
+    "activity data",
+    "emissions factor tables"
+   ],
+   "entities": [
+    "sites",
+    "pollutants",
+    "emission sources"
+   ],
+   "fields": [
+    "date",
+    "site",
+    "quantity",
+    "unit",
+    "factor"
+   ],
+   "verify": [
+    "human_review"
+   ],
+   "outputs": [
+    "emissions inventory",
+    "exceedance report",
+    "target tracking"
+   ],
+   "limits": [
+    "Scope 3 estimation methods beyond spend-based factors are not implemented."
+   ],
+   "examples": [
+    "Calculate our scope 2 emissions for last year.",
+    "Did any site exceed its water discharge limits?"
+   ],
+   "related": [
+    "energy_analytics_analyst",
+    "geospatial_analyst",
+    "security_compliance_analyst"
+   ],
+   "keywords": [
+    "environmental",
+    "emissions",
+    "esg",
+    "sustainability",
+    "carbon footprint",
+    "air quality",
+    "ghg"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 123)"
+   ]
+  },
+  {
+   "id": "transportation_mobility_analyst",
+   "name": "Transportation & Mobility Analyst",
+   "kind": "job_title",
+   "sub": "Transport",
+   "desc": "Studies traffic, route performance, fleet utilization, mobility demand, travel patterns, and transportation system efficiency. Supports route optimization and capacity planning.",
+   "alt": [
+    "Transport Analyst",
+    "Fleet Analyst",
+    "Mobility Data Analyst"
+   ],
+   "resp": [
+    "Measure demand, travel time and reliability",
+    "Analyse fleet utilization",
+    "Support network and service planning"
+   ],
+   "know": [
+    "transport planning",
+    "fleet operations",
+    "traffic engineering basics"
+   ],
+   "terms": [
+    "on-time performance",
+    "ridership",
+    "utilization",
+    "dwell time",
+    "origin-destination"
+   ],
+   "methods": [
+    "origin-destination analysis",
+    "reliability and punctuality analysis",
+    "fleet utilization analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "geospatial_analysis",
+    "capacity_planning",
+    "optimization"
+   ],
+   "techniques": [
+    "punctuality by route and hour",
+    "utilization by vehicle",
+    "demand by zone"
+   ],
+   "req": [
+    "metric_computation",
+    "geospatial_analysis"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "optimization",
+    "simulation"
+   ],
+   "sources": [
+    "telematics",
+    "ticketing or trip records",
+    "schedules"
+   ],
+   "entities": [
+    "vehicles",
+    "trips",
+    "routes",
+    "stops"
+   ],
+   "fields": [
+    "trip id",
+    "start and end time",
+    "origin",
+    "destination"
+   ],
+   "verify": [],
+   "outputs": [
+    "mobility performance report",
+    "utilization analysis"
+   ],
+   "limits": [
+    "Route optimization and spatial analysis are not implemented."
+   ],
+   "examples": [
+    "Which routes have the worst on-time performance?",
+    "How well utilized is our delivery fleet?"
+   ],
+   "related": [
+    "supply_chain_analyst",
+    "geospatial_analyst",
+    "robotics_autonomous_systems_analyst"
+   ],
+   "keywords": [
+    "transport",
+    "mobility",
+    "fleet",
+    "routes",
+    "trips",
+    "on-time performance",
+    "ridership",
+    "shipping",
+    "delivery times"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 124)"
+   ]
+  }
+ ]
+}

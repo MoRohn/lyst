@@ -24,3 +24,15 @@ def attach(lyst) -> None:
     from .workbench import WorkbenchService
 
     lyst.workbench = WorkbenchService(lyst.stores, lyst.guard, lyst.data, lyst.knowledge, lyst.settings.home)
+    # -- other lanes
+    from .specialists.core import UniversalAnalystCore  # noqa: PLC0415 - specializations lane
+
+    lyst.analyst_core = UniversalAnalystCore(lyst)
+    if getattr(lyst, "anticipation", None) is not None:  # anticipation looks again soon after relevant events
+        lyst.events.subscribers.append(lyst.anticipation.on_event)
+    from . import events as _events
+    from .voice import VoiceService
+
+    lyst.voice = VoiceService(lyst.stores, lyst.guard, runtime=lyst.runtime, llm=lyst.llm, governance=lyst.governance)
+    lyst.runtime.periodic.append(lyst.voice.prune_all)  # transcript and audio retention, idle sessions closed
+    _events.CATALOG.update({"voice.settings": ("voice.settings_changed", "workspace")})

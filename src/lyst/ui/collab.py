@@ -200,3 +200,38 @@ def bell() -> None:
                    for k, v in prefs.items()}
             if new != prefs and st.button("Save", key="np_save", type="primary"):
                 kit.guarded(lambda: api.put(f"/v1/workspaces/{ws}/notification-preferences", new), "Saved")
+            attention()
+
+
+AHEAD = {"recurring_prep": "Upcoming scheduled work", "next_best_action": "Suggested next steps",
+         "early_warning": "Early warnings", "health_foresight": "Data sources and credentials at risk"}
+
+
+def attention() -> None:
+    """What Lyst may bring to me on its own: whether at all, how many a day, quiet hours, and which kinds."""
+    api, ws = _ctx()
+    try:
+        a = api.get(f"/v1/workspaces/{ws}/attention")
+    except APIError:
+        return
+    st.markdown("**Things Lyst notices on its own**")
+    on = st.toggle("Tell me about them", value=not a.get("opted_out"), key="at_on")
+    new = {"opted_out": not on}
+    if on:
+        new["max_per_day"] = int(st.number_input("At most a day", 0, 50, int(a.get("max_per_day") or 3), key="at_max"))
+        quiet = st.toggle("Quiet hours", value=bool(a.get("quiet_start")), key="at_quiet")
+        if quiet:
+            import datetime as _dt  # noqa: PLC0415
+
+            c = st.columns(2)
+            qs = c[0].time_input("From", value=_dt.time.fromisoformat(a.get("quiet_start") or "19:00"), key="at_qs")
+            qe = c[1].time_input("Until", value=_dt.time.fromisoformat(a.get("quiet_end") or "08:00"), key="at_qe")
+            new.update({"quiet_start": qs.strftime("%H:%M"), "quiet_end": qe.strftime("%H:%M"),
+                        "timezone": a.get("timezone") or st.context.timezone or "UTC"})
+        else:
+            new.update({"quiet_start": None, "quiet_end": None})
+        new["muted_kinds"] = [k for k in AHEAD if not st.checkbox(AHEAD[k], value=k not in (a.get("muted_kinds") or []),
+                                                                   key=f"at_k_{k}")]
+    cur = {k: a.get(k) for k in new}
+    if new != cur and st.button("Save", key="at_save", type="primary"):
+        kit.guarded(lambda: api.put(f"/v1/workspaces/{ws}/attention", new), "Saved")
