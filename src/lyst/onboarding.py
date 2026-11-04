@@ -37,6 +37,15 @@ PERIODS = ("week", "month", "quarter")
 STALLED_DAYS = 7
 
 
+def fiscal_start(db) -> int:
+    """The month the workspace's fiscal year starts, from its business profile (1 when none is set)."""
+    try:
+        raw = db.scalar("SELECT spec->>'$.fiscal_year_start_month' FROM domain_profiles ORDER BY version DESC LIMIT 1")
+    except Exception:  # noqa: BLE001 - a workspace from before the profile existed
+        return 1
+    return int(raw) if raw and 1 <= int(raw) <= 12 else 1
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 

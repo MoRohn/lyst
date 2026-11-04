@@ -16,8 +16,11 @@ from .collab import CollaborationService
 from .config import Settings, load_settings
 from .connectors import ConnectionService
 from .contracts import ContractService
+from .costs import CostService
 from .data import DataService
 from .deliverables import ArtifactService
+from .evidence import EvidenceService
+from .governance import GovernanceService
 from .ingest import IngestService
 from .knowledge import KnowledgeService
 from .llm import LLMClient
@@ -29,6 +32,7 @@ from .secrets import CredentialService, backend_from_env
 from .security import Guard
 from .semantic import SemanticService
 from .skills import SkillService
+from .standing import StandingService
 from .store import Stores
 from .studio import StudioService
 from .transforms import TransformService
@@ -61,6 +65,10 @@ class Lyst:
     transforms: TransformService | None = None
     ingest: IngestService | None = None
     anticipation: AnticipationService | None = None
+    evidence: EvidenceService | None = None
+    governance: GovernanceService | None = None
+    standing: StandingService | None = None
+    costs: CostService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -125,9 +133,17 @@ class Lyst:
         data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
         semantic.after_change.append(anticipation.after_definition)
         runtime.periodic.append(anticipation.tick_all)
+        governance = GovernanceService(stores, guard, external_model=lambda: bool(llm.settings.external), runtime=runtime)
+        data.access_checks.append(governance.check_read)
+        llm.gates.append(governance.model_gate)
+        artifacts.before_build.append(governance.check_export)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
                    studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest,
-                   anticipation=anticipation)
+                   anticipation=anticipation, governance=governance,
+                   evidence=EvidenceService(stores, guard, runtime, artifacts),
+                   standing=StandingService(stores, guard, runtime=runtime, registry=REGISTRY, collab=collab, assets=assets,
+                                            connections=connections, onboarding=onboarding, semantic=semantic),
+                   costs=CostService(stores, guard, settings))
 
     def close(self) -> None:
         self.runtime.stop()

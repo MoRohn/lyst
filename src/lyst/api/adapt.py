@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Routes for onboarding, domain packages and the business profile (kept apart from the main route table so
+"""Routes for onboarding, domain packages, the business profile and the evidence behind answers (kept apart from the main route table so
 parallel work on ``api/__init__.py`` does not collide). No ``from __future__ import annotations`` here: FastAPI must
 see the ``User`` dependency type itself, which is a closure variable of ``create_app``)."""
 
@@ -15,6 +15,24 @@ from .. import domains
 
 class AcceptIn(BaseModel):
     edits: dict[str, Any] | None = None
+
+
+class ClassifyIn(BaseModel):
+    level: str
+    tags: list[str] = []
+    reason: str
+
+
+class DataPolicyIn(BaseModel):
+    read_min_role: dict[str, str] | None = None
+    external_model_max: str | None = None
+    export_max: str | None = None
+
+
+class PolicyCheckIn(BaseModel):
+    datasets: list[str] = []
+    metrics: list[str] = []
+    purpose: str = "analyze"
 
 
 class ProfileIn(BaseModel):
@@ -54,6 +72,76 @@ def register(app: FastAPI, L, User) -> None:  # noqa: N803 - the names match the
     @app.post("/v1/workspaces/{ws}/onboarding/proposals/{pid}/dismiss")
     def onboarding_dismiss(request: Request, ws: str, pid: str, user: User):
         return L(request).onboarding.dismiss(user, ws, pid)
+
+    # -- evidence and explanations -------------------------------------------------------------
+
+    @app.get("/v1/tasks/{task_id}/evidence")
+    def task_evidence(request: Request, task_id: str, user: User):
+        return L(request).evidence.graph(user, task_id)
+
+    # q=reproduce re-runs the recorded queries (POST /v1/tasks/{id}/{action} is the task-control route)
+    @app.get("/v1/tasks/{task_id}/explain")
+    def task_explain(request: Request, task_id: str, user: User, q: str = "how", figure: str | None = None):
+        return L(request).evidence.explain(user, task_id, q, figure=figure)
+
+    @app.get("/v1/artifacts/{artifact_id}/evidence")
+    def artifact_evidence(request: Request, artifact_id: str, user: User):
+        return L(request).evidence.for_artifact(user, artifact_id)
+
+    # -- classification and data policy ---------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/classifications")
+    def classifications(request: Request, ws: str, user: User):
+        return L(request).governance.classifications(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/classifications/suggestions")
+    def classification_suggestions(request: Request, ws: str, user: User):
+        lyst = L(request)
+        return lyst.governance.suggest(user, ws, lambda name: lyst.catalog.insights(user, ws, name))
+
+    @app.put("/v1/workspaces/{ws}/datasets/{name}/classification")
+    def classify_dataset(request: Request, ws: str, name: str, body: ClassifyIn, user: User):
+        return L(request).governance.classify(user, ws, name, body.level, tags=body.tags, reason=body.reason)
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/classification")
+    def classification_history(request: Request, ws: str, name: str, user: User):
+        return L(request).governance.classification_history(user, ws, name)
+
+    @app.get("/v1/workspaces/{ws}/data-policy")
+    def data_policy(request: Request, ws: str, user: User):
+        return L(request).governance.policy(user, ws)
+
+    @app.put("/v1/workspaces/{ws}/data-policy")
+    def set_data_policy(request: Request, ws: str, body: DataPolicyIn, user: User):
+        return L(request).governance.set_policy(user, ws, body.model_dump())
+
+    @app.post("/v1/workspaces/{ws}/policy/check")
+    def policy_check(request: Request, ws: str, body: PolicyCheckIn, user: User):
+        return L(request).governance.evaluate(user, ws, datasets=body.datasets, metrics=body.metrics, purpose=body.purpose)
+
+    # -- where things stand and what approvals would do ------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/standing")
+    def standing(request: Request, ws: str, user: User, days: int = 7):
+        return L(request).standing.standing(user, ws, days=min(max(days, 1), 90))
+
+    @app.get("/v1/workspaces/{ws}/approvals/explained")
+    def approvals_explained(request: Request, ws: str, user: User):
+        return L(request).standing.approvals(user, ws)
+
+    # -- cost and value --------------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/costs")
+    def costs(request: Request, ws: str, user: User, days: int = 30, by: str = "user"):
+        return L(request).costs.costs(user, ws, days=min(max(days, 1), 365), by=by)
+
+    @app.get("/v1/workspaces/{ws}/value")
+    def value(request: Request, ws: str, user: User, days: int = 30, manual_minutes_per_answer: float | None = None):
+        return L(request).costs.value(user, ws, days=min(max(days, 1), 365), manual_minutes_per_answer=manual_minutes_per_answer)
+
+    @app.get("/v1/workspaces/{ws}/costs/recommendations")
+    def cost_recommendations(request: Request, ws: str, user: User, days: int = 30):
+        return L(request).costs.recommendations(user, ws, days=min(max(days, 1), 365))
 
     @app.get("/v1/workspaces/{ws}/profile")
     def business_profile(request: Request, ws: str, user: User, history: bool = False):

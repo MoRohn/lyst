@@ -1076,3 +1076,29 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Data classification history and the workspace's versioned data policy; the query log records which datasets each
+# query read, so a task's sensitivity is known before anything leaves (external model, exported file).
+WORKSPACE.append((
+    31,
+    """
+    CREATE SEQUENCE classification_seq;
+    CREATE TABLE classification_events (
+        id BIGINT PRIMARY KEY,
+        dataset VARCHAR NOT NULL,
+        level VARCHAR NOT NULL,
+        previous VARCHAR,
+        tags JSON NOT NULL,
+        reason VARCHAR NOT NULL,
+        actor VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE data_policies (
+        version INTEGER PRIMARY KEY,
+        spec JSON NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    ALTER TABLE query_history ADD COLUMN datasets JSON
+    """,
+))
