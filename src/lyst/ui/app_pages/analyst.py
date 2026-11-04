@@ -86,7 +86,8 @@ def progress(tid: str) -> None:
     st.progress(done / max(len(steps), 1), text=f"{label} · {done} of {len(steps)} steps")
     if t["status"] == "awaiting_approval":
         st.info("A step needs an admin's approval before Lyst continues.", icon=":material/approval:")
-        st.page_link("app_pages/work.py", label="Open approvals in Work", icon=":material/arrow_forward:")
+        st.page_link("app_pages/work.py", label="Open approvals in Work", icon=":material/arrow_forward:",
+                     query_params={"section": "approvals"})
 
 
 def result(t: dict) -> None:
