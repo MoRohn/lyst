@@ -24,8 +24,6 @@ pages = [
     st.Page(here / "build.py", title="Build", icon=":material/construction:"),
     st.Page(here / "settings.py", title="Settings", icon=":material/settings:"),
 ]
-nav = st.navigation(pages, position="top")
-
 api = client()
 
 
@@ -83,11 +81,13 @@ def setup_page() -> None:
 
 
 try:
-    if api.get("/health").get("setup_required"):
-        setup_page()
+    _setup = bool(api.get("/health").get("setup_required"))
 except APIError as e:
     st.error(e if e.status else f"{e} Start it with `lyst serve`.", icon=":material/cloud_off:")
     st.stop()
+nav = st.navigation(pages, position="hidden" if _setup else "top")
+if _setup:
+    setup_page()
 
 try:
     me = api.get("/v1/me")
