@@ -22,6 +22,8 @@ def attach(lyst) -> None:
     lyst.experiments = ExperimentService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lambda: lyst)
 
     # -- other lanes
+    if getattr(lyst, "anticipation", None) is not None:  # anticipation looks again soon after relevant events
+        lyst.events.subscribers.append(lyst.anticipation.on_event)
     from . import events as _events
     from .voice import VoiceService
 
