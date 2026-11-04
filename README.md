@@ -97,20 +97,29 @@ Ask a what-if in plain words on Home, such as "What happens to operating margin 
 revenue grows 3%?". Lyst answers from a driver model whose observed inputs are read from governed data for a named
 period, with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
 hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
-formulas as evidence, and is recomputed independently. A driver the model does not have is listed as "Not
-modelled", never guessed. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
+formulas as evidence, and is recomputed independently. Changes can be given as percentages or in points ("COGS
+ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, any change
+Lyst could not apply is stated, and such an answer is never marked Verified. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
 P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
 any drift reported.
+
+On an answer whose metric has a driver model, **What if…? Explore** opens sliders for each driver, shows base →
+scenario marked Better or Worse, where the starting figures come from, **How sensitive is it?** and **Save this
+scenario**. Saved scenarios live in Data › Saved analyses › Scenarios with Explore, Open and Re-run.
 
 Decisions get the same care. Lyst tells an analytical question apart from a decision that needs authority,
 compares options on weighted criteria and constraints under uncertainty, finds where the leading option would
 change, and allocates budgets with an exact solver. It says "insufficient evidence" or "no clear winner" rather
 than claim one. A **decision record** goes from analyzed to submitted to approved or rejected by a person, who
-may pick a different option, and is later reviewed against what actually happened. Nothing is executed.
+may pick a different option, and is later reviewed against what actually happened. Nothing is executed. Editors
+start one with **Compare options** on an answer, and records are listed in Work › Activity › Decisions.
 
-<p align="center">
-  <img src="docs/images/what-if.png" alt="A what-if answer: operating margin from 36.03% to 35.96% under the stated assumptions, labelled hypothetical, with the assumed labor share and the observed inputs as evidence" width="80%">
-</p>
+<table>
+  <tr>
+    <td width="45%"><img src="docs/images/what-if.png" alt="A what-if answer labelled hypothetical, with the assumed labor share, observed inputs as evidence, and What if and Compare options under the answer"><br><b>A what-if answer</b>: hypothetical, with its inputs</td>
+    <td width="55%"><img src="docs/images/what-if-explore.png" alt="The What if explorer: driver sliders, operating margin 36.0% to 34.9% marked Worse, what moves it most, worst/base/best cases and a 90% range from 2,000 simulations"><br><b>What if…?</b>: move the drivers, see what moves it most</td>
+  </tr>
+</table>
 
 ### Dashboards from a sentence
 
@@ -262,6 +271,17 @@ where they point, with Mark all read and "What to tell me about".
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
+* **Guards its own quality.** Every change runs the evaluation bank against a checked-in baseline in CI, and a
+  check that stopped passing, a much slower case, heavier resource use or a missing case fails the run. Runs
+  report completion, correctness, evidence and efficiency by category. Model routing is measured: a model whose
+  recent calls for a kind of work mostly failed moves behind the healthy ones in its level (never promoted, and a
+  pinned model is never reordered), and a model registry shows prices, context and measured performance.
+* **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
+  drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
+  name a winner only when the difference is statistically significant, and otherwise recommend the simplest
+  method. Every run records its exact series, dataset and metric versions,
+  SQL and environment, and can be reproduced to show what, if anything, changed. An admin records the chosen
+  method, and a choice against the evidence is flagged.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
@@ -292,7 +312,12 @@ where they point, with Mark all read and "What to tell me about".
   Recurring (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for
   items that need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and
   **Working ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The
-  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback
+  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback. From
+  metadata it already records, without contacting any source, Lyst also sees trouble coming: credentials about to
+  expire or past their age limit (with the runs and reports they feed), connections with rising failures or
+  latency, and upstream schema changes that would break approved metrics, with a corrected definition tested and
+  filed for an admin's approval. Each person sets how much to hear (a daily cap, a minimum score, quiet hours in
+  their own time zone, muted kinds, or opting out), and the same subject is never repeated within a day
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
