@@ -278,8 +278,10 @@ where they point, with Mark all read and "What to tell me about".
   explains from recorded evidence why it appeared, and preparation never distributes reports, edits data or
   bypasses approvals. After an answer, Lyst also offers up to three next steps grounded in what it found (look
   inside the main driver, watch a metric that moved, make a repeated question recurring, extend a review into a
-  forecast), and on watched metrics it raises an early warning only when two kinds of evidence agree (change
-  point, sustained trend, forecast drift, projected breach). Through the API today
+  forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. On
+  watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained
+  trend, forecast drift, projected breach), investigates it first, and surfaces a verified warning in Work ›
+  Needs you with the answer, drivers, implications and next steps. Through the API today
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
