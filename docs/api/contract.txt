@@ -26,9 +26,15 @@ GET /v1/ingest/formats | query: - | body: -
 GET /v1/installation | query: - | body: -
 GET /v1/me | query: - | body: -
 GET /v1/operations | query: - | body: -
+GET /v1/specializations | query: - | body: -
+GET /v1/specializations/domains | query: - | body: -
+GET /v1/specializations/library | query: - | body: -
+GET /v1/specializations/overview | query: - | body: -
+GET /v1/specializations/{sid} | query: - | body: -
 GET /v1/tasks/{task_id} | query: - | body: -
 GET /v1/tasks/{task_id}/artifacts | query: - | body: -
 GET /v1/tasks/{task_id}/evidence | query: - | body: -
+GET /v1/tasks/{task_id}/expertise | query: - | body: -
 GET /v1/tasks/{task_id}/explain | query: - | body: -
 GET /v1/tasks/{task_id}/trace | query: - | body: -
 GET /v1/workspaces/{ws}/analyses | query: - | body: -
@@ -119,6 +125,7 @@ GET /v1/workspaces/{ws}/settings | query: - | body: -
 GET /v1/workspaces/{ws}/skills | query: - | body: -
 GET /v1/workspaces/{ws}/skills/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/source-authority | query: - | body: -
+GET /v1/workspaces/{ws}/specializations/{sid} | query: - | body: -
 GET /v1/workspaces/{ws}/standing | query: - | body: -
 GET /v1/workspaces/{ws}/tasks | query: - | body: -
 GET /v1/workspaces/{ws}/transforms | query: - | body: -
@@ -142,6 +149,7 @@ POST /v1/installation/backup | query: - | body: -
 POST /v1/models/catalog/refresh | query: - | body: -
 POST /v1/tasks/{task_id}/artifacts/{kind} | query: - | body: -
 POST /v1/tasks/{task_id}/{action} | query: - | body: -
+POST /v1/workspaces/{ws}/analyst/requests | query: - | body: text,workspace_id
 POST /v1/workspaces/{ws}/anticipations/refresh | query: - | body: -
 POST /v1/workspaces/{ws}/anticipations/{aid}/act | query: - | body: action
 POST /v1/workspaces/{ws}/assets/scan | query: - | body: -

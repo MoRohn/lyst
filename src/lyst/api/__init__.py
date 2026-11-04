@@ -1546,6 +1546,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     register_extend(app, L, User)
 
+    # -- specializations lane: the Universal Analyst Core entry point and the Specializations catalog --
+    from .specialists import register as register_specialists  # noqa: PLC0415
+
+    register_specialists(app, L, User)
+
     return app
 
 

@@ -1,0 +1,1393 @@
+{
+ "domain": {
+  "id": "data_analytics",
+  "letter": "A",
+  "title": "Data, Analytics & Business Intelligence",
+  "summary": "Turning governed business data into trustworthy measures, reports, models and decisions.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Cross-industry: any organization that runs on operational and financial data"
+   ],
+   "expertise.technical_concepts": [
+    "grain and keys",
+    "additive vs non-additive measures",
+    "slowly changing dimensions",
+    "semantic layer"
+   ],
+   "expertise.standards": [
+    "Governed metric definitions approved in the workspace",
+    "Kimball dimensional modeling conventions",
+    "DAMA-DMBOK data management practice"
+   ],
+   "analytics.statistical_methods": [
+    "descriptive statistics",
+    "period-over-period change",
+    "distribution and outlier review"
+   ],
+   "analytics.computational_methods": [
+    "SQL aggregation and window functions",
+    "dataframe transformation in pandas or Polars"
+   ],
+   "analytics.modeling_approaches": [
+    "dimensional models",
+    "metric trees"
+   ],
+   "analytics.data_transformations": [
+    "filtering and joining",
+    "aggregation to the reporting grain",
+    "type casting and date bucketing"
+   ],
+   "analytics.visualization_methods": [
+    "line charts for series",
+    "bar charts for comparisons",
+    "tables with conditional emphasis"
+   ],
+   "analytics.reporting": [
+    "answer with evidence and implications",
+    "recurring report",
+    "dashboard"
+   ],
+   "data.structures": [
+    "relational tables",
+    "CSV and Parquet extracts",
+    "spreadsheets"
+   ],
+   "data.quality_requirements": [
+    "keys unique at the stated grain",
+    "no unexplained nulls in measures",
+    "consistent units and currency"
+   ],
+   "data.temporal": [
+    "complete periods only for comparisons",
+    "fiscal calendar where the workspace defines one"
+   ],
+   "data.semantic_assumptions": [
+    "metric names mean the approved definition, not a colloquial one"
+   ],
+   "resources.sql": [
+    "DuckDB SQL through the SQL guard (read-only)"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy",
+    "pyarrow",
+    "duckdb"
+   ],
+   "resources.models": [
+    "classify (request understanding)",
+    "chat (narrative, numbers checked)"
+   ],
+   "resources.environment": [
+    "in-process DuckDB over the workspace database"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "resolve metrics and period",
+    "compute",
+    "explain drivers",
+    "verify",
+    "write up"
+   ],
+   "execution.resource_constraints": [
+    "task budget of the workspace",
+    "query timeouts of the SQL guard"
+   ],
+   "execution.approval_conditions": [
+    "publishing or sharing outside the workspace",
+    "changing an approved definition"
+   ],
+   "quality.correctness_criteria": [
+    "figures reproduce from the recorded SQL",
+    "definitions match the approved metric version"
+   ],
+   "quality.domain_tests": [
+    "recompute headline figures independently",
+    "check bridges close to the total change"
+   ],
+   "quality.expected_evidence": [
+    "compiled SQL and row counts",
+    "dataset and metric versions"
+   ],
+   "quality.reproducibility": [
+    "re-running the recorded queries on the same dataset versions yields the same figures"
+   ],
+   "quality.performance_measures": [
+    "task latency",
+    "queries per answer",
+    "verification pass rate"
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "standard",
+   "governance.sensitive_handling": [
+    "respect dataset classification and row policies",
+    "redact personal data in narrative"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "outputs inherit the highest classification of their inputs"
+   ],
+   "governance.review_requirements": [
+    "owner review before a new metric definition is approved"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "data_analyst",
+   "name": "Data Analyst",
+   "kind": "job_title",
+   "sub": "Analysis",
+   "desc": "Investigates structured and semi-structured datasets to identify trends, relationships, anomalies, and performance drivers. Uses SQL, Python, statistics, and visualization to transform raw information into actionable findings.",
+   "alt": [
+    "Analyst",
+    "Insights Analyst"
+   ],
+   "resp": [
+    "Answer business questions with governed data",
+    "Explain why measures changed",
+    "Communicate findings with evidence"
+   ],
+   "know": [
+    "exploratory data analysis",
+    "business metrics",
+    "data storytelling"
+   ],
+   "terms": [
+    "KPI",
+    "baseline",
+    "segment",
+    "variance",
+    "cohort"
+   ],
+   "methods": [
+    "question framing",
+    "exploratory analysis",
+    "driver decomposition",
+    "trend review"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "trend_analysis",
+    "root_cause"
+   ],
+   "techniques": [
+    "slice by dimension",
+    "compare periods",
+    "isolate outliers"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query",
+    "driver_decomposition",
+    "reporting"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "time_series_forecasting",
+    "visualization"
+   ],
+   "sources": [
+    "data warehouse",
+    "operational databases",
+    "spreadsheets"
+   ],
+   "entities": [
+    "customers",
+    "orders",
+    "products",
+    "accounts"
+   ],
+   "fields": [
+    "a date column",
+    "at least one measure",
+    "categorical dimensions"
+   ],
+   "verify": [
+    "independent_recompute",
+    "period_coverage",
+    "bridge_closes"
+   ],
+   "outputs": [
+    "answer with evidence",
+    "chart",
+    "short report"
+   ],
+   "limits": [
+    "Explains associations in the data; causal claims need an experiment or causal design."
+   ],
+   "examples": [
+    "Why did revenue fall last quarter?",
+    "Which regions grew fastest this year?"
+   ],
+   "related": [
+    "business_intelligence_analyst",
+    "reporting_analyst",
+    "statistical_analyst"
+   ],
+   "keywords": [
+    "analyze",
+    "analysis",
+    "trend",
+    "why did",
+    "insight",
+    "explain the change",
+    "data analysis"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 1)"
+   ]
+  },
+  {
+   "id": "business_intelligence_analyst",
+   "name": "Business Intelligence Analyst",
+   "kind": "job_title",
+   "sub": "Business intelligence",
+   "desc": "Develops and interprets KPIs, dashboards, recurring reports, and management intelligence. Emphasizes consistent metrics, reliable reporting, organizational performance, and decision support.",
+   "alt": [
+    "BI Analyst",
+    "BI Developer",
+    "Dashboard Analyst"
+   ],
+   "resp": [
+    "Design dashboards around decisions",
+    "Maintain governed KPI definitions",
+    "Keep recurring reports accurate and current"
+   ],
+   "know": [
+    "BI tooling",
+    "KPI design",
+    "information design"
+   ],
+   "terms": [
+    "dashboard",
+    "drill-down",
+    "scorecard",
+    "self-service",
+    "semantic model"
+   ],
+   "methods": [
+    "KPI tree design",
+    "dashboard requirements gathering",
+    "report rationalization"
+   ],
+   "tasks": [
+    "dashboard_design",
+    "descriptive_reporting",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "map decisions to metrics",
+    "audit report usage",
+    "reconcile dashboard figures to source"
+   ],
+   "req": [
+    "metric_computation",
+    "visualization",
+    "reporting"
+   ],
+   "opt": [
+    "data_quality_monitoring",
+    "artifact_generation"
+   ],
+   "sources": [
+    "data warehouse",
+    "semantic layer",
+    "BI platform exports"
+   ],
+   "entities": [
+    "metrics",
+    "dimensions",
+    "dashboards"
+   ],
+   "fields": [
+    "approved metric definitions",
+    "dimension attributes",
+    "refresh timestamps"
+   ],
+   "verify": [
+    "independent_recompute",
+    "period_coverage",
+    "conversion_definition"
+   ],
+   "outputs": [
+    "dashboard",
+    "KPI scorecard",
+    "recurring report"
+   ],
+   "perms": [
+    "data.read",
+    "data.ingest"
+   ],
+   "limits": [
+    "Dashboards are generated from approved metrics; arbitrary visual designs are out of scope."
+   ],
+   "examples": [
+    "Build a dashboard for weekly sales by region.",
+    "Set up a KPI scorecard for the leadership team."
+   ],
+   "related": [
+    "data_analyst",
+    "reporting_analyst",
+    "analytics_engineer"
+   ],
+   "keywords": [
+    "dashboard",
+    "bi",
+    "business intelligence",
+    "scorecard",
+    "kpi",
+    "self-service"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 2)"
+   ]
+  },
+  {
+   "id": "business_analyst",
+   "name": "Business Analyst",
+   "kind": "job_title",
+   "sub": "Business analysis",
+   "desc": "Examines business requirements, processes, operational problems, and stakeholder objectives. Translates organizational needs into specifications, process improvements, systems changes, and measurable acceptance criteria.",
+   "alt": [
+    "Requirements Analyst",
+    "Functional Analyst"
+   ],
+   "resp": [
+    "Elicit and document requirements",
+    "Map current and future processes",
+    "Define success measures and acceptance criteria"
+   ],
+   "know": [
+    "requirements engineering",
+    "process modeling",
+    "stakeholder management"
+   ],
+   "terms": [
+    "requirement",
+    "user story",
+    "acceptance criteria",
+    "as-is / to-be",
+    "gap analysis"
+   ],
+   "methods": [
+    "BABOK techniques",
+    "gap analysis",
+    "MoSCoW prioritization",
+    "process mapping"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "process_analysis",
+    "recommendation"
+   ],
+   "techniques": [
+    "stakeholder interviews",
+    "document analysis",
+    "requirements traceability"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "metric_computation",
+    "reporting"
+   ],
+   "opt": [
+    "document_extraction",
+    "process_mining"
+   ],
+   "sources": [
+    "requirements documents",
+    "process documentation",
+    "operational data"
+   ],
+   "entities": [
+    "stakeholders",
+    "requirements",
+    "processes",
+    "systems"
+   ],
+   "fields": [
+    "process steps",
+    "owners",
+    "measures of success"
+   ],
+   "verify": [
+    "source_cited",
+    "human_review"
+   ],
+   "outputs": [
+    "requirements specification",
+    "gap analysis",
+    "process map"
+   ],
+   "analytics.statistical_methods": [
+    "baseline measurement of process KPIs"
+   ],
+   "limits": [
+    "Requirements come from people and documents; Lyst cannot interview stakeholders itself."
+   ],
+   "examples": [
+    "Draft requirements for a new order-to-cash report.",
+    "What gaps exist between our current and target onboarding process?"
+   ],
+   "related": [
+    "data_analyst",
+    "process_mining_analyst",
+    "digital_transformation_analyst"
+   ],
+   "keywords": [
+    "requirements",
+    "business requirements",
+    "stakeholder",
+    "user story",
+    "gap analysis",
+    "acceptance criteria"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 3)"
+   ]
+  },
+  {
+   "id": "analytics_engineer",
+   "name": "Analytics Engineer",
+   "kind": "job_title",
+   "sub": "Analytics engineering",
+   "desc": "Designs trusted analytical datasets, transformations, dimensional models, and semantic definitions. Bridges data engineering and business intelligence through reusable SQL models, testing, lineage, and data documentation.",
+   "alt": [
+    "dbt Developer",
+    "Data Transformation Engineer"
+   ],
+   "resp": [
+    "Model raw data into clean, tested datasets",
+    "Define metrics in the semantic layer",
+    "Maintain contracts and lineage"
+   ],
+   "know": [
+    "SQL modeling",
+    "version control",
+    "data testing"
+   ],
+   "terms": [
+    "model",
+    "lineage",
+    "data contract",
+    "incremental build",
+    "source of truth"
+   ],
+   "methods": [
+    "layered modeling (staging, intermediate, marts)",
+    "test-driven SQL",
+    "semantic metric definition"
+   ],
+   "tasks": [
+    "data_modeling",
+    "sql_authoring",
+    "data_quality"
+   ],
+   "techniques": [
+    "trace lineage",
+    "diff model outputs",
+    "validate grain"
+   ],
+   "req": [
+    "sql_query",
+    "data_cleaning",
+    "schema_validation"
+   ],
+   "opt": [
+    "data_quality_monitoring",
+    "data_profiling"
+   ],
+   "sources": [
+    "raw ingested tables",
+    "source system extracts",
+    "semantic layer"
+   ],
+   "entities": [
+    "models",
+    "sources",
+    "metrics",
+    "tests"
+   ],
+   "fields": [
+    "primary keys",
+    "load timestamps",
+    "foreign keys"
+   ],
+   "verify": [
+    "contract_conformance",
+    "lineage_recorded",
+    "join_fanout"
+   ],
+   "outputs": [
+    "derived dataset",
+    "metric definition proposal",
+    "data contract"
+   ],
+   "perms": [
+    "data.ingest"
+   ],
+   "limits": [
+    "Transformations are SQL only; there is no general orchestration of external dbt projects."
+   ],
+   "examples": [
+    "Create a cleaned orders table deduplicated by order id.",
+    "Write a data contract for the invoices dataset."
+   ],
+   "related": [
+    "data_modeling_analyst",
+    "data_quality_analyst",
+    "data_warehouse_analyst"
+   ],
+   "keywords": [
+    "transformation",
+    "data model",
+    "dbt",
+    "lineage",
+    "derived table",
+    "sql model",
+    "data contract"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 4)"
+   ]
+  },
+  {
+   "id": "reporting_analyst",
+   "name": "Reporting Analyst",
+   "kind": "job_title",
+   "sub": "Reporting",
+   "desc": "Produces recurring operational, financial, regulatory, and executive reports. Ensures calculations, reporting periods, formatting, distribution, and reconciliation remain accurate and consistent.",
+   "alt": [
+    "MI Analyst",
+    "Management Information Analyst",
+    "Report Developer"
+   ],
+   "resp": [
+    "Produce recurring management reports",
+    "Reconcile reported figures to sources",
+    "Explain period movements"
+   ],
+   "know": [
+    "management reporting",
+    "report automation",
+    "period close timelines"
+   ],
+   "terms": [
+    "MI pack",
+    "period close",
+    "month-over-month",
+    "year-to-date",
+    "commentary"
+   ],
+   "methods": [
+    "standardized report templates",
+    "variance commentary",
+    "report reconciliation"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "reconciliation"
+   ],
+   "techniques": [
+    "tie out totals",
+    "compare to prior report",
+    "flag restatements"
+   ],
+   "req": [
+    "metric_computation",
+    "reporting",
+    "artifact_generation"
+   ],
+   "opt": [
+    "financial_reconciliation",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "data warehouse",
+    "finance system extracts",
+    "operational systems"
+   ],
+   "entities": [
+    "reports",
+    "periods",
+    "measures"
+   ],
+   "fields": [
+    "report period",
+    "measures",
+    "organizational hierarchy"
+   ],
+   "verify": [
+    "independent_recompute",
+    "period_coverage",
+    "fiscal_period"
+   ],
+   "outputs": [
+    "recurring report",
+    "PDF or slide pack",
+    "variance commentary"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "limits": [
+    "Regulatory report formats are not templated; layouts follow Lyst's report artifact."
+   ],
+   "examples": [
+    "Produce the monthly management report for October.",
+    "Explain the movements in this quarter's KPI pack."
+   ],
+   "related": [
+    "business_intelligence_analyst",
+    "fpa_analyst",
+    "data_analyst"
+   ],
+   "keywords": [
+    "report",
+    "monthly report",
+    "management report",
+    "recurring report",
+    "mi pack",
+    "commentary"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 5)"
+   ]
+  },
+  {
+   "id": "data_quality_analyst",
+   "name": "Data Quality Analyst",
+   "kind": "job_title",
+   "sub": "Data quality",
+   "desc": "Evaluates completeness, uniqueness, validity, accuracy, consistency, and timeliness. Diagnoses data defects, identifies their causes, and recommends preventive controls.",
+   "alt": [
+    "DQ Analyst",
+    "Data Integrity Analyst"
+   ],
+   "resp": [
+    "Define and run data quality rules",
+    "Investigate defects to their root cause",
+    "Report quality trends and remediation"
+   ],
+   "know": [
+    "data quality dimensions",
+    "profiling",
+    "issue management"
+   ],
+   "terms": [
+    "completeness",
+    "validity",
+    "uniqueness",
+    "timeliness",
+    "quality rule"
+   ],
+   "methods": [
+    "rule-based validation",
+    "profiling-led discovery",
+    "defect root-cause analysis"
+   ],
+   "tasks": [
+    "data_quality",
+    "data_profiling",
+    "root_cause"
+   ],
+   "techniques": [
+    "profile distributions",
+    "check referential integrity",
+    "trend defect counts"
+   ],
+   "req": [
+    "data_profiling",
+    "data_quality_monitoring",
+    "schema_validation"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "sql_query"
+   ],
+   "sources": [
+    "any workspace dataset",
+    "ingest history",
+    "contract results"
+   ],
+   "entities": [
+    "datasets",
+    "columns",
+    "rules",
+    "defects"
+   ],
+   "fields": [
+    "keys",
+    "required attributes",
+    "load timestamps"
+   ],
+   "verify": [
+    "duplicates_nulls",
+    "contract_conformance"
+   ],
+   "outputs": [
+    "quality scorecard",
+    "defect list with root causes",
+    "rule proposals"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "limits": [
+    "Quality checks run at ingest and on schedule, not on streaming sources."
+   ],
+   "examples": [
+    "How complete and valid is the customers dataset?",
+    "Why did null rates in orders jump this week?"
+   ],
+   "related": [
+    "data_governance_analyst",
+    "data_observability_analyst",
+    "master_data_analyst"
+   ],
+   "keywords": [
+    "data quality",
+    "nulls",
+    "duplicates",
+    "completeness",
+    "validity",
+    "bad data",
+    "quality rules"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 6)"
+   ]
+  },
+  {
+   "id": "data_governance_analyst",
+   "name": "Data Governance Analyst",
+   "kind": "job_title",
+   "sub": "Data governance",
+   "desc": "Examines data ownership, access policies, classifications, definitions, retention, and regulatory requirements. Supports trustworthy, authorized, and auditable use of enterprise information.",
+   "alt": [
+    "Data Steward",
+    "Governance Analyst"
+   ],
+   "resp": [
+    "Maintain the business glossary and definitions",
+    "Track ownership and classification",
+    "Monitor policy compliance in data use"
+   ],
+   "know": [
+    "data governance frameworks",
+    "metadata management",
+    "data classification"
+   ],
+   "terms": [
+    "data owner",
+    "steward",
+    "classification",
+    "glossary",
+    "lineage"
+   ],
+   "methods": [
+    "DAMA-DMBOK governance",
+    "classification review",
+    "definition lifecycle management"
+   ],
+   "tasks": [
+    "compliance_review",
+    "data_quality",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "audit definition usage",
+    "review classification coverage",
+    "trace lineage"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "schema_validation",
+    "reporting"
+   ],
+   "opt": [
+    "data_profiling",
+    "data_quality_monitoring"
+   ],
+   "sources": [
+    "catalog and glossary",
+    "classification records",
+    "audit log"
+   ],
+   "entities": [
+    "definitions",
+    "owners",
+    "classifications",
+    "policies"
+   ],
+   "fields": [
+    "owner",
+    "classification level",
+    "definition version"
+   ],
+   "verify": [
+    "source_cited",
+    "human_review"
+   ],
+   "outputs": [
+    "governance health report",
+    "classification proposals",
+    "definition review"
+   ],
+   "perms": [
+    "data.read",
+    "metric.read"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Proposes classifications and definitions; an administrator approves them."
+   ],
+   "examples": [
+    "Which datasets have no owner or classification?",
+    "Review the definitions of our revenue metrics for conflicts."
+   ],
+   "related": [
+    "data_quality_analyst",
+    "master_data_analyst",
+    "privacy_data_protection_analyst"
+   ],
+   "keywords": [
+    "governance",
+    "glossary",
+    "data owner",
+    "steward",
+    "classification",
+    "definitions",
+    "catalog"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 7)"
+   ]
+  },
+  {
+   "id": "data_modeling_analyst",
+   "name": "Data Modeling Analyst",
+   "kind": "functional",
+   "sub": "Data modeling",
+   "desc": "Analyzes entity relationships, schemas, keys, dimensions, facts, and business rules. Designs data structures optimized for analytical consistency, interoperability, and performance.",
+   "alt": [
+    "Data Modeler",
+    "Data Architect (modeling)"
+   ],
+   "resp": [
+    "Design entities, keys and relationships",
+    "Choose the grain of fact tables",
+    "Review models for join and aggregation hazards"
+   ],
+   "know": [
+    "dimensional modeling",
+    "normalization",
+    "entity-relationship modeling"
+   ],
+   "terms": [
+    "grain",
+    "fact table",
+    "dimension",
+    "surrogate key",
+    "cardinality"
+   ],
+   "methods": [
+    "Kimball star schemas",
+    "third normal form",
+    "data vault concepts"
+   ],
+   "tasks": [
+    "data_modeling",
+    "sql_authoring",
+    "data_profiling"
+   ],
+   "techniques": [
+    "detect candidate keys",
+    "measure join cardinality",
+    "review relationship coverage"
+   ],
+   "req": [
+    "data_profiling",
+    "schema_validation",
+    "sql_query"
+   ],
+   "opt": [
+    "data_cleaning"
+   ],
+   "sources": [
+    "workspace datasets",
+    "catalog relationships",
+    "source schemas"
+   ],
+   "entities": [
+    "tables",
+    "keys",
+    "relationships"
+   ],
+   "fields": [
+    "candidate keys",
+    "foreign keys",
+    "date columns"
+   ],
+   "verify": [
+    "join_fanout",
+    "contract_conformance"
+   ],
+   "outputs": [
+    "model design",
+    "relationship map",
+    "grain review"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "limits": [
+    "Reviews and proposes models; it does not alter source databases."
+   ],
+   "examples": [
+    "What is the right grain for an orders fact table?",
+    "Which joins between these datasets risk double counting?"
+   ],
+   "related": [
+    "analytics_engineer",
+    "data_warehouse_analyst",
+    "master_data_analyst"
+   ],
+   "keywords": [
+    "data model",
+    "schema design",
+    "grain",
+    "star schema",
+    "keys",
+    "relationships",
+    "erd"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 8)"
+   ]
+  },
+  {
+   "id": "master_data_analyst",
+   "name": "Master Data Analyst",
+   "kind": "job_title",
+   "sub": "Master data",
+   "desc": "Investigates inconsistencies across customers, suppliers, products, accounts, employees, and organizational identifiers. Supports entity resolution, deduplication, canonical records, and cross-system synchronization.",
+   "alt": [
+    "MDM Analyst",
+    "Master Data Specialist"
+   ],
+   "resp": [
+    "Keep master entities unique and complete",
+    "Resolve conflicts between source systems",
+    "Define survivorship rules"
+   ],
+   "know": [
+    "master data management",
+    "entity resolution",
+    "reference data"
+   ],
+   "terms": [
+    "golden record",
+    "survivorship",
+    "match rule",
+    "reference data",
+    "hierarchy"
+   ],
+   "methods": [
+    "deterministic matching",
+    "survivorship by source precedence",
+    "hierarchy management"
+   ],
+   "tasks": [
+    "data_quality",
+    "reconciliation",
+    "data_modeling"
+   ],
+   "techniques": [
+    "find duplicate keys",
+    "compare attributes across sources",
+    "review hierarchy integrity"
+   ],
+   "req": [
+    "data_profiling",
+    "sql_query",
+    "schema_validation"
+   ],
+   "opt": [
+    "data_cleaning",
+    "financial_reconciliation"
+   ],
+   "sources": [
+    "ERP",
+    "CRM",
+    "product information systems"
+   ],
+   "entities": [
+    "customers",
+    "products",
+    "suppliers",
+    "locations"
+   ],
+   "fields": [
+    "entity identifiers",
+    "names and addresses",
+    "source system id"
+   ],
+   "verify": [
+    "duplicates_nulls",
+    "contract_conformance"
+   ],
+   "outputs": [
+    "duplicate and conflict report",
+    "survivorship proposal",
+    "source precedence map"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Matching is exact or rule-based; fuzzy entity resolution is not available."
+   ],
+   "examples": [
+    "Find customers that appear in both CRM and ERP with different addresses.",
+    "Which product codes are duplicated?"
+   ],
+   "related": [
+    "data_quality_analyst",
+    "data_governance_analyst",
+    "data_integration_analyst"
+   ],
+   "keywords": [
+    "master data",
+    "golden record",
+    "duplicates",
+    "mdm",
+    "customer master",
+    "product master"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 9)"
+   ]
+  },
+  {
+   "id": "data_integration_analyst",
+   "name": "Data Integration Analyst",
+   "kind": "job_title",
+   "sub": "Integration",
+   "desc": "Evaluates data movement between applications, APIs, files, and databases. Identifies mapping errors, synchronization failures, schema incompatibilities, and transformation requirements.",
+   "alt": [
+    "ETL Analyst",
+    "Integration Analyst"
+   ],
+   "resp": [
+    "Specify source-to-target mappings",
+    "Design incremental loads",
+    "Reconcile source and target counts"
+   ],
+   "know": [
+    "ETL and ELT patterns",
+    "change data capture",
+    "source system APIs"
+   ],
+   "terms": [
+    "mapping",
+    "incremental cursor",
+    "CDC",
+    "load window",
+    "row count reconciliation"
+   ],
+   "methods": [
+    "source-to-target mapping",
+    "cursor-based incremental sync",
+    "control totals"
+   ],
+   "tasks": [
+    "reconciliation",
+    "data_quality",
+    "data_modeling"
+   ],
+   "techniques": [
+    "compare row counts",
+    "check cursor gaps",
+    "validate type mappings"
+   ],
+   "req": [
+    "sql_query",
+    "schema_validation",
+    "data_profiling"
+   ],
+   "opt": [
+    "data_quality_monitoring",
+    "financial_reconciliation"
+   ],
+   "sources": [
+    "connected databases",
+    "file connectors",
+    "APIs"
+   ],
+   "entities": [
+    "connections",
+    "syncs",
+    "tables"
+   ],
+   "fields": [
+    "cursor column",
+    "load timestamp",
+    "source keys"
+   ],
+   "verify": [
+    "contract_conformance",
+    "duplicates_nulls"
+   ],
+   "outputs": [
+    "mapping specification",
+    "sync health review",
+    "reconciliation report"
+   ],
+   "perms": [
+    "data.ingest"
+   ],
+   "resources.mcp_integrations": [
+    "workspace connections"
+   ],
+   "governance.network": "workspace_connections",
+   "limits": [
+    "Syncs run through Lyst's approved connections only."
+   ],
+   "examples": [
+    "Did last night's sync of the orders table load every row?",
+    "Map the CRM accounts table to our customers dataset."
+   ],
+   "related": [
+    "master_data_analyst",
+    "data_warehouse_analyst",
+    "api_integration_analyst"
+   ],
+   "keywords": [
+    "integration",
+    "etl",
+    "sync",
+    "pipeline",
+    "mapping",
+    "incremental load",
+    "cdc",
+    "missing rows",
+    "nightly loads",
+    "loads"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 10)"
+   ]
+  },
+  {
+   "id": "data_warehouse_analyst",
+   "name": "Data Warehouse Analyst",
+   "kind": "job_title",
+   "sub": "Warehousing",
+   "desc": "Examines warehouse architecture, query workloads, historical datasets, and analytical models. Optimizes how consolidated enterprise information supports reporting and advanced analysis.",
+   "alt": [
+    "DW Analyst",
+    "Warehouse Analyst"
+   ],
+   "resp": [
+    "Document warehouse tables and their grain",
+    "Check load completeness",
+    "Improve query efficiency"
+   ],
+   "know": [
+    "warehouse architecture",
+    "partitioning",
+    "query planning"
+   ],
+   "terms": [
+    "mart",
+    "partition",
+    "materialization",
+    "query plan",
+    "retention"
+   ],
+   "methods": [
+    "dimensional design review",
+    "load auditing",
+    "query plan analysis"
+   ],
+   "tasks": [
+    "data_modeling",
+    "sql_authoring",
+    "performance_analysis"
+   ],
+   "techniques": [
+    "inspect query plans",
+    "audit table freshness",
+    "measure table sizes"
+   ],
+   "req": [
+    "sql_query",
+    "data_profiling",
+    "schema_validation"
+   ],
+   "opt": [
+    "data_quality_monitoring"
+   ],
+   "sources": [
+    "workspace database",
+    "catalog metadata",
+    "query history"
+   ],
+   "entities": [
+    "tables",
+    "partitions",
+    "queries"
+   ],
+   "fields": [
+    "table sizes",
+    "load times",
+    "query durations"
+   ],
+   "verify": [
+    "join_fanout",
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "warehouse review",
+    "table documentation",
+    "query optimization notes"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "limits": [
+    "Covers Lyst's DuckDB workspace store; external warehouses are read through connections."
+   ],
+   "examples": [
+    "Which tables are stale or never queried?",
+    "Why is this query slow?"
+   ],
+   "related": [
+    "analytics_engineer",
+    "data_modeling_analyst",
+    "database_performance_analyst"
+   ],
+   "keywords": [
+    "warehouse",
+    "data warehouse",
+    "mart",
+    "partition",
+    "slow query",
+    "table documentation"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 11)"
+   ]
+  },
+  {
+   "id": "data_observability_analyst",
+   "name": "Data Observability Analyst",
+   "kind": "functional",
+   "sub": "Observability",
+   "desc": "Monitors the health of data pipelines, freshness, distribution, schema stability, and transformation results. Anticipates downstream analytical failures and investigates anomalies before they affect users.",
+   "alt": [
+    "Data Reliability Analyst",
+    "Data SRE"
+   ],
+   "resp": [
+    "Monitor freshness, volume and schema",
+    "Detect and triage data incidents",
+    "Assess downstream impact"
+   ],
+   "know": [
+    "data observability pillars",
+    "incident management",
+    "lineage-based impact analysis"
+   ],
+   "terms": [
+    "freshness",
+    "volume anomaly",
+    "schema drift",
+    "data incident",
+    "blast radius"
+   ],
+   "methods": [
+    "baseline and threshold monitoring",
+    "lineage impact analysis",
+    "incident postmortems"
+   ],
+   "tasks": [
+    "anomaly_detection",
+    "data_quality",
+    "root_cause"
+   ],
+   "techniques": [
+    "compare volumes to baseline",
+    "detect schema changes",
+    "trace affected assets"
+   ],
+   "req": [
+    "data_quality_monitoring",
+    "anomaly_detection",
+    "schema_validation"
+   ],
+   "opt": [
+    "change_point_detection",
+    "data_profiling"
+   ],
+   "sources": [
+    "ingest history",
+    "asset registry",
+    "contract results"
+   ],
+   "entities": [
+    "datasets",
+    "pipelines",
+    "incidents",
+    "assets"
+   ],
+   "fields": [
+    "load timestamps",
+    "row counts",
+    "schema versions"
+   ],
+   "verify": [
+    "period_coverage",
+    "contract_conformance"
+   ],
+   "outputs": [
+    "incident summary with impact",
+    "monitor proposals",
+    "health report"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "limits": [
+    "Observes data that reaches Lyst; it cannot see inside external pipelines."
+   ],
+   "examples": [
+    "Which datasets are late or shrinking unexpectedly?",
+    "What dashboards are affected by the schema change in orders?"
+   ],
+   "related": [
+    "data_quality_analyst",
+    "site_reliability_analyst",
+    "data_integration_analyst"
+   ],
+   "keywords": [
+    "observability",
+    "freshness",
+    "schema drift",
+    "pipeline health",
+    "data incident",
+    "late data",
+    "volume drop"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 12)"
+   ]
+  }
+ ]
+}

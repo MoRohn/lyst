@@ -1,0 +1,1342 @@
+{
+ "domain": {
+  "id": "security_risk_compliance",
+  "letter": "F",
+  "title": "Cybersecurity, Identity, Digital Risk & Compliance",
+  "summary": "Detecting threats, assessing vulnerabilities and risk, and evidencing compliance, within authorized scope.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Any organization defending systems and data, including regulated industries"
+   ],
+   "expertise.technical_concepts": [
+    "indicators of compromise",
+    "least privilege",
+    "defense in depth",
+    "chain of custody"
+   ],
+   "expertise.standards": [
+    "NIST Cybersecurity Framework 2.0",
+    "MITRE ATT&CK",
+    "ISO/IEC 27001",
+    "CIS Critical Security Controls"
+   ],
+   "analytics.statistical_methods": [
+    "baseline deviation",
+    "rare-event frequency analysis",
+    "risk scoring"
+   ],
+   "analytics.computational_methods": [
+    "SQL aggregation of telemetry",
+    "sequence reconstruction by timestamp"
+   ],
+   "analytics.modeling_approaches": [
+    "threat models",
+    "risk matrices"
+   ],
+   "analytics.data_transformations": [
+    "timestamp normalization to UTC",
+    "entity normalization (user, host, IP)",
+    "event enrichment"
+   ],
+   "analytics.visualization_methods": [
+    "timelines",
+    "entity relationship views",
+    "risk heatmaps"
+   ],
+   "analytics.reporting": [
+    "finding with observed evidence and inferred assessment kept apart",
+    "risk register",
+    "control gap report"
+   ],
+   "data.structures": [
+    "security event logs",
+    "asset and identity inventories",
+    "scan results"
+   ],
+   "data.quality_requirements": [
+    "synchronized timestamps",
+    "complete log coverage for the period",
+    "consistent entity identifiers"
+   ],
+   "data.temporal": [
+    "investigation window stated",
+    "events ordered on normalized time"
+   ],
+   "data.semantic_assumptions": [
+    "log fields mean what the source documents say",
+    "severity scales are stated"
+   ],
+   "resources.sql": [
+    "DuckDB SQL over authorized, imported telemetry"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (findings narrative; never invents indicators)"
+   ],
+   "resources.environment": [
+    "read-only analysis of authorized data; no scanning, exploitation or active response"
+   ],
+   "execution.planning_depth": "deep",
+   "execution.decomposition": [
+    "confirm authorization and scope",
+    "collect evidence",
+    "reconstruct timeline",
+    "separate observed from inferred",
+    "rate and report"
+   ],
+   "execution.resource_constraints": [
+    "analysis limited to data the actor is authorized to read"
+   ],
+   "execution.approval_conditions": [
+    "sharing findings outside the security team",
+    "any containment or response action"
+   ],
+   "execution.verification_rules": [
+    "evidence_chronology",
+    "observed_vs_inferred",
+    "restricted_data_masked"
+   ],
+   "quality.correctness_criteria": [
+    "every indicator traces to a log record",
+    "inferences are labelled as such",
+    "scope is respected"
+   ],
+   "quality.domain_tests": [
+    "re-derive a sample of indicators from raw records",
+    "check timeline ordering"
+   ],
+   "quality.expected_evidence": [
+    "log queries and record counts",
+    "investigation window",
+    "data sources covered and missing"
+   ],
+   "quality.reproducibility": [
+    "queries recorded against fixed dataset versions"
+   ],
+   "quality.performance_measures": [
+    "time to triage",
+    "false positive rate on review"
+   ],
+   "quality.known_limitations": [
+    "Lyst is not a SIEM or EDR; it analyses exported telemetry and cannot observe live systems."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "restricted",
+   "governance.sensitive_handling": [
+    "redact credentials, tokens and personal data",
+    "share findings only with authorized roles",
+    "never output exploit code"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "security findings are restricted by default"
+   ],
+   "governance.review_requirements": [
+    "security lead review before findings are acted on"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "cybersecurity_analyst",
+   "name": "Cybersecurity Analyst",
+   "kind": "job_title",
+   "sub": "Security analysis",
+   "desc": "Monitors systems, networks, applications, and security events for threats and control failures. Investigates suspicious activity and recommends prevention, detection, and remediation measures.",
+   "alt": [
+    "Information Security Analyst",
+    "Security Analyst"
+   ],
+   "resp": [
+    "Analyse authorized security telemetry",
+    "Assess exposure and control gaps",
+    "Recommend and track mitigations"
+   ],
+   "know": [
+    "security operations",
+    "network and endpoint security",
+    "threat landscape"
+   ],
+   "terms": [
+    "indicator",
+    "alert",
+    "lateral movement",
+    "exfiltration",
+    "control"
+   ],
+   "methods": [
+    "ATT&CK mapping",
+    "baseline deviation analysis",
+    "control gap assessment"
+   ],
+   "tasks": [
+    "security_investigation",
+    "risk_assessment",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "find rare logins",
+    "trace activity by entity",
+    "map behaviour to ATT&CK techniques"
+   ],
+   "req": [
+    "sql_query",
+    "log_analysis"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "authentication logs",
+    "endpoint and network telemetry",
+    "asset inventory"
+   ],
+   "entities": [
+    "users",
+    "hosts",
+    "IP addresses",
+    "alerts"
+   ],
+   "fields": [
+    "timestamp",
+    "user",
+    "host",
+    "event type"
+   ],
+   "verify": [],
+   "outputs": [
+    "security finding",
+    "exposure assessment",
+    "mitigation plan"
+   ],
+   "limits": [
+    "Log analysis is not a dedicated capability yet; telemetry can only be queried as tables."
+   ],
+   "examples": [
+    "Analyze authorized security telemetry and identify suspicious patterns without exposing restricted data.",
+    "Which accounts logged in from unusual countries?"
+   ],
+   "related": [
+    "soc_analyst",
+    "threat_intelligence_analyst",
+    "security_risk_analyst"
+   ],
+   "keywords": [
+    "security",
+    "cybersecurity",
+    "suspicious",
+    "threat",
+    "breach",
+    "malicious",
+    "attack",
+    "compromised",
+    "unusual login",
+    "phishing"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 67)"
+   ]
+  },
+  {
+   "id": "soc_analyst",
+   "name": "Security Operations Center Analyst",
+   "kind": "job_title",
+   "sub": "Security operations",
+   "desc": "Evaluates security alerts, event correlations, endpoint telemetry, and threat indicators. Triages incidents, reconstructs suspicious activity, and supports timely response.",
+   "alt": [
+    "SOC Analyst",
+    "Security Monitoring Analyst"
+   ],
+   "resp": [
+    "Triage security alerts",
+    "Enrich alerts with entity context",
+    "Escalate and document incidents"
+   ],
+   "know": [
+    "alert triage",
+    "SIEM operations",
+    "incident response process"
+   ],
+   "terms": [
+    "true positive",
+    "false positive",
+    "escalation",
+    "playbook",
+    "dwell time"
+   ],
+   "methods": [
+    "tiered triage",
+    "alert enrichment",
+    "playbook-driven response"
+   ],
+   "tasks": [
+    "security_investigation",
+    "anomaly_detection",
+    "descriptive_reporting"
+   ],
+   "techniques": [
+    "group alerts by rule and entity",
+    "check entity history",
+    "measure alert precision by rule"
+   ],
+   "req": [
+    "sql_query",
+    "log_analysis"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "metric_computation"
+   ],
+   "sources": [
+    "SIEM alert exports",
+    "authentication logs",
+    "EDR detections"
+   ],
+   "entities": [
+    "alerts",
+    "users",
+    "hosts",
+    "rules"
+   ],
+   "fields": [
+    "alert id",
+    "rule",
+    "entity",
+    "timestamp",
+    "disposition"
+   ],
+   "verify": [],
+   "outputs": [
+    "triage summary",
+    "alert precision report",
+    "escalation notes"
+   ],
+   "limits": [
+    "Triage support only: Lyst does not take containment actions."
+   ],
+   "examples": [
+    "Summarize today's high-severity alerts and which look like true positives.",
+    "Which detection rules produce the most false positives?"
+   ],
+   "related": [
+    "cybersecurity_analyst",
+    "threat_intelligence_analyst",
+    "digital_forensics_analyst"
+   ],
+   "keywords": [
+    "soc",
+    "alert triage",
+    "siem",
+    "security alerts",
+    "false positives",
+    "detection rules",
+    "login activity",
+    "compromised account",
+    "logins",
+    "brute force"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 68)"
+   ]
+  },
+  {
+   "id": "threat_intelligence_analyst",
+   "name": "Threat Intelligence Analyst",
+   "kind": "job_title",
+   "sub": "Threat intelligence",
+   "desc": "Studies attacker behavior, threat campaigns, indicators of compromise, and emerging attack techniques. Converts intelligence into actionable defensive priorities.",
+   "alt": [
+    "CTI Analyst",
+    "Cyber Threat Analyst"
+   ],
+   "resp": [
+    "Track relevant threat actors and campaigns",
+    "Assess relevance and confidence of intelligence",
+    "Translate intelligence into detections and priorities"
+   ],
+   "know": [
+    "threat actor tradecraft",
+    "intelligence analysis",
+    "indicator lifecycle"
+   ],
+   "terms": [
+    "TTP",
+    "IOC",
+    "campaign",
+    "confidence level",
+    "intelligence requirement"
+   ],
+   "methods": [
+    "Diamond model analysis",
+    "ATT&CK technique mapping",
+    "analysis of competing hypotheses"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "security_investigation",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "match indicators against telemetry",
+    "map campaigns to techniques",
+    "rate source reliability"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "sql_query"
+   ],
+   "opt": [
+    "web_research",
+    "text_analytics"
+   ],
+   "sources": [
+    "threat intelligence reports",
+    "indicator feeds",
+    "internal telemetry"
+   ],
+   "entities": [
+    "threat actors",
+    "indicators",
+    "techniques",
+    "campaigns"
+   ],
+   "fields": [
+    "indicator",
+    "type",
+    "source",
+    "first seen"
+   ],
+   "verify": [
+    "source_cited"
+   ],
+   "outputs": [
+    "intelligence brief",
+    "indicator match report",
+    "detection priorities"
+   ],
+   "limits": [
+    "External feeds and research are not fetched by Lyst; intelligence must be ingested as documents or data."
+   ],
+   "examples": [
+    "Do any indicators from this report appear in our logs?",
+    "Which ATT&CK techniques matter most for our sector?"
+   ],
+   "related": [
+    "cybersecurity_analyst",
+    "soc_analyst",
+    "digital_forensics_osint_analyst"
+   ],
+   "keywords": [
+    "threat intelligence",
+    "ioc",
+    "threat actor",
+    "campaign",
+    "ttp",
+    "indicators"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 69)"
+   ]
+  },
+  {
+   "id": "vulnerability_analyst",
+   "name": "Vulnerability Analyst",
+   "kind": "job_title",
+   "sub": "Vulnerability management",
+   "desc": "Assesses software, systems, and configurations for exploitable weaknesses. Prioritizes vulnerabilities according to severity, exposure, business impact, and available mitigations.",
+   "alt": [
+    "Vulnerability Management Analyst"
+   ],
+   "resp": [
+    "Prioritize vulnerabilities by risk",
+    "Track remediation against SLAs",
+    "Report residual exposure"
+   ],
+   "know": [
+    "vulnerability management",
+    "CVSS and EPSS",
+    "asset criticality"
+   ],
+   "terms": [
+    "CVE",
+    "CVSS",
+    "EPSS",
+    "exploitability",
+    "remediation SLA"
+   ],
+   "methods": [
+    "risk-based prioritization",
+    "SLA compliance tracking",
+    "exposure trend analysis"
+   ],
+   "tasks": [
+    "risk_assessment",
+    "descriptive_reporting",
+    "compliance_review"
+   ],
+   "techniques": [
+    "combine severity with exposure and criticality",
+    "age open findings",
+    "trend new vs closed"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "driver_decomposition",
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "vulnerability scanner exports",
+    "asset inventory",
+    "patch records"
+   ],
+   "entities": [
+    "vulnerabilities",
+    "assets",
+    "owners"
+   ],
+   "fields": [
+    "CVE",
+    "asset",
+    "severity",
+    "first found",
+    "status"
+   ],
+   "verify": [],
+   "outputs": [
+    "vulnerability risk report",
+    "remediation backlog",
+    "SLA compliance"
+   ],
+   "limits": [
+    "Scanning is out of scope; Lyst prioritizes exported scan results."
+   ],
+   "examples": [
+    "Which internet-facing assets have critical vulnerabilities past SLA?",
+    "Is our vulnerability backlog shrinking?"
+   ],
+   "related": [
+    "application_security_analyst",
+    "cloud_security_analyst",
+    "security_risk_analyst"
+   ],
+   "keywords": [
+    "vulnerability",
+    "cve",
+    "cvss",
+    "patch",
+    "scanner",
+    "remediation"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 70)"
+   ]
+  },
+  {
+   "id": "application_security_analyst",
+   "name": "Application Security Analyst",
+   "kind": "job_title",
+   "sub": "Application security",
+   "desc": "Evaluates source code, dependencies, APIs, authentication, authorization, and application design for security weaknesses. Supports secure development and vulnerability remediation.",
+   "alt": [
+    "AppSec Analyst",
+    "Product Security Analyst"
+   ],
+   "resp": [
+    "Analyse code and test findings for security weaknesses",
+    "Threat model applications",
+    "Track and verify fixes"
+   ],
+   "know": [
+    "secure coding",
+    "OWASP Top 10",
+    "threat modeling"
+   ],
+   "terms": [
+    "SAST",
+    "DAST",
+    "injection",
+    "authentication flaw",
+    "dependency vulnerability"
+   ],
+   "methods": [
+    "STRIDE threat modeling",
+    "finding triage and deduplication",
+    "fix verification"
+   ],
+   "tasks": [
+    "code_analysis",
+    "security_investigation",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "deduplicate scanner findings",
+    "map findings to CWE",
+    "trend findings by repository"
+   ],
+   "req": [
+    "code_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "SAST and DAST exports",
+    "dependency scan results",
+    "threat models"
+   ],
+   "entities": [
+    "applications",
+    "findings",
+    "dependencies"
+   ],
+   "fields": [
+    "finding",
+    "CWE",
+    "severity",
+    "repository",
+    "status"
+   ],
+   "verify": [
+    "reproducible_failure"
+   ],
+   "outputs": [
+    "application security assessment",
+    "prioritized findings"
+   ],
+   "limits": [
+    "Source code is not analysed directly; scanner exports are the evidence."
+   ],
+   "examples": [
+    "Which of our applications have open injection findings?",
+    "Threat model the new payments API."
+   ],
+   "related": [
+    "vulnerability_analyst",
+    "smart_contract_security_analyst",
+    "software_systems_analyst"
+   ],
+   "keywords": [
+    "appsec",
+    "application security",
+    "owasp",
+    "sast",
+    "dast",
+    "secure code",
+    "injection"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 71)"
+   ]
+  },
+  {
+   "id": "cloud_security_analyst",
+   "name": "Cloud Security Analyst",
+   "kind": "job_title",
+   "sub": "Cloud security",
+   "desc": "Investigates cloud permissions, resource exposure, encryption, logging, workload isolation, and configuration compliance. Identifies security weaknesses across cloud infrastructure.",
+   "alt": [
+    "Cloud Security Posture Analyst"
+   ],
+   "resp": [
+    "Assess cloud configuration against benchmarks",
+    "Find exposed resources and excessive permissions",
+    "Prioritize posture fixes"
+   ],
+   "know": [
+    "cloud security architecture",
+    "cloud IAM",
+    "security benchmarks"
+   ],
+   "terms": [
+    "misconfiguration",
+    "public exposure",
+    "security group",
+    "posture",
+    "blast radius"
+   ],
+   "methods": [
+    "CIS benchmark assessment",
+    "exposure analysis",
+    "permission analysis"
+   ],
+   "tasks": [
+    "risk_assessment",
+    "compliance_review",
+    "security_investigation"
+   ],
+   "techniques": [
+    "find publicly reachable resources",
+    "compare policies to least privilege",
+    "trend posture findings"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "graph_analysis",
+    "log_analysis"
+   ],
+   "sources": [
+    "cloud posture exports",
+    "configuration snapshots",
+    "cloud audit logs"
+   ],
+   "entities": [
+    "accounts",
+    "resources",
+    "policies",
+    "identities"
+   ],
+   "fields": [
+    "resource",
+    "finding",
+    "severity",
+    "account"
+   ],
+   "verify": [],
+   "outputs": [
+    "cloud posture report",
+    "prioritized misconfigurations"
+   ],
+   "limits": [
+    "Configuration is read from exports; Lyst has no cloud API access."
+   ],
+   "examples": [
+    "Which storage buckets are publicly accessible?",
+    "How has our cloud posture score changed this quarter?"
+   ],
+   "related": [
+    "cloud_infrastructure_analyst",
+    "iam_analyst",
+    "vulnerability_analyst"
+   ],
+   "keywords": [
+    "cloud security",
+    "misconfiguration",
+    "public bucket",
+    "posture",
+    "cspm",
+    "security group"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 72)"
+   ]
+  },
+  {
+   "id": "iam_analyst",
+   "name": "Identity & Access Management Analyst",
+   "kind": "job_title",
+   "sub": "Identity",
+   "desc": "Examines user identities, roles, privileges, authentication methods, and access histories. Identifies excessive permissions, separation-of-duties conflicts, and access governance risks.",
+   "alt": [
+    "IAM Analyst",
+    "Access Governance Analyst"
+   ],
+   "resp": [
+    "Analyse entitlements and privileged access",
+    "Support access reviews",
+    "Measure provisioning and deprovisioning"
+   ],
+   "know": [
+    "identity governance",
+    "role-based access control",
+    "privileged access management"
+   ],
+   "terms": [
+    "entitlement",
+    "least privilege",
+    "segregation of duties",
+    "orphaned account",
+    "access review"
+   ],
+   "methods": [
+    "entitlement analysis",
+    "segregation-of-duties checks",
+    "access certification"
+   ],
+   "tasks": [
+    "risk_assessment",
+    "compliance_review",
+    "security_investigation"
+   ],
+   "techniques": [
+    "find dormant privileged accounts",
+    "detect toxic combinations",
+    "measure leaver deprovisioning time"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "graph_analysis"
+   ],
+   "sources": [
+    "identity provider exports",
+    "HR records",
+    "application entitlements"
+   ],
+   "entities": [
+    "identities",
+    "roles",
+    "entitlements",
+    "applications"
+   ],
+   "fields": [
+    "user",
+    "role",
+    "entitlement",
+    "last used"
+   ],
+   "verify": [],
+   "outputs": [
+    "access risk report",
+    "access review package"
+   ],
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Graph-based privilege path analysis is not implemented."
+   ],
+   "examples": [
+    "Which leavers still have active accounts?",
+    "Who has both payment approval and vendor creation rights?"
+   ],
+   "related": [
+    "cloud_security_analyst",
+    "security_compliance_analyst",
+    "risk_controls_analyst"
+   ],
+   "keywords": [
+    "iam",
+    "access review",
+    "entitlements",
+    "privileged access",
+    "segregation of duties",
+    "identity",
+    "accounts",
+    "permissions",
+    "who has access"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 73)"
+   ]
+  },
+  {
+   "id": "security_compliance_analyst",
+   "name": "Security Compliance Analyst",
+   "kind": "job_title",
+   "sub": "Compliance",
+   "desc": "Evaluates digital security controls against organizational requirements, contractual commitments, and relevant regulatory standards. Produces audit evidence, control assessments, and remediation recommendations.",
+   "alt": [
+    "GRC Analyst",
+    "IT Compliance Analyst"
+   ],
+   "resp": [
+    "Map controls to frameworks",
+    "Collect and assess control evidence",
+    "Track gaps and audit readiness"
+   ],
+   "know": [
+    "compliance frameworks",
+    "control testing",
+    "audit practice"
+   ],
+   "terms": [
+    "control",
+    "evidence",
+    "SOC 2",
+    "audit finding",
+    "control owner"
+   ],
+   "methods": [
+    "control mapping",
+    "evidence sampling",
+    "gap analysis"
+   ],
+   "tasks": [
+    "compliance_review",
+    "risk_assessment",
+    "document_extraction"
+   ],
+   "techniques": [
+    "map one control to many frameworks",
+    "sample evidence",
+    "track remediation dates"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "reporting"
+   ],
+   "opt": [
+    "document_extraction",
+    "sql_query"
+   ],
+   "sources": [
+    "policies",
+    "control evidence documents",
+    "audit reports"
+   ],
+   "entities": [
+    "controls",
+    "frameworks",
+    "evidence",
+    "findings"
+   ],
+   "fields": [
+    "control id",
+    "framework",
+    "owner",
+    "status"
+   ],
+   "verify": [
+    "source_cited",
+    "human_review"
+   ],
+   "outputs": [
+    "compliance posture report",
+    "control gap list",
+    "audit evidence index"
+   ],
+   "limits": [
+    "Prepares evidence for auditors; it does not certify compliance."
+   ],
+   "examples": [
+    "Which SOC 2 controls lack current evidence?",
+    "Map our access policy to ISO 27001 controls."
+   ],
+   "related": [
+    "privacy_data_protection_analyst",
+    "risk_controls_analyst",
+    "ai_governance_analyst"
+   ],
+   "keywords": [
+    "compliance",
+    "soc 2",
+    "iso 27001",
+    "audit",
+    "controls",
+    "grc",
+    "evidence"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 74)"
+   ]
+  },
+  {
+   "id": "privacy_data_protection_analyst",
+   "name": "Privacy & Data Protection Analyst",
+   "kind": "job_title",
+   "sub": "Privacy",
+   "desc": "Investigates personal data flows, access, retention, processing purposes, and disclosure risks. Assesses privacy controls and supports compliant information handling.",
+   "alt": [
+    "Privacy Analyst",
+    "Data Protection Analyst"
+   ],
+   "resp": [
+    "Map personal data flows",
+    "Support privacy impact assessments",
+    "Find and minimize unnecessary personal data"
+   ],
+   "know": [
+    "GDPR and CCPA",
+    "privacy by design",
+    "data minimization"
+   ],
+   "terms": [
+    "personal data",
+    "lawful basis",
+    "DPIA",
+    "retention",
+    "data subject request"
+   ],
+   "methods": [
+    "data mapping",
+    "privacy impact assessment",
+    "sensitive data discovery"
+   ],
+   "tasks": [
+    "compliance_review",
+    "risk_assessment",
+    "data_profiling"
+   ],
+   "techniques": [
+    "scan schemas for personal data",
+    "compare retention to policy",
+    "trace sharing flows"
+   ],
+   "req": [
+    "data_profiling",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "text_analytics",
+    "sql_query"
+   ],
+   "sources": [
+    "data catalog",
+    "classification records",
+    "policies"
+   ],
+   "entities": [
+    "datasets",
+    "personal data categories",
+    "processors"
+   ],
+   "fields": [
+    "dataset",
+    "column",
+    "classification",
+    "retention"
+   ],
+   "verify": [
+    "source_cited",
+    "human_review"
+   ],
+   "outputs": [
+    "data map",
+    "privacy impact assessment draft",
+    "minimization recommendations"
+   ],
+   "perms": [
+    "data.read"
+   ],
+   "limits": [
+    "Not legal advice; findings go to the privacy officer."
+   ],
+   "examples": [
+    "Which datasets contain personal data without a classification?",
+    "Draft a privacy impact assessment for the new CRM integration."
+   ],
+   "related": [
+    "data_governance_analyst",
+    "security_compliance_analyst",
+    "iam_analyst"
+   ],
+   "keywords": [
+    "privacy",
+    "gdpr",
+    "ccpa",
+    "personal data",
+    "pii",
+    "data protection",
+    "dpia"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 75)"
+   ]
+  },
+  {
+   "id": "digital_forensics_analyst",
+   "name": "Digital Forensics Analyst",
+   "kind": "job_title",
+   "sub": "Forensics",
+   "desc": "Examines logs, devices, filesystems, artifacts, and event timelines to reconstruct digital incidents. Preserves evidentiary integrity and distinguishes verified findings from hypotheses.",
+   "alt": [
+    "Forensic Analyst",
+    "DFIR Analyst"
+   ],
+   "resp": [
+    "Reconstruct incident timelines",
+    "Preserve evidence integrity",
+    "Report findings defensibly"
+   ],
+   "know": [
+    "digital forensics",
+    "incident response",
+    "evidence handling"
+   ],
+   "terms": [
+    "chain of custody",
+    "artifact",
+    "timeline",
+    "hash",
+    "volatility"
+   ],
+   "methods": [
+    "timeline analysis",
+    "artifact correlation",
+    "evidence hashing"
+   ],
+   "tasks": [
+    "security_investigation",
+    "root_cause"
+   ],
+   "techniques": [
+    "merge event sources into one timeline",
+    "verify evidence hashes",
+    "correlate artifacts by entity"
+   ],
+   "req": [
+    "log_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "document_extraction"
+   ],
+   "sources": [
+    "preserved logs",
+    "disk and memory artifact exports",
+    "incident records"
+   ],
+   "entities": [
+    "artifacts",
+    "events",
+    "hosts",
+    "accounts"
+   ],
+   "fields": [
+    "timestamp",
+    "source",
+    "artifact",
+    "hash"
+   ],
+   "verify": [],
+   "outputs": [
+    "forensic timeline",
+    "investigation report"
+   ],
+   "depth": "deep",
+   "limits": [
+    "Disk and memory images are not processed; only exported artifacts in tabular form."
+   ],
+   "examples": [
+    "Build a timeline of activity on host X between 2am and 4am.",
+    "Which accounts touched the affected files?"
+   ],
+   "related": [
+    "soc_analyst",
+    "digital_forensics_osint_analyst",
+    "fraud_detection_analyst"
+   ],
+   "keywords": [
+    "forensics",
+    "dfir",
+    "timeline",
+    "chain of custody",
+    "incident investigation",
+    "artifacts"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 76)"
+   ]
+  },
+  {
+   "id": "fraud_detection_analyst",
+   "name": "Fraud Detection Analyst",
+   "kind": "job_title",
+   "sub": "Fraud",
+   "desc": "Identifies suspicious transactions, anomalous user behavior, account misuse, and potentially fraudulent patterns. Combines rules, statistical techniques, and investigation to assess risk.",
+   "alt": [
+    "Fraud Analyst",
+    "Fraud Risk Analyst"
+   ],
+   "resp": [
+    "Detect suspicious transactions and accounts",
+    "Investigate fraud patterns",
+    "Measure detection precision and losses"
+   ],
+   "know": [
+    "fraud typologies",
+    "transaction monitoring",
+    "risk scoring"
+   ],
+   "terms": [
+    "chargeback",
+    "false positive rate",
+    "velocity rule",
+    "account takeover",
+    "loss rate"
+   ],
+   "methods": [
+    "rule-based monitoring",
+    "anomaly detection",
+    "link analysis"
+   ],
+   "tasks": [
+    "anomaly_detection",
+    "security_investigation",
+    "model_evaluation"
+   ],
+   "techniques": [
+    "velocity checks",
+    "compare to customer baseline",
+    "measure rule hit precision"
+   ],
+   "req": [
+    "anomaly_detection",
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "classification",
+    "graph_analysis"
+   ],
+   "sources": [
+    "transaction data",
+    "account events",
+    "chargeback records"
+   ],
+   "entities": [
+    "transactions",
+    "accounts",
+    "devices",
+    "merchants"
+   ],
+   "fields": [
+    "transaction id",
+    "amount",
+    "timestamp",
+    "account",
+    "outcome"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "fraud pattern analysis",
+    "rule performance report",
+    "case list"
+   ],
+   "limits": [
+    "Supervised fraud models and link analysis are not implemented; detection is rule and anomaly based."
+   ],
+   "examples": [
+    "Which accounts show unusual transaction velocity this week?",
+    "How precise are our current fraud rules?"
+   ],
+   "related": [
+    "risk_controls_analyst",
+    "digital_forensics_analyst",
+    "blockchain_analytics_analyst"
+   ],
+   "keywords": [
+    "fraud",
+    "chargeback",
+    "suspicious transactions",
+    "account takeover",
+    "money laundering",
+    "aml"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 77)"
+   ]
+  },
+  {
+   "id": "security_risk_analyst",
+   "name": "Security Risk Analyst",
+   "kind": "job_title",
+   "sub": "Risk",
+   "desc": "Models potential security events, business consequences, control effectiveness, and exposure. Helps prioritize mitigation investments and evaluate residual risk.",
+   "alt": [
+    "Cyber Risk Analyst",
+    "IT Risk Analyst"
+   ],
+   "resp": [
+    "Assess likelihood and impact of security risks",
+    "Maintain the risk register",
+    "Track risk treatment"
+   ],
+   "know": [
+    "risk management",
+    "risk quantification",
+    "threat and vulnerability context"
+   ],
+   "terms": [
+    "risk appetite",
+    "inherent and residual risk",
+    "likelihood",
+    "impact",
+    "risk treatment"
+   ],
+   "methods": [
+    "FAIR-style quantification",
+    "risk matrix scoring",
+    "scenario analysis"
+   ],
+   "tasks": [
+    "risk_assessment",
+    "simulation",
+    "recommendation"
+   ],
+   "techniques": [
+    "score scenarios on likelihood and impact",
+    "simulate annual loss ranges",
+    "rank treatments by risk reduced"
+   ],
+   "req": [
+    "simulation",
+    "reporting"
+   ],
+   "opt": [
+    "scenario_modeling",
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "risk register",
+    "incident history",
+    "vulnerability and threat data"
+   ],
+   "entities": [
+    "risks",
+    "assets",
+    "controls",
+    "scenarios"
+   ],
+   "fields": [
+    "risk",
+    "likelihood",
+    "impact",
+    "owner",
+    "treatment"
+   ],
+   "verify": [
+    "uncertainty_stated",
+    "human_review"
+   ],
+   "outputs": [
+    "risk register update",
+    "risk quantification",
+    "treatment priorities"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Loss estimates are model-based ranges, not predictions."
+   ],
+   "examples": [
+    "Quantify the annual loss range from ransomware for our business.",
+    "Which security risks exceed our appetite?"
+   ],
+   "related": [
+    "cybersecurity_analyst",
+    "risk_controls_analyst",
+    "security_compliance_analyst"
+   ],
+   "keywords": [
+    "security risk",
+    "risk register",
+    "cyber risk",
+    "likelihood",
+    "impact",
+    "risk appetite",
+    "fair"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 78)"
+   ]
+  }
+ ]
+}

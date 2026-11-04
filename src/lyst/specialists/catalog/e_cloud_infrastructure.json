@@ -1,0 +1,1336 @@
+{
+ "domain": {
+  "id": "cloud_infrastructure",
+  "letter": "E",
+  "title": "Cloud, Infrastructure, Networks & Computing Operations",
+  "summary": "Understanding the cost, capacity, performance and operation of computing infrastructure.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Organizations running workloads on public cloud, private data centers or hybrid estates"
+   ],
+   "expertise.technical_concepts": [
+    "utilization vs allocation",
+    "unit cost",
+    "headroom",
+    "billing period alignment"
+   ],
+   "expertise.standards": [
+    "FinOps Foundation framework",
+    "ITIL 4 service management",
+    "cloud provider well-architected frameworks"
+   ],
+   "analytics.statistical_methods": [
+    "percentile utilization",
+    "trend and seasonality of demand",
+    "variance decomposition of spend"
+   ],
+   "analytics.computational_methods": [
+    "SQL aggregation of usage and billing records",
+    "time-series forecasting of demand"
+   ],
+   "analytics.modeling_approaches": [
+    "unit economics models",
+    "capacity models"
+   ],
+   "analytics.data_transformations": [
+    "tag normalization",
+    "allocation of shared cost",
+    "aggregation by service and period"
+   ],
+   "analytics.visualization_methods": [
+    "cost by service over time",
+    "utilization heatmaps",
+    "headroom charts"
+   ],
+   "analytics.reporting": [
+    "cost or capacity report",
+    "optimization recommendations with estimated savings"
+   ],
+   "data.structures": [
+    "billing exports",
+    "usage and metrics time series",
+    "resource inventories"
+   ],
+   "data.quality_requirements": [
+    "billing totals match invoices",
+    "resources tagged with owner and environment"
+   ],
+   "data.temporal": [
+    "align usage to billing periods",
+    "compare full months"
+   ],
+   "data.semantic_assumptions": [
+    "service and account names are consistent across exports"
+   ],
+   "resources.sql": [
+    "DuckDB SQL over imported billing and usage exports"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy",
+    "statsmodels"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (narrative, numbers checked)"
+   ],
+   "resources.environment": [
+    "imported exports or read-only workspace connections; no cloud control-plane access"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "fix the scope and billing period",
+    "attribute",
+    "explain drivers",
+    "estimate actions",
+    "verify totals"
+   ],
+   "execution.resource_constraints": [
+    "read-only; Lyst never changes infrastructure"
+   ],
+   "execution.approval_conditions": [
+    "any change to infrastructure, reservations or budgets"
+   ],
+   "execution.verification_rules": [
+    "period_coverage",
+    "measurement_conditions"
+   ],
+   "quality.correctness_criteria": [
+    "attributed cost sums to the billed total",
+    "savings estimates state rates and usage assumptions"
+   ],
+   "quality.domain_tests": [
+    "reconcile billing export to invoice total",
+    "recompute utilization percentiles"
+   ],
+   "quality.expected_evidence": [
+    "billing period and accounts covered",
+    "queries behind each figure"
+   ],
+   "quality.reproducibility": [
+    "same export version reproduces the same figures"
+   ],
+   "quality.performance_measures": [
+    "unit cost trend",
+    "forecast accuracy of spend or demand"
+   ],
+   "quality.known_limitations": [
+    "Recommendations are estimates; realized savings depend on implementation and pricing changes."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "confidential",
+   "governance.sensitive_handling": [
+    "never expose account credentials or access keys",
+    "mask internal hostnames in shared reports when required"
+   ],
+   "governance.network": "workspace_connections",
+   "governance.classification_notes": [
+    "infrastructure inventories are confidential"
+   ],
+   "governance.review_requirements": [
+    "engineering owner review before changes are made"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "cloud_infrastructure_analyst",
+   "name": "Cloud Infrastructure Analyst",
+   "kind": "job_title",
+   "sub": "Cloud infrastructure",
+   "desc": "Examines cloud architecture, compute instances, storage, networking, service configuration, and resource utilization. Evaluates cost, reliability, scalability, and deployment efficiency.",
+   "alt": [
+    "Cloud Analyst",
+    "Cloud Operations Analyst"
+   ],
+   "resp": [
+    "Inventory and assess cloud resources",
+    "Investigate cost and utilization changes",
+    "Recommend measurable optimizations"
+   ],
+   "know": [
+    "cloud services and pricing",
+    "infrastructure as code",
+    "resilience patterns"
+   ],
+   "terms": [
+    "instance",
+    "region",
+    "reserved capacity",
+    "autoscaling",
+    "idle resource"
+   ],
+   "methods": [
+    "utilization analysis",
+    "rightsizing",
+    "architecture review"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "variance_explanation",
+    "capacity_planning",
+    "recommendation"
+   ],
+   "techniques": [
+    "find idle and oversized resources",
+    "explain cost change by service",
+    "compare regions"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "sql_query"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "anomaly_detection",
+    "optimization"
+   ],
+   "sources": [
+    "cloud billing exports",
+    "monitoring metrics",
+    "resource inventory"
+   ],
+   "entities": [
+    "accounts",
+    "services",
+    "resources",
+    "regions"
+   ],
+   "fields": [
+    "service",
+    "resource id",
+    "usage",
+    "cost",
+    "period"
+   ],
+   "verify": [
+    "cost_allocation_complete",
+    "rate_assumptions_stated"
+   ],
+   "outputs": [
+    "cloud cost and utilization assessment",
+    "optimization plan"
+   ],
+   "limits": [
+    "Works from exports and read-only data; it cannot inspect or change live cloud accounts."
+   ],
+   "examples": [
+    "Investigate why cloud expenses increased and recommend measurable optimizations.",
+    "Which resources are idle?"
+   ],
+   "related": [
+    "cloud_finops_analyst",
+    "capacity_planning_analyst",
+    "kubernetes_container_analyst"
+   ],
+   "keywords": [
+    "cloud",
+    "aws",
+    "azure",
+    "gcp",
+    "cloud infrastructure",
+    "instances",
+    "cloud resources",
+    "infrastructure costs"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 55)"
+   ]
+  },
+  {
+   "id": "cloud_finops_analyst",
+   "name": "Cloud FinOps Analyst",
+   "kind": "job_title",
+   "sub": "FinOps",
+   "desc": "Analyzes cloud spending, allocation, usage patterns, reserved capacity, unit economics, and budget variances. Identifies opportunities to reduce infrastructure costs while preserving business performance.",
+   "alt": [
+    "FinOps Analyst",
+    "Cloud Cost Analyst"
+   ],
+   "resp": [
+    "Allocate cloud cost to owners and products",
+    "Explain spend variance against budget",
+    "Drive and verify savings"
+   ],
+   "know": [
+    "FinOps practice",
+    "cloud pricing models",
+    "showback and chargeback"
+   ],
+   "terms": [
+    "unit cost",
+    "commitment coverage",
+    "amortized cost",
+    "showback",
+    "untagged spend"
+   ],
+   "methods": [
+    "cost allocation",
+    "budget variance analysis",
+    "commitment coverage analysis",
+    "unit economics"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "variance_explanation",
+    "forecasting",
+    "optimization"
+   ],
+   "techniques": [
+    "decompose spend change by service and team",
+    "measure untagged share",
+    "forecast month-end spend"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition",
+    "time_series_forecasting"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "optimization",
+    "financial_reconciliation"
+   ],
+   "sources": [
+    "cloud billing exports",
+    "tag inventories",
+    "budgets"
+   ],
+   "entities": [
+    "accounts",
+    "services",
+    "teams",
+    "commitments"
+   ],
+   "fields": [
+    "billing period",
+    "service",
+    "cost",
+    "tags"
+   ],
+   "verify": [
+    "cost_allocation_complete",
+    "rate_assumptions_stated",
+    "bridge_closes",
+    "fiscal_period"
+   ],
+   "outputs": [
+    "cloud spend report",
+    "variance explanation",
+    "savings plan"
+   ],
+   "limits": [
+    "Commitment purchase recommendations are estimates without access to provider recommendation APIs."
+   ],
+   "examples": [
+    "Why did our cloud bill rise 18% while customer growth slowed?",
+    "What will this month's cloud spend be?"
+   ],
+   "related": [
+    "cloud_infrastructure_analyst",
+    "fpa_analyst",
+    "ai_cost_inference_analyst"
+   ],
+   "keywords": [
+    "finops",
+    "cloud cost",
+    "cloud spend",
+    "cloud bill",
+    "showback",
+    "chargeback",
+    "reserved instances",
+    "aws invoice",
+    "cloud invoice",
+    "which teams",
+    "infrastructure costs"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 56)"
+   ]
+  },
+  {
+   "id": "infrastructure_performance_analyst",
+   "name": "Infrastructure Performance Analyst",
+   "kind": "functional",
+   "sub": "Performance",
+   "desc": "Investigates server performance, storage I/O, memory pressure, compute utilization, and infrastructure bottlenecks. Recommends improvements based on measured workloads.",
+   "alt": [
+    "Infrastructure Analyst",
+    "Performance Analyst (infrastructure)"
+   ],
+   "resp": [
+    "Monitor saturation and contention",
+    "Correlate infrastructure and application symptoms",
+    "Recommend tuning and scaling"
+   ],
+   "know": [
+    "operating system performance",
+    "storage and network performance",
+    "USE method"
+   ],
+   "terms": [
+    "utilization",
+    "saturation",
+    "IOPS",
+    "contention",
+    "throttling"
+   ],
+   "methods": [
+    "USE method",
+    "percentile analysis",
+    "correlation of metrics"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "root_cause",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "find saturated resources",
+    "correlate latency with load",
+    "compare hosts"
+   ],
+   "req": [
+    "metric_computation",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "regression",
+    "change_point_detection",
+    "log_analysis"
+   ],
+   "sources": [
+    "infrastructure metrics",
+    "APM data",
+    "host inventories"
+   ],
+   "entities": [
+    "hosts",
+    "volumes",
+    "network links"
+   ],
+   "fields": [
+    "host",
+    "metric",
+    "timestamp",
+    "value"
+   ],
+   "verify": [],
+   "outputs": [
+    "performance assessment",
+    "saturation report"
+   ],
+   "limits": [
+    "Metric series must be exported; no live agent integration."
+   ],
+   "examples": [
+    "Which hosts are CPU saturated during peak?",
+    "Is disk latency behind the slow nightly batch?"
+   ],
+   "related": [
+    "software_performance_analyst",
+    "capacity_planning_analyst",
+    "systems_operations_analyst"
+   ],
+   "keywords": [
+    "cpu",
+    "memory",
+    "saturation",
+    "iops",
+    "infrastructure performance",
+    "throttling"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 57)"
+   ]
+  },
+  {
+   "id": "network_analyst",
+   "name": "Network Analyst",
+   "kind": "job_title",
+   "sub": "Networking",
+   "desc": "Evaluates network topology, routing, traffic, bandwidth, latency, packet loss, and connectivity. Investigates communication failures and opportunities to improve network reliability.",
+   "alt": [
+    "Network Engineer (analysis)",
+    "Network Operations Analyst"
+   ],
+   "resp": [
+    "Analyse traffic and link utilization",
+    "Investigate latency and loss",
+    "Plan network capacity"
+   ],
+   "know": [
+    "TCP/IP networking",
+    "routing and switching",
+    "network monitoring"
+   ],
+   "terms": [
+    "bandwidth",
+    "latency",
+    "packet loss",
+    "jitter",
+    "flow record"
+   ],
+   "methods": [
+    "flow analysis",
+    "link utilization trending",
+    "path analysis"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "capacity_planning",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "top talkers by flow",
+    "trend peak utilization",
+    "detect loss spikes"
+   ],
+   "req": [
+    "metric_computation",
+    "log_analysis"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "time_series_forecasting",
+    "graph_analysis"
+   ],
+   "sources": [
+    "flow logs",
+    "SNMP metrics",
+    "network inventory"
+   ],
+   "entities": [
+    "links",
+    "devices",
+    "flows"
+   ],
+   "fields": [
+    "source",
+    "destination",
+    "bytes",
+    "timestamp"
+   ],
+   "verify": [],
+   "outputs": [
+    "network performance report",
+    "capacity plan"
+   ],
+   "limits": [
+    "Packet-level analysis is not supported; flow and metric exports only."
+   ],
+   "examples": [
+    "Which links will exceed 80% utilization next quarter?",
+    "What caused the packet loss on Tuesday?"
+   ],
+   "related": [
+    "infrastructure_performance_analyst",
+    "cloud_security_analyst",
+    "capacity_planning_analyst"
+   ],
+   "keywords": [
+    "network",
+    "bandwidth",
+    "packet loss",
+    "latency",
+    "traffic",
+    "flow logs",
+    "routing"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 58)"
+   ]
+  },
+  {
+   "id": "systems_operations_analyst",
+   "name": "Systems Operations Analyst",
+   "kind": "job_title",
+   "sub": "Operations",
+   "desc": "Monitors servers, operating systems, services, scheduled processes, and infrastructure health. Diagnoses recurring failures, operational inefficiencies, and configuration problems.",
+   "alt": [
+    "Operations Analyst (IT)",
+    "NOC Analyst"
+   ],
+   "resp": [
+    "Analyse alerts and incidents",
+    "Find recurring job and system failures",
+    "Measure operational stability"
+   ],
+   "know": [
+    "IT operations",
+    "job scheduling",
+    "monitoring and alerting"
+   ],
+   "terms": [
+    "alert noise",
+    "runbook",
+    "batch job",
+    "maintenance window",
+    "MTTR"
+   ],
+   "methods": [
+    "alert noise analysis",
+    "recurring failure analysis",
+    "stability trend reporting"
+   ],
+   "tasks": [
+    "root_cause",
+    "anomaly_detection",
+    "descriptive_reporting"
+   ],
+   "techniques": [
+    "rank alerts by volume and actionability",
+    "group failures by job",
+    "trend MTTR"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "log_analysis",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "monitoring alerts",
+    "job scheduler logs",
+    "incident tracker"
+   ],
+   "entities": [
+    "systems",
+    "jobs",
+    "alerts",
+    "incidents"
+   ],
+   "fields": [
+    "system",
+    "alert type",
+    "timestamp",
+    "resolution"
+   ],
+   "verify": [],
+   "outputs": [
+    "operations stability report",
+    "alert reduction plan"
+   ],
+   "limits": [
+    "No direct monitoring integration; alerts and jobs are analysed from exports."
+   ],
+   "examples": [
+    "Which alerts are noisy and never actioned?",
+    "Which batch jobs fail most often?"
+   ],
+   "related": [
+    "site_reliability_analyst",
+    "it_service_management_analyst",
+    "infrastructure_performance_analyst"
+   ],
+   "keywords": [
+    "operations",
+    "alerts",
+    "batch jobs",
+    "noc",
+    "incidents",
+    "runbook",
+    "monitoring"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 59)"
+   ]
+  },
+  {
+   "id": "capacity_planning_analyst",
+   "name": "Capacity Planning Analyst",
+   "kind": "job_title",
+   "sub": "Capacity",
+   "desc": "Forecasts computing, storage, networking, and workload requirements. Models future demand, resource constraints, scaling thresholds, and infrastructure expansion scenarios.",
+   "alt": [
+    "Capacity Analyst",
+    "Capacity Manager"
+   ],
+   "resp": [
+    "Forecast demand",
+    "Size capacity against service targets",
+    "Flag exhaustion dates and costs"
+   ],
+   "know": [
+    "demand forecasting",
+    "queueing and utilization",
+    "capacity management"
+   ],
+   "terms": [
+    "headroom",
+    "peak demand",
+    "exhaustion date",
+    "service level",
+    "buffer"
+   ],
+   "methods": [
+    "trend and seasonal forecasting",
+    "headroom analysis",
+    "staffing and utilization models"
+   ],
+   "tasks": [
+    "capacity_planning",
+    "forecasting",
+    "simulation"
+   ],
+   "techniques": [
+    "project peak demand",
+    "compute exhaustion dates",
+    "simulate shortfall risk"
+   ],
+   "req": [
+    "time_series_forecasting",
+    "metric_computation",
+    "simulation"
+   ],
+   "opt": [
+    "optimization",
+    "scenario_modeling"
+   ],
+   "sources": [
+    "utilization metrics",
+    "demand history",
+    "capacity inventories"
+   ],
+   "entities": [
+    "resources",
+    "demand series",
+    "pools"
+   ],
+   "fields": [
+    "timestamp",
+    "demand",
+    "capacity"
+   ],
+   "verify": [
+    "forecast_backtest",
+    "uncertainty_stated"
+   ],
+   "outputs": [
+    "capacity plan",
+    "exhaustion forecast",
+    "risk of shortfall"
+   ],
+   "limits": [
+    "Forecasts extend history; launches or migrations must be added as scenario assumptions."
+   ],
+   "examples": [
+    "When will our database storage run out?",
+    "How many agents do we need to keep wait times under 2 minutes?"
+   ],
+   "related": [
+    "forecasting_analyst",
+    "infrastructure_performance_analyst",
+    "operations_research_analyst"
+   ],
+   "keywords": [
+    "capacity",
+    "headroom",
+    "run out",
+    "peak demand",
+    "capacity plan",
+    "sizing"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 60)"
+   ]
+  },
+  {
+   "id": "database_performance_analyst",
+   "name": "Database Performance Analyst",
+   "kind": "functional",
+   "sub": "Databases",
+   "desc": "Examines database workloads, query plans, indexing, transaction behavior, locks, resource utilization, and concurrency. Identifies performance problems and data-access inefficiencies.",
+   "alt": [
+    "DBA (performance)",
+    "Database Analyst"
+   ],
+   "resp": [
+    "Find slow and expensive queries",
+    "Diagnose contention and plan problems",
+    "Recommend indexes and rewrites"
+   ],
+   "know": [
+    "query optimization",
+    "indexing",
+    "database internals"
+   ],
+   "terms": [
+    "query plan",
+    "index",
+    "lock contention",
+    "cardinality estimate",
+    "full scan"
+   ],
+   "methods": [
+    "query plan analysis",
+    "workload profiling",
+    "index impact estimation"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "sql_authoring",
+    "root_cause"
+   ],
+   "techniques": [
+    "rank queries by total time",
+    "inspect plans for scans",
+    "compare before and after"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "log_analysis",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "query history",
+    "database statistics views",
+    "slow query logs"
+   ],
+   "entities": [
+    "queries",
+    "tables",
+    "indexes"
+   ],
+   "fields": [
+    "query fingerprint",
+    "duration",
+    "rows",
+    "timestamp"
+   ],
+   "verify": [],
+   "outputs": [
+    "slow query report",
+    "tuning recommendations"
+   ],
+   "limits": [
+    "Analyses Lyst's own query history and exported statistics; it does not connect to production databases with admin rights."
+   ],
+   "examples": [
+    "Which queries consume most database time?",
+    "Why is this report query slow?"
+   ],
+   "related": [
+    "data_warehouse_analyst",
+    "storage_data_infrastructure_analyst",
+    "software_performance_analyst"
+   ],
+   "keywords": [
+    "database",
+    "slow query",
+    "index",
+    "query plan",
+    "dba",
+    "sql performance"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 61)"
+   ]
+  },
+  {
+   "id": "storage_data_infrastructure_analyst",
+   "name": "Storage & Data Infrastructure Analyst",
+   "kind": "functional",
+   "sub": "Storage",
+   "desc": "Evaluates storage utilization, data placement, access patterns, backup performance, and retention strategies. Optimizes durability, availability, performance, and cost.",
+   "alt": [
+    "Storage Analyst",
+    "Data Platform Analyst"
+   ],
+   "resp": [
+    "Track storage growth and cost",
+    "Find stale and mis-tiered data",
+    "Plan retention and capacity"
+   ],
+   "know": [
+    "storage tiers",
+    "backup and retention",
+    "data lifecycle management"
+   ],
+   "terms": [
+    "tiering",
+    "retention policy",
+    "snapshot",
+    "growth rate",
+    "cold data"
+   ],
+   "methods": [
+    "growth trending",
+    "access-pattern analysis",
+    "retention policy modeling"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "capacity_planning",
+    "descriptive_reporting"
+   ],
+   "techniques": [
+    "measure last-access age",
+    "forecast growth",
+    "estimate tiering savings"
+   ],
+   "req": [
+    "metric_computation",
+    "time_series_forecasting",
+    "sql_query"
+   ],
+   "opt": [
+    "optimization"
+   ],
+   "sources": [
+    "storage inventories",
+    "access logs",
+    "billing exports"
+   ],
+   "entities": [
+    "buckets",
+    "volumes",
+    "datasets",
+    "backups"
+   ],
+   "fields": [
+    "size",
+    "last access",
+    "tier",
+    "owner"
+   ],
+   "verify": [
+    "cost_allocation_complete"
+   ],
+   "outputs": [
+    "storage growth report",
+    "tiering and retention plan"
+   ],
+   "limits": [
+    "Recommendations do not touch data; deletion and tiering are performed by owners."
+   ],
+   "examples": [
+    "How fast is our object storage growing and what will it cost next year?",
+    "How much data has not been read in a year?"
+   ],
+   "related": [
+    "cloud_finops_analyst",
+    "capacity_planning_analyst",
+    "database_performance_analyst"
+   ],
+   "keywords": [
+    "storage",
+    "retention",
+    "tiering",
+    "backups",
+    "storage growth",
+    "cold data"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 62)"
+   ]
+  },
+  {
+   "id": "kubernetes_container_analyst",
+   "name": "Kubernetes & Container Analyst",
+   "kind": "functional",
+   "sub": "Containers",
+   "desc": "Investigates container workloads, scheduling, resource limits, service discovery, deployment health, and cluster performance. Diagnoses orchestration failures and capacity constraints.",
+   "alt": [
+    "Kubernetes Analyst",
+    "Container Platform Analyst"
+   ],
+   "resp": [
+    "Compare requests to actual usage",
+    "Find unstable workloads",
+    "Allocate cluster cost to teams"
+   ],
+   "know": [
+    "Kubernetes scheduling",
+    "container resource management",
+    "cluster autoscaling"
+   ],
+   "terms": [
+    "pod",
+    "request and limit",
+    "node pool",
+    "OOMKilled",
+    "bin packing"
+   ],
+   "methods": [
+    "request rightsizing",
+    "restart and eviction analysis",
+    "namespace cost allocation"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "performance_analysis",
+    "capacity_planning"
+   ],
+   "techniques": [
+    "ratio of usage to request",
+    "rank restarts by workload",
+    "allocate node cost by namespace"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "optimization",
+    "anomaly_detection",
+    "log_analysis"
+   ],
+   "sources": [
+    "cluster metrics",
+    "workload manifests",
+    "billing exports"
+   ],
+   "entities": [
+    "clusters",
+    "namespaces",
+    "workloads",
+    "nodes"
+   ],
+   "fields": [
+    "namespace",
+    "workload",
+    "cpu and memory request",
+    "usage"
+   ],
+   "verify": [
+    "cost_allocation_complete"
+   ],
+   "outputs": [
+    "cluster efficiency report",
+    "rightsizing recommendations"
+   ],
+   "limits": [
+    "Reads exported metrics; it does not query cluster APIs."
+   ],
+   "examples": [
+    "Which workloads request far more CPU than they use?",
+    "What does each team's namespace cost?"
+   ],
+   "related": [
+    "cloud_infrastructure_analyst",
+    "platform_engineering_analyst",
+    "gpu_computing_analyst"
+   ],
+   "keywords": [
+    "kubernetes",
+    "k8s",
+    "containers",
+    "pods",
+    "cluster",
+    "namespace",
+    "docker"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 63)"
+   ]
+  },
+  {
+   "id": "gpu_computing_analyst",
+   "name": "GPU Computing Analyst",
+   "kind": "functional",
+   "sub": "Accelerated computing",
+   "desc": "Evaluates GPU workloads, utilization, VRAM pressure, memory transfer, kernel performance, and hardware compatibility. Optimizes accelerated computing for AI inference, model training, and scientific applications.",
+   "alt": [
+    "Accelerator Utilization Analyst",
+    "ML Infrastructure Analyst"
+   ],
+   "resp": [
+    "Measure GPU utilization and queue time",
+    "Attribute accelerator cost to jobs and teams",
+    "Recommend scheduling and sizing changes"
+   ],
+   "know": [
+    "GPU architecture basics",
+    "ML training and inference workloads",
+    "cluster scheduling"
+   ],
+   "terms": [
+    "GPU utilization",
+    "memory bandwidth",
+    "queue time",
+    "MIG partition",
+    "job efficiency"
+   ],
+   "methods": [
+    "utilization distribution analysis",
+    "queue analysis",
+    "cost per job analysis"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "cost_analysis",
+    "capacity_planning"
+   ],
+   "techniques": [
+    "find low-utilization jobs",
+    "measure wait times by pool",
+    "compute cost per training hour"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "optimization"
+   ],
+   "sources": [
+    "GPU telemetry",
+    "scheduler logs",
+    "billing exports"
+   ],
+   "entities": [
+    "GPUs",
+    "jobs",
+    "pools",
+    "teams"
+   ],
+   "fields": [
+    "job id",
+    "gpu hours",
+    "utilization",
+    "queue time"
+   ],
+   "verify": [
+    "cost_allocation_complete"
+   ],
+   "outputs": [
+    "GPU fleet efficiency report",
+    "scheduling recommendations"
+   ],
+   "limits": [
+    "Kernel-level profiling is out of scope; telemetry must be exported."
+   ],
+   "examples": [
+    "How much of our GPU fleet sits idle?",
+    "Which training jobs underuse their GPUs?"
+   ],
+   "related": [
+    "kubernetes_container_analyst",
+    "ai_cost_inference_analyst",
+    "capacity_planning_analyst"
+   ],
+   "keywords": [
+    "gpu",
+    "accelerator",
+    "cuda",
+    "training cluster",
+    "gpu utilization",
+    "inference hardware"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 64)"
+   ]
+  },
+  {
+   "id": "distributed_systems_analyst",
+   "name": "Distributed Systems Analyst",
+   "kind": "functional",
+   "sub": "Distributed systems",
+   "desc": "Examines communication, consistency, coordination, fault tolerance, partitioning, and workload distribution across multiple services or machines. Investigates failure modes that emerge under concurrency and scale.",
+   "alt": [
+    "Systems Reliability Analyst (distributed)"
+   ],
+   "resp": [
+    "Reconstruct cross-service failures",
+    "Assess retry, timeout and queue behaviour",
+    "Find systemic fragility"
+   ],
+   "know": [
+    "distributed systems theory",
+    "messaging and queues",
+    "failure modes"
+   ],
+   "terms": [
+    "consistency model",
+    "retry storm",
+    "backpressure",
+    "partition",
+    "idempotency"
+   ],
+   "methods": [
+    "trace-based incident reconstruction",
+    "dependency analysis",
+    "queue depth analysis"
+   ],
+   "tasks": [
+    "root_cause",
+    "performance_analysis",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "order events across services",
+    "measure queue growth",
+    "map dependency fan-out"
+   ],
+   "req": [
+    "log_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "graph_analysis",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "distributed traces",
+    "queue metrics",
+    "service logs"
+   ],
+   "entities": [
+    "services",
+    "messages",
+    "requests",
+    "queues"
+   ],
+   "fields": [
+    "trace id",
+    "service",
+    "timestamp",
+    "status"
+   ],
+   "verify": [
+    "evidence_chronology"
+   ],
+   "outputs": [
+    "incident reconstruction",
+    "fragility assessment"
+   ],
+   "limits": [
+    "Trace and log analysis is not implemented as a capability; only tabular exports can be queried."
+   ],
+   "examples": [
+    "Reconstruct how the payment outage cascaded across services.",
+    "Where do retries amplify load?"
+   ],
+   "related": [
+    "site_reliability_analyst",
+    "software_systems_analyst",
+    "network_analyst"
+   ],
+   "keywords": [
+    "distributed",
+    "microservices",
+    "cascading failure",
+    "retries",
+    "queue",
+    "message broker"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 65)"
+   ]
+  },
+  {
+   "id": "it_service_management_analyst",
+   "name": "IT Service Management Analyst",
+   "kind": "job_title",
+   "sub": "Service management",
+   "desc": "Analyzes incidents, service requests, changes, recurring problems, and operational service levels. Identifies root causes and improvements to IT support and service delivery.",
+   "alt": [
+    "ITSM Analyst",
+    "Service Desk Analyst"
+   ],
+   "resp": [
+    "Measure SLA and resolution performance",
+    "Find recurring problems",
+    "Improve incident and change processes"
+   ],
+   "know": [
+    "ITIL 4",
+    "service desk operations",
+    "problem management"
+   ],
+   "terms": [
+    "SLA",
+    "first contact resolution",
+    "problem record",
+    "change advisory",
+    "backlog"
+   ],
+   "methods": [
+    "SLA performance analysis",
+    "problem trend analysis",
+    "process cycle time analysis"
+   ],
+   "tasks": [
+    "process_analysis",
+    "descriptive_reporting",
+    "root_cause"
+   ],
+   "techniques": [
+    "SLA breach analysis by category",
+    "backlog aging",
+    "recurring incident clustering"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "process_mining",
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "ITSM ticketing system",
+    "CMDB",
+    "satisfaction surveys"
+   ],
+   "entities": [
+    "tickets",
+    "services",
+    "changes",
+    "problems"
+   ],
+   "fields": [
+    "ticket id",
+    "priority",
+    "opened and resolved time",
+    "category"
+   ],
+   "verify": [],
+   "outputs": [
+    "service performance report",
+    "problem analysis",
+    "process improvements"
+   ],
+   "limits": [
+    "Process discovery from ticket events is not implemented; cycle times come from SQL."
+   ],
+   "examples": [
+    "Which categories breach SLA most often?",
+    "Forecast service desk volume for next month."
+   ],
+   "related": [
+    "systems_operations_analyst",
+    "application_analyst",
+    "process_mining_analyst"
+   ],
+   "keywords": [
+    "itsm",
+    "service desk",
+    "sla",
+    "tickets",
+    "itil",
+    "incident management",
+    "help desk",
+    "ticket backlog",
+    "picked up",
+    "response time",
+    "queue"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 66)"
+   ]
+  }
+ ]
+}
