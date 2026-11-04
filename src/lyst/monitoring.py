@@ -104,6 +104,35 @@ class MonitorService:
             s = s.iloc[:-1]
         return s
 
+    def pulse(self, actor: Principal, ws: str, *, grain: str = "month", limit: int = 6) -> list[dict[str, Any]]:
+        """The approved metrics at a glance: the last complete period, the one before, the change and a short
+        history, for a business reader's Home. Runs through the SQL guard as the reader, so column and row policies
+        apply; a metric the reader may not query is left out rather than failing the whole pulse."""
+        from .analyst.engine import fmt  # noqa: PLC0415
+
+        out: list[dict[str, Any]] = []
+        for spec in self.semantic.metrics(actor, ws):
+            if len(out) >= limit or not spec.time_column:
+                continue
+            try:
+                s = self._history(actor, ws, spec, grain)
+            except Exception as e:  # noqa: BLE001  (denied, or a dataset that cannot be read now)
+                log.debug("pulse skipped %s: %s", spec.name, e)
+                continue
+            if len(s) < 2:
+                continue
+            cur, prev = float(s.iloc[-1]), float(s.iloc[-2])
+            change = cur - prev if spec.format == "percent" else ((cur - prev) / abs(prev) if prev else None)
+            flat = change is None or abs(change) < 5e-4  # rounds to 0.0 pts / 0.0%: neither good nor bad
+            good = None if flat else ((change > 0) == spec.higher_is_better)
+            out.append({"metric": spec.name, "title": spec.title, "format": spec.format, "grain": grain,
+                        "period": s.index[-1].strftime("%b %Y"), "value": cur, "prior": prev, "change": change,
+                        "value_text": fmt(cur, spec),
+                        "change_text": (fmt(change, spec, delta=True) if spec.format == "percent"
+                                        else (f"{change * 100:+.1f}%" if change is not None else "n/a")),
+                        "good": good, "history": [float(v) for v in s.iloc[-12:]]})
+        return out
+
     def detect(self, actor: Principal, ws: str, monitor: dict[str, Any]) -> list[dict[str, Any]]:
         spec = self.semantic.get(actor, ws, monitor["metric"])
         s = self._history(actor, ws, spec, monitor["grain"])

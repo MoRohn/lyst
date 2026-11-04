@@ -710,6 +710,12 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     # -- proactive --------------------------------------------------------------------------
 
+    @app.get("/v1/workspaces/{ws}/pulse")
+    def pulse(request: Request, ws: str, user: User):
+        """The approved metrics' last complete month against the one before (only months: the history drops an
+        incomplete final month, which a quarter would not get)."""
+        return L(request).monitors.pulse(user, ws)
+
     @app.get("/v1/workspaces/{ws}/monitors")
     def monitors(request: Request, ws: str, user: User):
         return L(request).monitors.list(user, ws)

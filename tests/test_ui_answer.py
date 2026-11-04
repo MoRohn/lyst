@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""The answer component, rendered headlessly: four depths from one result, caveats always visible, and
+"""The answer component, rendered headlessly: three depths from one result, caveats always visible, and
 currency never turned into LaTeX."""
 
 import json
@@ -31,19 +31,21 @@ def _render(result, view=None):
 def test_views_change_depth_without_rerunning(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "Why did operating margin decline in Q4 2025?")["result"]  # wrong premise: a caveat
-    business = _render(r, "Business")
+    business = _render(r, "Summary")
     text = " ".join(m.value for m in business.markdown)
     assert "did not decline" in business.markdown[0].value
     assert any("assumed a decline" in w.value for w in business.warning)  # limitation visible at every depth
     assert "**Evidence**" in text and not business.dataframe[1:]  # tables stay hidden for business readers
-    engineer = _render(r, "Engineer")
+    engineer = _render(r, "Method")
     assert len(engineer.code) == len(r["supporting"]["queries"])  # every query, with its SQL
-    executive = _render(r, "Executive")
+    executive = _render({**r, "audience": "executive"}, "Summary")  # an executive asked: the brief leads
     assert "**Evidence**" not in " ".join(m.value for m in executive.markdown)
+    legacy = _render(r, "Engineer")  # a depth remembered under its old name still opens the same depth
+    assert len(legacy.code) == len(r["supporting"]["queries"])
 
 
 def test_currency_is_escaped(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "What was revenue in Q3 2026?")["result"]
-    at = _render(r, "Business")
+    at = _render(r, "Summary")
     assert "\\$25.41M" in at.markdown[0].value

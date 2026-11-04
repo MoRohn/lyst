@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Intelligence: what Lyst knows about this business. Definitions, documents and memory, each with provenance."""
+"""Brain: what Lyst knows about this business. Definitions, documents and memory, each with provenance."""
 
 import pandas as pd
 import streamlit as st
@@ -174,7 +174,7 @@ def memory() -> None:
 
 
 try:
-    kit.header("Intelligence", "What Lyst knows about this business, where it came from, and how much to trust it.")
+    kit.header("Brain", "What Lyst knows about this business, where it came from, and how much to trust it.")
     view = kit.sections(["Definitions", "Documents", "Memory"], key="view")
     {"Definitions": definitions, "Documents": documents, "Memory": memory}[view]()
 except APIError as e:

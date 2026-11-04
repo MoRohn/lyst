@@ -109,6 +109,40 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
                 st.switch_page(page, query_params=qp)
 
 
+def _pulse_data() -> list[dict]:
+    """Cached per person and workspace for five minutes: a query per metric is cheap once, not on every rerun."""
+    import time  # noqa: PLC0415
+
+    hit = st.session_state.get("_pulse")
+    if hit and hit[0] == ws and time.time() - hit[1] < 300:
+        return hit[2]
+    try:
+        data = api.get(f"/v1/workspaces/{ws}/pulse")
+    except APIError:
+        data = []
+    st.session_state["_pulse"] = (ws, time.time(), data)
+    return data
+
+
+def pulse() -> None:
+    """The business at a glance: each approved metric's last complete month against the one before. A tile opens
+    'why did it change?', so the status page leads straight into an explanation."""
+    tiles = _pulse_data()[:6]
+    if not tiles:
+        return
+    kit.label(f"This month at a glance · {tiles[0]['period']}")
+    cols = st.columns(3)
+    for i, t in enumerate(tiles):
+        with cols[i % 3].container(border=True):
+            st.metric(t["title"], t["value_text"], t["change_text"] + " vs prior month",
+                      delta_color="off" if t["good"] is None else ("normal" if t["good"] == (t["change"] > 0) else "inverse"),
+                      chart_data=t["history"], chart_type="line", border=False)
+            if st.button("Why?", key=f"pulse_{t['metric']}", type="tertiary", icon=":material/arrow_outward:",
+                         width="stretch"):
+                submit(f"Why did {kit.lower(t['title'])} change last month?")
+                st.rerun()
+
+
 def home() -> None:
     kit.header("What should Lyst work on?",
                "Ask in plain words. Lyst works it out from your approved numbers, checks every figure and shows why.")
@@ -119,6 +153,8 @@ def home() -> None:
     except APIError:
         metrics, datasets = [], []
     get_started(datasets, metrics)
+    if datasets:
+        pulse()
     if not datasets:
         if kit.empty(":material/database:", "Connect data to begin",
                      "Lyst answers from data you load or connect. Add a file or a database, and approved metrics on it "
@@ -312,7 +348,7 @@ def task_view(task: str) -> None:
             how_it_ran(task)
     elif t["result"]:
         r = t["result"]
-        answer(r, key=task)
+        answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
         act_bar(task, t, r)
         metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
         if metric:

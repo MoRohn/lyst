@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Data: what Lyst can read, where it comes from, and a place to query it. Adding data is one button."""
+"""Data: what Lyst reads and what it makes from it. Datasets and their sources, dashboards, saved analyses, SQL."""
 
 import re
 
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit
+from lyst.ui import kit, reports
 from lyst.ui.client import APIError, client, workspace
 
 api, ws = client(), workspace()
@@ -143,11 +143,10 @@ def datasets(catalog: list[dict]) -> None:
 
 def connections() -> None:
     conns = api.get(f"/v1/workspaces/{ws}/connections")
+    kit.label(f"Sources · {len(conns)}" if conns else "Sources")
     if not conns:
-        if kit.empty(":material/cable:", "No connections", "Connect PostgreSQL, SQLite, a REST API or a file at a URL. "
-                     "Lyst reads with least privilege and loads tables as governed, versioned datasets.",
-                     action="Connect a source" if editor else None, key="cn_empty"):
-            add_data()
+        st.caption("No database or service is connected. Add data › Connect a source links PostgreSQL, SQLite, a REST "
+                   "API or a file at a URL; Lyst reads with least privilege and loads tables as versioned datasets.")
         return
     for i, c in enumerate(conns):
         hit = kit.row(c["name"], f"{c['kind']} · tested {kit.when(c.get('last_tested_at')) or 'never'}"
@@ -158,6 +157,12 @@ def connections() -> None:
             kit.guarded(lambda x=c: api.post(f"/v1/workspaces/{ws}/connections/{x['id']}/test"), "Connection works")
         elif hit == "sync":
             sync(c)
+
+
+def dashboards_view() -> None:
+    if editor and st.button("New dashboard", icon=":material/dashboard_customize:", type="tertiary"):
+        reports.new_dashboard()
+    reports.dashboards()
 
 
 def sql(catalog: list[dict]) -> None:
@@ -179,10 +184,11 @@ def sql(catalog: list[dict]) -> None:
 
 try:
     catalog = api.get(f"/v1/workspaces/{ws}/datasets")
-    if kit.header("Data", "The data Lyst answers from, where it comes from, and (for analysts) a place to query it.",
-                  action="Add data" if editor else None, icon=":material/add:"):
+    if kit.header("Data", "The data Lyst answers from, the dashboards and saved analyses it makes, and a place to "
+                  "query it.", action="Add data" if editor else None, icon=":material/add:"):
         add_data()
-    view = kit.sections(["Datasets", "Connections", "SQL"], key="view")
-    {"Datasets": lambda: datasets(catalog), "Connections": connections, "SQL": lambda: sql(catalog)}[view]()
+    view = kit.sections(["Datasets", "Dashboards", "Saved analyses", "SQL"], key="view")
+    {"Datasets": lambda: (datasets(catalog), connections()), "Dashboards": dashboards_view,
+     "Saved analyses": reports.workflows, "SQL": lambda: sql(catalog)}[view]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit
+from lyst.ui import advanced, kit
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -455,5 +455,6 @@ def workspace_section() -> None:
     st.dataframe(df, hide_index=True, width="stretch", height=min(38 + 35 * len(df), 420))
 
 
-SECTIONS = ["Models"] + (["Connections"] if owner else []) + ["Workspace"]
-{"Models": models, "Connections": connections, "Workspace": workspace_section}[kit.sections(SECTIONS, key="view")]()
+SECTIONS = ["Models"] + (["Connections"] if owner else []) + ["Workspace", "Advanced"]
+{"Models": models, "Connections": connections, "Workspace": workspace_section,
+ "Advanced": advanced.skills}[kit.sections(SECTIONS, key="view")]()

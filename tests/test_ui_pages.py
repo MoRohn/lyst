@@ -15,8 +15,7 @@ PAGES = {
     "app_pages/analyst.py": "What should Lyst work on?",
     "app_pages/work.py": "Work",
     "app_pages/data.py": "Data",
-    "app_pages/intelligence.py": "Intelligence",
-    "app_pages/build.py": "Build",
+    "app_pages/brain.py": "Brain",
     "app_pages/settings.py": "Settings",
 }
 
