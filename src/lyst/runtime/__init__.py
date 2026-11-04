@@ -43,6 +43,15 @@ TERMINAL = {"done", "failed", "cancelled"}
 FAILURE_CLASSES = ("permission", "input", "data", "model", "transient")
 
 
+def short_title(question: str, limit: int = 120) -> str:
+    """A list title for a request: whole words, with an ellipsis when cut, never "…factors, te"."""
+    text = " ".join(question.split())
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1].rsplit(" ", 1)[0].rstrip(" ,;:.-")
+    return cut + "…"
+
+
 def classify_failure(exc: BaseException) -> str:
     """What kind of failure, which decides retrying and what the person is told."""
     from ..data.sqlguard import QueryRejected  # noqa: PLC0415
@@ -97,7 +106,7 @@ class TaskRuntime:
         self.db.execute(
             "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
             "budget_seconds, schedule_id) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)",
-            [tid, workspace_id, actor.user_id, kind, question[:120], json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
+            [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
              autonomy, max_steps, budget_seconds, schedule_id],
         )
         self.event(tid, "queued", "Task received")

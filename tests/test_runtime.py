@@ -75,3 +75,17 @@ def test_trend_and_forecast(seeded):
     assert t["status"] == "done" and r["charts"][0]["type"] == "forecast" and len(r["charts"][0]["y"]) == 6
     t = ask(lyst, owner, "Show the operating margin trend over time")
     assert t["result"]["charts"][0]["type"] == "line"
+
+
+def test_long_requests_get_a_whole_word_title_and_keep_the_full_question(seeded):
+    from lyst.runtime import short_title
+
+    lyst, owner = seeded
+    q = ("Investigate our declining operating margins across the last six quarters, isolate the strongest contributing "
+         "factors, test alternative explanations, and prepare an executive briefing.")
+    t = short_title(q)
+    assert len(t) <= 120 and t.endswith("…") and not t.endswith("te…") and q.startswith(t[:-1])
+    assert short_title("What was revenue last quarter?") == "What was revenue last quarter?"
+    tid = lyst.runtime.submit(owner, "northwind", q)
+    task = lyst.runtime.get(owner, tid)
+    assert task["title"] == t and task["request"]["question"] == q
