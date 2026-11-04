@@ -19,9 +19,9 @@ from .contracts import ContractService
 from .costs import CostService
 from .data import DataService
 from .deliverables import ArtifactService
-from .ingest import IngestService
 from .evidence import EvidenceService
 from .governance import GovernanceService
+from .ingest import IngestService
 from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
