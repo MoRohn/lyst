@@ -86,7 +86,7 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Governed extracts'],
+    items: ['Interactive Dash dashboards', 'Verified derived datasets', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
     status: 'available',
   },
   {
@@ -220,7 +220,7 @@ export const footer = {
  * ("180+") for counts that only grow, so the line stays true between updates.
  */
 export const proof = [
-  { value: '230+', label: 'automated tests, run on every change' },
+  { value: '350+', label: 'automated tests, run on every change' },
   { value: '5', label: 'data connectors' },
   { value: 'Every', label: 'finding ships with its evidence' },
   { value: 'AGPL-3.0', label: 'open source, self-hosted' },
