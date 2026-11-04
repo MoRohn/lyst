@@ -43,7 +43,7 @@
 | Identity | OIDC sign-in (code flow + PKCE, JWKS verification, domain allow-list, expiring sessions, logout), member management | Tested against a stub provider | `test_auth.py` |
 | Ops | JSON logs with request and task ids, Prometheus `/metrics`, `/health` | Tested | `test_auth.py::test_metrics_and_request_ids` |
 | Ops | Dockerfile and Compose (non-root, read-only, no capabilities) | Written, not yet run (no Docker on the dev machine) | `docker-compose.yml` |
-| Connectors | Connector SDK with manifests; PostgreSQL (read-only transactions, discovery, full then incremental sync by cursor, scheduled syncs) and a confined files connector; secrets never returned | Tested (PostgreSQL against a local server) | `test_connectors.py`, `docs/CONNECTORS.md` |
+| Connectors | Connector SDK with manifests; PostgreSQL (read-only transactions, discovery, full then incremental sync by cursor, scheduled syncs), SQLite, REST JSON lists, files at a URL (`http_file`: CSV/TSV/Parquet/JSON, incremental by cursor) and a confined files connector; connection secrets sealed by the credential service and rotated in place; secrets never returned | Tested (PostgreSQL against a local server) | `test_connectors.py`, `docs/CONNECTORS.md` |
 | Connectors | SQLite (read-only file, incremental) and REST JSON-list (pagination, auth header, since parameter, host allow-list) | Tested | `test_connectors.py` |
 | Connectors | MySQL, SQL Server, warehouses, GraphQL, SaaS-specific adapters | Planned; no server here to test against | — |
 | Knowledge | Entities and relations in DuckDB, automatic lineage metric → dataset → column and analysis → artifact, lineage walks | Tested | `test_knowledge.py` |
