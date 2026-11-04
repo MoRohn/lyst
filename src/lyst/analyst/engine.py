@@ -47,6 +47,7 @@ class Services:
     runtime: Any = None  # runtime.TaskRuntime (for approvals raised by capabilities)
     studio: Any = None  # studio.StudioService
     connections: Any = None  # connectors.ConnectionService
+    workflows: Any = None  # workflows.WorkflowService
 
 
 # ------------------------------------------------------------------------------- helpers
@@ -146,6 +147,9 @@ def rule_intent(text: str) -> str:
 def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     text: str = args["question"]
     s = ctx.services
+    compiled = _compiled_understanding(ctx, text)
+    if compiled:
+        return compiled
     resolved = s.semantic.resolve(ctx.actor, ctx.workspace_id, text)
     intent = rule_intent(text)
     by = None
@@ -236,6 +240,25 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "refresh_every": studio_mod.refresh_interval(text)}
 
 
+def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
+    """A request that names a workflow, or whose wording matches a verified one, skips re-reading: no model
+    classification and no member scans. A named workflow that is stale or out of role fails here, loudly."""
+    wfs = ctx.services.workflows
+    if not wfs:
+        return None
+    ref = ctx.request.get("workflow")
+    if not ref and ctx.services.skills and ctx.services.skills.match(ctx.actor, ctx.workspace_id, text):
+        return None  # a capability registered since the workflow was compiled now fits better: plan afresh
+    wf = wfs.for_run(ctx.actor, ctx.workspace_id, ref) if ref else wfs.match(ctx.actor, ctx.workspace_id, text)
+    if not wf:
+        return None
+    u = dict(wf["definition"]["understanding"])
+    u.update(question=text, method="workflow", ambiguous={}, skill=None, sql=None, gap=None, impact=None,
+             refresh_dashboard=None, sync=None, refresh_every=None,
+             workflow={"id": wf["id"], "version": wf["version"], "title": wf["title"], "verified_runs": wf["verified_runs"]})
+    return u
+
+
 # ------------------------------------------------------------------- 2. contextualize
 
 
@@ -269,7 +292,8 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     passages, prior = [], []
     if s.knowledge:
         try:
-            passages = s.knowledge.search(ctx.actor, ctx.workspace_id, u["question"], limit=3)
+            # a compiled workflow pins its metric versions; documents were consulted when it was verified
+            passages = [] if u.get("workflow") else s.knowledge.search(ctx.actor, ctx.workspace_id, u["question"], limit=3)
             prior = s.knowledge.prior_answers(ctx.actor, ctx.workspace_id, u["question"])
         except Exception:  # noqa: BLE001 - knowledge is advisory; the analysis must not fail on it
             passages, prior = [], []
@@ -285,6 +309,8 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             description="Choose the capabilities, their order and the checks that will verify them.")
 def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     u, c = ctx.outputs["understand"], ctx.outputs["contextualize"]
+    if u.get("workflow"):
+        return _compiled_plan(ctx, u, c)
     steps: list[dict[str, Any]] = []
     blockers: list[str] = []
 
@@ -380,9 +406,29 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         cap = ctx.services.registry.get(s["capability"])
         s["agent"], s["phase"] = cap.agent, cap.phase
     return {"steps": steps, "blockers": blockers, "depth": u.get("depth", "analytical"), "verification": intensity,
+            "strategy": "planned",
             "success_criteria": ["every number comes from an executed query", "all validation checks pass",
                                  "the answer follows Answer, Evidence, Implications, Actions"]
             + (["each hypothesis has a computed verdict"] if u.get("depth") == "deep" else [])}
+
+
+def _compiled_plan(ctx: Context, u: dict[str, Any], c: dict[str, Any]) -> dict[str, Any]:
+    ref = u["workflow"]
+    wf = ctx.services.workflows.get(ctx.actor, ctx.workspace_id, ref["id"], ref["version"])
+    p = c.get("period")
+    want = (wf["definition"]["inputs"].get("period") or {}).get("grain")
+    if want and (not p or p["grain"] != want):
+        raise ValueError(f"workflow {wf['id']} takes a {want}; this request "
+                         + (f"names a {p['grain']} ({p['label']})" if p else "names no period"))
+    prior = _prev_period(p) if p else None
+    ya = _year_ago(p) if p else None
+    steps = ctx.services.workflows.plan_steps(wf, p, prior, ya)
+    for st_ in steps:
+        cap = ctx.services.registry.get(st_["capability"])
+        st_["agent"], st_["phase"] = cap.agent, cap.phase
+    d = wf["definition"]
+    return {"steps": steps, "blockers": [], "depth": d.get("depth"), "verification": d["validation"]["intensity"],
+            "strategy": "compiled", "workflow": ref, "success_criteria": d.get("success_criteria", [])}
 
 
 def _prev_period(p: dict[str, Any]) -> dict[str, Any]:
@@ -1289,6 +1335,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "assumptions": assumptions,
             "plan": [{"capability": s["capability"], "agent": s["agent"]} for s in pl["steps"]],
             "narrative_by": narrative_by,
+            "workflow": {"used": u.get("workflow"), "strategy": pl.get("strategy", "planned"), "compiled": None},
             "reproduce": "Re-run each query in Supporting work against the dataset versions listed; the metric "
                          "definition version is pinned above.",
         },
@@ -1333,9 +1380,28 @@ def learn(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         metric = ((d.get("supporting") or {}).get("metric") or {}).get("spec", {}).get("name")
         ctx.services.knowledge.record_analysis(ctx.actor, ctx.workspace_id, aid, d["question"], metric,
                                                (d.get("supporting") or {}).get("sources", []))
+    wf_out = _workflow_learn(ctx, d)
     mem = None
     if d["status"] == "complete" and ctx.services.guard.can(ctx.actor, ctx.workspace_id, "memory.write"):
         mem = ctx.services.memory.remember(
             ctx.actor, ctx.workspace_id, "episodic", f"Q: {d['question']} A: {d['answer']}",
             provenance={"analysis_id": aid, "task_id": ctx.task_id}, trust="observed")
-    return {"analysis_id": aid, "memory_id": mem}
+    return {"analysis_id": aid, "memory_id": mem, "workflow": wf_out}
+
+
+def _workflow_learn(ctx: Context, d: dict[str, Any]) -> dict[str, Any] | None:
+    """Count a compiled run, or compile a verified planned one. The result shows which happened."""
+    wfs = ctx.services.workflows
+    if not wfs:
+        return None
+    o = ctx.outputs
+    u = o["understand"]
+    verified = d.get("status") == "complete" and (d.get("confidence") or {}).get("level") == "verified"
+    if u.get("workflow"):
+        wfs.record_run(ctx.workspace_id, u["workflow"]["id"], u["workflow"]["version"], verified=verified)
+    out = wfs.compile(ctx.actor, ctx.workspace_id, ctx.task_id, u, o["contextualize"], o["plan"], d,
+                      (o.get("validate") or {}).get("checks", []))
+    sup = d.get("supporting") or {}
+    if sup.get("workflow") is not None:
+        sup["workflow"]["compiled"] = out
+    return out

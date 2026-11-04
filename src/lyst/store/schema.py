@@ -529,6 +529,34 @@ WORKSPACE: list[Migration] = [
         )
         """,
     ),
+    (
+        6,
+        """
+        CREATE TABLE workflows (
+            id VARCHAR NOT NULL,
+            version INTEGER NOT NULL,
+            signature VARCHAR NOT NULL,
+            title VARCHAR NOT NULL,
+            intent VARCHAR NOT NULL,
+            definition JSON NOT NULL,
+            deps JSON NOT NULL,
+            permissions JSON NOT NULL,
+            patterns VARCHAR[] NOT NULL,
+            status VARCHAR NOT NULL,
+            invalid_reason VARCHAR,
+            source_task VARCHAR,
+            last_verified_task VARCHAR,
+            verified_runs INTEGER NOT NULL DEFAULT 0,
+            runs INTEGER NOT NULL DEFAULT 0,
+            failed_verifications INTEGER NOT NULL DEFAULT 0,
+            created_by VARCHAR NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            last_verified_at TIMESTAMPTZ,
+            last_used_at TIMESTAMPTZ,
+            PRIMARY KEY (id, version)
+        )
+        """,
+    ),
 ]
 
 WORKSPACE.append((

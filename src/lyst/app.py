@@ -24,6 +24,7 @@ from .semantic import SemanticService
 from .skills import SkillService
 from .store import Stores
 from .studio import StudioService
+from .workflows import WorkflowService
 
 
 @dataclass
@@ -66,6 +67,7 @@ class Lyst:
         memory = MemoryService(stores, guard, llm)
         skills = SkillService(stores, guard, data)
         services = Services(guard, data, semantic, memory, llm, REGISTRY, skills, knowledge)
+        services.workflows = WorkflowService(stores, guard, data, semantic, REGISTRY)
         runtime = TaskRuntime(stores, services, **runtime_kw)
         artifacts = ArtifactService(stores, guard, settings.home, knowledge)
         monitors = MonitorService(stores, guard, data, semantic, runtime)
