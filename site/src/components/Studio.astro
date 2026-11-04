@@ -13,6 +13,8 @@ import sourcesLight from '../assets/product/sources-light.png';
 import sourcesDark from '../assets/product/sources-dark.png';
 import healthLight from '../assets/product/health-light.png';
 import healthDark from '../assets/product/health-dark.png';
+import needsLight from '../assets/product/needsyou-light.png';
+import needsDark from '../assets/product/needsyou-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -72,6 +74,17 @@ const views: View[] = [
     callouts: [
       { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '56%', y: '54%' },
       { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '19%', y: '67.5%' },
+    ],
+  },
+  {
+    id: 'team',
+    tab: 'Needs you',
+    img: needsLight,
+    dark: needsDark,
+    alt: 'Lyst Work › Needs you: an answer assigned by Sam Ortiz, “Check the EMEA cost lines before Friday’s board pack”, due 2026-11-06, and a review waiting, “Confirm the EMEA driver before this goes to the board”, with Approve and Reject.',
+    callouts: [
+      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '52%', y: '41%' },
+      { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '27%', y: '79%' },
     ],
   },
   {

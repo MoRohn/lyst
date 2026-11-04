@@ -93,7 +93,7 @@ export const capabilities: {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work that runs on its own schedule.',
-    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Scheduled dashboard refresh'],
+    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Calendar schedules', 'Fair queueing and quotas'],
     status: 'available',
   },
   {
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, a connected source, an analysis that knows it is out of date, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, a connected source, an analysis that knows it is out of date, work waiting on a teammate, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
