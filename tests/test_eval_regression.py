@@ -145,3 +145,12 @@ def test_model_registry_shows_capabilities_and_measured_performance(seeded):
     row = next(m for m in r["models"] if m["model"] == "x/local-model")
     assert row["measured"][0]["workload"] == "classify" and row["measured"][0]["success_rate"] == 0.8
     assert r["policy"]["allow_external_llm"] is False
+
+
+def test_compare_accepts_a_baseline_shaped_run():
+    row = {"case": "c1", "passed": True, "seconds": 0.2, "steps": 8, "queries": 6, "model_calls": 0, "tokens": 0,
+           "checks": [{"name": "value", "passed": True, "detail": ""}]}
+    base = evals.baseline_of({"results": [row]})
+    worse = evals.baseline_of({"results": [{**row, "passed": False, "checks": [{"name": "value", "passed": False, "detail": ""}]}]})
+    assert evals.compare(base, base)["ok"]
+    assert evals.compare(worse, base)["regressions"][0]["check"] == "value"

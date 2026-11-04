@@ -177,6 +177,11 @@ def compare(summary: dict[str, Any], baseline: dict[str, Any], *, latency_factor
     Resources: steps, queries, model calls or tokens above baseline x factor and baseline + floor."""
     regressions, improvements = [], []
     base_cases = baseline.get("cases", {})
+    if "results" not in summary and "cases" in summary:  # a baseline-shaped run (as the experiment registry stores them)
+        summary = {"results": [{"case": k, **{f: v.get(f, 0) for f in ("seconds", "steps", "queries", "model_calls", "tokens")},
+                                "passed": v.get("passed"),
+                                "checks": [{"name": n, "passed": ok, "detail": ""} for n, ok in v.get("checks", {}).items()]}
+                               for k, v in summary["cases"].items()]}
     for r in summary["results"]:
         b = base_cases.get(r["case"])
         if b is None:

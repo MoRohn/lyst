@@ -271,11 +271,13 @@ where they point, with Mark all read and "What to tell me about".
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
-* **Guards its own quality.** Every change runs the evaluation bank against a checked-in baseline in CI, and a
-  check that stopped passing, a much slower case, heavier resource use or a missing case fails the run. Runs
-  report completion, correctness, evidence and efficiency by category. Model routing is measured: a model whose
-  recent calls for a kind of work mostly failed moves behind the healthy ones in its level (never promoted, and a
-  pinned model is never reordered), and a model registry shows prices, context and measured performance.
+* **Guards its own quality.** Every pull request runs Lyst's evaluation suite (21 real questions with
+  independently computed answers, including what-if and adversarial cases) against a recorded baseline. A change
+  that makes an answer wrong, slower, or more expensive in queries, steps, model calls or tokens fails the build,
+  and a planted-defect test proves the gate catches it. Runs report quality by dimension (completion, correctness,
+  evidence, efficiency) and by category. Model routing learns from Lyst's own call records: a model that keeps
+  failing a kind of work moves behind healthy ones (pinned models are never reordered), and a model registry shows
+  each model's context, prices and reasoning settings beside its measured performance.
 * **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
   drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
   name a winner only when the difference is statistically significant, and otherwise recommend the simplest
@@ -306,19 +308,22 @@ where they point, with Mark all read and "What to tell me about".
   bypasses approvals. After an answer, Lyst also offers up to three next steps grounded in what it found (look
   inside the main driver, watch a metric that moved, make a repeated question recurring, extend a review into a
   forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. On
-  watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained
-  trend, forecast drift, projected breach), investigates it first, and surfaces a verified warning in Work ›
-  Needs you with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Work ›
-  Recurring (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for
-  items that need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and
-  **Working ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The
-  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback. From
-  metadata it already records, without contacting any source, Lyst also sees trouble coming: credentials about to
-  expire or past their age limit (with the runs and reports they feed), connections with rising failures or
-  latency, and upstream schema changes that would break approved metrics, with a corrected definition tested and
-  filed for an admin's approval. Each person sets how much to hear (a daily cap, a minimum score, quiet hours in
-  their own time zone, muted kinds, or opting out), and the same subject is never repeated within a day
-  ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
+  watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained trend,
+  forecast drift, projected breach), investigates it first, and surfaces a verified warning in Work › Needs you
+  with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Work › Recurring
+  (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for items that
+  need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and **Working
+  ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The **Why**
+  dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback. From metadata it
+  already records, without contacting any source, Lyst also warns before integrations and data changes break work:
+  a credential nearing its recorded expiry or past rotation age, with the scheduled runs and reports it feeds and
+  a one-click link to renew it in Settings (the secret is never shown); connections failing intermittently,
+  hitting rate limits, slowing down or refused sign-in; and a new dataset version that removes or retypes a column
+  approved metrics use, with every schedule and asset at risk and a corrected definition drafted, run on the new
+  data and filed for an admin's approval. Nothing changes silently, and warnings close themselves once fixed. Each
+  person controls their own attention (quiet hours in their own time zone, a daily cap, muted kinds, a minimum
+  relevance, or opting out); Lyst never tells anyone twice about the same thing in a day, and sends the most
+  valuable item first ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -437,7 +442,7 @@ Prefix each with `uv run` in a checkout. Ports move with `LYST_PORT` and `LYST_U
 
 ```bash
 uv run pytest                        # the full suite; the PostgreSQL connector test uses a local server
-uv run lyst eval                     # 19 analytical questions scored against independently computed answers
+uv run lyst eval --baseline docs/quality/eval-baseline.json   # 21 questions scored against independent answers and the baseline
 uv run ruff check src tests scripts  # lint
 uv run python scripts/licenses.py    # regenerate docs/SBOM.md and fail on a disallowed license
 ```

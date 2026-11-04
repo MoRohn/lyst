@@ -24,3 +24,9 @@ def attach(lyst) -> None:
     # -- other lanes
     if getattr(lyst, "anticipation", None) is not None:  # anticipation looks again soon after relevant events
         lyst.events.subscribers.append(lyst.anticipation.on_event)
+    from . import events as _events
+    from .voice import VoiceService
+
+    lyst.voice = VoiceService(lyst.stores, lyst.guard, runtime=lyst.runtime, llm=lyst.llm, governance=lyst.governance)
+    lyst.runtime.periodic.append(lyst.voice.prune_all)  # transcript and audio retention, idle sessions closed
+    _events.CATALOG.update({"voice.settings": ("voice.settings_changed", "workspace")})
