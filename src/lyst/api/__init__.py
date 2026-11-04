@@ -305,6 +305,12 @@ class DesignIn(BaseModel):
     request: str
 
 
+class AuthorityIn(BaseModel):
+    level: str | None = None
+    subject: str = ""
+    note: str = ""
+
+
 class EntityIn(BaseModel):
     kind: str
     name: str
@@ -819,6 +825,14 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.post("/v1/workspaces/{ws}/metrics/{name}/deprecate")
     def deprecate_metric(request: Request, ws: str, name: str, body: DeprecateIn, user: User):
         return L(request).semantic.deprecate(user, ws, name, replaced_by=body.replaced_by, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/source-authority")
+    def source_authority(request: Request, ws: str, user: User):
+        return L(request).semantic.authority(user, ws)
+
+    @app.put("/v1/workspaces/{ws}/datasets/{name}/authority")
+    def set_source_authority(request: Request, ws: str, name: str, body: AuthorityIn, user: User):
+        return L(request).semantic.set_authority(user, ws, name, body.level, subject=body.subject, note=body.note)
 
     @app.get("/v1/workspaces/{ws}/semantic/audit")
     def semantic_audit(request: Request, ws: str, user: User):

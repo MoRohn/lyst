@@ -1102,3 +1102,18 @@ WORKSPACE.append((
     ALTER TABLE query_history ADD COLUMN datasets JSON
     """,
 ))
+
+# Source precedence: which dataset is the authoritative source for a subject, and which are secondary copies.
+WORKSPACE.append((
+    13,
+    """
+    CREATE TABLE source_authority (
+        dataset VARCHAR PRIMARY KEY,
+        level VARCHAR NOT NULL,
+        subject VARCHAR,
+        note VARCHAR,
+        set_by VARCHAR NOT NULL,
+        set_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
