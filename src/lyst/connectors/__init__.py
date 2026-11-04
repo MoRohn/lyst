@@ -124,6 +124,29 @@ class SyncResult:
 class ConnectionService:
     def __init__(self, stores: Stores, guard: Guard, data, credentials=None) -> None:
         self.stores, self.guard, self.data, self.credentials = stores, guard, data, credentials
+        if credentials is not None:
+            credentials.connector_rotate = self._rotate_secret
+
+    def _rotate_secret(self, credential_id: str, kind: str, new_value: str) -> tuple[dict[str, str], dict[str, Any]]:
+        """Replace the one secret field of the connection that uses `credential_id`, test the connector with it, and
+        return the new payload. Called by the credential service's Replace, so Settings can rotate a password in place."""
+        row = self.stores.control.query("SELECT id, workspace_id, config FROM connections WHERE credential_id = ?", [credential_id])
+        if not row:
+            raise ValueError("no connection uses this credential any more")
+        cls = CONNECTORS.get(kind)
+        if not cls:
+            raise ValueError(f"unknown connector kind {kind}")
+        secret_fields = [f.name for f in cls.manifest.fields if f.secret]
+        if len(secret_fields) != 1:
+            raise ValueError("this connection has more than one secret field; recreate it on the Data page")
+        current = self.credentials.connector_secrets(credential_id, workspace=row[0]["workspace_id"])
+        payload = {**current, secret_fields[0]: new_value}
+        try:
+            result = self._connector(kind, json.loads(row[0]["config"]), payload).test()
+        except Exception as exc:  # noqa: BLE001 - the connector says why; never the value
+            return payload, {"ok": False, "outcome": f"connection test failed: {str(exc)[:160]}"}
+        self.stores.control.execute("UPDATE connections SET status = 'ok', last_tested_at = now(), last_error = NULL WHERE id = ?", [row[0]["id"]])
+        return payload, {"ok": True, "outcome": "connection tested", **({"detail": result} if isinstance(result, dict) else {})}
 
     @staticmethod
     def _split(kind: str, values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
@@ -176,7 +199,12 @@ class ConnectionService:
         if not rows:
             raise KeyError(cid)
         row = rows[0]
-        secrets = self._resolve_secrets(ws, row.get("credential_id"), json.loads(row["secrets"]))
+        try:
+            secrets = self._resolve_secrets(ws, row.get("credential_id"), json.loads(row["secrets"]))
+        except Exception as exc:  # a revoked or unreadable credential: the connection is in error, with a plain reason
+            reason = f"credential unavailable: {str(exc)[:200]}"
+            self.stores.control.execute("UPDATE connections SET status = 'error', last_tested_at = now(), last_error = ? WHERE id = ?", [reason, cid])
+            raise ConnectorError(reason) from exc
         return row, self._connector(row["kind"], json.loads(row["config"]), secrets)
 
     def list(self, actor: Principal, ws: str) -> list[dict[str, Any]]:

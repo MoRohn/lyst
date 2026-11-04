@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from .config import load_settings
+from .secrets.masterkey import MasterKeyMissing
 
 
 def _write_token(home: Path, token: str, name: str = "dev-token") -> Path:
@@ -70,7 +71,7 @@ def issue_token(email: str, name: str | None, hours: int | None, owner_of: str |
         lyst.close()
 
 
-def init_cmd(recovery: bool, show: bool) -> None:
+def init_cmd(recovery: bool, quiet: bool) -> None:
     """Initialise encryption on this machine: generate the master key into the OS credential store (the browser's
     setup page does the same). ``--recovery`` restores a saved key instead; ``--show`` prints the recovery copy."""
     import getpass
@@ -90,12 +91,12 @@ def init_cmd(recovery: bool, show: bool) -> None:
         sys.exit("This machine has no usable OS credential store. For an unattended deployment mount the key at "
                  "$LYST_SECRETS_DIR/LYST_MASTER_KEY, serve it from OpenBao (LYST_OPENBAO_URL) or inject LYST_MASTER_KEY.")
     mk = masterkey.provision_into_keyring()
-    print(f"Generated a master key and stored it in the {masterkey.keyring_available()} credential store (service 'lyst').")
-    if show:
-        print("Recovery copy (keep it offline; Lyst never stores it):", file=sys.stderr)
-        print(mk.key.hex())
+    print(f"Generated a master key and stored it in the {masterkey.keyring_available()} credential store (service 'lyst').", file=sys.stderr)
+    if quiet:
+        print("Recovery copy not shown (--quiet): export it from the credential store and keep it offline.", file=sys.stderr)
     else:
-        print("Run `lyst init --show` was not used: to keep a recovery copy, export it from the credential store now.", file=sys.stderr)
+        print("Recovery copy, shown once; keep it offline (Lyst never stores it):", file=sys.stderr)
+        print(mk.key.hex())
 
 
 def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = True, yes: bool = False) -> str:
@@ -260,7 +261,7 @@ def main(argv: list[str] | None = None) -> None:
     tk.add_argument("--owner-of", default=None, help="also create this workspace with the user as owner")
     ini = sub.add_parser("init", help="initialise encryption: generate the master key into the OS credential store")
     ini.add_argument("--recovery", action="store_true", help="restore a saved master key instead of generating one")
-    ini.add_argument("--show", action="store_true", help="print the recovery copy once")
+    ini.add_argument("--quiet", action="store_true", help="do not print the recovery copy")
     rk = sub.add_parser("rotate-master-key", help="re-key every database and re-wrap every secret under a new master key (engine stopped)")
     rk.add_argument("--yes", action="store_true")
     bk = sub.add_parser("backup", help="consistent, encrypted backup of every database plus artifacts and dashboards")
@@ -274,6 +275,13 @@ def main(argv: list[str] | None = None) -> None:
     ev = sub.add_parser("eval", help="run the demo evaluation bank against a fresh demo workspace")
     ev.add_argument("--label", default="")
     args = p.parse_args(argv)
+    try:
+        _dispatch(args)
+    except MasterKeyMissing as exc:
+        sys.exit(f"{exc}\nRun `lyst init` on this machine (or open the interface here) to initialise encryption first.")
+
+
+def _dispatch(args) -> None:
     if args.cmd == "init-demo":
         init_demo()
     elif args.cmd == "serve":
@@ -283,7 +291,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.cmd == "token":
         issue_token(args.email, args.name, args.hours, args.owner_of)
     elif args.cmd == "init":
-        init_cmd(args.recovery, args.show)
+        init_cmd(args.recovery, args.quiet)
     elif args.cmd == "rotate-master-key":
         rotate_master_key(yes=args.yes)
     elif args.cmd == "backup":

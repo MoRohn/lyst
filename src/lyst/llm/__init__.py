@@ -57,12 +57,28 @@ class LLMClient:
                                    api_key=self._key_for, http=httpx.Client(transport=transport), on_call=self._record)
 
     # -- keys come from the credential broker at call time, so a key connected in Settings works without a restart
+    def _owner_of(self, task_id: str | None) -> str | None:
+        """The user a task runs for, so a personal credential (where policy allows one) applies to their own work."""
+        if not task_id:
+            return None
+        cache = getattr(self, "_owners", None)
+        if cache is None:
+            cache = self._owners = {}
+        if task_id not in cache:
+            cache[task_id] = self.stores.control.scalar("SELECT created_by FROM tasks WHERE id = ?", [task_id])
+            if len(cache) > 512:
+                cache.pop(next(iter(cache)))
+        return cache[task_id]
+
+    def _current_user(self) -> str | None:
+        return getattr(self._local, "user_id", None) or obs.user_id.get()
+
     def _key_for(self, tenant: str | None = None) -> str | None:
         ws = None if tenant in (None, "platform") else tenant
         if self.credentials is None:
             return self.settings.api_key
         provider = "openrouter" if self.settings.provider == "openrouter" else "local_llm"
-        got = self.credentials.use(provider, purpose="inference", workspace=ws, consumer="gateway")
+        got = self.credentials.use(provider, purpose="inference", workspace=ws, user=self._current_user(), consumer="gateway")
         if got:
             return got[0]
         return None if provider == "openrouter" else self.settings.api_key
@@ -79,7 +95,7 @@ class LLMClient:
         if self.settings.provider == "openrouter":
             if self.credentials is None:
                 return bool(self.settings.api_key)
-            return self.credentials.resolve("openrouter", workspace=workspace_id) is not None
+            return self.credentials.resolve("openrouter", workspace=workspace_id, user=self._current_user()) is not None
         return True
 
     @property
@@ -125,11 +141,12 @@ class LLMClient:
     def chat(self, workspace_id: str, messages: list[dict[str, str]], *, purpose: str, task_id: str | None = None,
              json_mode: bool = False, max_tokens: int | None = None, workload: str = "chat",
              pool: str | None = None) -> str:
+        self._local.task_id, self._local.purpose = task_id, purpose  # read by _record on this thread
+        self._local.user_id = self._owner_of(task_id)
         if not self.allowed_for(workspace_id):
             raise LLMUnavailable("no model is allowed for this workspace")
         if self.settings.external:
             messages = [{**m, "content": redact(m["content"])} for m in messages]
-        self._local.task_id, self._local.purpose = task_id, purpose  # read by _record on this thread
         try:
             with obs.tracer().start_as_current_span("model.call") as span:
                 span.set_attribute("lyst.workload", workload)

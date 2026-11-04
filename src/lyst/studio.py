@@ -305,6 +305,8 @@ class StudioService:
         if not row:
             raise KeyError(dashboard_id)
         d = row[0]
+        if d["status"] == "retired":
+            raise ValueError("this dashboard is retired; build a new one instead of refreshing it")
         design = json.loads(d["design"])
         folder = Path(d["path"])
         staging = folder.parent / (folder.name + ".staging")
@@ -330,12 +332,25 @@ class StudioService:
         self.guard.audit(actor, ws, "dashboard.refresh", dashboard_id, "ok" if ok else "failed")
         return {"dashboard_id": dashboard_id, "status": "published" if ok else "stale", "checks": checks}
 
+    def retire(self, actor: Principal, ws: str, dashboard_id: str) -> dict[str, Any]:
+        """Stop refreshing and hide a dashboard. Its folder stays (the bundle can still be downloaded); its refresh
+        schedule is disabled; a refresh request for it is refused."""
+        self.guard.require(actor, ws, "task.control", dashboard_id)
+        row = self._db(ws).query("SELECT id, status, schedule_id FROM dashboards WHERE id = ?", [dashboard_id])
+        if not row:
+            raise KeyError(dashboard_id)
+        if row[0]["schedule_id"]:
+            self.stores.control.execute("UPDATE schedules SET enabled = false WHERE id = ?", [row[0]["schedule_id"]])
+        self._db(ws).execute("UPDATE dashboards SET status = 'retired' WHERE id = ?", [dashboard_id])
+        self.guard.audit(actor, ws, "dashboard.retire", dashboard_id, "ok")
+        return {"dashboard_id": dashboard_id, "status": "retired"}
+
     # -- reading ----------------------------------------------------------------------------
 
-    def list(self, actor: Principal, ws: str) -> list[dict[str, Any]]:
+    def list(self, actor: Principal, ws: str, *, include_retired: bool = False) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.read")
         rows = self._db(ws).query("SELECT id, title, status, created_by, created_at, last_refresh_at, refresh_count, schedule_id, checks "
-                                  "FROM dashboards ORDER BY created_at DESC")
+                                  "FROM dashboards " + ("" if include_retired else "WHERE status <> 'retired' ") + "ORDER BY created_at DESC")
         for r in rows:
             r["checks"] = json.loads(r["checks"]) if r["checks"] else []
         return rows

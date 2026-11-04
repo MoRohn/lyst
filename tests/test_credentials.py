@@ -313,8 +313,11 @@ def test_connections_keep_their_secrets_in_the_service_and_bound_to_the_workspac
     lyst.stores.control.execute("INSERT INTO connections (id, workspace_id, kind, name, config, secrets, status, created_by, credential_id) "
                                 "VALUES ('c_forged', 'acme', 'fake', 'f', '{\"url\": \"https://x\"}', '{}', 'ok', ?, ?)",
                                 [other.user_id, conn["credential_id"]])
-    with pytest.raises(SecretUnavailable, match="another workspace"):
+    from lyst.connectors import ConnectorError
+
+    with pytest.raises(ConnectorError, match="another workspace"):
         lyst.connections._load(other, "acme", "c_forged")
+    assert lyst.stores.control.scalar("SELECT status FROM connections WHERE id = 'c_forged'") == "error"
     lyst.connections.delete(owner, "northwind", conn["id"])
     assert lyst.stores.control.scalar("SELECT status FROM credentials WHERE id = ?", [conn["credential_id"]]) == "revoked"
     assert lyst.stores.control.scalar("SELECT count(*) FROM secret_blobs") == 0

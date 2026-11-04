@@ -22,6 +22,7 @@ from pythonjsonlogger.json import JsonFormatter
 
 request_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("request_id", default=None)
 task_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("task_id", default=None)
+user_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("user_id", default=None)  # the person a task runs for
 
 
 class _ContextFilter(logging.Filter):
@@ -56,6 +57,7 @@ HTTP_LATENCY = Histogram("lyst_http_request_seconds", "HTTP request latency", ["
 TASKS = Counter("lyst_tasks_total", "Tasks by final status", ["status"], registry=REGISTRY)
 STEP_SECONDS = Histogram("lyst_step_seconds", "Capability step duration", ["capability"], registry=REGISTRY,
                          buckets=(0.01, 0.05, 0.1, 0.5, 1, 2.5, 5, 15, 60))
+AUDIT_CHAIN = Gauge("lyst_credential_audit_chain_intact", "1 when the credential audit chain verified at startup", registry=REGISTRY)
 MODEL_CALLS = Counter("lyst_model_calls_total", "Upstream model calls", ["outcome", "pool"], registry=REGISTRY)
 MODEL_COST = Counter("lyst_model_cost_usd_total", "Model spend in USD", registry=REGISTRY)
 QUEUE_DEPTH = Gauge("lyst_tasks_queued", "Tasks waiting for a worker", registry=REGISTRY)

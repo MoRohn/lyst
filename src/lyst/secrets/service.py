@@ -68,6 +68,8 @@ class CredentialService:
         self._decisions: dict[tuple[str, str], float] = {}
         self._lock = threading.Lock()
         self.redactor = Redactor()
+        # set by ConnectionService: (credential_id, kind, new_secret) -> (payload dict, test result); re-tests through the connector
+        self.connector_rotate = None
 
     # ------------------------------------------------------------------ installation admins
 
@@ -163,7 +165,14 @@ class CredentialService:
         secret = (secret or "").strip()
         if len(secret) < 8:
             raise ValueError("the secret is too short to be real")
-        test = prov.test_credential(c["provider"], secret, merged, http=self.http) if c["provider"] != "custom" else {"ok": True, "outcome": "not tested"}
+        if c["provider"].startswith("connector:"):
+            # a connection's secret: keep the payload shape (one JSON object of secret fields) and re-test through the connector
+            if self.connector_rotate is None:
+                raise ValueError("connection secrets are rotated through the connections service")
+            payload, test = self.connector_rotate(credential_id, c["provider"][len("connector:"):], secret)
+            secret = json.dumps(payload)
+        else:
+            test = prov.test_credential(c["provider"], secret, merged, http=self.http) if c["provider"] != "custom" else {"ok": True, "outcome": "not tested"}
         if not test["ok"]:
             self._event(actor, "credential.replace", credential_id, c["scope_kind"], c["scope_id"], "failed", {"test": test["outcome"]})
             raise ValueError(f"the new credential did not pass its test: {test['outcome']}")

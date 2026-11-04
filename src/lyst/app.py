@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
+from . import observability as obs
 from .analyst.engine import REGISTRY, Services
 from .config import Settings, load_settings
 from .connectors import ConnectionService
@@ -53,6 +55,10 @@ class Lyst:
         from .security.vault import anchor  # noqa: PLC0415
 
         credentials.seed_from_anchors(anchor)
+        chain = credentials.verify_audit_chain()
+        obs.AUDIT_CHAIN.set(1 if chain["ok"] else 0)
+        if not chain["ok"]:
+            logging.getLogger("lyst.credentials").error("credential audit chain broken at event %s: the history was altered", chain.get("broken_at"))
         data = DataService(stores, guard)
         llm = LLMClient(settings.llm, stores, credentials=credentials)
         knowledge = KnowledgeService(stores, guard, llm)

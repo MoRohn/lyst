@@ -13,14 +13,14 @@ tabs = st.tabs(["Dashboards", "Skills", "Capabilities", "Evaluation"])
 
 with tabs[0]:
     st.caption("Ask the Analyst to \"create an automated <metric> reporting dashboard by <dimension>, refreshed weekly\". "
-               "Lyst designs it on governed metrics, verifies the SQL, writes a standalone Streamlit app that reads only its "
-               "extracts, renders it headlessly, and proposes the refresh schedule for approval.")
+               "Lyst designs it on governed metrics, verifies the SQL, writes a standalone Dash app (Streamlit on request) that "
+               "reads only its extracts, checks every page and callback, and proposes the refresh schedule for approval.")
     dbs = api.get(f"/v1/workspaces/{ws}/dashboards")
     if not dbs:
         st.caption("No dashboards yet.")
     for d in dbs:
         with st.container(border=True):
-            head = st.columns([5, 1, 1, 1], vertical_alignment="center")
+            head = st.columns([5, 1, 1, 1, 1], vertical_alignment="center")
             head[0].markdown(f"**{d['title']}**  ·  refreshed {str(d['last_refresh_at'])[:16]}  ·  {d['refresh_count']} refreshes")
             head[0].caption("Plotly Dash app" if (d.get("checks") and any(c["name"] == "dash_check" for c in d["checks"])) else "Streamlit app")
             head[1].badge(d["status"], color="green" if d["status"] == "published" else "orange")
@@ -32,6 +32,14 @@ with tabs[0]:
                     st.error(str(e))
             bundle = api.http.get(f"/v1/workspaces/{ws}/dashboards/{d['id']}/bundle", headers=api._h()).content
             head[3].download_button("Bundle", bundle, file_name=f"{d['id']}.zip", mime="application/zip", key=f"bd_{d['id']}")
+            with head[4].popover("Retire", icon=":material/archive:"):
+                st.caption("Stops refreshes and hides it; the bundle stays downloadable.")
+                if st.button("Retire this dashboard", key=f"rt_{d['id']}"):
+                    try:
+                        api.post(f"/v1/workspaces/{ws}/dashboards/{d['id']}/retire")
+                        st.rerun()
+                    except APIError as e:
+                        st.error(str(e))
             if st.toggle("Preview", key=f"pv_{d['id']}"):
                 man = api.get(f"/v1/workspaces/{ws}/dashboards/{d['id']}")
                 cols = st.columns(len(man["metrics"]))

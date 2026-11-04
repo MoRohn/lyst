@@ -193,7 +193,58 @@ class DataService:
         for p in db.query("SELECT dataset, column_name, min_role FROM column_policies"):
             if RANK[role] < RANK[p["min_role"]]:
                 restricted.setdefault(p["dataset"], set()).add(p["column_name"])
-        return GuardPolicy(tables=tables, restricted_columns=restricted)
+        # row policies: a policy naming the user wins over one naming their role; the system principal is never restricted
+        rows: dict[str, dict[str, list]] = {}
+        if actor.kind != "system":
+            by_role: dict[tuple[str, str], list] = {}
+            by_user: dict[tuple[str, str], list] = {}
+            for p in db.query("SELECT dataset, column_name, principal_kind, principal, allowed_values FROM row_policies"):
+                key = (p["dataset"], p["column_name"])
+                if p["principal_kind"] == "user" and p["principal"] == actor.user_id:
+                    by_user[key] = json.loads(p["allowed_values"])
+                elif p["principal_kind"] == "role" and p["principal"] == role:
+                    by_role[key] = json.loads(p["allowed_values"])
+            for key, values in {**by_role, **by_user}.items():
+                rows.setdefault(key[0], {})[key[1]] = values
+        return GuardPolicy(tables=tables, restricted_columns=restricted, row_filters=rows)
+
+    # -- row policies -----------------------------------------------------------------------
+
+    def set_row_policy(self, actor: Principal, workspace_id: str, dataset: str, column: str, *, principal_kind: str,
+                       principal: str, allowed_values: list) -> dict[str, Any]:
+        """Members named by user id or role see only rows whose `column` is in `allowed_values`. Owners manage it."""
+        self.guard.require(actor, workspace_id, "workspace.admin", dataset)
+        if principal_kind not in ("user", "role"):
+            raise ValueError("principal_kind must be user or role")
+        if principal_kind == "role" and principal not in RANK:
+            raise ValueError(f"unknown role {principal}")
+        db = self.stores.workspace(workspace_id)
+        if not db.scalar("SELECT count(*) FROM datasets WHERE name = ?", [dataset]):
+            raise KeyError(dataset)
+        db.execute("INSERT OR REPLACE INTO row_policies (dataset, column_name, principal_kind, principal, allowed_values, created_by) "
+                   "VALUES (?, ?, ?, ?, ?, ?)", [dataset, column, principal_kind, principal, json.dumps(list(allowed_values)), actor.user_id])
+        self.guard.audit(actor, workspace_id, "policy.rows", dataset, "ok",
+                         {"column": column, principal_kind: principal, "values": len(allowed_values)})
+        return {"dataset": dataset, "column": column, "principal_kind": principal_kind, "principal": principal, "allowed_values": list(allowed_values)}
+
+    def row_policies(self, actor: Principal, workspace_id: str, dataset: str | None = None) -> list[dict[str, Any]]:
+        self.guard.require(actor, workspace_id, "workspace.admin")
+        sql = "SELECT dataset, column_name AS column, principal_kind, principal, allowed_values, created_by, created_at FROM row_policies"
+        rows = self.stores.workspace(workspace_id).query(sql + (" WHERE dataset = ?" if dataset else "") + " ORDER BY dataset, column_name",
+                                                         [dataset] if dataset else [])
+        for r in rows:
+            r["allowed_values"] = json.loads(r["allowed_values"])
+        return rows
+
+    def delete_row_policy(self, actor: Principal, workspace_id: str, dataset: str, column: str, *, principal_kind: str, principal: str) -> bool:
+        self.guard.require(actor, workspace_id, "workspace.admin", dataset)
+        db = self.stores.workspace(workspace_id)
+        n = db.scalar("SELECT count(*) FROM row_policies WHERE dataset = ? AND column_name = ? AND principal_kind = ? AND principal = ?",
+                      [dataset, column, principal_kind, principal])
+        db.execute("DELETE FROM row_policies WHERE dataset = ? AND column_name = ? AND principal_kind = ? AND principal = ?",
+                   [dataset, column, principal_kind, principal])
+        self.guard.audit(actor, workspace_id, "policy.rows.delete", dataset, "ok", {"column": column, principal_kind: principal})
+        return bool(n)
 
     # -- queries ----------------------------------------------------------------------------
 

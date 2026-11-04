@@ -127,6 +127,15 @@ Bootstrap anchors (`security/vault.py`) also cover `LYST_OPENROUTER_API_KEY` and
 as such) so that afterwards there is one path for every consumer. `.env` files carry non-secret settings only;
 a secret-shaped name there is ignored with a warning.
 
+## Row policies
+
+A workspace owner can restrict the rows a member sees: `POST /v1/workspaces/{ws}/datasets/{name}/row-policies`
+with a column, a principal (a user id, or a role: viewer, editor, admin, owner) and the allowed values. The guard
+rewrites every reference to that dataset into a filtered subquery before the SQL runs, so the Analyst, ad-hoc
+SQL, the MCP `query` tool, monitors and dashboard extracts all obey it, whatever shape the query takes (aliases,
+joins, CTEs, functions over the column). A policy naming the user wins over one naming their role; an empty
+allowed list means no rows. Owners are unrestricted unless a policy names them. Every policy change is audited.
+
 ## Autonomy levels
 
 | Class of work | Who may start it | Gate |
@@ -162,13 +171,14 @@ and no capability in the registry calls them.
 
 * The skill sandbox is process isolation with an allow-list, not a kernel sandbox. Run the engine in the
   provided container (read-only filesystem, no capabilities) and keep `skill.propose` to trusted roles.
-* The master key is a single secret: keep it in the credential store or a secret manager, backed up apart
-  from the database backups. Key rotation is manual (restore under a new key is not yet automated).
+* The master key is a single secret: keep it in the credential store or a secret manager, with its recovery
+  copy apart from the database backups. `lyst rotate-master-key` re-keys everything with the engine stopped.
 * Lyst serves plain HTTP; terminate TLS in a reverse proxy.
 * OIDC has been exercised against a stub provider only; run a real login against your IdP before go-live.
 * Model providers see redacted metric names, definitions and computed findings. If even that is too much,
   keep external providers off and run a local model.
-* There is no row-level security yet: column policies are the finest grain.
+* Row policies restrict rows by user or role inside the SQL guard; a dashboard built by a restricted user holds
+  only that user's rows, and the manifest says who built it.
 
 ## Alignment
 

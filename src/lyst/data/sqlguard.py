@@ -48,6 +48,7 @@ class GuardPolicy:
     tables: dict[str, str]  # dataset name -> physical table in schema "data"
     restricted_columns: dict[str, set[str]] = field(default_factory=dict)  # dataset -> cols denied
     max_rows: int = 10_000
+    row_filters: dict[str, dict[str, list]] = field(default_factory=dict)  # dataset -> {column: allowed values}
 
 
 @dataclass
@@ -98,6 +99,14 @@ def check_read_query(text: str, policy: GuardPolicy) -> GuardedQuery:
         alias_to_dataset[alias] = name
         alias_to_dataset.setdefault(name, name)
         new = exp.Table(this=exp.to_identifier(allowed[name], quoted=True), db=exp.to_identifier("data"))
+        filters = {k.lower(): v for k, v in policy.row_filters.items()}.get(name)
+        if filters:
+            # row-level security: the dataset is replaced by a filtered subquery, so no SQL shape can reach other rows
+            where = None
+            for col, values in filters.items():
+                cond = exp.column(col, quoted=True).isin(*[exp.convert(v) for v in values]) if values else exp.false()
+                where = cond if where is None else exp.and_(where, cond)
+            new = exp.Subquery(this=exp.select("*").from_(new).where(where))
         new.set("alias", table.args.get("alias") or exp.TableAlias(this=exp.to_identifier(name)))
         table.replace(new)
 

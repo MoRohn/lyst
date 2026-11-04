@@ -132,6 +132,13 @@ class SetupIn(BaseModel):
     recovery_key: str | None = None   # paste a saved master key to recover an installation; empty generates a new one
 
 
+class RowPolicyIn(BaseModel):
+    column: str
+    principal_kind: str   # user | role
+    principal: str        # a user id, or viewer | editor | admin | owner
+    allowed_values: list[Any]
+
+
 class MemberIn(BaseModel):
     email: str
     role: str
@@ -213,6 +220,7 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.lyst, app.state.oidc, app.state.setup_reason, app.state.mcp_task = None, None, None, None
+        app.state.setup_lock = asyncio.Lock()
         try:
             await _bring_up(app)
         except MasterKeyMissing as exc:
@@ -277,6 +285,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     async def _reauth(_: Request, exc: ReauthRequired):
         return JSONResponse({"error": "reauth_required", "detail": str(exc)}, status_code=401)
 
+    @app.exception_handler(MasterKeyMissing)
+    async def _master_key(_: Request, exc: MasterKeyMissing):
+        return JSONResponse({"error": "setup_conflict", "detail": str(exc)}, status_code=409)
+
     @app.exception_handler(SecretUnavailable)
     async def _secret_unavailable(_: Request, exc: SecretUnavailable):
         return JSONResponse({"error": "secret_unavailable", "detail": str(exc)}, status_code=503)
@@ -326,20 +338,21 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         The recovery copy is returned exactly once and never stored by Lyst."""
         from ..secrets import masterkey  # noqa: PLC0415
 
-        if request.app.state.lyst is not None:
-            raise ValueError("Lyst is already initialised")
         if not _loopback(request):
             raise AccessDenied("initialise encryption from the machine that runs the engine (loopback only)")
-        fresh = not body.recovery_key
-        mk = masterkey.provision_into_keyring() if fresh else masterkey.store_into_keyring(body.recovery_key)
-        try:
-            await _bring_up(request.app)
-        except Exception as exc:
-            masterkey.remove_from_keyring()
-            await _tear_down(request.app)
-            sealed_elsewhere = (not fresh) or "encryption key" in str(exc).lower()
-            raise ValueError("the existing databases were sealed with a different master key; restore its recovery copy instead"
-                             if sealed_elsewhere else f"initialisation failed: {exc}") from exc
+        async with request.app.state.setup_lock:  # two clicks at once: the second sees the first's result
+            if request.app.state.lyst is not None:
+                raise ValueError("Lyst is already initialised")
+            fresh = not body.recovery_key
+            mk = masterkey.provision_into_keyring() if fresh else masterkey.store_into_keyring(body.recovery_key)
+            try:
+                await _bring_up(request.app)
+            except Exception as exc:
+                masterkey.remove_from_keyring()
+                await _tear_down(request.app)
+                sealed_elsewhere = (not fresh) or "encryption key" in str(exc).lower()
+                raise ValueError("the existing databases were sealed with a different master key; restore its recovery copy instead"
+                                 if sealed_elsewhere else f"initialisation failed: {exc}") from exc
         return {"initialised": True, "source": mk.source, "recovery_key": mk.key.hex() if fresh else None}
 
     @app.get("/metrics")
@@ -487,6 +500,19 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return {"policy": c.policy(), "settings": c.settings_all(), "admins": c.installation_admins()}
 
     # -- data -------------------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/datasets/{name}/row-policies")
+    def row_policies(request: Request, ws: str, name: str, user: User):
+        return L(request).data.row_policies(user, ws, name)
+
+    @app.post("/v1/workspaces/{ws}/datasets/{name}/row-policies")
+    def set_row_policy(request: Request, ws: str, name: str, body: RowPolicyIn, user: User):
+        return L(request).data.set_row_policy(user, ws, name, body.column, principal_kind=body.principal_kind, principal=body.principal,
+                                              allowed_values=body.allowed_values)
+
+    @app.delete("/v1/workspaces/{ws}/datasets/{name}/row-policies")
+    def delete_row_policy(request: Request, ws: str, name: str, user: User, column: str, principal_kind: str, principal: str):
+        return {"deleted": L(request).data.delete_row_policy(user, ws, name, column, principal_kind=principal_kind, principal=principal)}
 
     @app.get("/v1/workspaces/{ws}/datasets")
     def datasets(request: Request, ws: str, user: User):
@@ -756,8 +782,8 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return {"ok": True}
 
     @app.get("/v1/workspaces/{ws}/dashboards")
-    def dashboards(request: Request, ws: str, user: User):
-        return L(request).studio.list(user, ws)
+    def dashboards(request: Request, ws: str, user: User, include_retired: bool = False):
+        return L(request).studio.list(user, ws, include_retired=include_retired)
 
     @app.get("/v1/workspaces/{ws}/dashboards/{dashboard_id}")
     def dashboard_manifest(request: Request, ws: str, dashboard_id: str, user: User):
@@ -776,6 +802,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.post("/v1/workspaces/{ws}/dashboards/{dashboard_id}/refresh")
     def dashboard_refresh(request: Request, ws: str, dashboard_id: str, user: User):
         return L(request).studio.refresh(user, ws, dashboard_id)
+
+    @app.post("/v1/workspaces/{ws}/dashboards/{dashboard_id}/retire")
+    def dashboard_retire(request: Request, ws: str, dashboard_id: str, user: User):
+        return L(request).studio.retire(user, ws, dashboard_id)
 
     @app.post("/v1/tasks/{task_id}/artifacts/{kind}")
     def make_artifact(request: Request, task_id: str, kind: str, user: User):

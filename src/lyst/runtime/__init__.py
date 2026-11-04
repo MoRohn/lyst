@@ -328,6 +328,7 @@ class TaskRuntime:
         t = self.db.query("SELECT * FROM tasks WHERE id = ?", [task_id])[0]
         owner = self.db.query("SELECT id, email FROM users WHERE id = ?", [t["created_by"]])[0]
         actor = Principal(owner["id"], owner["email"])
+        obs.user_id.set(actor.user_id)  # the task runs as its owner: personal credentials and row policies follow
         request = json.loads(t["request"])
         ctx = Context(t["workspace_id"], actor, task_id, self.services, request=request)
         done = self.db.query("SELECT seq, capability, args, output, status FROM task_steps WHERE task_id = ? "
@@ -413,6 +414,7 @@ class TaskRuntime:
         from opentelemetry import context as otel_context  # noqa: PLC0415
 
         ctx_token = obs.task_id.set(task_id)
+        user_token = obs.user_id.set(ctx.actor.user_id)
         otel_token = otel_context.attach(otel_ctx) if otel_ctx is not None else None
         try:
             cap = self.services.registry.get(step["capability"])
@@ -469,6 +471,7 @@ class TaskRuntime:
             return {"status": "done", "output": output}
         finally:
             obs.task_id.reset(ctx_token)
+            obs.user_id.reset(user_token)
             if otel_token is not None:
                 try:
                     otel_context.detach(otel_token)

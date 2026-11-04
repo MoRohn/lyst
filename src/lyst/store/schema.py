@@ -530,3 +530,19 @@ WORKSPACE: list[Migration] = [
         """,
     ),
 ]
+
+WORKSPACE.append((
+    7,
+    """
+    CREATE TABLE row_policies (
+        dataset VARCHAR NOT NULL,
+        column_name VARCHAR NOT NULL,
+        principal_kind VARCHAR NOT NULL,
+        principal VARCHAR NOT NULL,
+        allowed_values JSON NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (dataset, column_name, principal_kind, principal)
+    )
+    """,
+))
