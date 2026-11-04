@@ -9,6 +9,8 @@ import homeLight from '../assets/product/home-light.png';
 import homeDark from '../assets/product/home-dark.png';
 import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
+import sourcesLight from '../assets/product/sources-light.png';
+import sourcesDark from '../assets/product/sources-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -46,6 +48,17 @@ const views: View[] = [
     callouts: [
       { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '45%', y: '60.5%' },
       { icon: 'Network', text: 'What depends on it', x: '30%', y: '73.5%' },
+    ],
+  },
+  {
+    id: 'sources',
+    tab: 'Sources',
+    img: sourcesLight,
+    dark: sourcesDark,
+    alt: 'A connected source in Lyst, “CRM pipeline”, marked Healthy, with what it feeds and its recent activity: a “Layout changed” event caught on sync, where the source added amount_usd and removed amount.',
+    callouts: [
+      { icon: 'HeartPulse', text: 'Health in plain words', x: '47%', y: '17%' },
+      { icon: 'GitCompare', text: 'Schema change caught on sync', x: '50%', y: '47%' },
     ],
   },
   {

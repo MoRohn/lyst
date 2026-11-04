@@ -85,7 +85,7 @@ export const capabilities: {
   {
     icon: 'Blocks',
     title: 'Build',
-    text: 'Self-contained deliverables people can use on Monday, verified on every refresh.',
+    text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
     items: ['Interactive Dash dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Governed extracts'],
     status: 'available',
   },
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a dataset’s trust check, a connected source, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
