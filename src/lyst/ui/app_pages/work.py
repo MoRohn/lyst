@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from lyst.ui.client import APIError, client, workspace
-from lyst.ui.components import STATUS
+from lyst.ui.components import STATUS, md
 
 api, ws = client(), workspace()
 st.markdown("## Work")
@@ -20,7 +20,7 @@ with tabs[0]:
         col.markdown(f"**{title}** · {len(items)}")
         for t in items[:20]:
             with col.container(border=True):
-                st.write(t["title"])
+                st.markdown(md(t["title"]))
                 st.caption(f"{STATUS[t['status']][0]} · {t['kind']} · {str(t['created_at'])[:16]}")
                 b = st.columns(2)
                 if t["status"] in ("queued", "running") and b[0].button("Pause", key=f"p{t['id']}", type="tertiary"):
@@ -50,7 +50,7 @@ with tabs[1]:
         st.caption("Nothing is waiting for approval.")
     for ap in pending:
         with st.container(border=True):
-            st.write(ap["summary"])
+            st.markdown(md(ap["summary"]))
             st.caption(f"{ap['action']} · requested by {ap['requested_by']} · {str(ap['created_at'])[:16]}")
             c = st.columns([1, 1, 6])
             try:
@@ -65,7 +65,7 @@ with tabs[1]:
 
 with tabs[2]:
     for s in api.get(f"/v1/workspaces/{ws}/schedules"):
-        st.write(f"**{s['title']}** · every {s['every_seconds'] // 3600 or s['every_seconds'] // 60} "
+        st.write(f"**{md(s['title'])}** · every {s['every_seconds'] // 3600 or s['every_seconds'] // 60} "
                  f"{'h' if s['every_seconds'] >= 3600 else 'min'} · {'active' if s['enabled'] else 'awaiting approval'}"
                  f" · next {str(s['next_run_at'])[:16]}")
     with st.form("schedule"):
@@ -103,7 +103,7 @@ with tabs[3]:
     for f in api.get(f"/v1/workspaces/{ws}/findings"):
         with st.container(border=True):
             head = st.columns([6, 1, 1], vertical_alignment="center")
-            head[0].write(f["summary"])
+            head[0].markdown(md(f["summary"]))
             head[1].badge(f["direction"], color="red" if f["direction"] == "risk" else "green")
             head[2].caption(f"priority {f['priority']:.1f}")
             row = st.columns([1, 1, 1, 5])

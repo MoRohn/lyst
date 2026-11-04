@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Lyst"><defs>
+  <linearGradient id="mks" x1="9" y1="1" x2="9" y2="31" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0B6B64"/><stop offset="1" stop-color="#034440"/></linearGradient>
+  <linearGradient id="mkf" x1="3" y1="27" x2="29" y2="25" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#12A79B"/><stop offset="1" stop-color="#7FD4C2"/></linearGradient>
+</defs><path d="M3.4 31.8 15.2 21.4H28.5Q29.6 21.4 29 22.3L23.6 31Q23 31.8 22 31.8Z" fill="url(#mkf)"/><path d="M2.8 10.6Q2.8 9.4 3.8 8.7L14.8.7Q16.2-.2 16.2 1.5V19.3Q16.2 20.6 15.2 21.4L3.6 31.3Q2.8 32 2.8 30.9Z" fill="url(#mks)"/></svg>

@@ -19,18 +19,21 @@ showSidebarBorder = true
 baseFontSize = 15
 headingFontWeights = [600, 600, 600, 500, 500, 500]
 
+# One accent: Lyst's brand teal, at a shade that keeps white button text at WCAG AA (6.4:1 light, 5.1:1 dark).
 [theme.light]
-primaryColor = "#1f5eff"
+primaryColor = "#0B6B64"
+linkColor = "#0B6B64"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f5f6f8"
 textColor = "#16181d"
 borderColor = "#e3e5ea"
-chartCategoricalColors = ["#1f5eff", "#0f9d8a", "#d9822b", "#8a63d2", "#d64550", "#5b6577"]
+chartCategoricalColors = ["#0B6B64", "#5b6577", "#d9822b", "#8a63d2", "#d64550", "#12A79B"]
 
 [theme.dark]
-primaryColor = "#6e93ff"
+primaryColor = "#0E7C73"
+linkColor = "#5CC9B6"
 backgroundColor = "#0f1115"
 secondaryBackgroundColor = "#171a20"
 textColor = "#e6e8ec"
 borderColor = "#262a33"
-chartCategoricalColors = ["#6e93ff", "#2dc2ac", "#f0a35a", "#a98ae6", "#ec6b74", "#8b95a7"]
+chartCategoricalColors = ["#2BB5A6", "#8b95a7", "#f0a35a", "#a98ae6", "#ec6b74", "#7FD4C2"]

@@ -5,6 +5,7 @@ import streamlit as st
 
 from lyst.semantic import MetricSpec, value_expr
 from lyst.ui.client import APIError, client, workspace
+from lyst.ui.components import md
 
 api, ws = client(), workspace()
 st.markdown("## Intelligence")
@@ -13,7 +14,7 @@ tabs = st.tabs(["Metrics", "Glossary", "Knowledge", "Documents", "Memory", "Prio
 with tabs[0]:
     for m in api.get(f"/v1/workspaces/{ws}/metrics"):
         with st.expander(f"**{m['title']}** · `{m['name']}` · {m['dataset']}"):
-            st.write(m["description"])
+            st.markdown(md(m["description"]))
             st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
             st.caption(f"Split by: {', '.join(m['dimensions']) or 'none'} · time: {m['time_column']} · "
                        f"also called: {', '.join(m['synonyms']) or 'nothing else'}")
@@ -81,7 +82,7 @@ with tabs[3]:
         for hit in api.get(f"/v1/workspaces/{ws}/documents/search", q=q):
             with st.container(border=True):
                 st.caption(f"{hit['title']} · passage {hit['passage']} · score {hit['score']}")
-                st.write(hit["text"])
+                st.markdown(md(hit["text"]))
     with st.form("doc"):
         f = st.file_uploader("Text, Markdown or PDF", type=["txt", "md", "pdf", "csv"])
         dt = st.text_input("Title")
