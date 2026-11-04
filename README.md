@@ -262,6 +262,11 @@ where they point, with Mark all read and "What to tell me about".
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
+* **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
+  drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
+  and say plainly when there is no clear winner. Every run records its exact series, dataset and metric versions,
+  SQL and environment, and can be reproduced to show what, if anything, changed. An admin records the chosen
+  method, and a choice against the evidence is flagged.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
@@ -292,7 +297,12 @@ where they point, with Mark all read and "What to tell me about".
   Recurring (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for
   items that need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and
   **Working ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The
-  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback
+  **Why** dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback. From
+  metadata it already records, without contacting any source, Lyst also sees trouble coming: credentials about to
+  expire or past their age limit (with the runs and reports they feed), connections with rising failures or
+  latency, and upstream schema changes that would break approved metrics, with a corrected definition tested and
+  filed for an admin's approval. Each person sets how much to hear (a daily cap, a minimum score, quiet hours in
+  their own time zone, muted kinds), and the same subject is never repeated within a day
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
