@@ -46,10 +46,12 @@ def discuss(kind: str, oid: str, title: str = "") -> None:
     st.markdown(md(f"**{act.get('title') or title}**"))
     owner = act.get("owner_name")
     open_cr = act.get("open_change_requests") or 0
+    people = members()
+    assignees = [a.get("assignee_name") or (_who(people[a["assignee"]]) if a["assignee"] in people else "a colleague")
+                 for a in act.get("assignments") or [] if a.get("status") == "open"]
     st.caption(" · ".join(x for x in (f"Owned by {owner}" if owner else None,
                                       f"{open_cr} change request{'s' * (open_cr != 1)} open" if open_cr else None,
-                                      f"assigned to {', '.join(a.get('assignee_name') or a['assignee'] for a in act.get('assignments') or [] if a.get('status') == 'open')}"
-                                      if any(a.get("status") == "open" for a in act.get("assignments") or []) else None) if x))
+                                      f"assigned to {', '.join(assignees)}" if assignees else None) if x))
     comments = act.get("comments") or []
     if not comments:
         st.caption("No discussion yet. Mention someone with their email, like @dana@example.com, to bring them in.")
