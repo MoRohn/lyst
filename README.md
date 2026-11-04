@@ -191,6 +191,14 @@ where they point, with Mark all read and "What to tell me about".
 
 ## What Lyst does
 
+* **Learns a new business on its own.** Thirteen versioned domain packages (finance and FP&A, sales, marketing,
+  procurement, workforce, manufacturing, customer service, product, logistics, IT operations, healthcare
+  operations, professional services, financial services) let Lyst recognise what an organization does from
+  metadata alone, never rows. It then proposes metrics, glossary terms, personal-data column policies, contracts,
+  starter questions and sources to connect. Accepting a proposal goes through the same governed path as doing it
+  by hand. A versioned business profile keeps the adopted packages, the organization's own terms, its fiscal year
+  and objectives, and Lyst measures time to first value. Available through the API; screens are on the way
+  ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -309,7 +317,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Adaptability](docs/ADAPTABILITY.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
