@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, collab, decisions, governance, kit, onboarding, scenarios
+from lyst.ui import anticipate, collab, decisions, governance, kit, onboarding, scenarios, voice
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -62,6 +62,7 @@ def ask_box(compact: bool) -> None:
                 and q.strip():
             submit(q.strip())
             st.rerun()
+    voice.mic(open_task)
 
 
 # ----------------------------------------------------------------------------------------- home
@@ -399,6 +400,7 @@ def task_view(task: str) -> None:
             how_it_ran(task)
     elif t["result"]:
         r = t["result"]
+        voice.read_back(task)
         answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
         act_bar(task, t, r)
         governance.ask_row(task)

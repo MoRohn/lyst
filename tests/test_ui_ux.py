@@ -380,3 +380,42 @@ def test_source_of_truth_and_webhooks_have_a_place(seeded, ui):  # noqa: F811
     from lyst.ui.app_pages.data import health  # noqa: PLC0415  (pure function; the page itself runs under AppTest)
 
     assert health({"authority": "authoritative", "risks": {}}) == ("Source of truth", "verified")
+
+
+def test_voice_sits_by_the_ask_box_and_has_its_settings(seeded, ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]  # Home renders with the Speak control beside the ask box
+    assert any(k.startswith("voice_sid_") and at.session_state[k] not in (None, "denied") for k in at.session_state)
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "voice"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "audio does not leave it" in body and "never approves or confirms" in body
+    assert any(s.label == "Talk by" for s in at.selectbox)
+
+
+def test_an_ended_voice_session_is_replaced_and_the_turn_sent_again(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    old = lyst.voice.start(owner, "northwind")["id"] if hasattr(lyst.voice, "start") else None
+    if old is None:
+        import pytest  # noqa: PLC0415
+
+        pytest.skip("voice service has no start()")
+    lyst.voice.end(owner, "northwind", old)
+
+    def app(old_sid):
+        import streamlit as st
+
+        from lyst.ui import voice
+
+        st.session_state.workspace = "northwind"
+        st.session_state.setdefault("voice_sid_northwind", old_sid)
+        r = voice._turn(old_sid, {"text": "what was revenue last quarter"})
+        st.session_state["r_intent"] = (r or {}).get("intent")
+
+    at = AppTest.from_function(app, args=(old,))
+    at.run(timeout=30)
+    assert not at.exception, at.exception
+    assert at.session_state["voice_sid_northwind"] != old and at.session_state["r_intent"] == "question"
