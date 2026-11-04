@@ -71,8 +71,9 @@ the plan, every check and every query. **Brief** opens the two-line version with
 briefing, ready to forward; executive requests lead with it. Limitations stay visible at every depth.
 
 Under each answer you can act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved
-analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, and **How this
-ran** shows each step, query and model call with its timing.
+analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, **Share** assigns
+it to a colleague or asks for a review, **Discuss** opens its thread, and **How this ran** shows each step, query
+and model call with its timing.
 
 <p align="center">
   <img src="docs/images/brief.png" alt="The Brief: the answer, the trust line, one chart, what to do and the PDF briefing" width="49%">
@@ -177,7 +178,16 @@ says a person is needed.
 * **Your notifications, your way.** Mentions, assignments, reviews, decisions and comments on what you own
   arrive in one list with platform notices, and each kind can be switched off per person.
 
-These run through the API today; their screens in the answer and in Work are on the way.
+On screen: **Share** and **Discuss** sit on every answer; **Work › Needs you** adds *Assigned to you* (Open, Done)
+and *Reviews waiting* (Open, Approve, Reject), counted in the sidebar; and **Notifications** in the sidebar open
+where they point, with Mark all read and "What to tell me about".
+
+<table>
+  <tr>
+    <td width="45%"><img src="docs/images/discuss.png" alt="An answer's discussion: a mention, an open change request with Mark resolved, and a recorded decision"><br><b>Discuss</b>: comments, change requests and decisions</td>
+    <td width="55%"><img src="docs/images/notifications.png" alt="Sidebar notifications for a change request and a mention, over an answer with Share and Discuss in its act bar"><br><b>Notifications</b>: open where they point</td>
+  </tr>
+</table>
 
 ## What Lyst does
 
@@ -196,6 +206,11 @@ These run through the API today; their screens in the answer and in Work are on 
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
+* **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
+  and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas (running and queued tasks,
+  monthly model spend and tokens, time per task). Calendar schedules ("Mondays at 8:00, New York time") stay
+  correct across daylight saving, run once after downtime and never overlap, and a supervisor flags stalled
+  steps, stale approvals and overdue schedules without ever killing work. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
   citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
 * **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
@@ -290,7 +305,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
