@@ -23,6 +23,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -202,8 +203,8 @@ class TaskRuntime:
         """Where one task's time, model calls and queries went, step by step, from the records the engine
         already keeps (task_steps, llm_calls, query_history). Read-only; the same access as reading the task.
 
-        A model call or query is attributed to a step only when exactly one step was running at that moment
-        (steps of a wave run in parallel); otherwise it stays unattributed rather than guessed."""
+        Each query and model call records the step that made it. Records from before that (or made on a thread
+        the step started itself) are attributed by time, and only when exactly one step was running then."""
         t = self.db.query("SELECT id, workspace_id, status, created_at FROM tasks WHERE id = ?", [task_id])
         if not t:
             raise KeyError(task_id)
@@ -215,10 +216,11 @@ class TaskRuntime:
             [task_id])
         calls = self.db.query(
             "SELECT occurred_at, purpose, workload, model, provider, tier, attempt, outcome, status, latency_ms, queue_ms, "
-            "input_tokens, output_tokens, cost_usd FROM llm_calls WHERE task_id = ? ORDER BY id", [task_id])
+            "input_tokens, output_tokens, cost_usd, step AS recorded_step FROM llm_calls WHERE task_id = ? ORDER BY id", [task_id])
         try:
             queries = self.stores.workspace(task["workspace_id"]).query(
-                "SELECT occurred_at, sql, rows, ms, outcome, error FROM query_history WHERE task_id = ? ORDER BY id",
+                "SELECT occurred_at, sql, rows, ms, outcome, error, step AS recorded_step FROM query_history "
+                "WHERE task_id = ? ORDER BY id",
                 [task_id])
         except Exception:  # noqa: BLE001 - a workspace file that cannot open must not hide the rest of the trace
             queries = []
@@ -235,7 +237,8 @@ class TaskRuntime:
         by_seq = {s["seq"]: s for s in steps}
         for rows, field in ((calls, "model_calls"), (queries, "queries")):
             for r in rows:
-                r["step"] = step_at(r["occurred_at"])
+                rec = r.pop("recorded_step", None)
+                r["step"] = rec if rec in by_seq else step_at(r["occurred_at"])
                 if r["step"] is not None:
                     by_seq[r["step"]][field] += 1
         first = min((s["started_at"] for s in steps if s["started_at"]), default=None)
@@ -486,6 +489,7 @@ class TaskRuntime:
 
         otel_ctx = otel_context.get_current()
         pool = ThreadPoolExecutor(max_workers=self.parallelism, thread_name_prefix=f"task-{task_id[-6:]}")
+        abandon = False  # a step overran the time budget: do not wait for its thread on the way out
         try:
             while len(completed) < len(steps):
                 state = self._renew(task_id)
@@ -505,7 +509,22 @@ class TaskRuntime:
                     if gate:
                         return gate
                 futures = {pool.submit(self._run_step, ctx, t, task_id, i, steps[i], request, otel_ctx): i for i in ready}
-                for fut in as_completed(futures):
+                # The budget holds while steps run, not only between waves: a hung step (a stalled connector, model or
+                # query) otherwise kept its task running and its worker busy for as long as it hung, with the
+                # heartbeat renewing the lease all the while.
+                remaining = max(0.0, t["budget_seconds"] - (time.monotonic() - started))
+                try:
+                    finished_now = list(as_completed(futures, timeout=remaining))
+                except FuturesTimeout:
+                    late = sorted(steps[i]["capability"] for f, i in futures.items() if not f.done())
+                    abandon = True
+                    self.db.execute(
+                        f"UPDATE task_steps SET status = 'failed', error = ?, finished_at = now() WHERE task_id = ? "
+                        f"AND status = 'running' AND seq IN ({', '.join('?' * len(futures))})",
+                        [f"timeout: still running when the {t['budget_seconds']}s time budget ran out", task_id, *futures.values()])
+                    return self._fail(task_id, f"time budget of {t['budget_seconds']}s exhausted while "
+                                               f"{', '.join(late)} {'was' if len(late) == 1 else 'were'} still running")
+                for fut in finished_now:
                     i = futures[fut]
                     outcome = fut.result()
                     if outcome["status"] == "failed":
@@ -516,7 +535,9 @@ class TaskRuntime:
                     if outcome["status"] == "done" and steps[i]["key"] == "plan":
                         steps += outcome["output"]["steps"]
         finally:
-            pool.shutdown(wait=True, cancel_futures=True)
+            # an overrun step's thread cannot be killed; leave it to finish on its own. Its checkpoint cannot revive the
+            # task: the task is failed, and _finish only moves a task this worker still holds as running.
+            pool.shutdown(wait=not abandon, cancel_futures=True)
         result = ctx.outputs.get("deliver")
         found = self._finish(task_id, "status = 'done', result = ?, lease_owner = NULL, lease_until = NULL",
                              [json.dumps(result, default=str)])
@@ -558,6 +579,7 @@ class TaskRuntime:
 
         ctx_token = obs.task_id.set(task_id)
         user_token = obs.user_id.set(ctx.actor.user_id)
+        step_token = obs.step_seq.set(seq)  # queries and model calls made by this step record it
         otel_token = otel_context.attach(otel_ctx) if otel_ctx is not None else None
         try:
             cap = self.services.registry.get(step["capability"])
@@ -607,9 +629,11 @@ class TaskRuntime:
             payload = json.dumps(output, default=str)
 
             def commit(c):
-                owner = c.execute("SELECT lease_owner FROM tasks WHERE id = ?", [task_id]).fetchone()
+                owner = c.execute("SELECT lease_owner, status FROM tasks WHERE id = ?", [task_id]).fetchone()
                 if not owner or owner[0] not in (self.worker_id, None):
                     return False  # another worker took the task over; its run owns the checkpoints now
+                if owner[1] != "running":
+                    return False  # the task ended while this step ran (budget overrun, cancel): keep its record as is
                 c.execute("UPDATE task_steps SET status = 'done', output = ?, finished_at = now() "
                           "WHERE task_id = ? AND seq = ?", [payload, task_id, seq])
                 if key == "plan":
@@ -623,6 +647,7 @@ class TaskRuntime:
         finally:
             obs.task_id.reset(ctx_token)
             obs.user_id.reset(user_token)
+            obs.step_seq.reset(step_token)
             if otel_token is not None:
                 try:
                     otel_context.detach(otel_token)

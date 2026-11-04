@@ -604,3 +604,17 @@ CONTROL.append((
     CREATE INDEX tasks_idempotency ON tasks (workspace_id, created_by, idempotency_key)
     """,
 ))
+
+CONTROL.append((
+    12,
+    """
+    ALTER TABLE llm_calls ADD COLUMN step INTEGER
+    """,
+))
+
+WORKSPACE.append((
+    8,
+    """
+    ALTER TABLE query_history ADD COLUMN step INTEGER
+    """,
+))

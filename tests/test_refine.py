@@ -149,3 +149,46 @@ def test_engine_restart_resumes_interrupted_tasks_at_once_not_after_the_lease(se
     assert any(e["kind"] == "recovered" for e in t["events"])
     assert lyst.stores.control.scalar("SELECT takeovers FROM tasks WHERE id = ?", [tid]) == 1  # still counted
     assert lyst.runtime.recover_orphans() == 0  # nothing left; its own leases are never touched
+
+
+def test_a_hung_step_cannot_hold_its_task_or_worker_past_the_time_budget(seeded, monkeypatch):
+    """Before: the budget was checked only between waves, so a task with a 1 s budget held its worker for the whole
+    6 s of a slow step (measured 6.16 s), and a step that never returned held it forever while the heartbeat kept
+    renewing the lease."""
+    import threading
+    import time
+
+    lyst, owner = seeded
+    reg = lyst.runtime.services.registry
+    orig, release = reg.run, threading.Event()
+
+    def hung(name, ctx, args):
+        if name == "deliver":
+            release.wait(20)
+        return orig(name, ctx, args)
+
+    monkeypatch.setattr(reg, "run", hung)
+    tid = lyst.runtime.submit(owner, "northwind", "What was revenue last quarter?", budget_seconds=1)
+    t0 = time.monotonic()
+    lyst.runtime.drain()
+    assert time.monotonic() - t0 < 3
+    t = lyst.runtime.get(owner, tid)
+    assert t["status"] == "failed" and "deliver" in t["error"] and "time budget" in t["error"]
+    step = next(s for s in t["steps"] if s["capability"] == "deliver")
+    assert step["status"] == "failed" and step["error"].startswith("timeout")
+    release.set()  # the stray step finishes later; its checkpoint must not land on the failed task
+    time.sleep(1.0)
+    t = lyst.runtime.get(owner, tid)
+    assert t["status"] == "failed"
+    assert next(s for s in t["steps"] if s["capability"] == "deliver")["status"] == "failed"
+
+
+def test_every_query_records_the_step_that_ran_it_even_in_a_parallel_wave(seeded):
+    """Pass 6 left queries of parallel steps unattributed (three metric_value steps run in one wave)."""
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Why did operating margin decline last quarter?")
+    tr = lyst.runtime.trace(owner, t["id"])
+    assert tr["queries"] and all(q["step"] is not None for q in tr["queries"])
+    assert sum(s["queries"] for s in tr["steps"]) == tr["summary"]["queries"]
+    by_cap = {s["capability"]: s["queries"] for s in tr["steps"]}
+    assert by_cap.get("metric_value", 0) > 0 or any(s["queries"] for s in tr["steps"] if s["capability"] == "metric_value")

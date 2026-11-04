@@ -151,17 +151,18 @@ class LLMClient:
             obs.MODEL_COST.inc(cost)
         self.stores.control.execute(
             "INSERT INTO llm_calls (id, workspace_id, task_id, model, purpose, external, input_tokens, output_tokens, "
-            "latency_ms, outcome, pool, workload, provider, status, attempt, queue_ms, cost_usd, tier) "
-            "VALUES (nextval('llm_call_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "latency_ms, outcome, pool, workload, provider, status, attempt, queue_ms, cost_usd, tier, step) "
+            "VALUES (nextval('llm_call_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [r.tenant, getattr(self._local, "task_id", None), r.model, getattr(self._local, "purpose", None), self.settings.external,
              r.input_tokens, r.output_tokens, r.latency_ms, r.outcome, r.pool, r.workload, r.provider, r.status,
-             r.attempt, r.queue_ms, cost, getattr(self._local, "tier", None)],
+             r.attempt, r.queue_ms, cost, getattr(self._local, "tier", None), getattr(self._local, "step", None)],
         )
 
     def chat(self, workspace_id: str, messages: list[dict[str, str]], *, purpose: str, task_id: str | None = None,
              json_mode: bool = False, max_tokens: int | None = None, workload: str = "chat",
              pool: str | None = None) -> str:
         self._local.task_id, self._local.purpose = task_id, purpose  # read by _record on this thread
+        self._local.step = obs.step_seq.get() if task_id else None
         self._local.user_id = self._owner_of(task_id)
         if not self.allowed_for(workspace_id):
             raise LLMUnavailable("no model is allowed for this workspace")
