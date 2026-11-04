@@ -11,7 +11,9 @@ LYST_ENCRYPT         "1" (default) encrypts every DuckDB file; "0" disables (tes
 LYST_OPENROUTER_API_KEY  optional seed for unattended deployments (mounted file or environment): imported once as the
                      installation's OpenRouter credential. Normally the key is entered in Settings › Secrets.
 LYST_OPENBAO_URL     enterprise: keep secrets (and optionally the master key) in OpenBao KV v2; see docs/SECURITY.md
-LYST_LLM_TIER        economy | balanced (default) | frontier: the model list a call walks
+LYST_LLM_TIER        economy | balanced (default) | frontier: the default level (workspaces may choose their own)
+LYST_LLM_MAX_TIER    the highest level a workspace may choose (default frontier)
+LYST_CATALOG_AUTO    "0" turns off the daily refresh of OpenRouter's model list and prices
 LYST_LLM_MODEL       pin one model (an OpenRouter slug, or the local model's name)
 LYST_LLM_PROVIDER    openrouter | local; inferred when unset
 LYST_LLM_BASE_URL    a local OpenAI-compatible endpoint, e.g. http://localhost:11434/v1 (Ollama)

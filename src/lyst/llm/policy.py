@@ -8,13 +8,12 @@ values are the same unless noted. See docs/MODELS.md.
 
 from __future__ import annotations
 
-import json
 import math
 import os
 from dataclasses import dataclass, field
-from functools import cache
-from pathlib import Path
 from typing import Literal
+
+from . import catalog
 
 Pool = Literal["interactive", "background"]
 POOLS: tuple[Pool, ...] = ("interactive", "background")
@@ -89,11 +88,6 @@ def admission_limits() -> AdmissionLimits:
 TIERS = ("economy", "balanced", "frontier")
 
 
-@cache
-def _catalog() -> dict:
-    return json.loads((Path(__file__).parent / "tiers.json").read_text())
-
-
 def tier_of(value: str | None) -> str:
     """Legacy names stay valid as in Acumane: standard follows balanced, max follows frontier."""
     if value in ("frontier", "max"):
@@ -104,7 +98,8 @@ def tier_of(value: str | None) -> str:
 
 
 def tier_models(tier: str | None) -> list[dict]:
-    return list(_catalog()["tiers"][tier_of(tier)])
+    """The tier's models from the active catalog (OpenRouter's live list once refreshed), cheapest typical call first."""
+    return list(catalog.active()["tiers"][tier_of(tier)])
 
 
 def attempts(tier: str | None, pinned: str | None = None) -> list[str]:
@@ -115,8 +110,62 @@ def attempts(tier: str | None, pinned: str | None = None) -> list[str]:
 
 
 def estimate_cost(model: str, input_tokens: int | None, output_tokens: int | None) -> float | None:
-    for tier in _catalog()["tiers"].values():
-        for m in tier:
-            if m["modelId"] == model:
-                return (input_tokens or 0) * m["inputUsdPerToken"] + (output_tokens or 0) * m["outputUsdPerToken"]
+    """Cost from the catalog's per-token prices when OpenRouter did not report ``usage.cost``."""
+    m = catalog.find(model)
+    return catalog.call_usd(m, input_tokens, output_tokens) if m else None
+
+
+def ceiling_usd(ceiling: str | None) -> float:
+    """The dearest typical call a workspace may choose under the installation's highest allowed tier."""
+    return max(catalog.typical_call_usd(m) for m in tier_models(ceiling or "frontier"))
+
+
+@dataclass(frozen=True)
+class Selection:
+    """What a workspace's calls route to. ``mode``: auto walks the tier; pinned uses one model alone."""
+
+    tier: str
+    model: str | None
+    source: str            # workspace | installation | default
+    ceiling: str
+    attempts: tuple[str, ...]
+
+    @property
+    def mode(self) -> str:
+        return "pinned" if self.model else "auto"
+
+    @property
+    def route_tier(self) -> str:
+        """The tier recorded on a call: the pinned model's own tier when it has one, else 'custom'."""
+        if not self.model:
+            return self.tier
+        return catalog.tier_of_model(self.model) or "custom"
+
+
+def choice_allowed(tier: str | None, model: str | None, ceiling: str | None) -> str | None:
+    """None when a workspace may choose this; otherwise the reason it may not."""
+    ceiling = tier_of(ceiling or "frontier")
+    if tier and TIERS.index(tier_of(tier)) > TIERS.index(ceiling):
+        return f"this installation allows tiers up to {ceiling}"
+    if model:
+        m = catalog.find(model)
+        if m is None:
+            return f"{model} is not in OpenRouter's catalog (or cannot call tools); an installation administrator can pin it"
+        if catalog.typical_call_usd(m) > ceiling_usd(ceiling) * 1.0001:
+            return f"{m['modelLabel']} costs more per call than the {ceiling} tier this installation allows"
     return None
+
+
+def resolve(*, workspace: tuple[str | None, str | None] = (None, None), installation: tuple[str | None, str | None] = (None, None),
+            default_tier: str | None = None, ceiling: str | None = None) -> Selection:
+    """Workspace choice, else the installation's, else the environment default. A workspace choice above the
+    ceiling (the ceiling was lowered after it was made) falls back to the installation's choice."""
+    ceiling = tier_of(ceiling or "frontier")
+    ws_tier, ws_model = workspace
+    if (ws_tier or ws_model) and choice_allowed(ws_tier, ws_model, ceiling) is None:
+        tier, model, source = tier_of(ws_tier or installation[0] or default_tier), ws_model or None, "workspace"
+    elif installation[0] or installation[1]:
+        tier, model, source = tier_of(installation[0] or default_tier), installation[1] or None, "installation"
+    else:
+        tier, model, source = tier_of(default_tier), None, "default"
+    return Selection(tier, model, source, ceiling, tuple(attempts(tier, model)))
