@@ -43,8 +43,8 @@ export const pillars = {
     {
       icon: 'Compass',
       title: 'Understand',
-      text: 'Lyst learns each dataset’s grain, keys, relationships and quality risks on its own, and interprets every question in that context.',
-      detail: ['Grain, keys and relationships', 'Business definitions', 'Breakdowns like “by region”'],
+      text: 'Lyst studies your metadata, never the rows, to learn each dataset’s grain, keys and quality risks and the business areas involved, then reads every question in that context.',
+      detail: ['Grain, keys and relationships', '13 industry packages', 'Your own words for metrics'],
     },
     {
       icon: 'SquareTerminal',
@@ -178,7 +178,7 @@ export const workflow = {
   headline: 'A better way to get analytical work done.',
   steps: [
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question or assign an objective, in plain language.' },
-    { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work.' },
+    { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, then watch the metric or repeat the analysis in one click.' },
   ],
