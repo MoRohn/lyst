@@ -1,118 +1,178 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
+"""Intelligence: what Lyst knows about this business. Definitions, documents and memory, each with provenance."""
+
 import pandas as pd
 import streamlit as st
 
 from lyst.semantic import MetricSpec, value_expr
+from lyst.ui import kit
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
 api, ws = client(), workspace()
-st.markdown("## Intelligence")
-tabs = st.tabs(["Metrics", "Glossary", "Knowledge", "Documents", "Memory", "Prior analyses"])
+admin = st.session_state.get("role") in ("admin", "owner")
+editor = st.session_state.get("role") in ("editor", "admin", "owner")
+TRUST = {"approved": ("Approved", "ok"), "user_validated": ("Validated", "ok"), "observed": ("Observed", "off")}
 
-with tabs[0]:
-    for m in api.get(f"/v1/workspaces/{ws}/metrics"):
-        with st.expander(f"**{m['title']}** · `{m['name']}` · {m['dataset']}"):
-            st.markdown(md(m["description"]))
-            st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
-            st.caption(f"Split by: {', '.join(m['dimensions']) or 'none'} · time: {m['time_column']} · "
-                       f"also called: {', '.join(m['synonyms']) or 'nothing else'}")
 
-with tabs[1]:
-    g = api.get(f"/v1/workspaces/{ws}/glossary")
-    st.dataframe(pd.DataFrame(g), hide_index=True, width="stretch")
-    if st.session_state.get("role") in ("admin", "owner"):
-        with st.form("term"):
-            term = st.text_input("Term")
-            definition = st.text_input("Definition")
-            maps = st.text_input("Maps to metric (optional)")
-            if st.form_submit_button("Save term") and term and definition:
-                try:
-                    api.post(f"/v1/workspaces/{ws}/glossary", {"term": term, "definition": definition,
-                                                                 "maps_to_metric": maps or None})
+def ask(question: str) -> None:
+    out = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/tasks", {"question": question}))
+    if out:
+        st.session_state.task_id = out["task_id"]
+        st.switch_page("app_pages/analyst.py", query_params={"task": out["task_id"]})
+
+
+@st.dialog("Definition", width="large")
+def metric_detail(m: dict, terms: list[dict]) -> None:
+    st.markdown(f"**{m['title']}** · `{m['name']}`")
+    st.markdown(md(m.get("description") or "No description yet."))
+    st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
+    alias = sorted({*m.get("synonyms", []), *[t["term"] for t in terms if t.get("maps_to_metric") == m["name"]]})
+    st.caption(f"From {m['dataset']} · by {m['time_column']} · split by {', '.join(m['dimensions']) or 'nothing'}"
+               + (f" · also called {', '.join(alias)}" if alias else ""))
+    lin = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/lineage/metric/{m['name']}"))
+    if lin and (lin.get("upstream") or lin.get("downstream")):
+        c = st.columns(2)
+        with c[0]:
+            kit.label("Depends on")
+            for x in lin.get("upstream", [])[:12]:
+                st.caption(f"{x.get('kind', '')} · {x.get('name', '')}")
+        with c[1]:
+            kit.label("Used by")
+            for x in lin.get("downstream", [])[:12]:
+                st.caption(f"{x.get('kind', '')} · {x.get('name', '')}")
+    if st.button(f"Ask about {kit.lower(m['title'])}", type="primary", icon=":material/arrow_outward:"):
+        ask(f"What was {kit.lower(m['title'])} last quarter?")
+
+
+def definitions() -> None:
+    metrics = api.get(f"/v1/workspaces/{ws}/metrics")
+    terms = api.get(f"/v1/workspaces/{ws}/glossary")
+    if not metrics:
+        kit.empty(":material/menu_book:", "No approved metrics", "A metric is a governed definition (what revenue or margin "
+                  "means here). Admins approve them; Lyst answers only from approved definitions.")
+    q = st.text_input("Find", placeholder="Find a metric or term", label_visibility="collapsed", key="def_find") \
+        if len(metrics) + len(terms) > 8 else ""
+    hits = [m for m in metrics if not q or q.lower() in (m["title"] + m["name"] + " ".join(m["synonyms"])).lower()]
+    if hits:
+        kit.label(f"Metrics · {len(hits)}")
+    for i, m in enumerate(hits):
+        if kit.row(m["title"], " · ".join(x for x in (m.get("description"), m["dataset"]) if x), actions=[("Open", "open")],
+                   key=f"m{m['name']}", divider=i < len(hits) - 1):
+            metric_detail(m, terms)
+    tshown = [t for t in terms if not q or q.lower() in (t["term"] + t["definition"]).lower()]
+    if tshown:
+        kit.label(f"Business terms · {len(tshown)}")
+        for i, t in enumerate(tshown):
+            kit.row(t["term"], t["definition"] + (f" · means metric {t['maps_to_metric']}" if t.get("maps_to_metric") else ""),
+                    key=f"g{i}", divider=i < len(tshown) - 1)
+    if admin:
+        with st.popover("Add a business term", icon=":material/add:"):
+            with st.form("term", border=False):
+                term = st.text_input("Term", placeholder="Profitability")
+                definition = st.text_input("Meaning", placeholder="Operating margin, by default")
+                maps = st.selectbox("Same as metric", [None] + [m["name"] for m in metrics],
+                                    format_func=lambda n: "None" if n is None else n.replace("_", " "))
+                if st.form_submit_button("Save", type="primary") and term and definition:
+                    if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/glossary", {
+                            "term": term, "definition": definition, "maps_to_metric": maps}), "Saved"):
+                        st.rerun()
+
+
+def documents() -> None:
+    docs = api.get(f"/v1/workspaces/{ws}/documents")
+    q = st.text_input("Search", placeholder="Search policies, notes and reports (revenue recognition policy)",
+                      label_visibility="collapsed", key="doc_q")
+    if q:
+        hits = api.get(f"/v1/workspaces/{ws}/documents/search", q=q)
+        if not hits:
+            st.caption("No passage matches.")
+        for h in hits:
+            with st.container(border=True):
+                st.caption(f"{h['title']} · passage {h['passage']}")
+                st.markdown(md(h["text"]))
+        return
+    if not docs:
+        kit.empty(":material/description:", "No documents", "Policies, definitions and notes you add here are cited in "
+                  "answers, and disagreements with approved definitions are disclosed.")
+    for i, d in enumerate(docs):
+        kit.row(d["title"], f"{d['filename']} · {d['passages']} passages · readable by {d['min_role']} and above · "
+                f"added {kit.when(d['added_at'])}", key=f"doc{i}", divider=i < len(docs) - 1)
+    if editor:
+        with st.popover("Add a document", icon=":material/upload_file:"):
+            with st.form("doc", border=False):
+                f = st.file_uploader("Text, Markdown or PDF", type=["txt", "md", "pdf", "csv"])
+                dt = st.text_input("Title (optional)")
+                mr = st.selectbox("Who can read it", ["viewer", "editor", "admin", "owner"],
+                                  format_func=lambda r: f"{r.capitalize()}s and above")
+                if st.form_submit_button("Add", type="primary") and f:
+                    r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/documents", None,
+                                                     data={"title": dt or f.name, "min_role": mr},
+                                                     files={"file": (f.name, f.getvalue())}))
+                    if r:
+                        st.toast(f"Added {r['title']} ({r['passages']} passages)", icon=":material/check:")
+                        st.rerun()
+
+
+def memory() -> None:
+    mem = api.get(f"/v1/workspaces/{ws}/memory")
+    with st.form("correction", border=True):
+        text = st.text_input("Teach Lyst something it should remember",
+                             placeholder="Revenue for EMEA excludes intercompany sales.")
+        if st.form_submit_button("Remember", type="primary") and text:
+            if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/memory/corrections", {"content": text}),
+                           "Remembered as validated team knowledge"):
+                st.rerun()
+    taught = [m for m in mem if m["trust"] in ("approved", "user_validated")]
+    learned = [m for m in mem if m["trust"] not in ("approved", "user_validated")]
+    if taught:
+        kit.label(f"Knowledge · {len(taught)}")
+        for i, m in enumerate(taught):
+            label, tone = TRUST.get(m["trust"], (m["trust"], "info"))
+            acts = [("Promote", "p")] if admin and m["trust"] != "approved" else []
+            if kit.row(m["content"], f"{m['layer']} · {kit.when(m['created_at'])}", status=(label, tone), actions=acts,
+                       key=f"k{m['id']}", divider=i < len(taught) - 1) == "p":
+                if kit.guarded(lambda x=m: api.post(f"/v1/workspaces/{ws}/memory/{x['id']}/promote"),
+                               "Promoted to organisation knowledge"):
                     st.rerun()
-                except APIError as e:
-                    st.error(str(e))
-
-with tabs[2]:
-    st.caption("Entities and how they connect. Lyst records metric → dataset → column lineage and analysis → metric "
-               "links itself; admins add business units, teams, systems, processes and objectives.")
-    ents = api.get(f"/v1/workspaces/{ws}/entities")
-    if ents:
-        st.dataframe(pd.DataFrame(ents)[["kind", "name", "description", "owner", "source"]], hide_index=True, width="stretch")
-        pick = st.selectbox("Lineage of", [f"{e['kind']}:{e['name']}" for e in ents if e["kind"] in ("metric", "dataset", "analysis")],
-                            index=None)
-        if pick:
-            k, n = pick.split(":", 1)
-            lin = api.get(f"/v1/workspaces/{ws}/lineage/{k}/{n}")
-            c1, c2 = st.columns(2)
-            c1.markdown("**Upstream** (what it depends on)")
-            c1.dataframe(pd.DataFrame(lin["upstream"]), hide_index=True, width="stretch")
-            c2.markdown("**Downstream** (what depends on it)")
-            c2.dataframe(pd.DataFrame(lin["downstream"]), hide_index=True, width="stretch")
-    if st.session_state.get("role") in ("admin", "owner"):
-        with st.expander("Add an entity or a relation"):
-            with st.form("entity"):
+    if learned:
+        kit.label(f"From past analyses · {len(learned)}")
+        for i, m in enumerate(learned[:15]):
+            kit.row(m["content"], kit.when(m["created_at"]), key=f"l{m['id']}", divider=i < min(len(learned), 15) - 1)
+    if not mem:
+        st.caption("Nothing yet. Lyst records what it learns from verified answers, and what you teach it.")
+    if admin:
+        with st.expander("Business entities and relations", icon=":material/account_tree:"):
+            ents = api.get(f"/v1/workspaces/{ws}/entities")
+            if ents:
+                st.dataframe(pd.DataFrame(ents)[["kind", "name", "description", "owner"]], hide_index=True, width="stretch")
+            with st.form("entity", border=False):
                 ec = st.columns([1, 2, 3])
-                kind = ec[0].selectbox("Kind", ["business_unit", "team", "person", "system", "process", "objective"])
+                kind = ec[0].selectbox("Kind", ["business_unit", "team", "person", "system", "process", "objective"],
+                                       format_func=lambda k: k.replace("_", " ").capitalize())
                 name = ec[1].text_input("Name")
                 desc = ec[2].text_input("Description")
-                if st.form_submit_button("Save entity") and name:
-                    api.post(f"/v1/workspaces/{ws}/entities", {"kind": kind, "name": name, "description": desc})
-                    st.rerun()
-            with st.form("relation"):
+                if st.form_submit_button("Add entity") and name:
+                    if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/entities",
+                                                    {"kind": kind, "name": name, "description": desc}), "Added"):
+                        st.rerun()
+            with st.form("relation", border=False):
                 rc = st.columns(5)
                 fk = rc[0].text_input("From kind", "team")
                 fn = rc[1].text_input("From name")
                 rel = rc[2].text_input("Relation", "owns")
                 tk = rc[3].text_input("To kind", "metric")
                 tn = rc[4].text_input("To name")
-                if st.form_submit_button("Save relation") and fn and tn:
-                    api.post(f"/v1/workspaces/{ws}/relations", {"from_kind": fk, "from_name": fn, "rel": rel, "to_kind": tk, "to_name": tn})
-                    st.rerun()
+                if st.form_submit_button("Add relation") and fn and tn:
+                    if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/relations", {
+                            "from_kind": fk, "from_name": fn, "rel": rel, "to_kind": tk, "to_name": tn}), "Added"):
+                        st.rerun()
 
-with tabs[3]:
-    docs = api.get(f"/v1/workspaces/{ws}/documents")
-    if docs:
-        st.dataframe(pd.DataFrame(docs)[["title", "filename", "classification", "min_role", "passages", "added_at"]],
-                     hide_index=True, width="stretch")
-    q = st.text_input("Search documents", placeholder="revenue recognition policy")
-    if q:
-        for hit in api.get(f"/v1/workspaces/{ws}/documents/search", q=q):
-            with st.container(border=True):
-                st.caption(f"{hit['title']} · passage {hit['passage']} · score {hit['score']}")
-                st.markdown(md(hit["text"]))
-    with st.form("doc"):
-        f = st.file_uploader("Text, Markdown or PDF", type=["txt", "md", "pdf", "csv"])
-        dt = st.text_input("Title")
-        mr = st.selectbox("Readable by", ["viewer", "editor", "admin", "owner"])
-        if st.form_submit_button("Add document", type="primary") and f:
-            try:
-                r = api.post(f"/v1/workspaces/{ws}/documents", None, data={"title": dt or f.name, "min_role": mr},
-                             files={"file": (f.name, f.getvalue())})
-                st.success(f"Added {r['title']}: {r['passages']} passages")
-            except APIError as e:
-                st.error(str(e))
 
-with tabs[4]:
-    mem = api.get(f"/v1/workspaces/{ws}/memory")
-    st.dataframe(pd.DataFrame(mem), hide_index=True, width="stretch")
-    with st.form("correction"):
-        st.caption("Record a correction. It is stored as user-validated team knowledge; an admin can promote it.")
-        text = st.text_area("Correction", placeholder="Revenue for EMEA excludes intercompany sales.")
-        if st.form_submit_button("Save correction") and text:
-            try:
-                api.post(f"/v1/workspaces/{ws}/memory/corrections", {"content": text})
-                st.rerun()
-            except APIError as e:
-                st.error(str(e))
-    if st.session_state.get("role") in ("admin", "owner") and mem:
-        pid = st.selectbox("Promote to organizational knowledge", [m["id"] for m in mem if m["trust"] != "approved"],
-                           index=None, format_func=lambda i: next(m["content"][:80] for m in mem if m["id"] == i))
-        if pid and st.button("Promote"):
-            api.post(f"/v1/workspaces/{ws}/memory/{pid}/promote")
-            st.rerun()
-
-with tabs[5]:
-    st.dataframe(pd.DataFrame(api.get(f"/v1/workspaces/{ws}/analyses")), hide_index=True, width="stretch")
+try:
+    kit.header("Intelligence", "What Lyst knows about this business, where it came from, and how much to trust it.")
+    view = kit.sections(["Definitions", "Documents", "Memory"], key="view")
+    {"Definitions": definitions, "Documents": documents, "Memory": memory}[view]()
+except APIError as e:
+    st.error(str(e), icon=":material/cloud_off:")

@@ -11,6 +11,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # src/, when run by `streamlit run`
 
+from lyst.ui import kit  # noqa: E402
 from lyst.ui.client import APIError, client  # noqa: E402
 
 ASSETS = Path(__file__).parent / "assets"
@@ -25,16 +26,25 @@ def brand() -> None:
 
 
 brand()
+kit.style()
 
 here = Path(__file__).parent / "app_pages"
-pages = [
-    st.Page(here / "analyst.py", title="Analyst", icon=":material/insights:", default=True),
-    st.Page(here / "work.py", title="Work", icon=":material/view_kanban:"),
-    st.Page(here / "data.py", title="Data", icon=":material/database:"),
-    st.Page(here / "intelligence.py", title="Intelligence", icon=":material/menu_book:"),
-    st.Page(here / "build.py", title="Build", icon=":material/construction:"),
-    st.Page(here / "settings.py", title="Settings", icon=":material/settings:"),
-]
+
+
+def make_pages(waiting: int = 0) -> list:
+    """The six areas, in one place: the sidebar. Work carries the count of things waiting on you."""
+    return [
+        st.Page(here / "analyst.py", title="Analyst", icon=":material/insights:", default=True),
+        st.Page(here / "work.py", title=f"Work · {waiting}" if waiting else "Work", icon=":material/view_kanban:",
+                url_path="work"),
+        st.Page(here / "data.py", title="Data", icon=":material/database:"),
+        st.Page(here / "intelligence.py", title="Intelligence", icon=":material/menu_book:"),
+        st.Page(here / "build.py", title="Build", icon=":material/construction:"),
+        st.Page(here / "settings.py", title="Settings", icon=":material/settings:"),
+    ]
+
+
+pages = make_pages()
 api = client()
 
 
@@ -96,8 +106,8 @@ try:
 except APIError as e:
     st.error(e if e.status else f"{e} Start it with `lyst serve`.", icon=":material/cloud_off:")
     st.stop()
-nav = st.navigation(pages, position="hidden" if _setup else "top")
 if _setup:
+    st.navigation(pages, position="hidden")
     setup_page()
 
 try:
@@ -131,16 +141,35 @@ ids = [w["id"] for w in spaces]
 if st.session_state.get("workspace") not in ids:
     st.session_state.workspace = ids[0]
 with st.sidebar:
-    st.selectbox("Workspace", ids, key="workspace",
+    st.selectbox("Workspace", ids, key="workspace", label_visibility="collapsed",
                  format_func=lambda i: next(w["name"] for w in spaces if w["id"] == i))
-    role = next(w["role"] for w in spaces if w["id"] == st.session_state.workspace)
-    st.caption(f"{me['email']} · {role}")
-    if st.button("Sign out", type="tertiary", icon=":material/logout:"):
-        try:
-            api.post("/auth/logout")
-        except APIError:
-            pass
-        st.session_state.pop("token", None)
-        st.rerun()
+role = next(w["role"] for w in spaces if w["id"] == st.session_state.workspace)
 st.session_state.role = role
+
+
+def _waiting(ws: str) -> int:
+    """Things that need this person: approvals they may decide, findings they have not read."""
+    n = 0
+    try:
+        if role in ("admin", "owner"):
+            n += len(api.get(f"/v1/workspaces/{ws}/approvals"))
+        n += sum(1 for i in api.get(f"/v1/workspaces/{ws}/inbox") if i["read_status"] == "unread")
+    except APIError:
+        pass
+    return n
+
+
+st.session_state.waiting = _waiting(st.session_state.workspace)
+nav = st.navigation(make_pages(st.session_state.waiting), position="sidebar")
+with st.sidebar:
+    with st.popover(me["email"], icon=":material/account_circle:", width="stretch"):
+        st.caption(f"{me.get('name') or me['email']} · {role} in "
+                   f"{next(w['name'] for w in spaces if w['id'] == st.session_state.workspace)}")
+        if st.button("Sign out", type="tertiary", icon=":material/logout:"):
+            try:
+                api.post("/auth/logout")
+            except APIError:
+                pass
+            st.session_state.pop("token", None)
+            st.rerun()
 nav.run()
