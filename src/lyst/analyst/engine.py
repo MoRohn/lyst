@@ -441,6 +441,18 @@ def _compiled_plan(ctx: Context, u: dict[str, Any], c: dict[str, Any]) -> dict[s
             "strategy": "compiled", "workflow": ref, "success_criteria": d.get("success_criteria", [])}
 
 
+_DOWN = re.compile(r"\b(declin\w*|fall(s|en|ing)?|fell|drop(s|ped|ping)?|decreas\w*|shr[iau]nk\w*|worsen\w*|"
+                   r"deteriorat\w*|(go|went|gone) down|slump\w*|weaken\w*)\b", re.I)
+_UP = re.compile(r"\b(rise|rises|rising|risen|rose|increas\w*|gr[eo]w(s|n|ing)?|improv\w*|(go|went|gone) up|"
+                 r"jump(s|ed|ing)?|climb\w*|strengthen\w*)\b", re.I)
+
+
+def _premise(question: str) -> str | None:
+    """The direction a request takes for granted ("why did margin decline"), or None if it takes none or both."""
+    down, up = bool(_DOWN.search(question)), bool(_UP.search(question))
+    return "down" if down and not up else ("up" if up and not down else None)
+
+
 def _prev_period(p: dict[str, Any]) -> dict[str, Any]:
     start, end = date.fromisoformat(p["start"]), date.fromisoformat(p["end"])
     if p["grain"] in ("quarter", "month", "year"):
@@ -1073,6 +1085,16 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             if ya and ya["value"] is not None and cur["value"] is not None:
                 parts.append(f"and {fmt(cur['value'] - ya['value'], spec, delta=True)} versus {ya['period']['label']}")
             answer = parts[0] + (", " + ", ".join(parts[1:]) if len(parts) > 1 else "") + "."
+            premise = _premise(u["question"])
+            if premise and prev and prev["value"] is not None and cur["value"] is not None:
+                dlt = cur["value"] - prev["value"]
+                if (premise == "down" and dlt >= 0) or (premise == "up" and dlt <= 0):
+                    # a wrong premise is said first, not answered as if it were true
+                    moved = "was unchanged" if dlt == 0 else ("rose" if dlt > 0 else "fell")
+                    answer = (f"{spec.title} did not {'decline' if premise == 'down' else 'increase'} in "
+                              f"{cur['period']['label']}; it {moved} versus {prev['period']['label']}. " + answer)
+                    assumptions.append("The request assumed a " + ("decline" if premise == "down" else "rise")
+                                       + " that the data does not show; the drivers below explain the actual change.")
         d = o.get("drivers")
         if d and d.get("best"):
             b = d["best"]
