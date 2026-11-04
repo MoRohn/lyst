@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit, reports
+from lyst.ui import kit, onboarding, reports
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -506,6 +506,7 @@ try:
                   "query it.", action="Add data" if editor else None, icon=":material/add:"):
         add_data()
     view = kit.sections(["Datasets", "Dashboards", "Saved analyses", "SQL"], key="view")
+    {"Datasets": lambda: (datasets(catalog), onboarding.data_suggestions(), connections()), "Dashboards": dashboards_view,
     {"Datasets": lambda: (datasets(catalog), waiting_review(), connections()), "Dashboards": dashboards_view,
      "Saved analyses": reports.workflows, "SQL": lambda: sql(catalog)}[view]()
 except APIError as e:

@@ -94,7 +94,7 @@ def test_home_guides_a_first_run(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     body = _texts(at)
-    assert "Get started" in body and "Keep watch" in body
+    assert "Get started" in body and "Let Lyst study the data" in body  # driven by the onboarding status
     assert "at a glance" in body  # the business pulse above the suggestions
 
 
@@ -233,6 +233,10 @@ def test_the_discussion_names_the_assignee_not_their_id(seeded, ui):  # noqa: F8
     assert "assigned to Avery" in caps and owner.user_id not in caps
 
 
+
+def test_suggestions_from_the_data_can_be_accepted_where_people_work(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    lyst.onboarding.discover(owner, "northwind")
 def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
     lyst, owner = seeded  # the same instance the ui fixture serves
     lyst.ingest.inspect(owner, "northwind", b"region,amount\nEMEA,1\nAPAC,2\n", filename="regions.csv")
@@ -241,4 +245,10 @@ def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
     at.switch_page("app_pages/data.py")
     at.run()
     assert not at.exception, [e.value for e in at.exception]
+    assert "Define Cost of goods sold" in _texts(at) and any(b.label == "Accept" for b in at.button)
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(m.label == "Industry" for m in at.multiselect)
     assert "regions.csv" in _texts(at) and any(b.label == "Review" for b in at.button)
