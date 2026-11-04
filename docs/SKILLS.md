@@ -42,3 +42,13 @@ def run(df, top=1):
 
 `summary` becomes the answer, `findings` the evidence, `table` (a list of dicts) a table. Tests are JSON:
 `{"name", "columns", "rows", "params", "expect", "tolerance"}`; `expect_error: true` for a case that must raise.
+
+## The Foundry: Lyst proposing its own skills
+
+When a request names a method Lyst has neither a capability nor an approved skill for (`detect_gap` in
+`analyst/foundry.py`), the plan runs `propose_capability` instead of improvising a number. Templates exist
+for the Herfindahl index, the Gini coefficient and the Pareto share; a configured model may draft other
+methods against the contract `run(df[member, value], **params) -> dict`. Every draft goes through the same
+static check, sandbox, adversarial cases and benchmark as a human proposal, is stored with its test
+report, and waits for an owner who did not propose it. The answer to the original request says exactly
+that and produces no number. After approval, the same request runs the skill on governed data.

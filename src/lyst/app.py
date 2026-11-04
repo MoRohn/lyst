@@ -54,6 +54,7 @@ class Lyst:
         monitors = MonitorService(stores, guard, data, semantic, runtime)
         runtime.monitors = monitors
         services.monitors = monitors
+        services.runtime = runtime
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors)
 
     def close(self) -> None:

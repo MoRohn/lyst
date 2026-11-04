@@ -28,7 +28,7 @@ from ..llm import LLMClient, LLMUnavailable
 from ..memory import MemoryService
 from ..security import Guard, untrusted
 from ..semantic import Measure, MetricSpec, SemanticService, _cond, _q, compile_metric, value_expr
-from . import periods, prescriptive, reasoning
+from . import foundry, periods, prescriptive, reasoning
 from .registry import REGISTRY, Context, Registry, capability
 
 
@@ -43,6 +43,7 @@ class Services:
     skills: Any = None  # skills.SkillService
     knowledge: Any = None  # knowledge.KnowledgeService
     monitors: Any = None  # monitoring.MonitorService
+    runtime: Any = None  # runtime.TaskRuntime (for approvals raised by capabilities)
 
 
 # ------------------------------------------------------------------------------- helpers
@@ -199,6 +200,9 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     impact = prescriptive.wants_impact(text)
     if impact and resolved["metrics"]:
         intent = "impact"
+    gap = foundry.detect_gap(text) if intent != "skill" else None
+    if gap and resolved["metrics"]:
+        intent = "gap"
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
@@ -207,7 +211,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
             "filters": filters, "scenarios": prescriptive.wants_scenarios(text),
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
-            "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I))}
+            "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap}
 
 
 # ------------------------------------------------------------------- 2. contextualize
@@ -269,7 +273,13 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
                             "Name the one you mean, or ask an admin to map the term in the glossary.")
-    if u["intent"] == "skill":
+    if u["intent"] == "gap":
+        if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "skill.propose"):
+            add("propose_capability", "proposal", gap=u["gap"], metric=u["metrics"][0])
+        else:
+            blockers.append(f"Lyst has no capability for '{u['gap']['method']}', and your role cannot propose one. "
+                            "Ask an editor to request it in Build.")
+    elif u["intent"] == "skill":
         add("run_skill", "skill", skill=u["skill"])
     elif u["intent"] == "sql":
         add("run_sql", "sql", sql=u["sql"])
@@ -749,6 +759,22 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if pl["blockers"]:
         answer = " ".join(pl["blockers"])
         status = "needs_input"
+    elif u["intent"] == "gap":
+        pr = o["proposal"]
+        if pr["status"] == "exists":
+            answer = f"An approved skill already covers this ({pr['skill']}); ask again and Lyst will run it."
+            status = "needs_input"
+        elif pr["status"] == "awaiting_approval":
+            answer = (f"Lyst does not yet have '{u['gap']['method']}' built in, so it {pr['message']}. Once approved in "
+                      f"Work › Approvals, ask again and the method runs on governed data.")
+            findings = [f"Drafted by: {pr.get('drafted_by', 'earlier proposal')}.",
+                        f"Input query: {pr.get('input_sql', '(see the skill in Build)')}"]
+            actions = ["An owner approves the skill in Work › Approvals (the proposer cannot)."]
+            status = "needs_input"
+        else:
+            answer = f"Lyst cannot do this yet: {pr['message']}."
+            status = "needs_input"
+        assumptions.append("No number was produced for this request; nothing runs until the capability is approved.")
     elif u["intent"] == "skill":
         sk = o["skill"]
         out = sk["output"]

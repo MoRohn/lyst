@@ -45,6 +45,7 @@
 | Knowledge | Consistency with prior answers on the same data; validated memory surfaced in answers | Tested | `test_knowledge.py` |
 | Knowledge | Vector (embedding) search | Planned | — |
 | Build | Governed skills: static check, sandboxed tests with adversarial cases, approval by another role, registration, use in plans, retire | Tested | Scenario F, `test_skills.py` |
+| Build | Capability Foundry: a request for a method Lyst lacks drafts a skill (template, or a configured model against a fixed contract), runs the static check, sandbox tests, adversarial cases and a benchmark, requests registration, and runs it after approval | Tested | New scenario E, `test_foundry.py` |
 | Build | Evaluation harness: question bank, independent expected values, stored scored runs, `lyst eval` | Tested | `test_evals.py` (15/15 on the demo bank) |
 | Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |
 | Deliverables | PDF, slides, generated dashboards | Planned (Phase 6) | — |
