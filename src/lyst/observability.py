@@ -14,6 +14,7 @@ import contextvars
 import logging
 import os
 import sys
+import threading
 import time
 import uuid
 
@@ -68,6 +69,7 @@ WORKERS = Gauge("lyst_workers", "Worker threads", registry=REGISTRY)
 # ------------------------------------------------------------------------------ tracing
 
 _tracer_provider = None
+_tracer_lock = threading.Lock()
 
 
 def tracer():
@@ -78,15 +80,26 @@ def tracer():
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
 
-    if _tracer_provider is None:
-        _tracer_provider = TracerProvider(resource=Resource.create({"service.name": os.environ.get("LYST_SERVICE_NAME", "lyst")}))
+    if _tracer_provider is not None:
+        return trace.get_tracer("lyst")
+    # O2: without the lock, workers that start tracing at the same moment each built a provider; the first became
+    # OpenTelemetry's global one while the module kept the last, so the OTLP exporter (and any added exporter)
+    # sat on a provider no span ever reached and every trace was silently lost.
+    with _tracer_lock:
+        if _tracer_provider is not None:
+            return trace.get_tracer("lyst")
+        provider = TracerProvider(resource=Resource.create({"service.name": os.environ.get("LYST_SERVICE_NAME", "lyst")}))
+        trace.set_tracer_provider(provider)
+        # keep whichever provider OpenTelemetry actually installed (another library may have set one first)
+        installed = trace.get_tracer_provider()
+        target = installed if isinstance(installed, TracerProvider) else provider
         endpoint = os.environ.get("LYST_OTEL_ENDPOINT")
         if endpoint:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-            _tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint.rstrip("/") + "/v1/traces")))
-        trace.set_tracer_provider(_tracer_provider)
+            target.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint.rstrip("/") + "/v1/traces")))
+        _tracer_provider = target
     return trace.get_tracer("lyst")
 
 

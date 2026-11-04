@@ -86,7 +86,7 @@ def test_spans_are_emitted_for_tasks_steps_and_http(seeded):
     obs.add_span_exporter(exporter)
     ask(lyst, owner, "What was revenue last quarter?")
     names = [s.name for s in exporter.get_finished_spans()]
-    assert "task" in names and "step:understand" in names and "step:deliver" in names
+    assert "task" in names and "step:understand" in names and "step:deliver" in names, names
     task_span = next(s for s in exporter.get_finished_spans() if s.name == "task")
     assert task_span.attributes["lyst.status"] == "done"
     step = next(s for s in exporter.get_finished_spans() if s.name == "step:understand")

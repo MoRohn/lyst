@@ -254,14 +254,46 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
 
 
 def backup(dest: Path) -> None:
+    """Back up every database. With the engine stopped this opens the files itself; while the engine runs (it holds
+    DuckDB's lock on every file) the engine takes the backup and this copies it to dest (B3)."""
+    import duckdb
+
     from .app import Lyst
 
-    lyst = Lyst.build()
+    try:
+        lyst = Lyst.build()
+    except duckdb.IOException as exc:
+        if "lock" not in str(exc).lower():
+            raise
+        m = _backup_through_engine(dest)
+        print(f"The engine is running, so it took the backup: {len(m['files'])} database(s) copied to {dest} at "
+              f"{m['taken_at']}. {m['note']}")
+        return
     try:
         m = lyst.stores.backup(dest)
         print(f"Backed up {len(m['files'])} database(s) to {dest} at {m['taken_at']}. {m['note']}")
     finally:
         lyst.close()
+
+
+def _backup_through_engine(dest: Path) -> dict:
+    import httpx
+
+    settings = load_settings()
+    url = os.environ.get("LYST_API_URL", f"http://127.0.0.1:{os.environ.get('LYST_PORT', '8770')}")
+    token = os.environ.get("LYST_TOKEN") or ((settings.home / "dev-token").read_text().strip()
+                                             if (settings.home / "dev-token").exists() else None)
+    if not token:
+        sys.exit("The engine is running and holds the database files. Set LYST_TOKEN to an installation administrator's "
+                 "token (or stop the engine) and run the backup again.")
+    r = httpx.post(f"{url}/v1/installation/backup", headers={"Authorization": f"Bearer {token}"}, timeout=600)
+    if r.status_code >= 400:
+        sys.exit(f"The running engine refused the backup ({r.status_code}): {r.json().get('detail', r.text)}")
+    m = r.json()
+    src = Path(m.pop("path"))
+    if src.resolve() != Path(dest).resolve():
+        shutil.copytree(src, dest, dirs_exist_ok=True)
+    return m
 
 
 def restore(src: Path, yes: bool) -> None:
@@ -274,6 +306,34 @@ def restore(src: Path, yes: bool) -> None:
     if settings.setup_required:
         sys.exit("No master key is available: restore needs the key the backup was taken with (lyst init --recovery).")
     manifest = json.loads((src / "manifest.json").read_text())
+    import hashlib
+
+    # B1: the manifest's checksums are checked before anything is opened or copied; a flipped byte, a truncated
+    # file or a swapped file stops the restore while the installation is untouched
+    for rel, digest in manifest["files"].items():
+        path = src / rel
+        if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            sys.exit(f"{rel} does not match the checksum in the backup's manifest (damaged or altered); nothing was restored.")
+    # B2: never replace files an engine has open. DuckDB holds a lock on an open database file; probing it here
+    # fails while `lyst serve` (or any other process, or this one) has it attached.
+    for rel in manifest["files"]:
+        target = settings.home / rel
+        if target.exists():
+            probe = duckdb.connect()
+            try:
+                key = derive_key(settings.master_key, "control" if rel == "control.duckdb" else "ws:" + Path(rel).stem)
+                quoted = str(target).replace("'", "''")
+                probe.execute(f"ATTACH '{quoted}' AS live (ENCRYPTION_KEY '{key}')" if settings.encrypt
+                              else f"ATTACH '{quoted}' AS live")
+                probe.execute("DETACH live")
+            except duckdb.Error as exc:
+                msg = str(exc).lower()
+                if "lock" in msg or "already" in msg or "conflict" in msg:
+                    sys.exit(f"{target} is in use by a running Lyst engine; stop it (Ctrl-C on `lyst start` or `lyst serve`) "
+                             "and run the restore again. Nothing was restored.")
+                # any other failure (for example a damaged live file) does not block replacing it
+            finally:
+                probe.close()
     for rel in manifest["files"]:
         name = "control" if rel == "control.duckdb" else "ws:" + Path(rel).stem
         con = duckdb.connect()
