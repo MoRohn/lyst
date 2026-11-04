@@ -151,6 +151,9 @@ class TaskRuntime:
         self.services.guard.require(actor, task["workspace_id"], "workspace.read", task_id)
         for k in ("request", "plan", "result"):
             task[k] = json.loads(task[k]) if task[k] else None
+        # "done" means the run finished; the outcome says whether it produced a verified answer, needs the
+        # person's input, or finished without passing verification. The UI must never show the last two as Done.
+        task["outcome"] = (task["result"] or {}).get("status") if task["status"] == "done" else None
         task["steps"] = [
             {**s, "args": json.loads(s["args"]) if s["args"] else None}
             for s in self.db.query("SELECT task_id, seq, phase, capability, agent, args, status, error, started_at, "
@@ -163,7 +166,8 @@ class TaskRuntime:
     def list(self, actor: Principal, workspace_id: str, limit: int = 100) -> list[dict[str, Any]]:
         self.services.guard.require(actor, workspace_id, "workspace.read")
         return self.db.query(
-            "SELECT id, title, status, autonomy, kind, created_by, created_at, updated_at, schedule_id "
+            "SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, autonomy, kind, "
+            "created_by, created_at, updated_at, schedule_id "
             "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, limit])
 
     def event(self, task_id: str, kind: str, message: str, data: dict | None = None) -> None:
@@ -225,7 +229,7 @@ class TaskRuntime:
     # -- schedules --------------------------------------------------------------------------
 
     def create_schedule(self, actor: Principal, workspace_id: str, title: str, question: str,
-                        every_seconds: int) -> dict[str, Any]:
+                        every_seconds: int, *, workflow: dict[str, Any] | None = None) -> dict[str, Any]:
         self.services.guard.require(actor, workspace_id, "schedule.create")
         if every_seconds < 60:
             raise ValueError("the shortest interval is 60 seconds")
@@ -233,7 +237,8 @@ class TaskRuntime:
         self.db.execute(
             "INSERT INTO schedules (id, workspace_id, created_by, title, request, every_seconds, next_run_at, enabled) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, false)",
-            [sid, workspace_id, actor.user_id, title, json.dumps({"question": question}), every_seconds,
+            [sid, workspace_id, actor.user_id, title,
+             json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})), every_seconds,
              _now() + timedelta(seconds=every_seconds)])
         aid = self.request_approval(workspace_id, actor.user_id, "schedule.activate",
                                     f"Run '{title}' every {every_seconds // 60} min", {"schedule_id": sid})
@@ -262,8 +267,9 @@ class TaskRuntime:
                 continue
             p = Principal(owner[0]["id"], owner[0]["email"])
             try:
-                started.append(self.submit(p, ws, json.loads(req)["question"], autonomy="autonomous",
-                                           kind="scheduled", schedule_id=sid))
+                r = json.loads(req)
+                started.append(self.submit(p, ws, r["question"], autonomy="autonomous",
+                                           kind="scheduled", schedule_id=sid, workflow=r.get("workflow")))
             except AccessDenied:
                 log.warning("schedule %s owner lost access; skipped", sid)
         return started
@@ -431,23 +437,26 @@ class TaskRuntime:
             step_start = time.perf_counter()
             span_cm = obs.tracer().start_as_current_span(f"step:{cap.name}")
             span = span_cm.__enter__()
-            span.set_attribute("lyst.task_id", task_id)
-            span.set_attribute("lyst.agent", cap.agent)
-            for attempt in range(1, MAX_STEP_ATTEMPTS + 1):
-                try:
-                    output = self.services.registry.run(cap.name, ctx, args)
-                    break
-                except Exception as exc:  # noqa: BLE001 - classified below
-                    fclass = classify_failure(exc)
-                    error = f"{type(exc).__name__}: {exc}"
-                    if fclass != "transient" or attempt == MAX_STEP_ATTEMPTS:
-                        if fclass not in ("permission", "input"):
-                            log.exception("step %s of %s failed (%s)", seq, task_id, fclass)
+            try:
+                span.set_attribute("lyst.task_id", task_id)
+                span.set_attribute("lyst.agent", cap.agent)
+                for attempt in range(1, MAX_STEP_ATTEMPTS + 1):
+                    try:
+                        output = self.services.registry.run(cap.name, ctx, args)
                         break
-                    log.warning("step %s of %s failed transiently, retrying", seq, task_id)
-            obs.STEP_SECONDS.labels(cap.name).observe(time.perf_counter() - step_start)
-            span.set_attribute("lyst.outcome", "done" if output is not None else (fclass or "failed"))
-            span_cm.__exit__(None, None, None)
+                    except Exception as exc:  # noqa: BLE001 - classified below
+                        fclass = classify_failure(exc)
+                        error = f"{type(exc).__name__}: {exc}"
+                        if fclass != "transient" or attempt == MAX_STEP_ATTEMPTS:
+                            if fclass not in ("permission", "input"):
+                                log.exception("step %s of %s failed (%s)", seq, task_id, fclass)
+                            break
+                        log.warning("step %s of %s failed transiently, retrying", seq, task_id)
+                obs.STEP_SECONDS.labels(cap.name).observe(time.perf_counter() - step_start)
+                span.set_attribute("lyst.outcome", "done" if output is not None else (fclass or "failed"))
+            finally:
+                # always closed, even if the step raised past the retry loop, so no span is left for the GC
+                span_cm.__exit__(None, None, None)
             if output is None:
                 if cap.optional:
                     self.db.execute("UPDATE task_steps SET status = 'skipped', error = ?, finished_at = now() "

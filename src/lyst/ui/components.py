@@ -31,8 +31,21 @@ def bullets(items: list) -> str:
     return "\n".join(f"- {md(e)}" for e in items)
 
 
-def status_badge(status: str) -> None:
-    label, color, icon = STATUS.get(status, (status, "gray", None))
+OUTCOME = {
+    "needs_input": ("Needs your input", "orange", ":material/help:"),
+    "unverified": ("Not verified", "red", ":material/gpp_maybe:"),
+}
+
+
+def task_state(status: str, outcome: str | None = None) -> tuple[str, str, str | None]:
+    """One label for a task everywhere: a finished run that needs input or failed verification is not 'Done'."""
+    if status == "done" and outcome in OUTCOME:
+        return OUTCOME[outcome]
+    return STATUS.get(status, (status, "gray", None))
+
+
+def status_badge(status: str, outcome: str | None = None) -> None:
+    label, color, icon = task_state(status, outcome)
     st.badge(label, color=color, icon=icon)
 
 

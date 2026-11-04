@@ -168,3 +168,48 @@ def test_compilation_can_be_turned_off(seeded, monkeypatch):
     monkeypatch.setenv("LYST_WORKFLOWS", "0")
     r = ask(lyst, owner, "Why did operating margin decline in Q2 2026?")["result"]
     assert r["supporting"]["workflow"] == {"used": None, "strategy": "planned", "compiled": None}
+
+
+def test_a_scheduled_workflow_runs_compiled_on_a_rolling_period_and_survives_staleness(seeded):
+    from datetime import UTC, datetime, timedelta
+
+    lyst, owner = seeded
+    rt, wfs = lyst.runtime, lyst.services.workflows
+    admin = lyst.guard.create_user("admin@northwind.test", "Admin")
+    lyst.guard.add_member(owner, "northwind", admin.user_id, "admin")
+    wf_id = ask(lyst, owner, "Why did operating margin decline in Q2 2026?")["result"]["supporting"]["workflow"]["compiled"]["id"]
+    s = wfs.schedule(owner, "northwind", wf_id, rt, 7 * 86400)
+    sched = next(x for x in rt.schedules(owner, "northwind") if x["id"] == s["schedule_id"])
+    assert json.loads(sched["request"])["question"] == "Why did operating margin decline last quarter?"
+    rt.decide(admin, s["approval_id"], True)
+    later = datetime.now(UTC) + timedelta(days=8)
+    (tid,) = rt.tick_schedules(later)
+    rt.drain()
+    t = rt.get(owner, tid)
+    assert t["kind"] == "scheduled" and t["outcome"] == "complete"
+    assert t["result"]["supporting"]["workflow"]["used"]["id"] == wf_id  # compiled, not re-planned
+    assert "Q3 2026" in t["result"]["answer"]  # the last complete quarter in the data at run time
+    # the definition changes: the next scheduled run plans afresh instead of failing, and recompiles
+    spec = lyst.semantic.get(owner, "northwind", "operating_margin")
+    lyst.semantic.define(owner, "northwind", MetricSpec.model_validate(spec.model_dump() | {"description": "Op. margin."}))
+    (tid2,) = rt.tick_schedules(later + timedelta(days=8))
+    rt.drain()
+    t2 = rt.get(owner, tid2)
+    assert t2["status"] == "done" and t2["outcome"] == "complete"
+    assert t2["result"]["supporting"]["workflow"]["used"] is None
+    assert t2["result"]["supporting"]["workflow"]["compiled"]["version"] == 2
+
+
+def test_a_finished_task_reports_its_outcome_so_needs_input_is_never_shown_as_done(seeded):
+    lyst, owner = seeded
+    t = ask(lyst, owner, "What is our margin?")  # ambiguous: two approved metrics match
+    assert t["status"] == "done" and t["outcome"] == "needs_input"
+    listed = {x["id"]: x for x in lyst.runtime.list(owner, "northwind")}
+    assert listed[t["id"]]["outcome"] == "needs_input"
+    ok = ask(lyst, owner, "What was revenue last quarter?")
+    assert ok["outcome"] == "complete"
+    from lyst.ui.components import task_state
+
+    assert task_state("done", "needs_input")[0] == "Needs your input"
+    assert task_state("done", "unverified")[0] == "Not verified"
+    assert task_state("done", "complete")[0] == "Done"

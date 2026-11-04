@@ -249,7 +249,17 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
     ref = ctx.request.get("workflow")
     if not ref and ctx.services.skills and ctx.services.skills.match(ctx.actor, ctx.workspace_id, text):
         return None  # a capability registered since the workflow was compiled now fits better: plan afresh
-    wf = wfs.for_run(ctx.actor, ctx.workspace_id, ref) if ref else wfs.match(ctx.actor, ctx.workspace_id, text)
+    if ref and ref.get("fallback"):
+        # a schedule names its workflow but asks a full question: if the workflow went stale or was retired,
+        # plan the question afresh (and recompile on a verified answer) instead of failing the recurring run
+        from ..workflows import WorkflowStale  # noqa: PLC0415
+
+        try:
+            wf = wfs.for_run(ctx.actor, ctx.workspace_id, {"id": ref["id"]})
+        except WorkflowStale:
+            wf = None
+    else:
+        wf = wfs.for_run(ctx.actor, ctx.workspace_id, ref) if ref else wfs.match(ctx.actor, ctx.workspace_id, text)
     if not wf:
         return None
     u = dict(wf["definition"]["understanding"])

@@ -34,7 +34,7 @@ with tabs[0]:
             if w["status"] == "stale":
                 st.caption(f"Stale: {md(w.get('invalid_reason') or '')}. The next verified answer to this question recompiles it.")
             else:
-                row = st.columns([2, 1, 1, 4], vertical_alignment="bottom")
+                row = st.columns([2, 1, 1, 1.6, 1.4], vertical_alignment="bottom")
                 period = row[0].text_input("Period", key=f"wp_{w['id']}", placeholder=f"last {grain}" if grain else "",
                                            disabled=not grain, label_visibility="collapsed")
                 if row[1].button("Run", key=f"wr_{w['id']}", type="primary", icon=":material/play_arrow:"):
@@ -42,6 +42,17 @@ with tabs[0]:
                         st.session_state.task_id = api.post(f"/v1/workspaces/{ws}/workflows/{w['id']}/run",
                                                             {"period": period.strip() or None})["task_id"]
                         st.switch_page("app_pages/analyst.py")
+                    except APIError as e:
+                        st.error(str(e))
+                every = row[3].selectbox("Repeat", [86400, 7 * 86400, 30 * 86400], key=f"we_{w['id']}",
+                                         format_func=lambda x: {86400: "Daily", 604800: "Weekly", 2592000: "Monthly"}[x],
+                                         label_visibility="collapsed", disabled=not grain)
+                if row[4].button("Schedule", key=f"ws_{w['id']}", type="tertiary", icon=":material/event_repeat:",
+                                 disabled=not grain, help="Runs on the last complete period each time; an admin approves it first"):
+                    try:
+                        api.post(f"/v1/workspaces/{ws}/workflows/{w['id']}/schedule", {"every_seconds": every})
+                        st.toast("Schedule proposed. It starts once an admin approves it in Work › Approvals.",
+                                 icon=":material/event_repeat:")
                     except APIError as e:
                         st.error(str(e))
                 if row[2].button("Retire", key=f"wx_{w['id']}", type="tertiary"):
