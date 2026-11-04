@@ -20,3 +20,7 @@ def attach(lyst) -> None:
     from .experiments import ExperimentService
 
     lyst.experiments = ExperimentService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lambda: lyst)
+
+    from .workbench import WorkbenchService
+
+    lyst.workbench = WorkbenchService(lyst.stores, lyst.guard, lyst.data, lyst.knowledge, lyst.settings.home)
