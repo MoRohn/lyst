@@ -63,6 +63,38 @@ INFLIGHT = Gauge("lyst_model_inflight", "Model calls in flight", registry=REGIST
 WORKERS = Gauge("lyst_workers", "Worker threads", registry=REGISTRY)
 
 
+# ------------------------------------------------------------------------------ tracing
+
+_tracer_provider = None
+
+
+def tracer():
+    """OpenTelemetry tracer. Exports to LYST_OTEL_ENDPOINT (OTLP/HTTP) when set; otherwise spans are kept in
+    process only (and tests can attach an exporter with add_span_exporter)."""
+    global _tracer_provider
+    from opentelemetry import trace
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+
+    if _tracer_provider is None:
+        _tracer_provider = TracerProvider(resource=Resource.create({"service.name": os.environ.get("LYST_SERVICE_NAME", "lyst")}))
+        endpoint = os.environ.get("LYST_OTEL_ENDPOINT")
+        if endpoint:
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+            _tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint.rstrip("/") + "/v1/traces")))
+        trace.set_tracer_provider(_tracer_provider)
+    return trace.get_tracer("lyst")
+
+
+def add_span_exporter(exporter) -> None:
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+    tracer()
+    _tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+
 class Timer:
     def __enter__(self):
         self.start = time.perf_counter()

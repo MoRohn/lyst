@@ -104,8 +104,13 @@ class LLMClient:
             messages = [{**m, "content": redact(m["content"])} for m in messages]
         self._local.task_id, self._local.purpose = task_id, purpose  # read by _record on this thread
         try:
-            return self.gateway.complete(messages, models=self.models(), workload=workload, tenant=workspace_id,
-                                         pool=pool, json_mode=json_mode, max_tokens=max_tokens).text
+            with obs.tracer().start_as_current_span("model.call") as span:
+                span.set_attribute("lyst.workload", workload)
+                span.set_attribute("lyst.purpose", purpose)
+                r = self.gateway.complete(messages, models=self.models(), workload=workload, tenant=workspace_id,
+                                          pool=pool, json_mode=json_mode, max_tokens=max_tokens)
+                span.set_attribute("lyst.model", r.model)
+                return r.text
         except GatewayError as exc:
             raise LLMUnavailable(str(exc)) from exc
         except httpx.HTTPError as exc:

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 import threading
+from pathlib import Path
 
 from ..config import Settings
 from .db import Database
@@ -25,6 +26,7 @@ class Stores:
             master_key=settings.master_key,
             encrypt=settings.encrypt,
             migrations=CONTROL,
+            allowed_dir=settings.home / "backups",
         )
         self._workspaces: dict[str, Database] = {}
         self._lock = threading.Lock()
@@ -41,9 +43,52 @@ class Stores:
                     master_key=self.settings.master_key,
                     encrypt=self.settings.encrypt,
                     migrations=WORKSPACE,
+                    allowed_dir=self.settings.home / "backups",
                 )
                 self._workspaces[workspace_id] = db
             return db
+
+    def backup(self, dest: Path) -> dict:
+        """Back up every database (consistent, encrypted with the same derived keys) plus artifacts and dashboards."""
+        import hashlib
+        import json
+        import shutil
+        from datetime import UTC, datetime
+
+        dest = Path(dest)
+        (dest / "workspaces").mkdir(parents=True, exist_ok=True)
+        files = [self.control.backup_to(dest / "control.duckdb")]
+        for w in self.control.query("SELECT id FROM workspaces"):
+            files.append(self.workspace(w["id"]).backup_to(dest / "workspaces" / f"{w['id']}.duckdb"))
+        for folder in ("artifacts", "dashboards"):
+            src = self.settings.home / folder
+            if src.exists():
+                shutil.copytree(src, dest / folder, dirs_exist_ok=True)
+        manifest = {"taken_at": datetime.now(UTC).isoformat(timespec="seconds"), "encrypted": self.settings.encrypt,
+                    "files": {str(f.relative_to(dest)): hashlib.sha256(f.read_bytes()).hexdigest() for f in files},
+                    "note": "Database files are encrypted with keys derived from the same master key; keep LYST_MASTER_KEY "
+                            "(or the keyfile) with this backup or it is unreadable."}
+        (dest / "manifest.json").write_text(json.dumps(manifest, indent=1))
+        return manifest
+
+    def prune(self, *, event_days: int = 90, audit_days: int = 400) -> dict[str, int]:
+        """Retention: drop old operational rows; audit lines live longer. Returns rows removed per table."""
+        removed: dict[str, int] = {}
+
+        def count_then_delete(db, table: str, column: str, days: int) -> int:
+            n = db.scalar(f"SELECT count(*) FROM {table} WHERE {column} < now() - to_days(CAST(? AS BIGINT))", [days]) or 0
+            if n:
+                db.execute(f"DELETE FROM {table} WHERE {column} < now() - to_days(CAST(? AS BIGINT))", [days])
+            return int(n)
+
+        removed["task_events"] = count_then_delete(self.control, "task_events", "occurred_at", event_days)
+        removed["llm_calls"] = count_then_delete(self.control, "llm_calls", "occurred_at", event_days)
+        removed["audit_log"] = count_then_delete(self.control, "audit_log", "occurred_at", audit_days)
+        for w in self.control.query("SELECT id FROM workspaces"):
+            db = self.workspace(w["id"])
+            removed["query_history"] = removed.get("query_history", 0) + count_then_delete(db, "query_history", "occurred_at", event_days)
+            removed["notifications"] = removed.get("notifications", 0) + count_then_delete(db, "notifications", "created_at", event_days)
+        return removed
 
     def close(self) -> None:
         with self._lock:

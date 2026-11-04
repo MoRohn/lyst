@@ -175,12 +175,18 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         token = obs.request_id.set(rid)
         start = time.perf_counter()
         status = 500
+        span_cm = obs.tracer().start_as_current_span("http")
+        span = span_cm.__enter__()
         try:
             response = await call_next(request)
             status = response.status_code
             response.headers["X-Request-Id"] = rid
             return response
         finally:
+            span.set_attribute("http.route", getattr(request.scope.get("route"), "path", request.url.path))
+            span.set_attribute("http.status_code", status)
+            span.set_attribute("lyst.request_id", rid)
+            span_cm.__exit__(None, None, None)
             route = getattr(request.scope.get("route"), "path", request.url.path)
             if route not in ("/metrics", "/health"):
                 obs.HTTP_REQUESTS.labels(route, request.method, str(status)).inc()

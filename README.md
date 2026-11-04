@@ -21,7 +21,7 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 136 tests
+uv run pytest                # 140 tests
 uv run lyst eval             # scores 19 analytical questions against independent answers
 ```
 
@@ -60,7 +60,7 @@ Connectors beyond PostgreSQL and files, vector search, tracing, backup automatio
 
 [Architecture](docs/ARCHITECTURE.md) · [Models](docs/MODELS.md) · [Connectors](docs/CONNECTORS.md) · [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) ·
 [Acumane audit](docs/ACUMANE_AUDIT.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
-[Deployment](docs/DEPLOYMENT.md) · [SBOM](docs/SBOM.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/decisions/)
+[Deployment](docs/DEPLOYMENT.md) · [Security](docs/SECURITY.md) · [Performance](docs/PERFORMANCE.md) · [SBOM](docs/SBOM.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/decisions/)
 
 ## License
 

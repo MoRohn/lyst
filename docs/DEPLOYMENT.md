@@ -43,10 +43,23 @@ in `lyst_model_calls_total`.
 
 ## Backup and restore
 
-Everything lives in `$LYST_HOME` (`/var/lib/lyst` in the container): `control.duckdb`, `workspaces/*.duckdb`,
-`artifacts/`, and the keyfile when `LYST_MASTER_KEY` is not set. A consistent backup is: stop the engine, copy
-the directory, keep the master key separately (a backup without the key is unreadable). Restore is the
-reverse. Online backups through DuckDB's `EXPORT DATABASE` on the writer thread are planned.
+```bash
+lyst backup /backups/lyst-$(date +%F)      # online, consistent, still encrypted
+lyst restore /backups/lyst-2026-11-04      # with the engine stopped; checks the key opens every file first
+lyst prune                                  # retention: events 90 days, audit 400 (LYST_RETENTION_DAYS_*)
+```
+
+`lyst backup` copies every database on its writer thread in one snapshot (`COPY FROM DATABASE` into a file
+encrypted with the same derived key), plus `artifacts/` and `dashboards/`, and writes `manifest.json` with
+hashes. The engine keeps serving during a backup. A backup is unreadable without the master key: keep
+`LYST_MASTER_KEY` (or the keyfile) separately. `lyst restore` refuses a backup whose files do not open with
+the current key. The worker loop applies retention once a day; `lyst prune` runs it on demand.
+
+## Tracing
+
+Set `LYST_OTEL_ENDPOINT` (an OTLP/HTTP collector, for example `http://otel-collector:4318`) and Lyst exports
+spans: `http` per request (route, status, request id), `task` per task, `step:<capability>` per step with its
+outcome, `model.call` per model call. Without the variable, spans stay in process at no cost.
 
 ## Upgrades
 

@@ -55,6 +55,9 @@
 | Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |
 | Studio | Dashboard from a sentence: governed metrics, verified SQL, Parquet extracts, generated standalone Streamlit app and README, headless render check, approval-gated refresh schedule that re-runs through the runtime, stale-on-failure with old extracts kept, bundle download | Tested | New scenario B, `test_studio.py` |
 | Deliverables | PDF, slides | Planned | — |
-| Ops | Tracing, backup automation, load tests | Planned (Phase 7) | — |
+| Ops | Online encrypted backup (`lyst backup`), verified restore (`lyst restore`), retention (`lyst prune`, daily in the worker) | Tested | `test_hardening.py` |
+| Ops | OpenTelemetry spans for requests, tasks, steps and model calls; OTLP export when configured | Tested | `test_hardening.py::test_spans_are_emitted_for_tasks_steps_and_http` |
+| Ops | Load test script and a measured baseline | Run on the dev machine | `scripts/load_test.py`, `docs/PERFORMANCE.md` |
+| Security | Threat model, autonomy levels, residual risks | Written | `docs/SECURITY.md` |
 | Proactive | Approved monitors: robust-z shift, forecast-interval deviation, data-quality checks; automatic deep investigation; priority ranking; dedupe; inbox and https webhook notifications | Tested | Scenario D, `test_monitoring.py` |
 | Models | Local model exercised end to end | Not yet: no local model is installed on the dev machine | — |

@@ -77,6 +77,7 @@ class TaskRuntime:
         self.poll_seconds = poll_seconds
         self.parallelism = max(1, int(os.environ.get("LYST_TASK_PARALLELISM", "4")))
         self.monitors = None  # set by the app; ticked by the worker loop
+        self._last_prune = time.monotonic()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
 
@@ -313,7 +314,10 @@ class TaskRuntime:
     def run_task(self, task_id: str) -> str:
         ctx_token = obs.task_id.set(task_id)
         try:
-            state = self._run_task(task_id)
+            with obs.tracer().start_as_current_span("task") as span:
+                span.set_attribute("lyst.task_id", task_id)
+                state = self._run_task(task_id)
+                span.set_attribute("lyst.status", state)
         finally:
             obs.task_id.reset(ctx_token)
         if state in ("done", "failed", "cancelled"):
@@ -339,6 +343,9 @@ class TaskRuntime:
         started = time.monotonic()
         completed: set[int] = set(finished) | skipped
         key_done: set[str] = {steps[i]["key"] for i in completed if i < len(steps)}
+        from opentelemetry import context as otel_context  # noqa: PLC0415
+
+        otel_ctx = otel_context.get_current()
         pool = ThreadPoolExecutor(max_workers=self.parallelism, thread_name_prefix=f"task-{task_id[-6:]}")
         try:
             while len(completed) < len(steps):
@@ -358,7 +365,7 @@ class TaskRuntime:
                     gate = self._approval_gate(t, actor, task_id, i, steps[i])
                     if gate:
                         return gate
-                futures = {pool.submit(self._run_step, ctx, t, task_id, i, steps[i], request): i for i in ready}
+                futures = {pool.submit(self._run_step, ctx, t, task_id, i, steps[i], request, otel_ctx): i for i in ready}
                 for fut in as_completed(futures):
                     i = futures[fut]
                     outcome = fut.result()
@@ -401,9 +408,12 @@ class TaskRuntime:
         self.event(task_id, "awaiting_approval", f"{cap.name} needs approval")
         return "awaiting_approval"
 
-    def _run_step(self, ctx: Context, t, task_id: str, seq: int, step: dict[str, Any], request) -> dict[str, Any]:
+    def _run_step(self, ctx: Context, t, task_id: str, seq: int, step: dict[str, Any], request, otel_ctx=None) -> dict[str, Any]:
         """One step, on a pool thread: runs, retries when transient, commits its checkpoint."""
+        from opentelemetry import context as otel_context  # noqa: PLC0415
+
         ctx_token = obs.task_id.set(task_id)
+        otel_token = otel_context.attach(otel_ctx) if otel_ctx is not None else None
         try:
             cap = self.services.registry.get(step["capability"])
             key = step["key"]
@@ -417,6 +427,10 @@ class TaskRuntime:
                 [task_id, seq, cap.phase, cap.name, cap.agent, json.dumps(args, default=str), f"{task_id}:{seq}"])
             output, error, fclass = None, None, None
             step_start = time.perf_counter()
+            span_cm = obs.tracer().start_as_current_span(f"step:{cap.name}")
+            span = span_cm.__enter__()
+            span.set_attribute("lyst.task_id", task_id)
+            span.set_attribute("lyst.agent", cap.agent)
             for attempt in range(1, MAX_STEP_ATTEMPTS + 1):
                 try:
                     output = self.services.registry.run(cap.name, ctx, args)
@@ -430,6 +444,8 @@ class TaskRuntime:
                         break
                     log.warning("step %s of %s failed transiently, retrying", seq, task_id)
             obs.STEP_SECONDS.labels(cap.name).observe(time.perf_counter() - step_start)
+            span.set_attribute("lyst.outcome", "done" if output is not None else (fclass or "failed"))
+            span_cm.__exit__(None, None, None)
             if output is None:
                 if cap.optional:
                     self.db.execute("UPDATE task_steps SET status = 'skipped', error = ?, finished_at = now() "
@@ -453,6 +469,8 @@ class TaskRuntime:
             return {"status": "done", "output": output}
         finally:
             obs.task_id.reset(ctx_token)
+            if otel_token is not None:
+                otel_context.detach(otel_token)
 
     def _fail(self, task_id: str, error: str) -> str:
         self.db.execute("UPDATE tasks SET status = 'failed', error = ?, updated_at = now(), lease_owner = NULL "
@@ -488,6 +506,13 @@ class TaskRuntime:
                     self.tick_schedules()
                     self.tick_monitors()
                     last_tick = time.monotonic()
+                if time.monotonic() - self._last_prune > 86400:
+                    self._last_prune = time.monotonic()
+                    try:
+                        self.stores.prune(event_days=int(os.environ.get("LYST_RETENTION_DAYS_EVENTS", "90")),
+                                          audit_days=int(os.environ.get("LYST_RETENTION_DAYS_AUDIT", "400")))
+                    except Exception:  # noqa: BLE001
+                        log.exception("retention prune failed")
                 if not self.run_once():
                     self._stop.wait(self.poll_seconds)
             except Exception:

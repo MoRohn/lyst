@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -55,6 +57,56 @@ def issue_token(email: str, name: str | None, hours: int | None, owner_of: str |
         lyst.close()
 
 
+def backup(dest: Path) -> None:
+    from .app import Lyst
+
+    lyst = Lyst.build()
+    try:
+        m = lyst.stores.backup(dest)
+        print(f"Backed up {len(m['files'])} database(s) to {dest} at {m['taken_at']}. {m['note']}")
+    finally:
+        lyst.close()
+
+
+def restore(src: Path, yes: bool) -> None:
+    """Copy a backup into LYST_HOME after checking every database opens with the current master key."""
+    import duckdb
+
+    from .store.db import derive_key
+
+    settings = load_settings()
+    manifest = json.loads((src / "manifest.json").read_text())
+    for rel in manifest["files"]:
+        name = "control" if rel == "control.duckdb" else "ws:" + Path(rel).stem
+        con = duckdb.connect()
+        quoted = str(src / rel).replace("'", "''")
+        try:
+            if manifest["encrypted"]:
+                con.execute(f"ATTACH '{quoted}' AS chk (ENCRYPTION_KEY '{derive_key(settings.master_key, name)}', READ_ONLY)")
+            else:
+                con.execute(f"ATTACH '{quoted}' AS chk (READ_ONLY)")
+            con.execute("DETACH chk")
+        except duckdb.Error as exc:
+            sys.exit(f"{rel} does not open with the current master key: {exc}")
+        finally:
+            con.close()
+    if (settings.home / "control.duckdb").exists() and not yes:
+        answer = input(f"{settings.home} already holds a Lyst installation. Replace it? [y/N] ")
+        if answer.strip().lower() != "y":
+            sys.exit("Restore cancelled.")
+    for rel in manifest["files"]:
+        target = settings.home / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        for suffix in ("", ".wal"):
+            if (target.parent / (target.name + suffix)).exists():
+                (target.parent / (target.name + suffix)).unlink()
+        shutil.copy2(src / rel, target)
+    for folder in ("artifacts", "dashboards"):
+        if (src / folder).exists():
+            shutil.copytree(src / folder, settings.home / folder, dirs_exist_ok=True)
+    print(f"Restored {len(manifest['files'])} database(s) from {src} (taken {manifest['taken_at']}) into {settings.home}.")
+
+
 def run_eval(label: str) -> None:
     import tempfile
 
@@ -91,6 +143,14 @@ def main(argv: list[str] | None = None) -> None:
     tk.add_argument("--name", default=None)
     tk.add_argument("--hours", type=int, default=None, help="expiry; default never")
     tk.add_argument("--owner-of", default=None, help="also create this workspace with the user as owner")
+    bk = sub.add_parser("backup", help="consistent, encrypted backup of every database plus artifacts and dashboards")
+    bk.add_argument("dest")
+    rs = sub.add_parser("restore", help="restore a backup into LYST_HOME (engine must be stopped)")
+    rs.add_argument("src")
+    rs.add_argument("--yes", action="store_true", help="replace existing files without asking")
+    pr = sub.add_parser("prune", help="apply retention: drop old events, calls, query history and notifications")
+    pr.add_argument("--event-days", type=int, default=int(os.environ.get("LYST_RETENTION_DAYS_EVENTS", "90")))
+    pr.add_argument("--audit-days", type=int, default=int(os.environ.get("LYST_RETENTION_DAYS_AUDIT", "400")))
     ev = sub.add_parser("eval", help="run the demo evaluation bank against a fresh demo workspace")
     ev.add_argument("--label", default="")
     args = p.parse_args(argv)
@@ -102,6 +162,18 @@ def main(argv: list[str] | None = None) -> None:
         serve()
     elif args.cmd == "token":
         issue_token(args.email, args.name, args.hours, args.owner_of)
+    elif args.cmd == "backup":
+        backup(Path(args.dest))
+    elif args.cmd == "restore":
+        restore(Path(args.src), args.yes)
+    elif args.cmd == "prune":
+        from .app import Lyst
+
+        lyst = Lyst.build()
+        try:
+            print(json.dumps(lyst.stores.prune(event_days=args.event_days, audit_days=args.audit_days)))
+        finally:
+            lyst.close()
     elif args.cmd == "eval":
         run_eval(args.label)
     elif args.cmd == "ui":

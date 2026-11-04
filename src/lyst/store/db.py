@@ -52,9 +52,11 @@ class Database:
         master_key: bytes,
         encrypt: bool = True,
         migrations: list[Migration] | None = None,
+        allowed_dir: Path | None = None,
     ) -> None:
         self.path = path
         self.name = name
+        self._key = derive_key(master_key, name) if encrypt else None
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = duckdb.connect(":memory:")
         quoted = str(path).replace("'", "''")
@@ -65,7 +67,12 @@ class Database:
             self._conn.execute(f"ATTACH '{quoted}' AS {self.ALIAS}")
         self._conn.execute(f"USE {self.ALIAS}")
         # Generated or user SQL must never reach the filesystem or the network through this
-        # connection. Lock the configuration so a query cannot turn it back on.
+        # connection. Lock the configuration so a query cannot turn it back on. The one directory
+        # left open is Lyst's own backup folder, so a consistent copy can be attached there.
+        self._backup_dir = allowed_dir
+        if allowed_dir is not None:
+            allowed_dir.mkdir(parents=True, exist_ok=True)
+            self._conn.execute(f"SET allowed_directories = ['{str(allowed_dir).replace(chr(39), chr(39) * 2)}']")
         self._conn.execute("SET enable_external_access = false")
         self._conn.execute("SET lock_configuration = true")
         self._queue: queue.Queue[tuple[Callable[[duckdb.DuckDBPyConnection], Any], Future] | None] = (
@@ -155,6 +162,38 @@ class Database:
             return applied
 
         return self.write(apply)
+
+    def backup_to(self, dest: Path) -> Path:
+        """A consistent, still-encrypted copy of this database, taken on the writer thread in one snapshot."""
+        if self._backup_dir is None:
+            raise RuntimeError("this database was opened without a backup directory")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        staging = self._backup_dir / f".{self.name.replace(':', '_')}.{dest.name}"
+        for p in (staging, staging.with_name(staging.name + ".wal")):
+            if p.exists():
+                p.unlink()
+        quoted = str(staging).replace("'", "''")
+
+        def tx(c: duckdb.DuckDBPyConnection) -> None:
+            if self._key:
+                c.execute(f"ATTACH '{quoted}' AS lyst_backup (ENCRYPTION_KEY '{self._key}')")
+            else:
+                c.execute(f"ATTACH '{quoted}' AS lyst_backup")
+            try:
+                c.execute(f"COPY FROM DATABASE {self.ALIAS} TO lyst_backup")
+            finally:
+                c.execute("DETACH lyst_backup")
+
+        # COPY FROM DATABASE cannot run inside the writer's BEGIN/COMMIT, so take the writer's cursor directly
+        fut: Future = Future()
+        self._queue.put((lambda c: (c.execute("COMMIT"), tx(c), c.execute("BEGIN TRANSACTION")) and None, fut))
+        fut.result(timeout=600)
+        if dest.exists():
+            dest.unlink()
+        import shutil  # noqa: PLC0415
+
+        shutil.move(staging, dest)
+        return dest
 
     def close(self) -> None:
         if self._closed:
