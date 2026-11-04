@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, kit, onboarding, reports, scenarios, transforms
+from lyst.ui import anticipate, governance, kit, onboarding, reports, scenarios, transforms
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -198,6 +198,7 @@ def dataset_detail(d: dict) -> None:
         if not ins:
             return
         anticipate.about("dataset", name, key=f"hf_d{name}")
+        governance.classification(name, d.get("classification"))
         risks = ins.get("risks") or []
         if not risks:
             st.markdown(md(ins.get("summary") or ""))
