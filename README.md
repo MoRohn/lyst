@@ -22,7 +22,7 @@ Python, verifies the result independently, and returns a decision-ready answer w
 assumption behind it. It is judged by completed, verifiable work, not by conversation: every number comes from
 a query, whether or not a model is involved.
 
-![Lyst's Home answering why operating margin declined, with evidence, a trend chart and a driver table](docs/images/analyst-light.png)
+![Lyst answering why operating margin declined: a verified answer with evidence, a trend chart, what it means and what to do](docs/images/analyst-light.png)
 
 ## Quick start
 
@@ -40,7 +40,7 @@ demo workspace, starts the engine on `http://127.0.0.1:8770` and opens the inter
 
 Then ask: **"Why did operating margin decline last quarter?"** Lyst finds that operating margin fell from 36.0%
 in Q2 2026 to 32.5% in Q3 2026, that EMEA's own margin drop (36.8% to 24.0%) explains it, reconciles the
-bridge exactly, and saves the analysis as a reusable workflow. That story is planted in the demo data
+bridge exactly, and saves the analysis so it can be rerun for any period. That story is planted in the demo data
 (`src/lyst/demo.py`) so the tests can check that Lyst recovers it.
 
 No model is needed to try it. With none configured, Lyst runs on rules and templates; adding one improves
@@ -48,46 +48,53 @@ understanding and wording, never the numbers.
 
 ## A tour of the interface
 
-One navigation, six areas, light and dark themes.
+One navigation with five areas, light and dark themes, and a "What these words mean" glossary in the sidebar.
 
 | Area | What you do there |
 |---|---|
-| **Home** | Ask a question or describe the work, follow live progress, read the answer, continue where you left off |
-| **Work** | What Lyst is doing, what needs you (approvals), what finished, and what runs on its own (schedules, monitors) |
-| **Data** | Upload files or connect sources, preview and profile datasets, check quality, run guarded SQL |
-| **Intelligence** | Approved metrics and business terms, documents Lyst can cite, and what it remembers and how far to trust it |
-| **Build** | Verified workflows Lyst can rerun for any period, generated dashboards, and governed skills |
-| **Settings** | Inference (model level and costs), Secrets & Connections, members, autonomy and audit |
-
-### Every answer, four depths
-
-The same result reads four ways without rerunning anything. **Business**: the answer, evidence, implications
-and recommended actions. **Analyst**: adds tables, hypotheses, assumptions and sources. **Engineer**: adds the
-plan, every check and every query. **Executive**: the brief and the first thing to do. Limitations stay visible
-at every depth, and each answer exports as a PDF briefing, a deck, an Excel workbook or Markdown.
+| **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card guides the first run, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
+| **Work** | What needs you (approvals), what Lyst is doing and finished, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed |
+| **Data** | Datasets and their sources, dashboards, saved analyses, and guarded SQL. **Add data** uploads a file or connects a source |
+| **Brain** | What Lyst knows about the business: approved metrics and business terms, documents it can cite, and what it remembers and how far to trust it |
+| **Settings** | Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, audit trail) and Advanced (skills, capabilities, evaluation runs) |
 
 <p align="center">
-  <img src="docs/images/analyst-dark.png" alt="The same answer in the dark theme, rerun from a verified workflow" width="49%">
-  <img src="docs/images/home.png" alt="Home: ask Lyst, suggested questions and recent work" width="49%">
+  <img src="docs/images/home.png" alt="Home: the ask box, the Get started card and this month's metric tiles" width="80%">
+</p>
+
+### Every answer: Summary, Detail, Method, and a Brief
+
+Answers open at **Summary**: the answer, a one-line trust statement ("All 9 checks passed"), the evidence, a
+chart, what it means and what to do. **Detail** adds tables, hypotheses, assumptions and sources. **Method** adds
+the plan, every check and every query. **Brief** opens the two-line version with one chart, what to do and the PDF
+briefing, ready to forward; executive requests lead with it. Limitations stay visible at every depth.
+
+Under each answer you can act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved
+analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, and **How this
+ran** shows each step, query and model call with its timing.
+
+<p align="center">
+  <img src="docs/images/brief.png" alt="The Brief: the answer, the trust line, one chart, what to do and the PDF briefing" width="49%">
+  <img src="docs/images/analyst-dark.png" alt="The same answer in the dark theme, at the Summary depth" width="49%">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/work.png" alt="Work: running, done and stopped tasks"><br><b>Work</b>: needs you, activity and recurring runs</td>
-    <td width="50%"><img src="docs/images/data.png" alt="Data: datasets with rows, versions and classification"><br><b>Data</b>: datasets, connections and SQL</td>
+    <td width="50%"><img src="docs/images/work.png" alt="Work: needs you, activity and recurring runs"><br><b>Work</b>: needs you, activity and recurring runs</td>
+    <td width="50%"><img src="docs/images/data.png" alt="Data: datasets with descriptions, rows, freshness and classification"><br><b>Data</b>: datasets, dashboards, saved analyses and SQL</td>
   </tr>
   <tr>
-    <td><img src="docs/images/intelligence.png" alt="Intelligence: approved metrics and business terms"><br><b>Intelligence</b>: definitions, documents and memory</td>
-    <td><img src="docs/images/build.png" alt="Build: verified workflows ready to rerun"><br><b>Build</b>: workflows, dashboards and skills</td>
+    <td><img src="docs/images/brain.png" alt="Brain: approved metrics and business terms"><br><b>Brain</b>: definitions, documents and memory</td>
+    <td><img src="docs/images/saved-analyses.png" alt="Data, Saved analyses: a verified analysis ready to rerun"><br><b>Saved analyses</b>: verified work Lyst reruns for any period</td>
   </tr>
 </table>
 
 ### Dashboards from a sentence
 
-Build › New dashboard turns a request into a Plotly Dash app on Lyst's own kit (`src/lyst/dashkit`, vendored
-into each app so it runs anywhere with PyPI packages only): governed metrics, verified SQL, KPI cards, a trend
-with a forecast band, click-to-filter breakdowns, and a Data and method page. Every generated app is checked in
-a separate interpreter before it is offered.
+Data › Dashboards › **New dashboard** turns a request into a Plotly Dash app on Lyst's own kit
+(`src/lyst/dashkit`, vendored into each app so it runs anywhere with PyPI packages only): governed metrics,
+verified SQL, KPI cards, a trend with a forecast band, click-to-filter breakdowns, and a Data and method page.
+Every generated app is checked in a separate interpreter before it is offered.
 
 ![A generated dashboard: KPI cards, trend with forecast and breakdowns](docs/images/dash-overview-light.png)
 
@@ -100,8 +107,8 @@ a separate interpreter before it is offered.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
   raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
   model wording verified against the computed numbers.
-* **Gets faster with use.** A verified analysis compiles into a typed, versioned workflow. Matching requests
-  reuse it, and a changed schema or metric definition marks it out of date.
+* **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
+  requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
@@ -127,7 +134,7 @@ OpenRouter's live catalog:
 | **Frontier** | The flagships (Claude Opus, the newest GPT, Gemini Pro, Grok) | Hard investigations |
 
 An administrator sets the default level and a ceiling; a workspace admin can also choose one specific model.
-Settings › Inference shows each level's models, OpenRouter's prices, the cost per call and per 1,000 calls, and
+Settings › Models shows each level's models, OpenRouter's prices, the cost per call and per 1,000 calls, and
 30-day spend. Quick steps such as classification run with thinking off, and an empty reply fails over to the
 next model, so the computed answer always stands.
 
@@ -137,7 +144,7 @@ A local OpenAI-compatible server (Ollama, llama.cpp, vLLM) works instead: set `L
 ## Security and secrets
 
 * **Credentials are never configuration.** The OpenRouter key, database passwords and API tokens are entered
-  once in **Settings › Secrets & Connections**, tested, sealed with AES-256-GCM envelope encryption, and never
+  once in **Settings › Connections**, tested, sealed with AES-256-GCM envelope encryption, and never
   shown again. `.env` files refuse secret-shaped names. OpenBao is supported for enterprises.
 * **The master key lives outside the data**: in the OS credential store (the Keychain on a Mac), a mounted
   secret file, or OpenBao, and never beside the database. `lyst init` sets it up and `lyst rotate-master-key`
@@ -195,7 +202,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
