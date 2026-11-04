@@ -30,6 +30,7 @@ from typing import Any
 from .. import observability as obs
 from ..analyst.engine import Services
 from ..analyst.registry import Context
+from ..monitoring import cadence
 from ..security import AccessDenied, Principal
 from ..store import Stores
 
@@ -332,7 +333,7 @@ class TaskRuntime:
              json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})), every_seconds,
              _now() + timedelta(seconds=every_seconds)])
         aid = self.request_approval(workspace_id, actor.user_id, "schedule.activate",
-                                    f"Run '{title}' every {every_seconds // 60} min", {"schedule_id": sid})
+                                    f"Run '{title}' {cadence(every_seconds)}", {"schedule_id": sid})
         self.db.execute("UPDATE schedules SET approval_id = ? WHERE id = ?", [aid, sid])
         self.services.guard.audit(actor, workspace_id, "schedule.create", sid, "pending_approval")
         return {"schedule_id": sid, "approval_id": aid, "enabled": False}

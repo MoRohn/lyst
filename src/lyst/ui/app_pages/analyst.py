@@ -15,7 +15,9 @@ PHASES = {"understand": "Reading the request", "contextualize": "Finding definit
           "plan": "Planning the analysis", "investigate": "Investigating", "execute": "Running governed queries",
           "hypothesize": "Forming explanations", "test": "Testing explanations", "validate": "Checking the result",
           "deliver": "Writing the answer", "learn": "Recording what was learned", "improve": "Improving a capability"}
-EXPORTS = (("pdf", "PDF briefing"), ("pptx", "Deck"), ("xlsx", "Excel"), ("md", "Markdown"))
+EXPORTS = (("pdf", "PDF briefing"), ("pptx", "Slides"), ("xlsx", "Excel workbook"), ("md", "Markdown"))
+SENSITIVITY = {4.0: "Big moves only", 3.0: "Notable moves", 2.0: "Any unusual move"}
+REPEAT = {604800: "Every week", 2592000: "Every month", 86400: "Every day"}
 MIME = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "md": "text/markdown",
         "pdf": "application/pdf", "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
 TONE = {"green": "ok", "orange": "warn", "red": "bad", "blue": "run", "gray": "off"}
@@ -72,15 +74,51 @@ def suggestions(metrics: list[dict]) -> list[str]:
     return list(dict.fromkeys(out))[:5]
 
 
+def get_started(datasets: list[dict], metrics: list[dict]) -> None:
+    """The first run teaches by doing: four steps, each linking to where it is done; gone once done or dismissed."""
+    if st.session_state.get("hide_get_started"):
+        return
+    admin = st.session_state.get("role") in ("admin", "owner")
+    try:
+        asked = bool(api.get(f"/v1/workspaces/{ws}/tasks"))
+        watching = bool(api.get(f"/v1/workspaces/{ws}/monitors") or api.get(f"/v1/workspaces/{ws}/schedules"))
+        model = bool(api.get("/health").get("model")) if admin else True
+    except APIError:
+        return
+    steps = [("Add your data", "Upload a spreadsheet or connect a database.", bool(datasets), "app_pages/data.py", None),
+             ("Ask a first question", "Pick a suggestion below, or type your own.", asked, None, None),
+             ("Keep watch", "From an answer: Watch this metric, or Repeat it weekly.", watching, "app_pages/work.py",
+              {"view": "recurring"})]
+    if admin:
+        steps.append(("Connect a model (optional)", "Richer explanations. Every number still comes from your data.",
+                      model, "app_pages/settings.py", None))
+    left = sum(not s[2] for s in steps)
+    if not left:
+        return
+    with st.container(border=True):
+        top = st.columns([6, 1], vertical_alignment="center")
+        top[0].markdown(f"**Get started** · {len(steps) - left} of {len(steps)} done")
+        if top[1].button("Hide", type="tertiary", key="gs_hide", width="stretch"):
+            st.session_state.hide_get_started = True
+            st.rerun()
+        for i, (title, body, ok, page, qp) in enumerate(steps):
+            c = st.columns([0.35, 6, 1.4], vertical_alignment="center")
+            c[0].markdown(":material/check_circle:" if ok else ":material/radio_button_unchecked:")
+            c[1].markdown(f"~~{title}~~" if ok else f"**{title}**  \n{body}")
+            if not ok and page and c[2].button("Go", key=f"gs_{i}", type="tertiary", width="stretch"):
+                st.switch_page(page, query_params=qp)
+
+
 def home() -> None:
     kit.header("What should Lyst work on?",
-               "Lyst plans the work, runs it on your governed data, checks the result and shows its evidence.")
+               "Ask in plain words. Lyst works it out from your approved numbers, checks every figure and shows why.")
     ask_box(compact=False)
     try:
         metrics = api.get(f"/v1/workspaces/{ws}/metrics")
         datasets = api.get(f"/v1/workspaces/{ws}/datasets")
     except APIError:
         metrics, datasets = [], []
+    get_started(datasets, metrics)
     if not datasets:
         if kit.empty(":material/database:", "Connect data to begin",
                      "Lyst answers from data you load or connect. Add a file or a database, and approved metrics on it "
@@ -91,9 +129,9 @@ def home() -> None:
     if pick:
         submit(pick)
         st.rerun()
-    st.caption(f"Lyst can use {len(datasets)} dataset{'s' * (len(datasets) != 1)} and "
-               f"{len(metrics)} approved metric{'s' * (len(metrics) != 1)} in this workspace: "
-               + ", ".join(m["title"] for m in metrics[:6]) + ("…" if len(metrics) > 6 else "") + ".")
+    st.caption(f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here ("
+               + ", ".join(m["title"] for m in metrics[:6]) + ("…" if len(metrics) > 6 else "")
+               + "): why they changed, what drove them, a breakdown, a trend or a forecast.")
 
     needs: list[tuple[str, str, str, str]] = []  # (title, meta, action label, id)
     try:
@@ -205,6 +243,48 @@ def how_it_ran(task: str) -> None:
     st.caption(f"Task {task}. Model calls and queries are matched to a step when exactly one step was running at the time.")
 
 
+def act_bar(task: str, t: dict, r: dict) -> None:
+    """Every recommendation is a button: watch the metric, repeat the analysis, take the answer away, see how it ran."""
+    editor = st.session_state.get("role") in ("editor", "admin", "owner")
+    sup = r.get("supporting") or {}
+    metric = (sup.get("metric") or {}).get("spec") or {}
+    wf = sup.get("workflow") or {}
+    wf_id = (wf.get("used") or {}).get("id") or (wf.get("compiled") or {}).get("id")
+    done = r["status"] == "complete"
+    cols = st.columns([1.5, 1.3, 1.3, 1.4, 2.5], vertical_alignment="center")
+    if done and editor and metric.get("name"):
+        name = kit.lower(metric.get("title") or metric["name"])
+        with cols[0].popover("Watch this metric", icon=":material/monitor_heart:", width="stretch"):
+            st.caption(f"Lyst checks {name} on its own and investigates when it moves unusually. "
+                       "An admin approves it once.")
+            sens = st.radio("Tell me about", list(SENSITIVITY), format_func=SENSITIVITY.get, index=1,
+                            key=f"w_sens_{task}", help="Big moves only alerts beyond 4 standard deviations of the "
+                            "usual change, notable beyond 3, any unusual move beyond 2.")
+            grain = st.radio("Looking at", ["month", "quarter"], format_func=lambda g: f"Each {g}", horizontal=True,
+                             key=f"w_grain_{task}")
+            if st.button("Start watching", type="primary", key=f"w_go_{task}", width="stretch"):
+                kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/monitors", {
+                    "metric": metric["name"], "grain": grain, "threshold_sigma": sens, "every_seconds": 86400}),
+                    f"Watching {name}. It starts once an admin approves it.", icon=":material/monitor_heart:")
+    if done and editor:
+        with cols[1].popover("Repeat it", icon=":material/event_repeat:", width="stretch"):
+            st.caption("Lyst asks this again on its own, for the latest period, and keeps the results in Work.")
+            ev = st.radio("How often", list(REPEAT), format_func=REPEAT.get, key=f"r_ev_{task}")
+            if st.button("Repeat it", type="primary", key=f"r_go_{task}", width="stretch"):
+                question = ((t.get("request") or {}).get("question") or t["title"]).strip()
+                kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/workflows/{wf_id}/schedule", {"every_seconds": ev})
+                            if wf_id else api.post(f"/v1/workspaces/{ws}/schedules",
+                                                   {"title": t["title"], "question": question, "every_seconds": ev}),
+                            "Scheduled. It starts once an admin approves it.", icon=":material/event_repeat:")
+    if done:
+        with cols[2].popover("Download", icon=":material/download:", width="stretch"):
+            for kind, text in EXPORTS:
+                st.download_button(text, _export(task, kind), file_name=f"lyst-{task}.{kind}", mime=MIME[kind],
+                                   key=f"dl_{kind}_{task}", type="tertiary", on_click="ignore", width="stretch")
+    if cols[3].button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
+        how_it_ran(task)
+
+
 def task_view(task: str) -> None:
     top = st.columns([6, 1.4], vertical_alignment="center")
     if top[1].button("New question", icon=":material/add:", type="tertiary", width="stretch"):
@@ -233,17 +313,7 @@ def task_view(task: str) -> None:
     elif t["result"]:
         r = t["result"]
         answer(r, key=task)
-        if r["status"] == "complete":
-            cols = st.columns([1.2, 1, 1, 1.2, 1.4, 1.6])
-            for col, (kind, text) in zip(cols, EXPORTS, strict=False):
-                col.download_button(text, _export(task, kind), file_name=f"lyst-{task}.{kind}", mime=MIME[kind],
-                                    key=f"dl_{kind}_{task}", icon=":material/download:", type="tertiary",
-                                    on_click="ignore", width="stretch")
-        else:
-            cols = st.columns([1.4, 6])
-        if cols[-2 if r["status"] == "complete" else 0].button("How this ran", type="tertiary", icon=":material/timeline:",
-                                                                key=f"trace_{task}", width="stretch"):
-            how_it_ran(task)
+        act_bar(task, t, r)
         metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
         if metric:
             m = kit.lower(metric["title"])

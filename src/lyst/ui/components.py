@@ -71,15 +71,26 @@ def chart(c: dict[str, Any]) -> None:
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 
+def heading(col: str) -> str:
+    """'prior_rate' -> 'Prior rate', 'region' -> 'Region': column names in words, acronyms kept."""
+    text = str(col).replace("_", " ").strip()
+    return text[:1].upper() + text[1:]
+
+
 def table(t: dict[str, Any]) -> None:
     st.caption(t["title"])
     df = pd.DataFrame(t["rows"], columns=t["columns"])
+    for col in df.columns:  # -0.0 rendered as "-0%": round tiny values to a plain zero
+        if pd.api.types.is_float_dtype(df[col]):
+            df[col] = df[col].mask(df[col].abs() < 5e-7, 0.0)
     cfg = {}
     for col in df.columns:
         if any(k in col for k in ("rate", "effect", "contribution", "share")):
-            cfg[col] = st.column_config.NumberColumn(col.replace("_", " ").capitalize(), format="percent")
+            cfg[col] = st.column_config.NumberColumn(heading(col), format="percent")
         elif col in ("prior", "current", "change", "value"):
-            cfg[col] = st.column_config.NumberColumn(col.capitalize(), format="compact")
+            cfg[col] = st.column_config.NumberColumn(heading(col), format="compact")
+        else:
+            cfg[col] = st.column_config.Column(heading(col))
     st.dataframe(df, hide_index=True, width="stretch", column_config=cfg)
 
 
@@ -92,7 +103,22 @@ def _default_view(r: dict[str, Any]) -> str:
         return "Executive"
     if st.session_state.get("view_pref") in VIEWS:
         return st.session_state["view_pref"]
-    return "Business" if st.session_state.get("role") == "viewer" else "Analyst"
+    return "Business"  # everyone starts at the business depth; the depth a person picks is remembered
+
+
+def trust_line(r: dict[str, Any]) -> str | None:
+    """What 'Verified' means for this answer, in one line a business reader can repeat."""
+    conf = r.get("confidence") or {}
+    checks = conf.get("checks") or []
+    passed = sum(1 for c in checks if c.get("passed"))
+    if r.get("status") == "needs_input":
+        return "Lyst needs one more detail before it can answer; see below."
+    if conf.get("level") == "verified":
+        return (f"All {len(checks)} checks passed: every figure was recomputed independently from approved data."
+                if checks else "Every figure was recomputed independently from approved data.")
+    if checks:
+        return f"{passed} of {len(checks)} checks passed. Read the notes below before relying on this."
+    return None
 
 
 def caveats(r: dict[str, Any]) -> list[str]:
@@ -126,12 +152,15 @@ def answer(r: dict[str, Any], key: str = "answer") -> None:
             bar[0].badge("Verified", color="green", icon=":material/verified:")
         elif level:
             bar[0].badge(level.capitalize(), color="orange", icon=":material/warning:")
+        if tl := trust_line(r):
+            st.caption(md(tl))
         wf = sup.get("workflow") or {}
         if wf.get("used"):
-            st.caption(f":material/bolt: Ran the verified workflow “{md(wf['used']['title'])}” "
-                       f"(v{wf['used']['version']}, verified {wf['used']['verified_runs']}×) instead of planning from scratch.")
+            st.caption(f":material/bolt: Reused the checked analysis “{md(wf['used']['title'])}”, verified "
+                       f"{wf['used']['verified_runs']}× before, so this took one pass instead of being worked out again.")
         elif (wf.get("compiled") or {}).get("created"):
-            st.caption(":material/library_add_check: Verified, so Lyst saved this as a reusable workflow (Build › Workflows).")
+            st.caption(":material/library_add_check: Saved as a repeatable analysis: rerun it for any period, or have "
+                       "it repeat on its own (Repeat it, below).")
         cav = caveats(r)
         if cav:
             st.warning(bullets(cav), icon=":material/info:")
@@ -143,11 +172,11 @@ def answer(r: dict[str, Any], key: str = "answer") -> None:
         cols = st.columns(2)
         if r.get("implications"):
             with cols[0]:
-                st.markdown("**Business implications**")
+                st.markdown("**What it means**")
                 st.markdown(bullets(r["implications"]))
         if r.get("actions"):
             with cols[1]:
-                st.markdown("**Recommended actions**")
+                st.markdown("**What to do**")
                 st.markdown(bullets(r["actions"]))
         if view in ("Analyst", "Engineer"):
             for t in r.get("tables", []):
@@ -161,7 +190,7 @@ def answer(r: dict[str, Any], key: str = "answer") -> None:
             if sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown(bullets(sup["assumptions"]))
-        with st.expander("Supporting work: method, checks and queries", icon=":material/fact_check:",
+        with st.expander("Show the method, checks and queries", icon=":material/fact_check:",
                          expanded=view == "Engineer"):
             if sup.get("sources"):
                 st.markdown("**Sources**")

@@ -47,13 +47,13 @@ def workflow_detail(w: dict) -> None:
             if c2[1].button("Schedule", icon=":material/event_repeat:", width="stretch"):
                 kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/workflows/{w['id']}/schedule", {"every_seconds": ev}),
                             "Proposed. It starts once an admin approves it.")
-    kit.label("How it works")
-    st.markdown("**Plan** " + " → ".join(f"`{x['capability']}`" for x in d["steps"]))
-    st.markdown("**Must pass** " + ", ".join(f"`{c}`" for c in d["validation"]["required_checks"]))
-    st.markdown("**Depends on** " + ", ".join([f"`{n}` (schema {fp})" for n, fp in w["deps"]["datasets"].items()]
-                                              + [f"`{n}` v{v}" for n, v in w["deps"]["metrics"].items()]))
-    st.caption(f"Needs {', '.join(w['permissions'])}. Compiled from {w['source_task']}, last verified by "
-               f"{w['last_verified_task']}.")
+    with st.expander("How it works", icon=":material/account_tree:"):
+        st.markdown("**Plan** " + " → ".join(f"`{x['capability']}`" for x in d["steps"]))
+        st.markdown("**Must pass** " + ", ".join(f"`{c}`" for c in d["validation"]["required_checks"]))
+        st.markdown("**Depends on** " + ", ".join([f"`{n}` (schema {fp})" for n, fp in w["deps"]["datasets"].items()]
+                                                  + [f"`{n}` v{v}" for n, v in w["deps"]["metrics"].items()]))
+        st.caption(f"Needs {', '.join(w['permissions'])}. Compiled from {w['source_task']}, last verified by "
+                   f"{w['last_verified_task']}.")
     if editor and st.button("Retire", type="tertiary", icon=":material/archive:"):
         if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/workflows/{w['id']}/retire"), "Retired"):
             st.rerun()
@@ -65,7 +65,8 @@ def workflows() -> None:
         kit.empty(":material/bolt:", "No workflows yet", "When an answer is verified, Lyst saves how it got there. Asking "
                   "again, for any period, reuses that checked plan instead of working it out from scratch.")
         return
-    st.caption("Verified analyses Lyst can repeat for any period. A changed schema or definition marks one out of date.")
+    st.caption("Saved analyses: verified answers Lyst can rerun for any period, or repeat on its own. A changed "
+               "definition or data layout marks one out of date until it is verified again.")
     for i, w in enumerate(flows):
         grain = (w["definition"]["inputs"].get("period") or {}).get("grain")
         if kit.row(w["title"], f"Verified {w['verified_runs']}× · reused {w['runs']}×"
@@ -244,10 +245,10 @@ def skills() -> None:
 
 try:
     view = st.query_params.get("view", "workflows")
-    if kit.header("Build", "What Lyst makes and reuses: verified workflows, dashboards, and governed skills.",
+    if kit.header("Build", "Dashboards, saved analyses Lyst can rerun, and (for builders) new skills.",
                   action="New dashboard" if editor else None, icon=":material/dashboard_customize:"):
         new_dashboard()
-    view = kit.sections(["Workflows", "Dashboards", "Skills"], key="view")
+    view = kit.sections(["Dashboards", "Workflows", "Skills"], key="view")
     {"Workflows": workflows, "Dashboards": dashboards, "Skills": skills}[view]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

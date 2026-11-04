@@ -30,6 +30,27 @@ kit.style()
 
 here = Path(__file__).parent / "app_pages"
 
+GLOSSARY = """
+**Approved measure (metric)**: a definition an admin approved, such as what revenue means here. Lyst answers only
+from these, so two people asking the same question get the same number.
+
+**Verified**: every figure in the answer was recomputed independently and every required check passed.
+
+**Depth**: how much of the method an answer shows. Business is the answer and what to do; Analyst adds the tables
+and what was tested; Engineer adds every query; Executive is the two-line brief.
+
+**Watch a metric**: Lyst checks it on its own and investigates unusual moves. Sensitivity sets how unusual a move
+must be before it tells you.
+
+**Repeat it**: Lyst asks the same question again every day, week or month, for the latest period.
+
+**Saved analysis (workflow)**: a verified answer Lyst can rerun for any period without working it out again.
+
+**Needs you**: approvals, questions Lyst needs answered, and results that did not pass verification.
+
+**Skill**: a new method a builder adds to Lyst in Python. It is tested in a sandbox and approved before use.
+"""
+
 
 def make_pages(waiting: int = 0) -> list:
     """The six areas, in one place: the sidebar. Work carries the count of things waiting on you."""
@@ -172,4 +193,6 @@ with st.sidebar:
                 pass
             st.session_state.pop("token", None)
             st.rerun()
+    with st.popover("What these words mean", icon=":material/help:", width="stretch"):
+        st.markdown(GLOSSARY)
 nav.run()
