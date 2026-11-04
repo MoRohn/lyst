@@ -20,6 +20,7 @@ dependencies = [
   "statsmodels>=0.15",
   "python-multipart>=0.0.33",
   "pytz>=2025.2",
+  "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

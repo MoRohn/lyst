@@ -168,7 +168,9 @@ class TaskRuntime:
         if not rows:
             raise KeyError(approval_id)
         ap = rows[0]
-        self.services.guard.require(actor, ap["workspace_id"], "approval.decide", approval_id)
+        self.services.guard.require(actor, ap["workspace_id"],
+                                    "skill.approve" if ap["action"] == "skill.register" else "approval.decide",
+                                    approval_id)
         if ap["requested_by"] == actor.user_id and ap["action"] in ("skill.register",):
             raise AccessDenied("the proposer of a capability cannot approve it")
         if ap["status"] != "pending":
@@ -186,6 +188,9 @@ class TaskRuntime:
                           ["queued" if approve else "cancelled", ap["task_id"]])
 
         self.db.write(tx)
+        if ap["action"] == "skill.register" and approve and self.services.skills:
+            p = json.loads(ap["payload"])
+            self.services.skills.on_approved(actor, ap["workspace_id"], p["name"], int(p["version"]))
         self.services.guard.audit(actor, ap["workspace_id"], "approval.decide", approval_id, status)
         if ap["task_id"]:
             self.event(ap["task_id"], f"approval_{status}", f"{ap['summary']}: {status}")

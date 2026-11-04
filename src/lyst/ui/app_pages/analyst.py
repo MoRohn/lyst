@@ -59,6 +59,20 @@ def live() -> None:
         return
     if t["result"]:
         answer(t["result"])
+        if t["result"]["status"] == "complete":
+            d = st.columns([1, 1, 6])
+            for i, (kind, label) in enumerate((("xlsx", "Excel workbook"), ("md", "Briefing"))):
+                if d[i].button(label, key=f"mk_{kind}_{tid}", icon=":material/download:", type="tertiary"):
+                    try:
+                        a = api.post(f"/v1/tasks/{tid}/artifacts/{kind}")
+                        st.session_state[f"art_{kind}_{tid}"] = a
+                    except APIError as e:
+                        st.error(str(e))
+                a = st.session_state.get(f"art_{kind}_{tid}")
+                if a:
+                    data = api.http.get(f"/v1/artifacts/{a['id']}", headers=api._h()).content
+                    d[i].download_button(f"Save {a['name']}", data, file_name=a["name"], mime=a["mime"],
+                                         key=f"dl_{kind}_{tid}")
         metric = (t["result"].get("supporting", {}).get("metric") or {}).get("spec", {})
         if metric:
             st.caption("Follow up")

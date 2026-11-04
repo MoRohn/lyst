@@ -32,7 +32,9 @@
 | Identity | OIDC / SSO | Planned (Phase 2) | — |
 | Connectors | PostgreSQL, warehouses, SaaS; connector SDK | Planned (Phase 4) | — |
 | Knowledge | Documents with citations, vector search | Planned (Phase 4) | — |
-| Build | Skill authoring, sandboxed tests, promotion | Planned (Phase 6); only the approval rule exists | `test_proposer_cannot_approve_own_capability` |
-| Deliverables | Excel, PDF, slides, generated dashboards | Planned (Phase 6) | — |
+| Build | Governed skills: static check, sandboxed tests with adversarial cases, approval by another role, registration, use in plans, retire | Tested | Scenario F, `test_skills.py` |
+| Build | Evaluation harness: question bank, independent expected values, stored scored runs, `lyst eval` | Tested | `test_evals.py` (15/15 on the demo bank) |
+| Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |
+| Deliverables | PDF, slides, generated dashboards | Planned (Phase 6) | — |
 | Ops | Metrics/tracing, backup automation, load tests | Planned (Phase 7) | — |
 | Models | Local model exercised end to end | Not yet: no local model is installed on the dev machine | — |

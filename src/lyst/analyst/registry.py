@@ -88,4 +88,5 @@ AGENTS = {
     "quality": "Independently checks numbers, coverage and reconciliation.",
     "communications": "Writes the answer in Answer, Evidence, Implications, Actions order.",
     "knowledge_curator": "Records what was learned, with provenance.",
+    "software_engineer": "Runs and maintains registered skills and generated code.",
 }

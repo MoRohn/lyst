@@ -21,7 +21,8 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 65 tests
+uv run pytest                # 74 tests
+uv run lyst eval             # scores 15 analytical questions against independent answers
 ```
 
 Ask "Why did operating margin decline last quarter?" in the demo. Lyst finds that operating margin fell from
@@ -53,13 +54,12 @@ after a crash, approvals, budgets and schedules; a versioned API; and a six-area
 
 ## What does not exist yet
 
-OIDC sign-in, connectors beyond file upload, document knowledge and vector search, the Build workspace's
-skill authoring and sandbox, generated deliverables (Excel, PDF, decks, dashboards), observability, backup
-automation and load tests. The [roadmap](docs/ROADMAP.md) orders them.
+OIDC sign-in, connectors beyond file upload, document knowledge and vector search, PDF and deck
+deliverables, generated dashboards, observability, backup automation and load tests. The [roadmap](docs/ROADMAP.md) orders them.
 
 ## Documents
 
-[Architecture](docs/ARCHITECTURE.md) · [Models](docs/MODELS.md) · [DuckDB design](docs/DUCKDB.md) ·
+[Architecture](docs/ARCHITECTURE.md) · [Models](docs/MODELS.md) · [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) ·
 [Acumane audit](docs/ACUMANE_AUDIT.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [SBOM](docs/SBOM.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/decisions/)
 

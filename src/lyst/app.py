@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from .analyst.engine import REGISTRY, Services
 from .config import Settings, load_settings
 from .data import DataService
+from .deliverables import ArtifactService
 from .llm import LLMClient
 from .memory import MemoryService
 from .runtime import TaskRuntime
 from .security import Guard
 from .semantic import SemanticService
+from .skills import SkillService
 from .store import Stores
 
 
@@ -28,6 +30,8 @@ class Lyst:
     llm: LLMClient
     services: Services
     runtime: TaskRuntime
+    skills: SkillService
+    artifacts: ArtifactService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -38,9 +42,11 @@ class Lyst:
         semantic = SemanticService(stores, guard)
         memory = MemoryService(stores, guard)
         llm = LLMClient(settings.llm, stores)
-        services = Services(guard, data, semantic, memory, llm, REGISTRY)
+        skills = SkillService(stores, guard, data)
+        services = Services(guard, data, semantic, memory, llm, REGISTRY, skills)
         runtime = TaskRuntime(stores, services, **runtime_kw)
-        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime)
+        artifacts = ArtifactService(stores, guard, settings.home)
+        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts)
 
     def close(self) -> None:
         self.runtime.stop()

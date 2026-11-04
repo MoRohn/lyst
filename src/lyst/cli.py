@@ -41,12 +41,35 @@ def init_demo() -> None:
         lyst.close()
 
 
+def run_eval(label: str) -> None:
+    import tempfile
+
+    from . import demo, evals
+    from .app import Lyst
+
+    with tempfile.TemporaryDirectory() as home:
+        lyst = Lyst.build(load_settings(home))
+        try:
+            owner = lyst.guard.create_user("eval@lyst.local", "Evaluator")
+            demo.seed(lyst, owner)
+            s = evals.run(lyst, owner, "northwind", evals.demo_bank(), label=label)
+            for r in s["results"]:
+                bad = [c["name"] for c in r["checks"] if not c["passed"]]
+                print(f"{'PASS' if r['passed'] else 'FAIL'}  {r['seconds']:>5.2f}s  {r['case']}" + (f"  ({', '.join(bad)})" if bad else ""))
+            print(f"{s['passed']}/{s['cases']} passed, p95 {s['p95_seconds']:.2f}s, model {s['model'] or 'none (rules)'}")
+            sys.exit(0 if s["passed"] == s["cases"] else 1)
+        finally:
+            lyst.close()
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="lyst")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init-demo", help="create the demo workspace and a development token")
     sub.add_parser("serve", help="run the API and workers")
     sub.add_parser("ui", help="run the Streamlit interface")
+    ev = sub.add_parser("eval", help="run the demo evaluation bank against a fresh demo workspace")
+    ev.add_argument("--label", default="")
     args = p.parse_args(argv)
     if args.cmd == "init-demo":
         init_demo()
@@ -54,6 +77,8 @@ def main(argv: list[str] | None = None) -> None:
         from .api import main as serve
 
         serve()
+    elif args.cmd == "eval":
+        run_eval(args.label)
     elif args.cmd == "ui":
         app = Path(__file__).parent / "ui" / "app.py"
         settings = load_settings()

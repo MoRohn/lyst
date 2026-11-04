@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from ..app import Lyst
@@ -49,6 +49,16 @@ class Term(BaseModel):
 class WorkspacePatch(BaseModel):
     allow_external_llm: bool | None = None
     autonomy: str | None = None
+
+
+class SkillIn(BaseModel):
+    name: str
+    purpose: str
+    source: str
+    input_sql: str
+    tests: list[dict[str, Any]]
+    triggers: list[str]
+    params: dict[str, Any] | None = None
 
 
 class Correction(BaseModel):
@@ -220,6 +230,60 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True) -> FastA
         lyst.guard.require(user, ws, "workspace.read")
         return lyst.stores.workspace(ws).query(
             "SELECT id, task_id, question, answer, created_by, created_at FROM analyses ORDER BY created_at DESC LIMIT 100")
+
+    @app.get("/v1/workspaces/{ws}/evals")
+    def eval_runs(request: Request, ws: str, user: User):
+        lyst = L(request)
+        lyst.guard.require(user, ws, "workspace.read")
+        return lyst.stores.control.query(
+            "SELECT id, label, model, cases, passed, p95_seconds, created_at FROM eval_runs WHERE workspace_id = ? "
+            "ORDER BY created_at DESC LIMIT 50", [ws])
+
+    # -- build: skills and deliverables -----------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/skills")
+    def skills(request: Request, ws: str, user: User):
+        return L(request).skills.list(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/skills/{name}")
+    def skill(request: Request, ws: str, name: str, user: User, version: int | None = None):
+        return L(request).skills.get(user, ws, name, version)
+
+    @app.post("/v1/workspaces/{ws}/skills")
+    def propose_skill(request: Request, ws: str, body: SkillIn, user: User):
+        return L(request).skills.propose(user, ws, **body.model_dump())
+
+    @app.post("/v1/workspaces/{ws}/skills/{name}/{version}/test")
+    def test_skill(request: Request, ws: str, name: str, version: int, user: User):
+        return L(request).skills.test(user, ws, name, version)
+
+    @app.post("/v1/workspaces/{ws}/skills/{name}/{version}/register")
+    def register_skill(request: Request, ws: str, name: str, version: int, user: User):
+        lyst = L(request)
+        return {"approval_id": lyst.skills.request_registration(user, ws, name, version, lyst.runtime)}
+
+    @app.post("/v1/workspaces/{ws}/skills/{name}/retire")
+    def retire_skill(request: Request, ws: str, name: str, user: User):
+        L(request).skills.retire(user, ws, name)
+        return {"ok": True}
+
+    @app.post("/v1/tasks/{task_id}/artifacts/{kind}")
+    def make_artifact(request: Request, task_id: str, kind: str, user: User):
+        lyst = L(request)
+        return lyst.artifacts.build(user, lyst.runtime.get(user, task_id), kind)
+
+    @app.get("/v1/tasks/{task_id}/artifacts")
+    def task_artifacts(request: Request, task_id: str, user: User):
+        lyst = L(request)
+        t = lyst.runtime.get(user, task_id)
+        return lyst.artifacts.list(user, t["workspace_id"], task_id)
+
+    @app.get("/v1/artifacts/{artifact_id}")
+    def download_artifact(request: Request, artifact_id: str, user: User):
+        meta, data = L(request).artifacts.get(user, artifact_id)
+        mime = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "md": "text/markdown"}[meta["kind"]]
+        name = {"xlsx": "analysis.xlsx", "md": "briefing.md"}[meta["kind"]]
+        return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/v1/capabilities")
     def capabilities(request: Request, user: User):

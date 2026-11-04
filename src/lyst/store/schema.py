@@ -147,6 +147,41 @@ CONTROL.append((
     """,
 ))
 
+CONTROL.append((
+    3,
+    """
+    CREATE TABLE eval_runs (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        label VARCHAR,
+        model VARCHAR,
+        cases INTEGER NOT NULL,
+        passed INTEGER NOT NULL,
+        p95_seconds DOUBLE,
+        results JSON NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
+
+CONTROL.append((
+    4,
+    """
+    CREATE TABLE artifacts (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        task_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        path VARCHAR NOT NULL,
+        bytes BIGINT NOT NULL,
+        sha256 VARCHAR NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
+
 WORKSPACE: list[Migration] = [
     (
         1,

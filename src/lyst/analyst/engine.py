@@ -40,6 +40,7 @@ class Services:
     memory: MemoryService
     llm: LLMClient
     registry: Registry
+    skills: Any = None  # skills.SkillService
 
 
 REGISTRY = Registry()
@@ -179,9 +180,12 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             pass
     if intent == "breakdown" and not by:
         intent = "value"
+    skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
+    if skill and intent not in ("sql",):
+        intent = "skill"
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
             "ambiguous": resolved["ambiguous"], "by": by, "dataset": dataset, "method": method,
-            "sql": text if intent == "sql" else None}
+            "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None}
 
 
 # ------------------------------------------------------------------- 2. contextualize
@@ -236,7 +240,9 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
                             "Name the one you mean, or ask an admin to map the term in the glossary.")
-    if u["intent"] == "sql":
+    if u["intent"] == "skill":
+        add("run_skill", "skill", skill=u["skill"])
+    elif u["intent"] == "sql":
         add("run_sql", "sql", sql=u["sql"])
     elif u["intent"] == "profile":
         if u["dataset"]:
@@ -435,6 +441,13 @@ def forecast_metric(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                    "backtest_points": f.backtest_points, "table": _frame_records(f.table)})
 
 
+@capability(REGISTRY, "run_skill", agent="software_engineer", phase="execute", permission="data.query",
+            description="Run an approved, registered skill on its governed input query, in the sandbox.")
+def run_skill(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    return _clean(ctx.services.skills.execute(ctx.actor, ctx.workspace_id, args["skill"], task_id=ctx.task_id,
+                                              params=args.get("params")))
+
+
 @capability(REGISTRY, "run_sql", agent="analytics_engineer", phase="execute", permission="data.query",
             description="Run one guarded, read-only query.")
 def run_sql(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
@@ -603,6 +616,17 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if pl["blockers"]:
         answer = " ".join(pl["blockers"])
         status = "needs_input"
+    elif u["intent"] == "skill":
+        sk = o["skill"]
+        out = sk["output"]
+        answer = out.get("summary") or f"Skill {sk['skill']} v{sk['version']} ran on {sk['evidence'][0]['rows']} rows."
+        findings = [str(f) for f in out.get("findings", [])]
+        if isinstance(out.get("table"), list) and out["table"] and isinstance(out["table"][0], dict):
+            cols = list(out["table"][0])
+            tables.append({"title": f"{sk['skill']} result", "columns": cols,
+                           "rows": [[r.get(c) for c in cols] for r in out["table"]]})
+        assumptions.append(f"Computed by the registered skill {sk['skill']} v{sk['version']} in Lyst's sandbox.")
+        status = "complete"
     elif u["intent"] == "sql":
         s = o["sql"]
         answer = f"The query returned {s['row_count']} rows."
