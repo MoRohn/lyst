@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Dash dashboards from ai-analytics' dashkit: Lyst's default Studio target.
+"""Dash dashboards on Lyst's own kit (`lyst.dashkit`, vendored into each app): Lyst's default Studio target.
 
-The generated app follows the design language of the ai-analytics Tableau dashboards and their Dash
-ports (CRM Sales Performance → Pipeline Intelligence): a left navbar with groups, a header with the
+The generated app follows the design language of Rohn's Tableau dashboards (CRM Sales Performance → Pipeline
+Intelligence): a left navbar with groups, a header with the
 scope line, filter chips and a scheme toggle, a KPI row where every card has an icon tile, a large
 value, a delta pill against the prior period and a sparkline, a trend card with the ETS forecast band
 and anomaly markers, a mix card whose bars filter the page on click (the chart never filters itself;
@@ -12,7 +12,7 @@ No purples; green and red only for good and bad changes; light and dark schemes.
 
 Every number comes from the Parquet extracts beside the app, which Lyst wrote from governed SQL. A
 ratio metric ships its numerator and denominator per period and member, so cross-filtering recomputes
-it exactly. Findings are `stkit.insights` sentences from tested functions. The app is also an MCP
+it exactly. Findings are `lyst.analytics.insights` sentences from tested functions. The app is also an MCP
 server (dash's MCP), so an agent can ask it for its KPIs.
 
 What a model (on the OpenRouter rails) may contribute, when one is configured: the page's question,
@@ -82,7 +82,7 @@ APP_DIR = Path(__file__).resolve().parent
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-from dashkit import app as K, state as S  # noqa: E402
+from lystkit.dashkit import app as K, state as S  # noqa: E402
 
 from lyst_dash import ui  # noqa: E402
 
@@ -181,9 +181,9 @@ from pathlib import Path
 
 import pandas as pd
 from dash import html
-from dashkit import state as St
-from dashkit.theme import Theme
-from stkit import fmt as F
+from lystkit.analytics import fmt as F
+from lystkit.dashkit import state as St
+from lystkit.dashkit.theme import Theme
 
 from . import settings as S
 
@@ -205,7 +205,7 @@ def filtered(df: pd.DataFrame, filters: dict | None, *, exclude: str | tuple = (
 
 
 def header():
-    return html.Div([html.Div(S.TITLE, className="dk-eyebrow"), html.Div(id="scope-line", className="dk-sub")])
+    return html.Div([html.Div(S.TITLE, className="lk-eyebrow"), html.Div(id="scope-line", className="lk-sub")])
 
 
 def windows(df: pd.DataFrame):
@@ -231,9 +231,8 @@ from __future__ import annotations
 import dash
 import dash_mantine_components as dmc
 from dash import Input, Output, callback, html
-from dashkit import components as C, figures as Fg, state as St
-from stkit import fmt as F, insights as I
-from stkit.analytics import drivers, timeseries as ts
+from lystkit.analytics import drivers, fmt as F, insights as I, timeseries as ts
+from lystkit.dashkit import components as C, figures as Fg, state as St
 
 from lyst_dash import data, settings as S, ui
 
@@ -346,7 +345,7 @@ def overview_findings(filters: dict):
                                      else f"{m['title']} steady at {f(cur)}",
                                      f"{m['title']} is {f(cur)} {when}, {F.signed(F.pts, d)} from {f(prev)}.",
                                      tone=("good" if good else "bad") if moved else "neutral", magnitude=min(abs(d) * 10, 1.0),
-                                     icon=":material/trending_up:" if d > 0 else ":material/trending_down:"))
+                                     icon="trending_up" if d > 0 else "trending_down"))
             else:
                 out.append(I.change(m["title"], cur, prev, f, period=when, higher_is_better=m["higher_is_better"]))
             if moved:
@@ -370,7 +369,7 @@ import dash
 import dash_mantine_components as dmc
 import pandas as pd
 from dash import Input, Output, callback, html
-from dashkit import components as C, figures as Fg, state as St
+from lystkit.dashkit import components as C, figures as Fg, state as St
 
 from lyst_dash import data, settings as S, ui
 
@@ -430,7 +429,7 @@ from pathlib import Path
 import dash
 import dash_mantine_components as dmc
 from dash import html
-from dashkit import components as C
+from lystkit.dashkit import components as C
 
 from lyst_dash import settings as S, ui
 
@@ -442,7 +441,7 @@ def layout(**_):
     man = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {"checks": [], "metrics": []}
     defs = [(m["title"], f"v{m['version']} · {m['description'] or ''}") for m in S.METRICS]
     checks = [html.Li(("✓ " if c["passed"] else "✕ ") + f"{c['name']}: {c['detail']}") for c in man.get("checks", [])]
-    sql = [html.Div([html.Div(m["title"], className="dk-sub"), html.Pre(m["series_sql"], className="dk-sql")]) for m in S.METRICS]
+    sql = [html.Div([html.Div(m["title"], className="lk-sub"), html.Pre(m["series_sql"], className="lk-sql")]) for m in S.METRICS]
     return html.Div([
         C.page_header("Data and method", "Where the numbers come from and how to check them."),
         dmc.Grid([
@@ -453,12 +452,12 @@ def layout(**_):
                        subtitle="Compiled by Lyst's semantic layer and run through its guard; the app reads the results only"),
             ]), span={"base": 12, "lg": 7}),
             dmc.GridCol(html.Div([
-                C.card("Checks at the last refresh", html.Ul(checks) if checks else html.Div("No checks recorded.", className="dk-sub"),
+                C.card("Checks at the last refresh", html.Ul(checks) if checks else html.Div("No checks recorded.", className="lk-sub"),
                        icon="shield-check", stretch=False, subtitle=f"Refreshed {man.get('refreshed_at', '')[:16]} · data through {man.get('data_through', '')}"),
                 html.Div(style={"height": 16}),
                 C.card("Connect an agent", html.Div([
-                    html.P("This app is an MCP server. With it running:", className="dk-sub"),
-                    html.Pre("claude mcp add dashboard --transport http http://127.0.0.1:8050/_mcp", className="dk-sql"),
+                    html.P("This app is an MCP server. With it running:", className="lk-sub"),
+                    html.Pre("claude mcp add dashboard --transport http http://127.0.0.1:8050/_mcp", className="lk-sql"),
                 ]), icon="plug", stretch=False),
                 html.Div(style={"height": 16}),
                 C.card("Credits", C.credit(ui.CREDIT), icon="award", stretch=False),
@@ -477,7 +476,10 @@ APP = Path(__file__).resolve().parent.parent
 
 
 def test_pages_and_callbacks_run():
-    from dashkit import checks
+    import sys
+
+    sys.path.insert(0, str(APP))
+    from lystkit.dashkit import checks
 
     rep = checks.check(APP)
     assert rep["result"] == "PASS", [i for i in rep["items"] if i["level"] == "FAIL"]
@@ -508,8 +510,7 @@ numpy>=2.0
 pyarrow>=17
 statsmodels>=0.14
 scipy>=1.13
-dashkit @ git+https://github.com/MoRohn/ai-analytics@d86ee66#subdirectory=dash/kit
-stkit @ git+https://github.com/MoRohn/ai-analytics@d86ee66#subdirectory=streamlit/kit
+# The dashboard kit (lystkit/) is vendored beside the app: no further dependency.
 '''
 
 
@@ -519,6 +520,8 @@ def _r(s: Any) -> str:
 
 def write_app(folder: Path, design: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
     """Write the Dash app files for a design whose extracts are already in folder/data. Returns the file list."""
+    from .dashkit import vendor  # noqa: PLC0415
+
     pkg = folder / "lyst_dash"
     (folder / "pages").mkdir(exist_ok=True)
     (folder / "tests").mkdir(exist_ok=True)
@@ -556,18 +559,19 @@ def write_app(folder: Path, design: dict[str, Any], manifest: dict[str, Any]) ->
     }
     for path, text in files.items():
         path.write_text(text)
-    return sorted(str(p.relative_to(folder)) for p in files)
+    vendored = vendor(folder)
+    return sorted([str(p.relative_to(folder)) for p in files] + vendored)
 
 
 def design_md(design: dict[str, Any], manifest: dict[str, Any], metrics: list[dict[str, Any]]) -> str:
     n = design.get("narrative") or {}
     dim = design["dimension"]
     lines = [f"# {design['title']}: design", "",
-             "Written by Lyst's Studio in the form of the ai-analytics `dash-app-design` skill, so a person can refine it.", "",
+             "Written by Lyst's Studio as a design brief a person can refine before the next build.", "",
              "## Purpose and audience", "", n.get("purpose") or f"A manager and their analysts, every {design['grain']}: what moved "
              f"{metrics[0]['title'].lower()}, which {dim.replace('_', ' ')} drove it, and what the next periods look like.", "",
              "## Reference and what was taken from it", "",
-             "The ai-analytics Tableau dashboards and their Dash ports (CRM Sales Performance → Pipeline Intelligence): a left navbar "
+             "Rohn's Tableau dashboards and their Dash ports (CRM Sales Performance → Pipeline Intelligence): a left navbar "
              "with groups, a header with the scope line and filter chips, KPI cards with an icon tile, a large value, a delta pill "
              "and a sparkline, a trend card with a forecast band, a mix card whose bars filter the page on click and never filter "
              "themselves, a computed-findings card, and a Data and method page. Palette: Lyst's blue accent; no purples; green and red "
@@ -583,26 +587,27 @@ def design_md(design: dict[str, Any], manifest: dict[str, Any], metrics: list[di
     for m in metrics:
         lines += [f"- **{m['title']}** (v{m['version']}): {m['description'] or 'see SQL'}"]
     lines += ["", "## Analytical modules", "",
-              "- Change vs prior period (`stkit.insights.change`); the driving member (`stkit.analytics.drivers.explain` / "
+              "- Change vs prior period (`lystkit.analytics.insights.change`); the driving member (`analytics.drivers.explain` / "
               "`explain_rate` for ratios); ETS forecast with backtest (`timeseries.forecast`); anomalies (`timeseries.anomalies`).", "",
               "## Interactions and state", "", f"- Bars filter `{dim}`; a chart never filters itself (it dims the others); chips with Clear; "
               "URL state; light/dark toggle. The app is an MCP server (`/_mcp`).", "",
               "## Acceptance checks", "", "- `tests/test_app.py`: every page and callback runs; the latest KPI values equal the manifest.",
-              "- Lyst's checks at build and every refresh: syntax, extracts, dashkit `check`."]
+              "- Lyst's checks at build and every refresh: syntax, extracts, the kit's `check` (pages, ids, URLs, every callback)."]
     return "\n".join(lines) + "\n"
 
 
 CHECK_SCRIPT = """
 import json, sys
-from dashkit import checks
+sys.path.insert(0, sys.argv[1])
+from lystkit.dashkit import checks
 rep = checks.check(sys.argv[1], call=True)
 print("@@REPORT@@" + json.dumps({"result": rep["result"], "items": rep["items"]}, default=str))
 """
 
 
 def verify(folder: Path, *, timeout_s: float = 240) -> list[dict[str, Any]]:
-    """dashkit's in-process check (import, pages, unique ids, URLs, callbacks with their defaults through the
-    app's MCP server), run in a separate interpreter: Dash keeps process-wide registries and context variables,
+    """The kit's in-process check (import, pages, unique ids, URLs, callbacks with their defaults through the
+    app's MCP server), run in a separate interpreter on the copy vendored beside the app: Dash keeps process-wide registries and context variables,
     and the engine must not share them with a generated app."""
     import os  # noqa: PLC0415
     import subprocess  # noqa: PLC0415
@@ -616,7 +621,7 @@ def verify(folder: Path, *, timeout_s: float = 240) -> list[dict[str, Any]]:
         checks.append({"name": "app_syntax", "passed": False, "detail": str(exc), "severity": "error"})
         return checks
     env = {k: v for k, v in os.environ.items() if not k.startswith("LYST_")}
-    env.update({"DASHKIT_MCP_IMAGES": "0", "PYTHONDONTWRITEBYTECODE": "1"})
+    env.update({"LYSTKIT_MCP_IMAGES": "0", "PYTHONDONTWRITEBYTECODE": "1"})
     try:
         proc = subprocess.run([sys.executable, "-c", CHECK_SCRIPT, str(folder)], capture_output=True, text=True, timeout=timeout_s,
                               cwd=str(folder), env=env)

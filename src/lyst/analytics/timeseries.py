@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-# Vendored from ai-analytics stkit (analytics/timeseries.py) at commit d86ee66, same author (Rohn Springfield).
-# Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
+# Lyst's own module, maintained here; it grew out of the author's earlier analytics toolkit.
 """Time series: periods and comparisons, resampling, forecasts with honest error bars, and
 anomaly detection.
 
@@ -212,7 +211,7 @@ def forecast(y: pd.Series, horizon: int = 6, *, grain: str | None = None, level:
     y = keyed.asfreq(FREQ[grain])
     if y.isna().any():
         raise ValueError(f"the series has {int(y.isna().sum())} missing {grain}s; fill them first "
-                         "(stkit.analytics.timeseries.series() returns a gap-filled series)")
+                         "(timeseries.series() returns a gap-filled series)")
     alpha = 1 - level
     nonneg = (y >= 0).all() if nonnegative is None else nonnegative
     fit = _ets if len(y) >= 8 else _snaive

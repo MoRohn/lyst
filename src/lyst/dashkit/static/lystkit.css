@@ -1,0 +1,162 @@
+/* Lyst dashboard kit: the card anatomy and shell, on the CSS variables Theme.css() defines for each colour scheme
+   (light/dark switch with Mantine's data-mantine-color-scheme attribute). */
+
+html, body { background: var(--lk-bg); color: var(--lk-ink); }
+body { font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
+
+.lk-icon { display: inline-block; flex: none; background-color: currentColor;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain; vertical-align: -0.15em; }
+
+/* ---------------------------------------------------------------- shell */
+.lk-shell .mantine-AppShell-main { background: var(--lk-bg); min-height: 100vh; }
+.lk-headerbar { background: color-mix(in srgb, var(--lk-surface) 88%, transparent) !important;
+  backdrop-filter: saturate(1.4) blur(8px); border-bottom: 1px solid var(--lk-border) !important; }
+.lk-header { height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 20px; }
+.lk-header-inner { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; }
+.lk-navbar { background: var(--lk-surface) !important; border-right: 1px solid var(--lk-border) !important;
+  display: flex; flex-direction: column; gap: 6px; }
+.lk-brand { padding: 4px 8px 14px; border-bottom: 1px solid var(--lk-border); margin-bottom: 8px; }
+.lk-app-title { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; color: var(--lk-ink); line-height: 1.25; }
+.lk-app-subtitle { font-size: 12px; color: var(--lk-ink-muted); margin-top: 2px; }
+.lk-nav { display: flex; flex-direction: column; gap: 2px; }
+.lk-nav-group { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--lk-ink-muted); padding: 14px 10px 6px; }
+.lk-nav-link { border-radius: 8px; color: var(--lk-ink-muted); font-weight: 500; }
+.lk-nav-link .mantine-NavLink-label { font-size: 13.5px; }
+.lk-nav-link:hover { background: var(--lk-surface-2); color: var(--lk-ink); }
+.lk-nav-link[data-active] { background: var(--lk-accent-soft); color: var(--lk-accent); font-weight: 600; }
+.lk-nav-link[data-active] .mantine-NavLink-label { color: var(--lk-accent); }
+.lk-nav-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 12px;
+  border-top: 1px solid var(--lk-border); }
+.lk-main { padding: 20px 24px 40px; max-width: 1560px; margin: 0 auto; }
+@media (max-width: 48em) {
+  .lk-main { padding: 14px 12px 32px; } .lk-header { padding: 0 10px; gap: 8px; }
+  .lk-scope, .lk-chip-row { display: none; }
+  .lk-header .mantine-SegmentedControl-root { max-width: calc(100vw - 120px); overflow-x: auto; }
+  .lk-page-right { width: 100%; }
+}
+
+/* ---------------------------------------------------------------- page header */
+.lk-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-bottom: 16px; }
+.lk-eyebrow { font-size: 12px; font-weight: 600; color: var(--lk-accent); letter-spacing: .02em; margin-bottom: 2px; }
+.lk-page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--lk-ink); }
+.lk-page-question { margin: 4px 0 0; color: var(--lk-ink-muted); font-size: 13.5px; max-width: 760px; }
+.lk-page-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lk-scope { font-size: 12.5px; color: var(--lk-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-scope b { color: var(--lk-ink); font-weight: 600; }
+.lk-section { margin: 22px 0 10px; }
+.lk-section-title { font-size: 13px; font-weight: 650; color: var(--lk-ink); letter-spacing: .01em; }
+
+/* ---------------------------------------------------------------- cards */
+.lk-card.mantine-Card-root { background: var(--lk-surface); border-color: var(--lk-border);
+  box-shadow: var(--lk-shadow); display: flex; flex-direction: column; min-width: 0; }
+.lk-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.lk-card-head-left { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.lk-card-titles { min-width: 0; }
+.lk-card-title-row { display: flex; align-items: center; gap: 6px; }
+.lk-card-title { font-weight: 650; font-size: 14px; color: var(--lk-ink); letter-spacing: -0.005em; line-height: 28px; }
+.lk-card-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.lk-card-body { flex: 1; min-width: 0; }
+.lk-card-foot { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--lk-border); font-size: 12px;
+  color: var(--lk-ink-muted); }
+.lk-icon-tile { width: 28px; height: 28px; border-radius: 8px; flex: none; display: inline-flex; align-items: center;
+  justify-content: center; background: var(--lk-accent-soft); color: var(--lk-accent); }
+.lk-icon-tile.lk-tone-good { background: var(--lk-good-soft); color: var(--lk-good); }
+.lk-icon-tile.lk-tone-bad { background: var(--lk-bad-soft); color: var(--lk-bad); }
+.lk-sub { font-size: 12px; color: var(--lk-ink-muted); line-height: 1.45; }
+.lk-info { color: var(--lk-ink-muted); display: inline-flex; cursor: help; border-radius: 50%; }
+.lk-info:focus-visible { outline: 2px solid var(--lk-accent); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- KPI cards */
+.lk-kpi { container-type: inline-size; }
+.lk-kpi .lk-kpi-head { display: flex; align-items: center; gap: 10px; }
+@container (max-width: 250px) { .lk-kpi-value { font-size: 23px; } .lk-delta { font-size: 11px; padding: 2px 6px 2px 4px; } }
+.lk-kpi-label { font-size: 13px; font-weight: 600; color: var(--lk-ink-muted); }
+.lk-kpi-main { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.lk-kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; color: var(--lk-ink);
+  font-variant-numeric: tabular-nums; line-height: 1.1; }
+.lk-unit { color: var(--lk-ink-muted); font-weight: 500; font-size: .62em; margin-right: 1px; vertical-align: .32em; }
+.lk-kpi-caption { margin-top: 4px; min-height: 18px; }
+.lk-spark { margin: 6px -4px 0; }
+.lk-delta { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; border-radius: 999px;
+  padding: 2px 8px 2px 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lk-delta.lk-good { color: var(--lk-good); background: var(--lk-good-soft); }
+.lk-delta.lk-bad { color: var(--lk-bad); background: var(--lk-bad-soft); }
+.lk-delta.lk-flat { color: var(--lk-ink-muted); background: var(--lk-surface-2); }
+.lk-stat-label { font-size: 12px; color: var(--lk-ink-muted); }
+.lk-stat-value { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--lk-ink); }
+.lk-stat-value.lk-good { color: var(--lk-good); } .lk-stat-value.lk-bad { color: var(--lk-bad); }
+.lk-good-text { color: var(--lk-good); } .lk-bad-text { color: var(--lk-bad); }
+
+/* ---------------------------------------------------------------- findings, definitions, empty */
+.lk-findings { display: flex; flex-direction: column; gap: 12px; }
+.lk-finding { display: flex; gap: 10px; align-items: flex-start; }
+.lk-finding-icon { width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center;
+  justify-content: center; flex: none; background: var(--lk-surface-2); color: var(--lk-ink-muted); }
+.lk-finding-icon.lk-tone-good { background: var(--lk-good-soft); color: var(--lk-good); }
+.lk-finding-icon.lk-tone-bad { background: var(--lk-bad-soft); color: var(--lk-bad); }
+.lk-finding-title { font-weight: 600; font-size: 13.5px; color: var(--lk-ink); }
+.lk-finding-text { font-size: 12.5px; color: var(--lk-ink-muted); line-height: 1.5; margin-top: 1px; }
+.lk-defs { display: grid; grid-template-columns: fit-content(34%) 1fr; gap: 8px 18px; margin: 0; font-size: 12.5px; }
+.lk-defs dt { font-weight: 600; color: var(--lk-ink); }
+.lk-defs dd { margin: 0; color: var(--lk-ink-muted); line-height: 1.5; }
+.lk-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 28px 12px; text-align: center; color: var(--lk-ink-muted); }
+.lk-empty-icon { width: 42px; height: 42px; border-radius: 12px; display: inline-flex; align-items: center;
+  justify-content: center; background: var(--lk-surface-2); }
+.lk-empty-text { font-weight: 600; color: var(--lk-ink); font-size: 13.5px; }
+.lk-credit { font-size: 11.5px; color: var(--lk-ink-muted); line-height: 1.45; }
+
+/* ---------------------------------------------------------------- chips, legend, controls */
+.lk-chip-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 28px; }
+.lk-chip-row.lk-empty { display: none; }
+.lk-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px;
+  background: var(--lk-accent-soft); color: var(--lk-accent); font-size: 12px; font-weight: 600; }
+.lk-chip-x, .lk-clear { border: 0; background: transparent; color: inherit; cursor: pointer; display: inline-flex;
+  align-items: center; gap: 4px; border-radius: 999px; padding: 2px 4px; font: inherit; }
+.lk-chip-x:hover { background: color-mix(in srgb, var(--lk-accent) 16%, transparent); }
+.lk-clear { color: var(--lk-ink-muted); font-size: 12px; font-weight: 600; padding: 3px 8px; }
+.lk-clear:hover { color: var(--lk-ink); background: var(--lk-surface-2); }
+.lk-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--lk-ink-muted); }
+.lk-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.lk-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--sw); display: inline-block; }
+.lk-swatch-dash { height: 0; width: 14px; border-top: 2px dashed var(--sw); background: none; border-radius: 0; }
+
+/* ---------------------------------------------------------------- graphs and grids */
+.lk-graph { width: 100%; min-width: 0; }
+.lk-graph .lk-graph-inner { width: 100%; }
+.lk-clickable .nsewdrag, .lk-clickable .slice, .lk-clickable .bars .point path { cursor: pointer !important; }
+.lk-grid { width: 100%; }
+.lk-grid .ag-header-cell-text { text-transform: none; letter-spacing: 0; }
+.lk-grid .lk-num { font-variant-numeric: tabular-nums; }
+.lk-bar-cell { display: flex; align-items: center; gap: 8px; height: 100%; }
+.lk-bar-track { flex: 1; height: 8px; border-radius: 4px; background: var(--lk-surface-2); overflow: hidden; }
+.lk-bar-cell .lk-bar { height: 100%; border-radius: 4px; background: var(--lk-accent); }
+.lk-bar-text { min-width: 44px; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; color: var(--lk-ink-muted); font-size: 12px; }
+
+/* ---------------------------------------------------------------- loading */
+.lk-loading-wrap { position: relative; }
+._dash-loading { display: none; }
+
+/* ---------------------------------------------------------------- decomposition tree */
+.lk-tree { display: flex; flex-direction: column; gap: 2px; }
+.lk-tree-row { display: grid; grid-template-columns: minmax(150px, 1.5fr) minmax(118px, 1fr) minmax(70px, 1fr) 66px;
+  align-items: center; gap: 10px; padding: 5px 4px; border-radius: 6px; font-size: 12.5px; }
+.lk-tree-row:hover { background: var(--lk-surface-2); }
+.lk-tree-row.lk-level-1 { font-weight: 600; border-top: 1px solid var(--lk-border); padding-top: 8px; margin-top: 4px; }
+.lk-tree-row.lk-level-1:first-child { border-top: 0; margin-top: 0; }
+.lk-tree-label { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.lk-tree-member { color: var(--lk-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-tree-dim { font-size: 10.5px; color: var(--lk-ink-muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 500; }
+.lk-tree-values { color: var(--lk-ink-muted); font-variant-numeric: tabular-nums; font-weight: 400; }
+.lk-tree-track { height: 8px; background: var(--lk-surface-2); border-radius: 4px; overflow: hidden; }
+.lk-tree-bar { height: 100%; border-radius: 4px; }
+.lk-tree-bar.lk-up { background: var(--lk-good); } .lk-tree-bar.lk-down { background: var(--lk-bad); }
+.lk-tree-change { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* ---------------------------------------------------------------- code */
+.lk-sql { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; white-space: pre-wrap;
+  background: var(--lk-surface-2); color: var(--lk-ink); border: 1px solid var(--lk-border); border-radius: 6px;
+  padding: 8px 10px; margin: 4px 0 0; }

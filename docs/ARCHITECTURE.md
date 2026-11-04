@@ -113,12 +113,13 @@ with redacted text.
 
 `studio.py` and `studio_dash.py`: "create an automated <metrics> reporting dashboard by <dimension>, refreshed
 weekly" designs on governed metrics, runs the compiled SQL through the guard, writes Parquet extracts, and
-generates a standalone **Dash** app on ai-analytics' `dashkit` and `stkit` (a git dependency on
-github.com/MoRohn/ai-analytics, pinned): the design language of the ai-analytics Tableau dashboards and their
-Dash ports (navbar, scope header, KPI cards with icon tile, delta pill and sparkline, trend with forecast band,
+generates a standalone **Dash** app on Lyst's own kit (`src/lyst/dashkit`: theme, icons, components, figures,
+filter state, app frame, MCP probe and checks; `src/lyst/analytics`: formats, findings, drivers, time series),
+copied into the app as `lystkit/` so the app has no dependency beyond PyPI: the design language of Rohn's
+Tableau dashboards and their Dash ports (navbar, scope header, KPI cards with icon tile, delta pill and sparkline, trend with forecast band,
 click-to-filter mix, computed findings, Data and method page, MCP). The app reads only its extracts
 (Acumane's arch-runtime rule); a ratio ships its numerator and denominator per period and member so filters
-recompute it exactly. Verification runs dashkit's check (pages, ids, URLs, every callback through MCP) in a
+recompute it exactly. Verification runs the kit's check (pages, ids, URLs, every callback through MCP) in a
 separate interpreter, because Dash keeps process-wide state. A configured model may suggest the page's
 question, subtitle, purpose and KPI order on the OpenRouter rails; it never supplies a number. "In Streamlit"
 in the request keeps the Streamlit target (verified with `AppTest`).

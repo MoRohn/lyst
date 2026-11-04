@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-# Vendored from ai-analytics stkit (analytics/stats.py) at commit d86ee66, same author (Rohn Springfield).
-# Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
+# Lyst's own module, maintained here; it grew out of the author's earlier analytics toolkit.
 """Is the change real? Small, explicit significance tests for KPI deltas.
 
 A dashboard that shows "+1.8 pts" should be able to say whether that is noise. These return

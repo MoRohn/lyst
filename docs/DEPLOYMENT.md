@@ -50,12 +50,6 @@ the new value is printed for the operator to place). Previous files stay as `*.p
 Backups taken before a rotation need the key they were taken with. Without the master key an installation is
 unrecoverable: that is the design, so keep the recovery copy where a compromised server cannot reach it.
 
-## Dependencies from ai-analytics
-
-`dashkit` and `stkit` come from `github.com/MoRohn/ai-analytics` (pinned by commit in `pyproject.toml`). That
-repository is private, so `uv sync` and the Docker build need Git access to it (an SSH key or a token in the
-environment, or a mirror). A generated dashboard's `requirements.txt` carries the same two references.
-
 ## Sign-in
 
 Connect the sign-in provider in Settings › Secrets & Connections › Installation (issuer, client id, client

@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-# Vendored from ai-analytics stkit (analytics/drivers.py) at commit d86ee66, same author (Rohn Springfield).
-# Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
+# Lyst's own module, maintained here; it grew out of the author's earlier analytics toolkit.
 """Why did it change? Attribution of a change between two periods.
 
     c = contribution(cur, prev, "Region", "Sales")          # who moved the total, and by how much
     best = explain(cur, prev, "Sales", ["Region", "Segment", "Category"])   # the dimension that explains most
     steps = pvm(cur, prev, segment="Sub-Category", units="Quantity", revenue="Sales")
-    chart = stkit.charts.waterfall(steps)
+    chart = figures.waterfall(steps, palette)
 
 Totals and rates need different tools. `contribution`/`explain` attribute a change in a
 *total* (sales, churned MRR). A change in a *rate* (churn, conversion, margin) is a weighted

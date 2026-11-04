@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-# Vendored from ai-analytics stkit (profile.py) at commit d86ee66, same author (Rohn Springfield).
-# Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
+# Lyst's own module, maintained here; it grew out of the author's earlier analytics toolkit.
 """Profile a table before designing anything on it.
 
 Covers the six things a data-science EDA pass should encode: schema discovery (each
@@ -13,7 +12,7 @@ dimensions and their hierarchies).
     p.suggest            # {"date": "Order Date", "grain": "month", "measures": [...], ...}
     print(p.to_markdown())
 
-CLI: `stkit profile <file> [--json]`. The scaffold and the design skill both start here.
+Lyst profiles every uploaded dataset with it.
 """
 from __future__ import annotations
 

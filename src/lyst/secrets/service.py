@@ -544,7 +544,7 @@ class Redactor(logging.Filter):
             for k, v in list(record.__dict__.items()):
                 if isinstance(v, str | dict | list) and k not in ("msg", "name", "pathname", "filename", "module", "funcName"):
                     record.__dict__[k] = self.scrub(v)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110 - never let redaction break logging
             pass
         return True
 

@@ -222,8 +222,13 @@ def run_eval(label: str) -> None:
 
     from . import demo, evals
     from .app import Lyst
+    from .secrets import masterkey
 
     with tempfile.TemporaryDirectory() as home:
+        if masterkey.resolve() is None:  # a throwaway installation gets a throwaway key; nothing here outlives the run
+            import secrets as rnd
+
+            os.environ["LYST_MASTER_KEY"] = rnd.token_hex(32)
         lyst = Lyst.build(load_settings(home))
         try:
             owner = lyst.guard.create_user("eval@lyst.local", "Evaluator")

@@ -43,10 +43,10 @@ Legend: **Reuse** (code carried over), **Port** (design reimplemented in Python)
 | **Billing, Stripe, referrals, marketing site, emails** | various | — | **Drop** | — |
 | **Prisma / Postgres / Neon** | `packages/db` | — | **Replace** with DuckDB | `store/` |
 
-## From ai-analytics (Python, reused directly)
+## From ai-analytics (Python, rebuilt as Lyst's own)
 
-`streamlit/kit/src/stkit` is Rohn's tested Python analytics core. Lyst vendors five pure modules unchanged,
-with a provenance header, into `src/lyst/analytics/`: `profile.py` (column roles, missingness, PII patterns),
+Rohn's earlier `stkit` and `dashkit` were the starting point; Lyst now carries its own, independently maintained
+versions with no dependency on that repository: `src/lyst/dashkit/` (the Dash kit) and `src/lyst/analytics/`: `profile.py` (column roles, missingness, PII patterns),
 `analytics/drivers.py` (contribution, exact rate-and-mix decomposition), `analytics/decomp.py`,
 `analytics/timeseries.py` (ETS forecast with backtest, STL anomaly scores) and `analytics/stats.py`. Its
 `ai.py` is not used because it calls Anthropic's API directly.

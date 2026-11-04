@@ -10,9 +10,9 @@ answer with the evidence behind it. It is judged by completed, verifiable work, 
   call ([details](docs/MODELS.md)). A local OpenAI-compatible server works too, and with no model at all Lyst
   runs on rules and templates. Every number comes from a query either way.
 * Derived from Acumane's design (see [the audit](docs/ACUMANE_AUDIT.md)) but a separate product with its own
-  code, data, configuration and license. Dashboards are built in **Plotly Dash** on
-  [ai-analytics](https://github.com/MoRohn/ai-analytics)' `dashkit` and `stkit` (a pinned git dependency), in the
-  design language of its Tableau dashboards.
+  code, data, configuration and license. Dashboards are built in **Plotly Dash** on Lyst's own kit
+  (`src/lyst/dashkit`, vendored into every generated app so it runs anywhere), in the design language of Rohn's
+  Tableau dashboards.
 
 ![The Analyst workspace answering why operating margin declined](docs/images/analyst-light.png)
 
@@ -23,7 +23,7 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 170 tests
+uv run pytest                # 177 tests
 uv run lyst eval             # scores 19 analytical questions against independent answers
 ```
 

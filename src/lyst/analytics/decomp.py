@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-# Vendored from ai-analytics stkit (analytics/decomp.py) at commit d86ee66, same author (Rohn Springfield).
-# Changes for Lyst are marked 'lyst:'. Keep in sync deliberately, not automatically.
+# Lyst's own module, maintained here; it grew out of the author's earlier analytics toolkit.
 """A decomposition tree: where a change came from, one best split at a time.
 
 Like Power BI's decomposition tree with "AI splits", but deterministic and tested. At each
