@@ -6,7 +6,7 @@ import datetime
 
 import streamlit as st
 
-from lyst.ui import collab, kit
+from lyst.ui import anticipate, collab, kit
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
@@ -77,7 +77,11 @@ def needs_you() -> None:
     approvals = api.get(f"/v1/workspaces/{ws}/approvals") if admin else []
     tasks = [t for t in api.get(f"/v1/workspaces/{ws}/tasks") if t.get("outcome") in ("needs_input", "unverified")]
     mine, revs = collab.waiting()
-    if not approvals and not tasks and not mine and not revs:
+    ready = anticipate.prepared_for_you()
+    if ready:
+        kit.label(f"Prepared for you · {len(ready)}")
+        anticipate.rows(ready, key="pfy")
+    if not approvals and not tasks and not mine and not revs and not ready:
         kit.empty(":material/task_alt:", "Nothing needs you", "Approvals, work assigned to you, reviews you can decide, "
                   "questions Lyst needs answered and results that did not pass verification appear here.")
         return
@@ -124,6 +128,7 @@ def activity() -> None:
 
 @st.fragment
 def recurring() -> None:
+    anticipate.coming_up()
     scheds = api.get(f"/v1/workspaces/{ws}/schedules")
     mons = api.get(f"/v1/workspaces/{ws}/monitors")
     kit.label("Scheduled questions")

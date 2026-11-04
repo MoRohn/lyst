@@ -190,3 +190,32 @@ connectors, assets), `ENGINEERING_EXCELLENCE.md`, `PRODUCT_EXCELLENCE.md`, `UX_S
   operation counts. The decision-intelligence thread's quotas read the same `llm_calls`, and these numbers
   should agree with its usage view.
 - V2. User acceptance (thumbs up or down on answers) is not recorded anywhere yet, so it is not counted.
+
+## 6. Living project specifications
+
+**Built and verified** (`src/lyst/specs.py`, `tests/test_specs.py`, workspace migration 32):
+
+- **From request to spec.** `POST /v1/workspaces/{ws}/specs/draft` turns a request into a spec draft. The draft
+  holds the objective, stakeholders, the approved metrics and datasets the request refers to (resolved through
+  the governed glossary, never invented), deliverables, constraints (deadlines, scope limits), assumptions
+  (including ambiguous terms to confirm), success measures and the approvals it will need. It also lists
+  requirements with priorities (must, should, could) and acceptance criteria. Nothing is saved until
+  `POST …/specs` creates it, as edited.
+- **Requirements met by evidence.** Requirements link to tasks, artifacts, assets or decisions
+  (`…/requirements/{id}/link`). A requirement is met when a linked task finished verified, or when a linked
+  artifact exists or an asset is current. It can also be met by hand with a note, or waived by an administrator
+  with a reason. Each requirement says why it has its status.
+- **No completion with a must-have open.** `…/complete` returns 409 with the unmet must-haves.
+- **Specs evolve with traceability (scenario G).** `…/revise` (a note is required) writes a new version:
+  - unchanged requirements keep their links and status;
+  - changed ones keep their links but are flagged *recheck*, with the previous wording kept;
+  - removed ones are kept as *dropped*;
+  - the response names what was affected, added and dropped. Every version is readable (`?history=true`).
+
+**Open**
+
+- S1. Drafting is rule-based. With an allowed model, an LLM pass could propose better-phrased requirements and
+  acceptance criteria. Its output would stay a draft, checked against the same governed metrics.
+- S2. Tasks are linked by hand or through the API. A task started from a spec does not yet link itself, and a
+  recheck does not yet re-run the linked task automatically.
+- S3. No UI yet; Work is the natural home (a spec as a project card), to be agreed with the UX thread.

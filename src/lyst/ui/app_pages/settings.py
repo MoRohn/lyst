@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import advanced, kit, onboarding
+from lyst.ui import advanced, anticipate, kit, onboarding
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -467,6 +467,7 @@ def workspace_section() -> None:
         if mode and mode != cur:
             kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
             st.rerun()
+        anticipate.level_control()
         kit.label("Notifications")
         with st.form("webhook", border=False):
             w = st.columns([5, 1.2], vertical_alignment="bottom")

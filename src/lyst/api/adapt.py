@@ -35,6 +35,34 @@ class PolicyCheckIn(BaseModel):
     purpose: str = "analyze"
 
 
+class SpecDraftIn(BaseModel):
+    request: str
+
+
+class SpecIn(BaseModel):
+    title: str
+    body: dict[str, Any]
+
+
+class SpecReviseIn(BaseModel):
+    changes: dict[str, Any]
+    note: str
+
+
+class SpecLinkIn(BaseModel):
+    kind: str
+    id: str
+
+
+class SpecMarkIn(BaseModel):
+    status: str
+    note: str = ""
+
+
+class SpecNoteIn(BaseModel):
+    note: str = ""
+
+
 class ProfileIn(BaseModel):
     domains: list[str] | None = None
     terminology: dict[str, Any] | None = None
@@ -142,6 +170,52 @@ def register(app: FastAPI, L, User) -> None:  # noqa: N803 - the names match the
     @app.get("/v1/workspaces/{ws}/costs/recommendations")
     def cost_recommendations(request: Request, ws: str, user: User, days: int = 30):
         return L(request).costs.recommendations(user, ws, days=min(max(days, 1), 365))
+
+    # -- project specifications ------------------------------------------------------------------
+
+    @app.post("/v1/workspaces/{ws}/specs/draft")
+    def spec_draft(request: Request, ws: str, body: SpecDraftIn, user: User):
+        return L(request).specs.draft(user, ws, body.request)
+
+    @app.post("/v1/workspaces/{ws}/specs")
+    def spec_create(request: Request, ws: str, body: SpecIn, user: User):
+        return L(request).specs.create(user, ws, body.title, body.body)
+
+    @app.get("/v1/workspaces/{ws}/specs")
+    def spec_list(request: Request, ws: str, user: User):
+        return L(request).specs.list(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/specs/{sid}")
+    def spec_get(request: Request, ws: str, sid: str, user: User, history: bool = False):
+        s = L(request).specs
+        return s.history(user, ws, sid) if history else s.get(user, ws, sid)
+
+    @app.post("/v1/workspaces/{ws}/specs/{sid}/revise")
+    def spec_revise(request: Request, ws: str, sid: str, body: SpecReviseIn, user: User):
+        return L(request).specs.revise(user, ws, sid, body.changes, note=body.note)
+
+    @app.post("/v1/workspaces/{ws}/specs/{sid}/requirements/{rid}/link")
+    def spec_link(request: Request, ws: str, sid: str, rid: str, body: SpecLinkIn, user: User):
+        return L(request).specs.link(user, ws, sid, rid, body.kind, body.id)
+
+    @app.post("/v1/workspaces/{ws}/specs/{sid}/requirements/{rid}/mark")
+    def spec_mark(request: Request, ws: str, sid: str, rid: str, body: SpecMarkIn, user: User):
+        return L(request).specs.mark(user, ws, sid, rid, status=body.status, note=body.note)
+
+    @app.post("/v1/workspaces/{ws}/specs/{sid}/complete")
+    def spec_complete(request: Request, ws: str, sid: str, user: User, body: SpecNoteIn | None = None):
+        from fastapi.responses import JSONResponse  # noqa: PLC0415
+
+        from ..specs import SpecIncomplete  # noqa: PLC0415
+
+        try:
+            return L(request).specs.complete(user, ws, sid, note=body.note if body else "")
+        except SpecIncomplete as exc:
+            return JSONResponse({"detail": str(exc), "unmet": exc.unmet}, status_code=409)
+
+    @app.post("/v1/workspaces/{ws}/specs/{sid}/cancel")
+    def spec_cancel(request: Request, ws: str, sid: str, user: User, body: SpecNoteIn | None = None):
+        return L(request).specs.cancel(user, ws, sid, note=body.note if body else "")
 
     @app.get("/v1/workspaces/{ws}/profile")
     def business_profile(request: Request, ws: str, user: User, history: bool = False):

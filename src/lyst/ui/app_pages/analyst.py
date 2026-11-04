@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import collab, kit, onboarding
+from lyst.ui import anticipate, collab, kit, onboarding
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -171,6 +171,7 @@ def home() -> None:
         datasets = api.get(f"/v1/workspaces/{ws}/datasets")
     except APIError:
         metrics, datasets = [], []
+    anticipate.home_line()
     get_started(datasets, metrics)
     if datasets:
         pulse()
@@ -379,6 +380,7 @@ def task_view(task: str) -> None:
         r = t["result"]
         answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
         act_bar(task, t, r)
+        anticipate.next_steps(task)
         metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
         if metric:
             m = kit.lower(metric["title"])
