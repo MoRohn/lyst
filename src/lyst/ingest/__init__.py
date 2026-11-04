@@ -209,6 +209,44 @@ def read_json(content: bytes, filename: str, *, lines: bool) -> dict[str, Any]:
     return {"kind": "table", "format": "ndjson" if lines else "json", "tables": [(t, frame)], "warnings": []}
 
 
+def active_content(content: bytes) -> dict[str, Any]:
+    """Macros, embedded objects, ActiveX controls and external links inside an Office package. Lyst never runs or
+    opens any of them: workbooks are read for saved cell values (formulas are never evaluated), documents for
+    text, PDFs for their text layer (their scripts are never run), web pages with scripts dropped."""
+    found = {"macros": False, "embedded_objects": 0, "activex": 0, "external_links": 0}
+    if not content.startswith(b"PK"):
+        return found
+    import zipfile  # noqa: PLC0415
+
+    try:
+        names = zipfile.ZipFile(io.BytesIO(content)).namelist()
+    except Exception:  # noqa: BLE001
+        return found
+    for n in names:
+        low = n.lower()
+        if low.endswith("vbaproject.bin") or low.endswith("vbadata.xml"):
+            found["macros"] = True
+        elif "/embeddings/" in low:
+            found["embedded_objects"] += 1
+        elif "/activex/" in low:
+            found["activex"] += 1
+        elif "/externallinks/" in low:
+            found["external_links"] += 1
+    return found
+
+
+def _active_warnings(found: dict[str, Any]) -> list[str]:
+    out = []
+    if found["macros"]:
+        out.append("The file contains macros (VBA). Lyst never runs them; only saved values and text are read.")
+    if found["embedded_objects"] or found["activex"]:
+        out.append(f"The file embeds {found['embedded_objects'] + found['activex']} object(s) or control(s). They are "
+                   "ignored: never opened, extracted or run.")
+    if found["external_links"]:
+        out.append("The workbook links to other workbooks. The links are not followed; the values saved in this file are used.")
+    return out
+
+
 def read_any(content: bytes, filename: str) -> dict[str, Any]:
     fmt = sniff(content, filename)
     if fmt in ("xlsx", "xls"):
@@ -269,6 +307,8 @@ class IngestService:
             log.info("could not read %s: %s", filename, exc)
             raise ValueError(f"{filename} could not be read ({type(exc).__name__}: {str(exc)[:160]}). Nothing was loaded.") from exc
         plan = _plan(parsed)
+        plan["active_content"] = active_content(content)
+        plan["warnings"] = _active_warnings(plan["active_content"]) + list(plan.get("warnings", []))
         jid = "ing_" + uuid.uuid4().hex[:12]
         sha = hashlib.sha256(content).hexdigest()
         plan["duplicate_of"] = self._seen(ws, sha)
