@@ -123,7 +123,7 @@ export const openSource = {
     { icon: 'Server', title: 'Self-hostable', text: 'Deploy on a laptop, a server or your cloud.' },
     { icon: 'Cpu', title: 'Model choice, with real costs', text: 'Economy, Balanced or Frontier levels with automatic fallback, or a local model. Cost per call is shown.' },
     { icon: 'Eye', title: 'Transparent execution', text: 'Every query and calculation can be inspected.' },
-    { icon: 'Puzzle', title: 'Extensible integrations', text: 'Add connectors and skills as plain code.' },
+    { icon: 'Puzzle', title: 'Extensible integrations', text: 'A Python SDK, MCP, an event stream and signed webhooks, plus connectors and skills as plain code.' },
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
   ],
   attribution:
@@ -133,7 +133,7 @@ export const openSource = {
 export const architecture = [
   {
     layer: 'Your team',
-    items: ['Analyst workspace', 'Python API', 'Scheduled runs'],
+    items: ['Analyst workspace', 'Python SDK', 'MCP', 'Event stream and signed webhooks'],
     tone: 'ink',
   },
   {
