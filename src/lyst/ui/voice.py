@@ -40,11 +40,27 @@ def _session() -> str | None:
     return st.session_state[key]
 
 
+def _turn(sid: str, body: dict) -> dict | None:
+    """Send one utterance. The engine closes a session after 30 idle minutes; then start a new one and send it again."""
+    api, ws = _ctx()
+    try:
+        return api.post(f"/v1/workspaces/{ws}/voice/sessions/{sid}/turns", body)
+    except APIError as e:
+        if e.status == 400 and "ended" in str(e).lower():
+            st.session_state.pop(f"voice_sid_{ws}", None)
+            fresh = _session()
+            if fresh:
+                return kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/voice/sessions/{fresh}/turns", body))
+        st.error(str(e), icon=":material/error:")
+        return None
+
+
 def mic(on_question) -> None:
     """The Speak control beside the ask box. ``on_question(task_id)`` opens the answer Lyst started."""
     sid = _session()
     if not sid:
         return
+    confirm_heard(on_question)
     api, ws = _ctx()
     speak = st.session_state.pop("voice_say", None)
     try:
@@ -59,12 +75,17 @@ def mic(on_question) -> None:
     st.session_state["voice_n"] = val.get("n")
     if val.get("unavailable"):
         return
-    r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/voice/sessions/{sid}/turns", {"text": val["text"]}))
-    if not r:
+    body = {"text": val["text"]} | ({"confidence": val["confidence"]} if val.get("confidence") else {})
+    r = _turn(sid, body)
+    if r is None:
         return
+    sid = st.session_state.get(f"voice_sid_{ws}") or sid
     if r.get("understood"):
         st.caption(md(f"You said: “{r['understood']}”"))
     reply = r.get("reply") or {}
+    heard = r.get("confirm_transcript") or {}
+    if (r.get("analyst") or {}).get("status") == "needs_confirmation" and heard.get("text"):
+        st.session_state["voice_confirm"] = {"sid": sid, "text": heard["text"]}
     if r.get("stop_playback"):
         st.session_state["voice_stop"] = True
     intent = r.get("intent")
@@ -84,6 +105,26 @@ def mic(on_question) -> None:
         if reply.get("speak"):
             st.session_state["voice_say"] = {"text": reply["text"], "id": f"{sid}:{val.get('n')}"}
             st.rerun()
+
+
+def confirm_heard(on_question) -> None:
+    """When Lyst was not sure it heard right: show what it heard and ask before starting anything."""
+    c = st.session_state.get("voice_confirm")
+    if not c:
+        return
+    row = st.columns([5, 1.3, 1], vertical_alignment="center")
+    row[0].info(md(f"I heard: “{c['text']}”. Ask this?"), icon=":material/hearing:")
+    if row[1].button("Ask this", type="primary", key="vc_yes", width="stretch"):
+        st.session_state.pop("voice_confirm", None)
+        r = _turn(c["sid"], {"text": c["text"], "confidence": 1})
+        if r and r.get("task_id"):
+            st.session_state["voice_wait"] = {"sid": st.session_state.get(f"voice_sid_{workspace()}") or c["sid"],
+                                              "task": r["task_id"]}
+            on_question(r["task_id"])
+            st.rerun()
+    if row[2].button("No", type="tertiary", key="vc_no", width="stretch"):
+        st.session_state.pop("voice_confirm", None)
+        st.rerun()
 
 
 def read_back(task_id: str) -> None:
