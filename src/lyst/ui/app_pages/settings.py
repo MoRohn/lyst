@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import advanced, anticipate, governance, kit, onboarding
+from lyst.ui import advanced, anticipate, governance, integrations, kit, onboarding
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -481,6 +481,7 @@ def workspace_section() -> None:
     governance.policy_section()
     if admin:
         usage_and_limits()
+        integrations.webhooks_section()
     try:
         people = api.get(f"/v1/workspaces/{ws}/members")
     except APIError as e:

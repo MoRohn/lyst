@@ -372,3 +372,17 @@ def test_people_can_ask_how_an_answer_was_figured_and_see_data_sensitivity(seede
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(s.label == "Restricted data is read by" for s in at.selectbox)
+
+
+def test_source_of_truth_and_webhooks_have_a_place(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Lyst can POST a signed message" in _texts(at)
+    from lyst.ui.app_pages.data import health  # noqa: PLC0415  (pure function; the page itself runs under AppTest)
+
+    assert health({"authority": "authoritative", "risks": {}}) == ("Source of truth", "verified")
