@@ -42,6 +42,10 @@
 | Analyst | Verification intensity by consequence (low / standard / high); high adds an independent pandas recomputation of the headline value from raw rows | Tested | `test_execution.py::test_verification_intensity_follows_consequence` |
 | Runtime | Pause, resume, cancel, retry, step budget | Tested | `test_runtime.py` |
 | Runtime | Approval-gated schedules | Tested | `test_schedule_needs_approval_then_runs` |
+| Runtime | Calendar schedules (local time, weekdays, IANA time zone, correct across DST), one catch-up run after downtime with the missed count, overlap skip or queue, one task per occurrence even with concurrent ticks, inbox notice when a scheduled run finishes or fails | Tested | `test_operations.py`, docs/OPERATIONS.md OP5-OP7 |
+| Runtime | Task priority by kind with deadline order, fairness between workspaces, one worker held back from background work, time budget counted across pauses, takeovers and restarts | Tested | `test_operations.py`, docs/OPERATIONS.md OP1-OP2 |
+| Ops | Workspace quotas set by installation admins: running and queued tasks (429 admission), monthly model spend and tokens (model refused, analysis continues), task time ceiling | Tested | `test_operations.py`, docs/OPERATIONS.md OP3-OP4 |
+| Ops | Supervisor (stalled steps, queued work past its deadline, stale approvals, overdue schedules) and an operations report per installation and workspace | Tested | `test_operations.py`, docs/OPERATIONS.md OP8-OP9 |
 | Security | Roles, workspace isolation, audit of denials, redaction | Tested | Scenario G, `test_security.py` |
 | Security | External model blocked unless allowed, then redacted | Tested | `test_llm.py` |
 | Accuracy | Adversarial suite: conflicting definitions surfaced, missing data declared (no estimate), misleading correlation detrended and hedged, unsupported causal questions declined with a path, join fan-out flagged, stale sources warned, contradictory documents disclosed with the approved definition winning, prompt injection in documents and requests inert, permission restrictions audited | Tested | New scenario F, `test_adversarial.py` |

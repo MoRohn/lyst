@@ -28,9 +28,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .. import observability as obs
+from .. import operations as ops
 from ..analyst.engine import Services
 from ..analyst.registry import Context
-from ..monitoring import cadence
 from ..security import AccessDenied, Principal
 from ..store import Stores
 
@@ -90,6 +90,8 @@ class TaskRuntime:
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
         self.parallelism = max(1, int(os.environ.get("LYST_TASK_PARALLELISM", "4")))
+        self.workers = 1  # set by start(); background work never takes the last worker
+        self._clocks: dict[str, float] = {}  # task id -> monotonic start of its accumulated run time
         self.monitors = None  # set by the app; ticked by the worker loop
         self.periodic: list = []  # platform jobs run on the worker tick (asset repairs)
         self._last_prune = time.monotonic()
@@ -101,7 +103,8 @@ class TaskRuntime:
     def submit(self, actor: Principal, workspace_id: str, question: str, *, autonomy: str | None = None,
                kind: str = "analysis", schedule_id: str | None = None, max_steps: int = 40,
                budget_seconds: int = 600, workflow: dict[str, Any] | None = None,
-               idempotency_key: str | None = None) -> str:
+               idempotency_key: str | None = None, priority: int | None = None,
+               deadline_at: datetime | None = None) -> str:
         """Queue a task. With an ``idempotency_key``, a repeat of the same submission by the same person in the same
         workspace (a double click, a client retry after a timeout) returns the first task instead of running the
         work twice. The check and the insert are one write transaction, so two concurrent repeats cannot both win."""
@@ -111,6 +114,10 @@ class TaskRuntime:
             raise ValueError("unknown autonomy mode")
         tid = "t_" + uuid.uuid4().hex[:12]
         key = (idempotency_key or "").strip()[:200] or None
+        prio = ops.priority_for(kind) if priority is None else int(priority)
+        quota = ops.quotas(self.db, workspace_id)
+        if quota["task_budget_seconds"]:
+            budget_seconds = min(budget_seconds, quota["task_budget_seconds"])
 
         def tx(c) -> str | None:
             if key:
@@ -118,11 +125,18 @@ class TaskRuntime:
                                   [workspace_id, actor.user_id, key]).fetchone()
                 if prior:
                     return prior[0]
+            # admission: a full queue refuses new work instead of growing without bound (429 with Retry-After)
+            queued = c.execute("SELECT count(*) FROM tasks WHERE workspace_id = ? AND status = 'queued'",
+                               [workspace_id]).fetchone()[0]
+            if queued >= quota["max_queued"]:
+                raise ops.QuotaExceeded(f"this workspace already has {queued} tasks waiting (limit {quota['max_queued']}); "
+                                        "try again when some have finished")
             c.execute(
                 "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
-                "budget_seconds, schedule_id, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?)",
+                "budget_seconds, schedule_id, idempotency_key, priority, deadline_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?)",
                 [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
-                 autonomy, max_steps, budget_seconds, schedule_id, key],
+                 autonomy, max_steps, budget_seconds, schedule_id, key, prio, deadline_at],
             )
             return None
 
@@ -160,6 +174,7 @@ class TaskRuntime:
         self._owned(actor, task_id)
         self._set_status(task_id, "queued", only_from=("failed",))
         self.db.execute("DELETE FROM task_steps WHERE task_id = ? AND status = 'failed'", [task_id])
+        self.db.execute("UPDATE tasks SET active_seconds = 0 WHERE id = ?", [task_id])  # a retry gets a fresh budget
         self.event(task_id, "retry", "Retry requested")
 
     def _set_status(self, task_id: str, status: str, only_from: tuple[str, ...]) -> None:
@@ -322,50 +337,116 @@ class TaskRuntime:
     # -- schedules --------------------------------------------------------------------------
 
     def create_schedule(self, actor: Principal, workspace_id: str, title: str, question: str,
-                        every_seconds: int, *, workflow: dict[str, Any] | None = None) -> dict[str, Any]:
+                        every_seconds: int | None = None, *, workflow: dict[str, Any] | None = None,
+                        at: str | None = None, weekdays: str | list[str] | None = None, timezone: str | None = None,
+                        overlap: str = "skip") -> dict[str, Any]:
+        """An interval schedule (``every_seconds``) or a calendar one (``at`` local time, optional ``weekdays``, in
+        ``timezone``). ``overlap`` decides what happens when a run is due while the previous one is still going:
+        ``skip`` (default, counted) or ``queue``. Schedules start disabled until an admin approves them."""
         self.services.guard.require(actor, workspace_id, "schedule.create")
-        if every_seconds < 60:
+        if overlap not in ("skip", "queue"):
+            raise ValueError("overlap must be skip or queue")
+        days = ops.parse_weekdays(weekdays)
+        if at:
+            ops.parse_at(at)
+            ops.zone(timezone)
+            every_seconds = every_seconds or (7 * 86400 if days and len(days) == 1 else 86400)
+        elif every_seconds is None or every_seconds < 60:
             raise ValueError("the shortest interval is 60 seconds")
+        row = {"every_seconds": every_seconds, "at_time": at, "timezone": (timezone or "UTC") if at else None,
+               "weekdays": ",".join(ops.WEEKDAYS[d] for d in days) if days else None}
         sid = "s_" + uuid.uuid4().hex[:12]
         self.db.execute(
-            "INSERT INTO schedules (id, workspace_id, created_by, title, request, every_seconds, next_run_at, enabled) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, false)",
+            "INSERT INTO schedules (id, workspace_id, created_by, title, request, every_seconds, next_run_at, enabled, "
+            "at_time, timezone, weekdays, overlap) VALUES (?, ?, ?, ?, ?, ?, ?, false, ?, ?, ?, ?)",
             [sid, workspace_id, actor.user_id, title,
              json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})), every_seconds,
-             _now() + timedelta(seconds=every_seconds)])
+             ops.schedule_next(row, _now()), row["at_time"], row["timezone"], row["weekdays"], overlap])
         aid = self.request_approval(workspace_id, actor.user_id, "schedule.activate",
-                                    f"Run '{title}' {cadence(every_seconds)}", {"schedule_id": sid})
+                                    f"Run '{title}' {ops.describe_schedule(row)}", {"schedule_id": sid})
         self.db.execute("UPDATE schedules SET approval_id = ? WHERE id = ?", [aid, sid])
         self.services.guard.audit(actor, workspace_id, "schedule.create", sid, "pending_approval")
-        return {"schedule_id": sid, "approval_id": aid, "enabled": False}
+        return {"schedule_id": sid, "approval_id": aid, "enabled": False, "cadence": ops.describe_schedule(row)}
 
     def schedules(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
         self.services.guard.require(actor, workspace_id, "workspace.read")
-        return self.db.query("SELECT * FROM schedules WHERE workspace_id = ? ORDER BY title", [workspace_id])
+        rows = self.db.query("SELECT * FROM schedules WHERE workspace_id = ? ORDER BY title", [workspace_id])
+        for r in rows:
+            r["cadence"] = ops.describe_schedule(r)
+        return rows
 
     def tick_schedules(self, now: datetime | None = None) -> list[str]:
+        """Start every due schedule once. The due check and the move of ``next_run_at`` are one write transaction, and
+        each occurrence submits with its own idempotency key, so two workers ticking together (or a tick retried
+        after a crash) cannot start the same occurrence twice. After downtime a schedule runs once, not once per
+        missed occurrence, and the missed count is recorded. A run due while the previous run of the same schedule is
+        still active is skipped (and counted) unless the schedule's overlap policy is ``queue``."""
         now = now or _now()
 
         def tx(c):
-            due = c.execute("SELECT id, workspace_id, created_by, request, every_seconds FROM schedules "
-                            "WHERE enabled AND next_run_at <= ?", [now]).fetchall()
-            for sid, _ws, _by, _req, every in due:
-                c.execute("UPDATE schedules SET next_run_at = ? WHERE id = ?", [now + timedelta(seconds=every), sid])
-            return due
+            cols = [d[0] for d in c.execute("SELECT * FROM schedules LIMIT 0").description]
+            due = [dict(zip(cols, r, strict=True)) for r in
+                   c.execute("SELECT * FROM schedules WHERE enabled AND next_run_at <= ?", [now]).fetchall()]
+            plan = []
+            for row in due:
+                n, nxt = ops.occurrences_between(row, row["next_run_at"], now)
+                occurrence = row["next_run_at"]
+                busy = None
+                if row["last_task_id"] and row["overlap"] == "skip":
+                    st = c.execute("SELECT status FROM tasks WHERE id = ?", [row["last_task_id"]]).fetchone()
+                    busy = st[0] if st and st[0] in ops.ACTIVE else None
+                c.execute("UPDATE schedules SET next_run_at = ?, missed = missed + ?, skipped = skipped + ? WHERE id = ?",
+                          [nxt, max(0, n - 1), 1 if busy else 0, row["id"]])
+                plan.append((row, n, occurrence, busy))
+            return plan
 
         started = []
-        for sid, ws, by, req, _ in self.db.write(tx):
-            owner = self.db.query("SELECT id, email FROM users WHERE id = ?", [by])
+        for row, n, occurrence, busy in self.db.write(tx):
+            sid, ws = row["id"], row["workspace_id"]
+            if busy:
+                log.info("schedule %s skipped: previous run %s still %s", sid, row["last_task_id"], busy)
+                self.event(row["last_task_id"], "schedule_skipped",
+                           f"The next run of '{row['title']}' was skipped because this run was still {busy}")
+                continue
+            owner = self.db.query("SELECT id, email FROM users WHERE id = ?", [row["created_by"]])
             if not owner:
                 continue
             p = Principal(owner[0]["id"], owner[0]["email"])
             try:
-                r = json.loads(req)
-                started.append(self.submit(p, ws, r["question"], autonomy="autonomous",
-                                           kind="scheduled", schedule_id=sid, workflow=r.get("workflow")))
+                r = json.loads(row["request"])
+                tid = self.submit(p, ws, r["question"], autonomy="autonomous", kind="scheduled", schedule_id=sid,
+                                  workflow=r.get("workflow"),
+                                  idempotency_key=f"schedule:{sid}:{occurrence.astimezone(UTC).isoformat()}")
             except AccessDenied:
                 log.warning("schedule %s owner lost access; skipped", sid)
+                continue
+            except ops.QuotaExceeded as exc:
+                log.warning("schedule %s not started: %s", sid, exc)
+                continue
+            self.db.execute("UPDATE schedules SET last_run_at = ?, last_task_id = ? WHERE id = ?", [now, tid, sid])
+            if n > 1:
+                self.event(tid, "catch_up", f"{n - 1} earlier run(s) were missed while the engine was down; "
+                                            "running once now instead of once per missed run")
+            started.append(tid)
         return started
+
+    def _notify_schedule_owner(self, task_id: str, state: str, summary: str) -> None:
+        """A scheduled run that finished or failed tells its schedule's owner (and the workspace admins) in the inbox."""
+        try:
+            t = self.db.query("SELECT t.workspace_id, t.schedule_id, s.title, s.created_by FROM tasks t "
+                              "JOIN schedules s ON s.id = t.schedule_id WHERE t.id = ?", [task_id])
+            if not t:
+                return
+            t = t[0]
+            from ..notices import raise_notice  # noqa: PLC0415
+
+            raise_notice(self.stores, t["workspace_id"], source=f"schedule:{t['schedule_id']}",
+                         kind="scheduled_done" if state == "done" else "scheduled_failed",
+                         label=f"{t['title']}: {'ready' if state == 'done' else 'failed'}",
+                         summary=summary[:400], priority=0.3 if state == "done" else 0.8,
+                         dedupe_key=f"task:{task_id}", recipients={t["created_by"]})
+        except Exception:  # noqa: BLE001 - a notice never changes the task's outcome
+            log.exception("schedule notice for %s failed", task_id)
 
     def tick_monitors(self) -> int:
         if not self.monitors:
@@ -392,9 +473,7 @@ class TaskRuntime:
                 c.execute("UPDATE tasks SET status = 'failed', error = ?, updated_at = now(), lease_owner = NULL, "
                           "lease_until = NULL WHERE id = ?",
                           [f"abandoned: its worker stopped {n} times while running it", did])
-            row = c.execute(
-                "SELECT id, status FROM tasks WHERE status = 'queued' OR (status = 'running' AND lease_until < ?) "
-                "ORDER BY CASE WHEN kind = 'scheduled' THEN 1 ELSE 0 END, created_at LIMIT 1", [now]).fetchone()
+            row = self._pick(c, now)
             if not row:
                 return None, dead
             # attempts counts every claim; takeovers only those of a dead worker's expired lease
@@ -410,6 +489,37 @@ class TaskRuntime:
         if tid:
             self.event(tid, "claimed", f"Worker {self.worker_id} started")
         return tid
+
+    def _pick(self, c, now: datetime) -> tuple[str, str] | None:
+        """The next task to claim: best priority first (then earliest deadline, then oldest); within that priority, the
+        workspace with the fewest running tasks, so one busy workspace cannot starve the others. A workspace at its
+        ``max_running`` quota waits. Background work (priority >= ops.BACKGROUND) never takes the last worker."""
+        cands = c.execute(
+            "SELECT id, status, workspace_id, priority FROM tasks WHERE status = 'queued' OR (status = 'running' AND "
+            "lease_until < ?) ORDER BY priority, coalesce(deadline_at, TIMESTAMPTZ '9999-12-31 00:00:00+00'), "
+            "created_at LIMIT 500", [now]).fetchall()
+        if not cands:
+            return None
+        live = c.execute("SELECT workspace_id, priority FROM tasks WHERE status = 'running' AND lease_until >= ?",
+                         [now]).fetchall()
+        running: dict[str, int] = {}
+        for ws, _p in live:
+            running[ws] = running.get(ws, 0) + 1
+        background = sum(1 for _ws, p in live if p >= ops.BACKGROUND)
+        reserve = max(1, self.workers - 1)  # background tasks may use all workers but one
+        caps = dict(c.execute("SELECT workspace_id, max_running FROM workspace_quotas WHERE max_running IS NOT NULL").fetchall())
+        best = None
+        for order, (tid, status, ws, prio) in enumerate(cands):
+            if best is not None and prio > best[0]:
+                break
+            if ws in caps and running.get(ws, 0) >= caps[ws]:
+                continue
+            if prio >= ops.BACKGROUND and self.workers > 1 and background >= reserve:
+                continue
+            key = (prio, running.get(ws, 0), order)
+            if best is None or key < best[:3]:
+                best = (*key, tid, status)
+        return (best[3], best[4]) if best else None
 
     def _finish(self, task_id: str, sets: str, params: list[Any]) -> str | None:
         """A terminal (or gate) write fenced on this worker's lease: a cancel, pause or takeover that landed while
@@ -440,11 +550,15 @@ class TaskRuntime:
             row = c.execute("SELECT status, lease_owner FROM tasks WHERE id = ?", [task_id]).fetchone()
             if row[0] != "running" or row[1] != self.worker_id:
                 return row[0] if row[1] in (None, self.worker_id) else "lost"
-            c.execute("UPDATE tasks SET lease_until = ? WHERE id = ?",
-                      [_now() + timedelta(seconds=self.lease_seconds), task_id])
+            c.execute("UPDATE tasks SET lease_until = ?, active_seconds = greatest(active_seconds, ?) WHERE id = ?",
+                      [_now() + timedelta(seconds=self.lease_seconds), self._elapsed(task_id), task_id])
             return "running"
 
         return self.db.write(tx)
+
+    def _elapsed(self, task_id: str) -> float:
+        start = self._clocks.get(task_id)
+        return 0.0 if start is None else round(time.monotonic() - start, 3)
 
     def run_task(self, task_id: str) -> str:
         ctx_token = obs.task_id.set(task_id)
@@ -460,6 +574,11 @@ class TaskRuntime:
                 finally:
                     stop.set()
                     beat.join(timeout=5)
+                    # run time is carried across pauses, takeovers and restarts, so the budget is for the whole task
+                    if task_id in self._clocks:
+                        self.db.execute("UPDATE tasks SET active_seconds = greatest(active_seconds, ?) WHERE id = ?",
+                                        [self._elapsed(task_id), task_id])
+                        self._clocks.pop(task_id, None)
                 span.set_attribute("lyst.status", state)
         finally:
             obs.task_id.reset(ctx_token)
@@ -484,7 +603,9 @@ class TaskRuntime:
         for seq, row in finished.items():
             if seq < len(steps):
                 ctx.outputs[steps[seq]["key"]] = json.loads(row["output"])
-        started = time.monotonic()
+        # the time budget counts run time from earlier runs of this task (before a pause, crash or restart)
+        started = time.monotonic() - float(t.get("active_seconds") or 0)
+        self._clocks[task_id] = started
         completed: set[int] = set(finished) | skipped
         key_done: set[str] = {steps[i]["key"] for i in completed if i < len(steps)}
         from opentelemetry import context as otel_context  # noqa: PLC0415
@@ -547,6 +668,8 @@ class TaskRuntime:
             self.event(task_id, "stopped", f"Finished all steps but the task was already {found}; result discarded")
             return found
         self.event(task_id, "done", (result or {}).get("answer", "Done")[:200])
+        if t["schedule_id"]:
+            self._notify_schedule_owner(task_id, "done", (result or {}).get("answer", "Done"))
         return "done"
 
     @staticmethod
@@ -661,6 +784,8 @@ class TaskRuntime:
         if found is not None:
             return found
         self.event(task_id, "failed", error)
+        if self.db.scalar("SELECT schedule_id FROM tasks WHERE id = ?", [task_id]):
+            self._notify_schedule_owner(task_id, "failed", error)
         return "failed"
 
     def run_once(self) -> str | None:
@@ -701,6 +826,7 @@ class TaskRuntime:
         return len(ids)
 
     def start(self, workers: int = 2) -> None:
+        self.workers = max(1, workers)
         self.recover_orphans()
         for i in range(workers):
             th = threading.Thread(target=self._loop, name=f"lyst-worker-{i}", daemon=True)
@@ -714,6 +840,10 @@ class TaskRuntime:
                 if time.monotonic() - last_tick > 5:
                     self.tick_schedules()
                     self.tick_monitors()
+                    try:
+                        ops.supervise(self)
+                    except Exception:  # noqa: BLE001 - supervision never stops the worker
+                        log.exception("supervisor pass failed")
                     for job in self.periodic:
                         try:
                             job()

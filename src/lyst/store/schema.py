@@ -801,3 +801,34 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Operations: task priority and deadline, run time carried across resumes, calendar schedules (local time, weekdays,
+# time zone) with overlap policy and a missed-run record, and per-workspace quotas (admission and model budgets).
+CONTROL.append((
+    20,
+    """
+    DROP INDEX tasks_idempotency;
+    ALTER TABLE tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE tasks ADD COLUMN deadline_at TIMESTAMPTZ;
+    ALTER TABLE tasks ADD COLUMN active_seconds DOUBLE NOT NULL DEFAULT 0;
+    CREATE INDEX tasks_idempotency ON tasks (workspace_id, created_by, idempotency_key);
+    ALTER TABLE schedules ADD COLUMN timezone VARCHAR;
+    ALTER TABLE schedules ADD COLUMN at_time VARCHAR;
+    ALTER TABLE schedules ADD COLUMN weekdays VARCHAR;
+    ALTER TABLE schedules ADD COLUMN overlap VARCHAR NOT NULL DEFAULT 'skip';
+    ALTER TABLE schedules ADD COLUMN last_run_at TIMESTAMPTZ;
+    ALTER TABLE schedules ADD COLUMN last_task_id VARCHAR;
+    ALTER TABLE schedules ADD COLUMN missed INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE schedules ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE workspace_quotas (
+        workspace_id VARCHAR PRIMARY KEY,
+        max_running INTEGER,
+        max_queued INTEGER,
+        monthly_spend_usd DOUBLE,
+        monthly_tokens BIGINT,
+        task_budget_seconds INTEGER,
+        updated_by VARCHAR,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))

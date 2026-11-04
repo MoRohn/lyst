@@ -18,10 +18,12 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
 from .. import observability as obs
+from .. import operations
 from ..app import Lyst
 from ..connectors import ConnectorError, manifests
 from ..contracts import ContractSpec
 from ..data.sqlguard import QueryRejected
+from ..operations import QuotaExceeded
 from ..secrets import MasterKeyMissing, ReauthRequired, SecretUnavailable
 from ..secrets import providers as credential_providers
 from ..security import AccessDenied, Principal
@@ -58,7 +60,19 @@ class Decision(BaseModel):
 class ScheduleIn(BaseModel):
     title: str
     question: str
-    every_seconds: int
+    every_seconds: int | None = None
+    at: str | None = None  # local time of day, HH:MM (calendar schedule)
+    weekdays: list[str] | None = None  # e.g. ["mon"]; empty = every day
+    timezone: str | None = None  # IANA name, e.g. Europe/London
+    overlap: str = "skip"
+
+
+class QuotasIn(BaseModel):
+    max_running: int | None = None
+    max_queued: int | None = None
+    monthly_spend_usd: float | None = None
+    monthly_tokens: int | None = None
+    task_budget_seconds: int | None = None
 
 
 class Term(BaseModel):
@@ -381,6 +395,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.exception_handler(ConnectorError)
     async def _connector(_: Request, exc: ConnectorError):
         return JSONResponse({"error": "connector", "detail": str(exc)}, status_code=400)
+
+    @app.exception_handler(QuotaExceeded)
+    async def _quota(_: Request, exc: QuotaExceeded):
+        return JSONResponse({"error": "quota_exceeded", "detail": str(exc)}, status_code=429,
+                            headers={"Retry-After": str(exc.retry_after)})
 
     @app.exception_handler(KeyError)
     async def _missing(_: Request, exc: KeyError):
@@ -942,7 +961,35 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     @app.post("/v1/workspaces/{ws}/schedules")
     def schedule(request: Request, ws: str, body: ScheduleIn, user: User):
-        return L(request).runtime.create_schedule(user, ws, body.title, body.question, body.every_seconds)
+        return L(request).runtime.create_schedule(user, ws, body.title, body.question, body.every_seconds, at=body.at,
+                                                  weekdays=body.weekdays, timezone=body.timezone, overlap=body.overlap)
+
+    # -- operations -------------------------------------------------------------------------
+
+    @app.get("/v1/operations")
+    def operations_all(request: Request, user: User):
+        """Installation-wide operations: queues by priority, running work per workspace, supervisor findings, failures,
+        run times and model use against budgets. Installation administrators only."""
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("operations across workspaces are for installation administrators")
+        return operations.report(lyst.runtime)
+
+    @app.get("/v1/workspaces/{ws}/operations")
+    def operations_ws(request: Request, ws: str, user: User):
+        lyst = L(request)
+        lyst.services.guard.require(user, ws, "workspace.admin")
+        return operations.report(lyst.runtime, ws)
+
+    @app.put("/v1/workspaces/{ws}/quotas")
+    def put_quotas(request: Request, ws: str, body: QuotasIn, user: User):
+        """Quotas are set by installation administrators: a workspace admin cannot raise their own share."""
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("workspace quotas are set by installation administrators")
+        out = operations.set_quotas(lyst.runtime.db, ws, user.user_id, body.model_dump(exclude_unset=True))
+        lyst.services.guard.audit(user, ws, "quota.set", ws, "ok", body.model_dump(exclude_unset=True))
+        return out
 
     # -- proactive --------------------------------------------------------------------------
 
