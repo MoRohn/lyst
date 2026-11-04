@@ -138,7 +138,8 @@ class Lyst:
         llm.gates.append(governance.model_gate)
         artifacts.before_build.append(governance.check_export)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, services=services, anticipation=anticipation, ingest=ingest, transforms=transforms, governance=governance,
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding, transforms=transforms, ingest=ingest,
+                   anticipation=anticipation, governance=governance,
                    evidence=EvidenceService(stores, guard, runtime, artifacts),
                    standing=StandingService(stores, guard, runtime=runtime, registry=REGISTRY, collab=collab, assets=assets,
                                             connections=connections, onboarding=onboarding, semantic=semantic),
