@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, collab, decisions, kit, onboarding, scenarios
+from lyst.ui import anticipate, collab, decisions, governance, kit, onboarding, scenarios
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -401,6 +401,7 @@ def task_view(task: str) -> None:
         r = t["result"]
         answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
         act_bar(task, t, r)
+        governance.ask_row(task)
         explore_row(task, t, r)
         anticipate.next_steps(task)
         metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})

@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import advanced, anticipate, kit, onboarding
+from lyst.ui import advanced, anticipate, governance, kit, onboarding
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -478,6 +478,7 @@ def workspace_section() -> None:
                 kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
                 st.rerun()
     onboarding.profile_section()
+    governance.policy_section()
     if admin:
         usage_and_limits()
     try:

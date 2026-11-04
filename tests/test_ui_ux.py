@@ -354,3 +354,21 @@ def test_health_foresight_and_attention_are_where_people_look(seeded, ui):  # no
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(t.label == "Tell me about them" for t in at.sidebar.toggle)  # personal attention, in Notifications
+
+
+def test_people_can_ask_how_an_answer_was_figured_and_see_data_sensitivity(seeded, ui):  # noqa: F811
+    from lyst.ui.governance import _lines  # noqa: PLC0415
+
+    assert _lines([{"figure": "32.5%", "steps": [{"description": "approved operating margin"}]}]) == \
+        ["32.5%: approved operating margin"]
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    rows = [b for b in at.button if b.label == "Open"]
+    rows[-1].click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any("How was this figured?" in str(o) for g in at.get("button_group") for o in g.proto.options)
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(s.label == "Restricted data is read by" for s in at.selectbox)
