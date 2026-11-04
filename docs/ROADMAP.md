@@ -11,6 +11,7 @@ Status on 2026-11-04. Each phase ends in working, tested slices, not documents.
 | 5. Advanced autonomous execution | Mostly done | Durable resume, approvals, budgets, schedules, DAG plans with parallel steps, failure classes, monitors that investigate and notify, idempotent projects | Event triggers from webhooks, per-tool and per-classification autonomy policy |
 | 6. Build and capability expansion | Mostly done | Governed skills, the Foundry's own drafts, generated dashboards with refresh, Excel and Markdown deliverables | MCP server over the registry; PDF and deck outputs; SQL model authoring |
 | 7. Enterprise hardening | Mostly done | Adversarial suite, isolation tests, threat model, encrypted online backup and verified restore, retention, OpenTelemetry tracing, load test with a measured baseline, deployment docs | A Compose run on a Docker host; a real IdP login; key rotation |
+| 8. Product excellence | In progress | Register (docs/PRODUCT_EXCELLENCE.md); brand and accent; Analyst responsiveness, exports, resumable links; workflow compiler with reuse and invalidation; false contradiction and duplicate memory fixes | Open register O1 to O10: result-aware task states, schedules that run compiled workflows, Work page fragments |
 
 Acceptance scenarios: all eight of the first prompt's scenarios except D (external research) and all seven of the
 second prompt's (A root cause, B analytics engineering, C forecasting with scenarios, D autonomous discovery,

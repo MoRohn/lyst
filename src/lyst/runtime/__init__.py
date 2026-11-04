@@ -85,7 +85,7 @@ class TaskRuntime:
 
     def submit(self, actor: Principal, workspace_id: str, question: str, *, autonomy: str | None = None,
                kind: str = "analysis", schedule_id: str | None = None, max_steps: int = 40,
-               budget_seconds: int = 600) -> str:
+               budget_seconds: int = 600, workflow: dict[str, Any] | None = None) -> str:
         self.services.guard.require(actor, workspace_id, "task.create")
         autonomy = autonomy or self.db.scalar("SELECT autonomy FROM workspaces WHERE id = ?", [workspace_id]) or "delegate"
         if autonomy not in AUTONOMY:
@@ -94,7 +94,7 @@ class TaskRuntime:
         self.db.execute(
             "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
             "budget_seconds, schedule_id) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)",
-            [tid, workspace_id, actor.user_id, kind, question[:120], json.dumps({"question": question}),
+            [tid, workspace_id, actor.user_id, kind, question[:120], json.dumps({"question": question} | ({"workflow": workflow} if workflow else {})),
              autonomy, max_steps, budget_seconds, schedule_id],
         )
         self.event(tid, "queued", "Task received")

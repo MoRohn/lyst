@@ -32,6 +32,10 @@ log = logging.getLogger("lyst.api")
 MAX_UPLOAD = 200 * 1024 * 1024
 
 
+class RunWorkflow(BaseModel):
+    period: str | None = None
+
+
 class Ask(BaseModel):
     question: str
     autonomy: str | None = None
@@ -607,6 +611,24 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.post("/v1/workspaces/{ws}/tasks", status_code=202)
     def ask(request: Request, ws: str, body: Ask, user: User):
         return {"task_id": L(request).runtime.submit(user, ws, body.question, autonomy=body.autonomy)}
+
+    @app.get("/v1/workspaces/{ws}/workflows")
+    def workflows(request: Request, ws: str, user: User, history: bool = False):
+        return L(request).services.workflows.list(user, ws, include_history=history)
+
+    @app.get("/v1/workspaces/{ws}/workflows/{wf_id}")
+    def workflow(request: Request, ws: str, wf_id: str, user: User):
+        return L(request).services.workflows.get(user, ws, wf_id)
+
+    @app.post("/v1/workspaces/{ws}/workflows/{wf_id}/run", status_code=202)
+    def run_workflow(request: Request, ws: str, wf_id: str, body: RunWorkflow, user: User):
+        lyst = L(request)
+        return {"task_id": lyst.services.workflows.run(user, ws, wf_id, lyst.runtime, period=body.period)}
+
+    @app.post("/v1/workspaces/{ws}/workflows/{wf_id}/retire")
+    def retire_workflow(request: Request, ws: str, wf_id: str, user: User):
+        L(request).services.workflows.retire(user, ws, wf_id)
+        return {"ok": True}
 
     @app.get("/v1/workspaces/{ws}/tasks")
     def tasks(request: Request, ws: str, user: User):

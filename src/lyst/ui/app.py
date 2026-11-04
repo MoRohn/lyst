@@ -13,7 +13,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # src/, when run b
 
 from lyst.ui.client import APIError, client  # noqa: E402
 
-st.set_page_config(page_title="Lyst", page_icon=":material/insights:", layout="wide")
+ASSETS = Path(__file__).parent / "assets"
+st.set_page_config(page_title="Lyst", page_icon=str(ASSETS / "lyst-mark.svg"), layout="wide")
+
+
+def brand() -> None:
+    """The Lyst logo in place of a text wordmark, in the variant that reads on the active theme."""
+    dark = (st.context.theme.type or "light") == "dark"
+    st.logo(str(ASSETS / ("lyst-logo-on-dark.svg" if dark else "lyst-logo.svg")), size="large",
+            icon_image=str(ASSETS / "lyst-mark.svg"))
+
+
+brand()
 
 here = Path(__file__).parent / "app_pages"
 pages = [
@@ -98,7 +109,6 @@ except APIError as e:
             health = api.get("/health")
         except APIError:
             pass
-        st.markdown("## Lyst")
         if health.get("oidc"):
             st.link_button("Sign in", f"{api.base}/auth/login", type="primary", icon=":material/login:")
         else:
@@ -121,7 +131,6 @@ ids = [w["id"] for w in spaces]
 if st.session_state.get("workspace") not in ids:
     st.session_state.workspace = ids[0]
 with st.sidebar:
-    st.markdown("### Lyst")
     st.selectbox("Workspace", ids, key="workspace",
                  format_func=lambda i: next(w["name"] for w in spaces if w["id"] == i))
     role = next(w["role"] for w in spaces if w["id"] == st.session_state.workspace)

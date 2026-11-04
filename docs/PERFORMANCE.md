@@ -21,3 +21,11 @@ server. Rerun the script against your deployment before setting objectives.
 Suggested starting objectives, to be confirmed by your own runs: submit acknowledgment under 200 ms p95;
 fast-path answers under 2 s p95 end to end; deep investigations under 15 s p95 without a model; zero failed
 tasks under normal load.
+
+## Repeated work with compiled workflows
+
+Measured on 2026-11-04 on the Mac mini (Apple Silicon, Python 3.13) with `scripts/bench_workflows.py`: three
+analyses asked for four quarters, a stub model on a local endpoint so model calls are counted. For the nine repeat
+tasks, compiled workflows cut model calls from 12 to 9 and SQL queries from 102 to 84, with 9 of 9 answers verified
+either way and identical results; median task time stayed about 0.10 s because the stub adds no model latency.
+Details and what the numbers do not say: docs/PRODUCT_EXCELLENCE.md.

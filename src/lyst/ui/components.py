@@ -21,6 +21,16 @@ STATUS = {
 }
 
 
+def md(text: object) -> str:
+    """Text for st.markdown: Streamlit renders $...$ as LaTeX, so "$25.41M ... $25.10M" became math.
+    Every model- or data-derived string shown as markdown goes through this."""
+    return str(text).replace("\\", "\\\\").replace("$", "\\$")
+
+
+def bullets(items: list) -> str:
+    return "\n".join(f"- {md(e)}" for e in items)
+
+
 def status_badge(status: str) -> None:
     label, color, icon = STATUS.get(status, (status, "gray", None))
     st.badge(label, color=color, icon=icon)
@@ -65,34 +75,40 @@ def answer(r: dict[str, Any]) -> None:
     level = conf.get("level", "")
     with st.container(border=True):
         top = st.columns([6, 2], vertical_alignment="center")
-        top[0].markdown(f"#### {r['brief'] if r.get('audience') == 'executive' and r.get('brief') else r['answer']}")
+        top[0].markdown("#### " + md(r["brief"] if r.get("audience") == "executive" and r.get("brief") else r["answer"]))
         if r["status"] == "needs_input":
             top[1].badge("Needs your input", color="orange", icon=":material/help:")
         elif level == "verified":
             top[1].badge("Verified", color="green", icon=":material/verified:")
         elif level:
             top[1].badge(level.capitalize(), color="orange", icon=":material/warning:")
+        wf = (r.get("supporting") or {}).get("workflow") or {}
+        if wf.get("used"):
+            st.caption(f":material/bolt: Ran the verified workflow “{md(wf['used']['title'])}” "
+                       f"(v{wf['used']['version']}, verified {wf['used']['verified_runs']}×) instead of planning from scratch.")
+        elif (wf.get("compiled") or {}).get("created"):
+            st.caption(":material/library_add_check: Verified, so Lyst saved this as a reusable workflow (Build › Workflows).")
         if r.get("evidence"):
             st.markdown("**Evidence**")
-            st.markdown("\n".join(f"- {e}" for e in r["evidence"]))
+            st.markdown(bullets(r["evidence"]))
         for c in r.get("charts", []):
             chart(c)
         cols = st.columns(2)
         if r.get("implications"):
             with cols[0]:
                 st.markdown("**Business implications**")
-                st.markdown("\n".join(f"- {e}" for e in r["implications"]))
+                st.markdown(bullets(r["implications"]))
         if r.get("actions"):
             with cols[1]:
                 st.markdown("**Recommended actions**")
-                st.markdown("\n".join(f"- {e}" for e in r["actions"]))
+                st.markdown(bullets(r["actions"]))
         for t in r.get("tables", []):
             table(t)
         if r.get("hypotheses"):
             with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:"):
                 icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
                 for h in r["hypotheses"]:
-                    st.markdown(f"{icons[h['verdict']]} **{h['id'].replace('_', ' ').capitalize()}** · {h['verdict']} · {h['detail']}")
+                    st.markdown(f"{icons[h['verdict']]} **{h['id'].replace('_', ' ').capitalize()}** · {h['verdict']} · {md(h['detail'])}")
         with st.expander("Supporting work: method, checks and queries", icon=":material/fact_check:"):
             sup = r.get("supporting", {})
             if sup.get("sources"):
@@ -102,12 +118,12 @@ def answer(r: dict[str, Any]) -> None:
                                f"sha256 {src['sha256'][:12]}… · loaded {str(src['loaded_at'])[:16]}")
             if sup.get("assumptions"):
                 st.markdown("**Assumptions**")
-                st.markdown("\n".join(f"- {a}" for a in sup["assumptions"]))
+                st.markdown(bullets(sup["assumptions"]))
             if sup.get("citations"):
                 st.markdown("**Documents consulted**")
                 for ci in sup["citations"]:
                     st.caption(f"{ci['title']} · passage {ci['passage']}")
-                    st.markdown(f"> {ci['quote']}")
+                    st.markdown("> " + md(ci["quote"]))
             if conf.get("checks"):
                 st.markdown(f"**Checks** ({conf.get('basis', '')})")
                 st.dataframe(pd.DataFrame(conf["checks"]), hide_index=True, width="stretch",
