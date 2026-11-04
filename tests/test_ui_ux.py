@@ -213,3 +213,21 @@ def test_times_ahead_read_as_times_ahead():
 
     assert when((datetime.now(UTC) + timedelta(minutes=30)).isoformat()).startswith("in ")
     assert when((datetime.now(UTC) - timedelta(minutes=30)).isoformat()) == "30 min ago"
+
+
+def test_the_discussion_names_the_assignee_not_their_id(seeded, ui):  # noqa: F811
+    lyst, owner = seeded
+    sam = lyst.guard.create_user("sam2@northwind.test", "Sam Two")
+    lyst.guard.add_member(owner, "northwind", sam.user_id, "editor")
+    t = next(x for x in lyst.runtime.list(owner, "northwind") if x["status"] == "done" and "decline" in x["title"])
+    lyst.collab.assign(sam, "northwind", "task", t["id"], owner.user_id, note="Check it")
+
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.session_state["task_id"] = t["id"]
+    at.query_params["task"] = t["id"]
+    at.run()
+    at.button(key=f"disc_{t['id']}").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    caps = " ".join(c.value for c in at.caption)
+    assert "assigned to Avery" in caps and owner.user_id not in caps
