@@ -1,0 +1,1305 @@
+{
+ "domain": {
+  "id": "emerging_technology",
+  "letter": "K",
+  "title": "Emerging Digital Systems & Specialized Technology",
+  "summary": "Analysing transformation programs, automation, emerging platforms and specialized technical data.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Organizations adopting or evaluating emerging technology and automation"
+   ],
+   "expertise.technical_concepts": [
+    "technology readiness levels",
+    "total cost of ownership",
+    "evidence quality of vendor claims",
+    "pilot vs production performance"
+   ],
+   "expertise.standards": [
+    "NASA/EU technology readiness level scale",
+    "the workspace's architecture and security policies"
+   ],
+   "analytics.statistical_methods": [
+    "before/after comparison",
+    "descriptive statistics",
+    "benchmark comparison"
+   ],
+   "analytics.computational_methods": [
+    "SQL aggregation of operational records",
+    "retrieval over technical documents"
+   ],
+   "analytics.modeling_approaches": [
+    "business case and TCO models",
+    "maturity models"
+   ],
+   "analytics.data_transformations": [
+    "normalization of benchmark results",
+    "mapping of systems to capabilities"
+   ],
+   "analytics.visualization_methods": [
+    "benchmark tables",
+    "roadmaps",
+    "trend lines"
+   ],
+   "analytics.reporting": [
+    "assessment with evidence quality stated",
+    "business case",
+    "roadmap recommendation"
+   ],
+   "data.structures": [
+    "operational logs",
+    "technical documents",
+    "benchmark results"
+   ],
+   "data.quality_requirements": [
+    "baseline measured before change",
+    "benchmarks run under stated conditions"
+   ],
+   "data.temporal": [
+    "equal before and after windows"
+   ],
+   "data.semantic_assumptions": [
+    "vendor terminology mapped to the workspace's terms"
+   ],
+   "resources.sql": [
+    "DuckDB SQL through the SQL guard"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (assessment narrative, sources cited)"
+   ],
+   "resources.environment": [
+    "in-process analysis of ingested data and documents"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "define the decision and scope",
+    "gather evidence",
+    "measure or benchmark",
+    "assess evidence quality",
+    "recommend"
+   ],
+   "execution.resource_constraints": [
+    "task budget of the workspace"
+   ],
+   "execution.approval_conditions": [
+    "commitments to vendors or programs",
+    "automation that acts on production systems"
+   ],
+   "execution.verification_rules": [
+    "source_cited"
+   ],
+   "quality.correctness_criteria": [
+    "claims traced to evidence",
+    "vendor claims distinguished from measured results"
+   ],
+   "quality.domain_tests": [
+    "re-derive benchmark figures",
+    "check citations"
+   ],
+   "quality.expected_evidence": [
+    "sources and their dates",
+    "measurement conditions"
+   ],
+   "quality.reproducibility": [
+    "recorded queries and document versions"
+   ],
+   "quality.performance_measures": [
+    "benefit realized vs case",
+    "time to decision"
+   ],
+   "quality.known_limitations": [
+    "Assessments are limited to evidence in the workspace; Lyst does not research the open web."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "standard",
+   "governance.sensitive_handling": [
+    "keep vendor-confidential material within the workspace"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "program plans and vendor terms are confidential"
+   ],
+   "governance.review_requirements": [
+    "sponsor review before commitments"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "digital_transformation_analyst",
+   "name": "Digital Transformation Analyst",
+   "kind": "job_title",
+   "sub": "Transformation",
+   "desc": "Examines legacy processes, enterprise applications, organizational workflows, and modernization opportunities. Develops evidence-based recommendations for adopting new digital capabilities.",
+   "alt": [
+    "Transformation Analyst",
+    "Change Analyst"
+   ],
+   "resp": [
+    "Baseline processes and outcomes",
+    "Track benefits realization",
+    "Find adoption and delivery risks"
+   ],
+   "know": [
+    "change management",
+    "operating model design",
+    "benefits management"
+   ],
+   "terms": [
+    "benefits realization",
+    "adoption",
+    "operating model",
+    "baseline",
+    "roadmap"
+   ],
+   "methods": [
+    "benefits tracking",
+    "capability maturity assessment",
+    "adoption analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "recommendation",
+    "process_analysis"
+   ],
+   "techniques": [
+    "compare outcomes to the business case",
+    "measure adoption curves",
+    "map capability gaps"
+   ],
+   "req": [
+    "metric_computation",
+    "knowledge_retrieval",
+    "reporting"
+   ],
+   "opt": [
+    "driver_decomposition",
+    "causal_impact"
+   ],
+   "sources": [
+    "program plans",
+    "operational metrics",
+    "adoption data"
+   ],
+   "entities": [
+    "programs",
+    "initiatives",
+    "capabilities",
+    "benefits"
+   ],
+   "fields": [
+    "initiative",
+    "planned benefit",
+    "actual",
+    "date"
+   ],
+   "verify": [],
+   "outputs": [
+    "transformation scorecard",
+    "benefits realization report"
+   ],
+   "limits": [
+    "Benefit attribution to initiatives is descriptive unless an experiment or causal design is available."
+   ],
+   "examples": [
+    "Is our digital onboarding program delivering the benefits in its business case?",
+    "Where is adoption of the new system lagging?"
+   ],
+   "related": [
+    "business_analyst",
+    "automation_rpa_analyst",
+    "technology_research_analyst"
+   ],
+   "keywords": [
+    "digital transformation",
+    "transformation",
+    "benefits realization",
+    "adoption",
+    "modernization"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 125)"
+   ]
+  },
+  {
+   "id": "automation_rpa_analyst",
+   "name": "Automation & RPA Analyst",
+   "kind": "job_title",
+   "sub": "Automation",
+   "desc": "Identifies repetitive digital activities suitable for automation. Evaluates workflow rules, exception rates, integration requirements, controls, and potential operational benefits.",
+   "alt": [
+    "RPA Analyst",
+    "Process Automation Analyst",
+    "Intelligent Automation Analyst"
+   ],
+   "resp": [
+    "Find and size automation candidates",
+    "Measure bot performance and exceptions",
+    "Assess automation risk and controls"
+   ],
+   "know": [
+    "robotic process automation",
+    "workflow automation",
+    "process analysis"
+   ],
+   "terms": [
+    "bot",
+    "exception rate",
+    "straight-through processing",
+    "handling time",
+    "automation pipeline"
+   ],
+   "methods": [
+    "automation opportunity scoring",
+    "exception analysis",
+    "benefit tracking"
+   ],
+   "tasks": [
+    "process_analysis",
+    "cost_analysis",
+    "performance_analysis"
+   ],
+   "techniques": [
+    "score processes on volume and rule-based share",
+    "trend bot exceptions",
+    "compare handling time before and after"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "process_mining",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "bot run logs",
+    "process volumes",
+    "workflow systems"
+   ],
+   "entities": [
+    "processes",
+    "bots",
+    "runs",
+    "exceptions"
+   ],
+   "fields": [
+    "process",
+    "run id",
+    "result",
+    "duration"
+   ],
+   "verify": [],
+   "outputs": [
+    "automation opportunity list",
+    "bot performance report"
+   ],
+   "limits": [
+    "Process discovery is not implemented; candidates are scored from supplied volumes."
+   ],
+   "examples": [
+    "Which processes are the best automation candidates?",
+    "Why are invoice bots failing more often?"
+   ],
+   "related": [
+    "process_mining_analyst",
+    "digital_transformation_analyst",
+    "agent_reliability_analyst"
+   ],
+   "keywords": [
+    "rpa",
+    "automation",
+    "bots",
+    "uipath",
+    "workflow automation",
+    "straight-through"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 126)"
+   ]
+  },
+  {
+   "id": "digital_twin_analyst",
+   "name": "Digital Twin Analyst",
+   "kind": "functional",
+   "sub": "Digital twins",
+   "desc": "Investigates virtual representations of physical assets or processes using telemetry, simulations, and historical data. Compares simulated and observed behavior to support operational planning.",
+   "alt": [
+    "Digital Twin Engineer (analysis)"
+   ],
+   "resp": [
+    "Compare twin predictions with measurements",
+    "Run what-if scenarios on the twin",
+    "Monitor model divergence"
+   ],
+   "know": [
+    "system modeling",
+    "simulation",
+    "sensor data integration"
+   ],
+   "terms": [
+    "twin fidelity",
+    "calibration",
+    "state estimation",
+    "scenario",
+    "divergence"
+   ],
+   "methods": [
+    "model-versus-measurement comparison",
+    "scenario simulation",
+    "drift monitoring"
+   ],
+   "tasks": [
+    "simulation",
+    "anomaly_detection",
+    "model_evaluation"
+   ],
+   "techniques": [
+    "residuals between twin and sensors",
+    "sweep scenario parameters",
+    "flag divergence"
+   ],
+   "req": [
+    "scenario_modeling",
+    "simulation",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "model_evaluation",
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "twin model outputs",
+    "sensor telemetry",
+    "asset data"
+   ],
+   "entities": [
+    "assets",
+    "twin states",
+    "scenarios"
+   ],
+   "fields": [
+    "timestamp",
+    "predicted",
+    "measured",
+    "unit"
+   ],
+   "verify": [
+    "units_consistent",
+    "numerical_stability"
+   ],
+   "outputs": [
+    "twin fidelity report",
+    "scenario analysis"
+   ],
+   "limits": [
+    "Physics-based twin models are not built in Lyst; driver-model scenarios are."
+   ],
+   "examples": [
+    "How closely does the twin track the plant's real output?",
+    "Simulate throughput if one line goes down."
+   ],
+   "related": [
+    "industrial_iot_analyst",
+    "engineering_simulation_analyst",
+    "simulation_analyst"
+   ],
+   "keywords": [
+    "digital twin",
+    "twin",
+    "virtual model",
+    "plant model",
+    "what-if simulation"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 127)"
+   ]
+  },
+  {
+   "id": "blockchain_analytics_analyst",
+   "name": "Blockchain Analytics Analyst",
+   "kind": "functional",
+   "sub": "Blockchain analytics",
+   "desc": "Analyzes distributed-ledger transactions, wallet activity, smart-contract events, and network patterns. Investigates transaction flows, concentration, and potential risks using verifiable on-chain data.",
+   "alt": [
+    "On-chain Analyst",
+    "Crypto Analytics Analyst"
+   ],
+   "resp": [
+    "Trace transaction flows",
+    "Measure network and protocol activity",
+    "Assess counterparty risk"
+   ],
+   "know": [
+    "blockchain data structures",
+    "address clustering",
+    "crypto compliance"
+   ],
+   "terms": [
+    "address",
+    "transaction hash",
+    "wallet",
+    "token transfer",
+    "clustering heuristic"
+   ],
+   "methods": [
+    "flow tracing",
+    "activity metrics",
+    "risk exposure analysis"
+   ],
+   "tasks": [
+    "security_investigation",
+    "descriptive_reporting",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "follow funds across hops",
+    "aggregate activity by address",
+    "flag exposure to listed addresses"
+   ],
+   "req": [
+    "graph_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "anomaly_detection"
+   ],
+   "sources": [
+    "indexed on-chain data exports",
+    "address lists",
+    "exchange records"
+   ],
+   "entities": [
+    "addresses",
+    "transactions",
+    "tokens"
+   ],
+   "fields": [
+    "tx hash",
+    "from",
+    "to",
+    "value",
+    "block time"
+   ],
+   "verify": [
+    "observed_vs_inferred"
+   ],
+   "outputs": [
+    "flow trace",
+    "activity report",
+    "exposure assessment"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Graph tracing is not implemented; Lyst does not connect to blockchain nodes."
+   ],
+   "examples": [
+    "Trace where funds from this address went in the last 30 days.",
+    "How has activity on our protocol changed?"
+   ],
+   "related": [
+    "smart_contract_security_analyst",
+    "fraud_detection_analyst",
+    "digital_forensics_osint_analyst"
+   ],
+   "keywords": [
+    "blockchain",
+    "on-chain",
+    "crypto",
+    "wallet",
+    "ethereum",
+    "bitcoin",
+    "token"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 128)"
+   ]
+  },
+  {
+   "id": "smart_contract_security_analyst",
+   "name": "Smart Contract Security Analyst",
+   "kind": "functional",
+   "sub": "Smart contract security",
+   "desc": "Evaluates smart-contract logic, permissions, transaction behavior, economic assumptions, and vulnerabilities. Uses static analysis, testing, and transaction simulations to identify risks.",
+   "alt": [
+    "Smart Contract Auditor (analysis)",
+    "Web3 Security Analyst"
+   ],
+   "resp": [
+    "Analyse contract audit findings",
+    "Assess exploitability and value at risk",
+    "Track remediation"
+   ],
+   "know": [
+    "smart contract languages",
+    "common vulnerability classes",
+    "DeFi mechanisms"
+   ],
+   "terms": [
+    "reentrancy",
+    "access control",
+    "oracle manipulation",
+    "upgradeability",
+    "invariant"
+   ],
+   "methods": [
+    "finding triage by vulnerability class",
+    "value-at-risk estimation",
+    "remediation verification"
+   ],
+   "tasks": [
+    "code_analysis",
+    "security_investigation",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "map findings to SWC classes",
+    "estimate funds exposed",
+    "check fix commits"
+   ],
+   "req": [
+    "code_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "audit reports",
+    "static analysis output",
+    "contract metadata"
+   ],
+   "entities": [
+    "contracts",
+    "findings",
+    "functions"
+   ],
+   "fields": [
+    "contract",
+    "finding",
+    "severity",
+    "status"
+   ],
+   "verify": [
+    "reproducible_failure"
+   ],
+   "outputs": [
+    "contract risk summary",
+    "prioritized findings"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Lyst does not analyse contract bytecode or source directly and never produces exploit code."
+   ],
+   "examples": [
+    "Summarize the high-severity findings in our contract audits.",
+    "Which contracts hold the most value with open findings?"
+   ],
+   "related": [
+    "application_security_analyst",
+    "blockchain_analytics_analyst",
+    "vulnerability_analyst"
+   ],
+   "keywords": [
+    "smart contract",
+    "solidity",
+    "audit findings",
+    "reentrancy",
+    "defi",
+    "web3 security"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 129)"
+   ]
+  },
+  {
+   "id": "quantum_computing_analyst",
+   "name": "Quantum Computing Analyst",
+   "kind": "functional",
+   "sub": "Quantum computing",
+   "desc": "Evaluates quantum algorithms, circuits, simulations, noise effects, and hardware limitations. Studies computational suitability and compares candidate quantum approaches with classical alternatives.",
+   "alt": [
+    "Quantum Technology Analyst"
+   ],
+   "resp": [
+    "Assess quantum use cases and readiness",
+    "Inventory cryptography exposed to quantum risk",
+    "Track evidence on hardware progress"
+   ],
+   "know": [
+    "quantum computing fundamentals",
+    "post-quantum cryptography",
+    "technology forecasting"
+   ],
+   "terms": [
+    "qubit",
+    "error correction",
+    "quantum advantage",
+    "post-quantum cryptography",
+    "harvest now, decrypt later"
+   ],
+   "methods": [
+    "use-case screening",
+    "cryptographic inventory",
+    "evidence-graded technology assessment"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "risk_assessment",
+    "recommendation"
+   ],
+   "techniques": [
+    "classify algorithms by quantum exposure",
+    "grade claims by evidence",
+    "map migration priorities"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "reporting"
+   ],
+   "opt": [
+    "web_research",
+    "sql_query"
+   ],
+   "sources": [
+    "technical papers",
+    "cryptography inventories",
+    "vendor documentation"
+   ],
+   "entities": [
+    "use cases",
+    "algorithms",
+    "systems"
+   ],
+   "fields": [
+    "system",
+    "algorithm",
+    "key length",
+    "data lifetime"
+   ],
+   "verify": [],
+   "outputs": [
+    "quantum readiness assessment",
+    "PQC migration priorities"
+   ],
+   "limits": [
+    "No quantum simulation or circuit execution is available."
+   ],
+   "examples": [
+    "Which of our systems use cryptography vulnerable to quantum attacks?",
+    "Is quantum optimization relevant to our logistics problem yet?"
+   ],
+   "related": [
+    "technology_research_analyst",
+    "security_risk_analyst",
+    "optimization_analyst"
+   ],
+   "keywords": [
+    "quantum",
+    "post-quantum",
+    "pqc",
+    "qubits",
+    "quantum computing"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 130)"
+   ]
+  },
+  {
+   "id": "robotics_autonomous_systems_analyst",
+   "name": "Robotics & Autonomous Systems Analyst",
+   "kind": "functional",
+   "sub": "Robotics",
+   "desc": "Investigates robotic telemetry, perception, planning, control behavior, and operational performance. Evaluates system accuracy, safety, efficiency, and failure conditions.",
+   "alt": [
+    "Robotics Analyst",
+    "Autonomy Analyst"
+   ],
+   "resp": [
+    "Measure task success and interventions",
+    "Analyse incidents and failure conditions",
+    "Assess utilization and throughput"
+   ],
+   "know": [
+    "robotics operations",
+    "autonomy safety",
+    "fleet management"
+   ],
+   "terms": [
+    "intervention rate",
+    "mean distance between interventions",
+    "disengagement",
+    "uptime",
+    "operational design domain"
+   ],
+   "methods": [
+    "intervention analysis",
+    "condition-stratified failure analysis",
+    "utilization analysis"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "root_cause",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "stratify failures by environment",
+    "trend interventions",
+    "compare fleet units"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "log_analysis"
+   ],
+   "sources": [
+    "robot logs",
+    "fleet management system",
+    "incident reports"
+   ],
+   "entities": [
+    "robots",
+    "missions",
+    "interventions",
+    "incidents"
+   ],
+   "fields": [
+    "unit id",
+    "mission id",
+    "outcome",
+    "timestamp",
+    "conditions"
+   ],
+   "verify": [
+    "human_review"
+   ],
+   "outputs": [
+    "fleet performance report",
+    "failure condition analysis"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Perception and sensor data (point clouds, video) are not analysed."
+   ],
+   "examples": [
+    "Under what conditions do our warehouse robots need human help?",
+    "Is the intervention rate improving release over release?"
+   ],
+   "related": [
+    "computer_vision_analyst",
+    "transportation_mobility_analyst",
+    "industrial_iot_analyst"
+   ],
+   "keywords": [
+    "robot",
+    "robotics",
+    "autonomous",
+    "autonomy",
+    "drones",
+    "interventions",
+    "amr"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 131)"
+   ]
+  },
+  {
+   "id": "computer_vision_analyst",
+   "name": "Computer Vision Analyst",
+   "kind": "functional",
+   "sub": "Computer vision",
+   "desc": "Examines image and video datasets, object detection, segmentation, classification, and visual-model performance. Diagnoses model errors, dataset limitations, and operational suitability.",
+   "alt": [
+    "Vision Analyst",
+    "CV Model Analyst"
+   ],
+   "resp": [
+    "Evaluate vision model accuracy",
+    "Analyse failures by condition",
+    "Assess dataset coverage and labelling"
+   ],
+   "know": [
+    "computer vision",
+    "object detection metrics",
+    "dataset curation"
+   ],
+   "terms": [
+    "mAP",
+    "IoU",
+    "false negative",
+    "annotation",
+    "class imbalance"
+   ],
+   "methods": [
+    "per-class and per-condition evaluation",
+    "error analysis",
+    "dataset coverage analysis"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "data_quality"
+   ],
+   "techniques": [
+    "compute precision and recall per class",
+    "slice errors by lighting or camera",
+    "count labels per class"
+   ],
+   "req": [
+    "model_evaluation",
+    "classification"
+   ],
+   "opt": [
+    "sql_query"
+   ],
+   "sources": [
+    "prediction and label tables",
+    "dataset manifests"
+   ],
+   "entities": [
+    "images",
+    "labels",
+    "predictions"
+   ],
+   "fields": [
+    "image id",
+    "label",
+    "prediction",
+    "confidence",
+    "conditions"
+   ],
+   "verify": [
+    "eval_leakage"
+   ],
+   "outputs": [
+    "vision model evaluation",
+    "dataset coverage report"
+   ],
+   "limits": [
+    "Images are not processed; evaluation needs predictions and labels as tables."
+   ],
+   "examples": [
+    "How accurate is our defect detector per defect type?",
+    "Which camera conditions cause the most missed detections?"
+   ],
+   "related": [
+    "multimodal_ai_analyst",
+    "machine_learning_analyst",
+    "robotics_autonomous_systems_analyst"
+   ],
+   "keywords": [
+    "computer vision",
+    "image recognition",
+    "object detection",
+    "vision model",
+    "images",
+    "camera"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 132)"
+   ]
+  },
+  {
+   "id": "nlp_text_analytics_analyst",
+   "name": "NLP & Text Analytics Analyst",
+   "kind": "functional",
+   "sub": "Text analytics",
+   "desc": "Analyzes language datasets, document content, topic distributions, sentiment, named entities, and semantic relationships. Develops evidence-grounded text classification, extraction, and synthesis methods.",
+   "alt": [
+    "Text Analytics Analyst",
+    "NLP Analyst"
+   ],
+   "resp": [
+    "Theme and classify text collections",
+    "Extract entities and facts",
+    "Validate text measures against human review"
+   ],
+   "know": [
+    "natural language processing",
+    "text classification",
+    "information extraction"
+   ],
+   "terms": [
+    "topic",
+    "entity",
+    "sentiment",
+    "corpus",
+    "inter-annotator agreement"
+   ],
+   "methods": [
+    "retrieval-based theme discovery",
+    "rule and model-based classification",
+    "agreement checks with human labels"
+   ],
+   "tasks": [
+    "text_analytics",
+    "research_synthesis",
+    "document_extraction"
+   ],
+   "techniques": [
+    "search for representative passages",
+    "count themes over time",
+    "sample for human validation"
+   ],
+   "req": [
+    "text_analytics",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "classification",
+    "document_extraction"
+   ],
+   "sources": [
+    "support tickets",
+    "survey comments",
+    "documents",
+    "messages"
+   ],
+   "entities": [
+    "documents",
+    "passages",
+    "themes",
+    "entities"
+   ],
+   "fields": [
+    "text",
+    "date",
+    "source"
+   ],
+   "verify": [
+    "human_review"
+   ],
+   "outputs": [
+    "theme analysis",
+    "entity extraction",
+    "text-derived metrics"
+   ],
+   "limits": [
+    "Topic modeling, sentiment and entity extraction models are not implemented; analysis is retrieval-based."
+   ],
+   "examples": [
+    "What are customers complaining about most in support tickets this quarter?",
+    "Which suppliers are mentioned in these reports?"
+   ],
+   "related": [
+    "document_intelligence_analyst",
+    "customer_insights_analyst",
+    "conversational_ai_analyst"
+   ],
+   "keywords": [
+    "text analytics",
+    "nlp",
+    "themes",
+    "comments",
+    "feedback text",
+    "sentiment",
+    "topics"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 133)"
+   ]
+  },
+  {
+   "id": "knowledge_graph_analyst",
+   "name": "Knowledge Graph Analyst",
+   "kind": "functional",
+   "sub": "Knowledge graphs",
+   "desc": "Investigates relationships among organizational entities, documents, datasets, concepts, and processes. Creates graph-based analytical structures for discovery, reasoning, and dependency analysis.",
+   "alt": [
+    "Ontology Analyst",
+    "Graph Data Analyst"
+   ],
+   "resp": [
+    "Design ontologies and entity models",
+    "Map sources into a graph",
+    "Answer and validate connected questions"
+   ],
+   "know": [
+    "knowledge representation",
+    "graph databases",
+    "semantic web standards"
+   ],
+   "terms": [
+    "ontology",
+    "triple",
+    "node",
+    "edge",
+    "entity resolution"
+   ],
+   "methods": [
+    "ontology design",
+    "graph traversal queries",
+    "graph quality metrics"
+   ],
+   "tasks": [
+    "data_modeling",
+    "research_synthesis",
+    "segmentation"
+   ],
+   "techniques": [
+    "map tables to entity types",
+    "find disconnected components",
+    "measure relationship coverage"
+   ],
+   "req": [
+    "graph_analysis",
+    "data_profiling"
+   ],
+   "opt": [
+    "knowledge_retrieval",
+    "sql_query"
+   ],
+   "sources": [
+    "relational datasets",
+    "catalog relationships",
+    "documents"
+   ],
+   "entities": [
+    "entities",
+    "relationships",
+    "ontology classes"
+   ],
+   "fields": [
+    "entity id",
+    "type",
+    "related entity",
+    "relationship"
+   ],
+   "verify": [],
+   "outputs": [
+    "ontology proposal",
+    "graph quality report"
+   ],
+   "limits": [
+    "No graph store or traversal capability; relationships come from the dataset catalog."
+   ],
+   "examples": [
+    "Model how customers, contracts and products relate across our datasets.",
+    "Which suppliers are connected to multiple risk events?"
+   ],
+   "related": [
+    "data_modeling_analyst",
+    "rag_retrieval_analyst",
+    "master_data_analyst"
+   ],
+   "keywords": [
+    "knowledge graph",
+    "ontology",
+    "graph",
+    "relationships",
+    "entities",
+    "linked data"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 134)"
+   ]
+  },
+  {
+   "id": "digital_forensics_osint_analyst",
+   "name": "Digital Forensics & OSINT Analyst",
+   "kind": "functional",
+   "sub": "OSINT",
+   "desc": "Combines authorized open-source information, metadata, public digital records, and investigative techniques to verify claims, reconstruct events, and identify relationships.",
+   "alt": [
+    "OSINT Analyst",
+    "Open Source Intelligence Analyst",
+    "Investigations Analyst"
+   ],
+   "resp": [
+    "Collect and verify open-source evidence",
+    "Document provenance and chain of custody",
+    "Report findings with confidence levels"
+   ],
+   "know": [
+    "open-source intelligence",
+    "verification techniques",
+    "investigative ethics and law"
+   ],
+   "terms": [
+    "provenance",
+    "verification",
+    "geolocation",
+    "pivot",
+    "confidence level"
+   ],
+   "methods": [
+    "source verification",
+    "timeline reconstruction",
+    "provenance documentation"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "security_investigation"
+   ],
+   "techniques": [
+    "corroborate across independent sources",
+    "timestamp and archive evidence",
+    "grade confidence"
+   ],
+   "req": [
+    "web_research",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "document_extraction",
+    "graph_analysis"
+   ],
+   "sources": [
+    "authorized open sources ingested as documents",
+    "case files"
+   ],
+   "entities": [
+    "subjects (organizations)",
+    "sources",
+    "claims"
+   ],
+   "fields": [
+    "source",
+    "retrieved date",
+    "claim",
+    "confidence"
+   ],
+   "verify": [
+    "observed_vs_inferred",
+    "human_review"
+   ],
+   "outputs": [
+    "investigation brief",
+    "evidence log"
+   ],
+   "sensitivity": "restricted",
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Lyst does not browse the web or profile private individuals; work is limited to authorized, ingested sources."
+   ],
+   "examples": [
+    "Compile what our ingested sources say about this supplier's ownership.",
+    "Verify the claims in this due diligence file."
+   ],
+   "related": [
+    "threat_intelligence_analyst",
+    "digital_forensics_analyst",
+    "news_information_analyst"
+   ],
+   "keywords": [
+    "osint",
+    "open source intelligence",
+    "due diligence",
+    "investigation",
+    "verify sources",
+    "provenance"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 135)"
+   ]
+  },
+  {
+   "id": "technology_research_analyst",
+   "name": "Technology Research Analyst",
+   "kind": "job_title",
+   "sub": "Technology research",
+   "desc": "Evaluates emerging software, infrastructure, AI models, hardware, and technical architectures. Compares capabilities, maturity, compatibility, performance, licensing, and adoption risks.",
+   "alt": [
+    "Technology Analyst",
+    "Research Analyst (technology)"
+   ],
+   "resp": [
+    "Research technologies and vendors",
+    "Compare options on evidence, cost and fit",
+    "Recommend with stated evidence strength"
+   ],
+   "know": [
+    "technology markets",
+    "vendor evaluation",
+    "total cost of ownership"
+   ],
+   "terms": [
+    "TCO",
+    "vendor lock-in",
+    "maturity",
+    "proof of concept",
+    "evaluation criteria"
+   ],
+   "methods": [
+    "weighted criteria evaluation",
+    "TCO modeling",
+    "evidence grading"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "recommendation",
+    "cost_analysis"
+   ],
+   "techniques": [
+    "score options on weighted criteria",
+    "model three-year TCO",
+    "separate vendor claims from measured results"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "reporting"
+   ],
+   "opt": [
+    "web_research",
+    "scenario_modeling"
+   ],
+   "sources": [
+    "ingested vendor documents",
+    "analyst reports",
+    "internal benchmarks"
+   ],
+   "entities": [
+    "technologies",
+    "vendors",
+    "criteria"
+   ],
+   "fields": [
+    "option",
+    "criterion",
+    "score",
+    "evidence"
+   ],
+   "verify": [],
+   "outputs": [
+    "technology assessment",
+    "vendor comparison",
+    "recommendation memo"
+   ],
+   "limits": [
+    "Research covers ingested sources only; there is no live web research."
+   ],
+   "examples": [
+    "Compare three vector databases for our use case.",
+    "What is the three-year cost of building versus buying this tool?"
+   ],
+   "related": [
+    "digital_transformation_analyst",
+    "quantum_computing_analyst",
+    "news_information_analyst"
+   ],
+   "keywords": [
+    "technology research",
+    "vendor comparison",
+    "evaluate tools",
+    "build vs buy",
+    "market research",
+    "which tool"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 136)"
+   ]
+  }
+ ]
+}

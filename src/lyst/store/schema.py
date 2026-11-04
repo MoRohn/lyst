@@ -1230,3 +1230,90 @@ WORKSPACE.append((
     CREATE INDEX experiment_runs_by_experiment ON experiment_runs (experiment_id)
     """,
 ))
+WORKSPACE.append((
+    42,
+    """
+    CREATE TABLE workbench_runs (
+        id VARCHAR PRIMARY KEY,
+        kind VARCHAR NOT NULL,
+        code VARCHAR NOT NULL,
+        inputs JSON NOT NULL,
+        environment JSON NOT NULL,
+        backend VARCHAR,
+        status VARCHAR NOT NULL,
+        error VARCHAR,
+        stdout VARCHAR,
+        result_kind VARCHAR,
+        result JSON,
+        input_digest VARCHAR NOT NULL,
+        result_digest VARCHAR,
+        seconds DOUBLE,
+        reproduces VARCHAR,
+        saved_as VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+
+# Connector drafts: connections Lyst proposes from an API description, tested in a dry run and promoted by an admin.
+CONTROL.append((
+    14,
+    """
+    CREATE TABLE connector_drafts (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        name VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        source VARCHAR NOT NULL,
+        proposal JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        test_report JSON,
+        connection_id VARCHAR,
+        created_by VARCHAR NOT NULL,
+        reviewed_by VARCHAR,
+        review_note VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+# Voice (migrations 60-69): workspace voice settings, each person's voice preferences, voice sessions and their turns.
+# Audio is stored only when an administrator turns on retention; transcripts are redacted before they are written.
+WORKSPACE.append((
+    60,
+    """
+    CREATE TABLE voice_settings (
+        id VARCHAR PRIMARY KEY,
+        spec JSON NOT NULL,
+        updated_by VARCHAR,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE voice_prefs (
+        user_id VARCHAR PRIMARY KEY,
+        spec JSON NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE voice_sessions (
+        id VARCHAR PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        mode VARCHAR NOT NULL,
+        turns INTEGER NOT NULL DEFAULT 0,
+        last_task_id VARCHAR,
+        started_at TIMESTAMPTZ DEFAULT now(),
+        last_activity TIMESTAMPTZ,
+        ended_at TIMESTAMPTZ
+    );
+    CREATE TABLE voice_turns (
+        id VARCHAR PRIMARY KEY,
+        session_id VARCHAR NOT NULL,
+        seq INTEGER NOT NULL,
+        role VARCHAR NOT NULL,
+        source VARCHAR NOT NULL,
+        text VARCHAR NOT NULL,
+        intent VARCHAR,
+        task_id VARCHAR,
+        outcome VARCHAR,
+        engines JSON,
+        audio BLOB,
+        audio_mime VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE (session_id, seq)
+    )
+    """,
+))

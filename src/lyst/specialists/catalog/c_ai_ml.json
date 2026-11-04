@@ -1,0 +1,1718 @@
+{
+ "domain": {
+  "id": "ai_ml_agentic",
+  "letter": "C",
+  "title": "Artificial Intelligence, Machine Learning & Agentic Systems",
+  "summary": "Evaluating, governing and operating machine learning, generative AI and agentic systems.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Organizations building, buying or operating machine learning and AI systems"
+   ],
+   "expertise.technical_concepts": [
+    "train/test separation",
+    "evaluation leakage",
+    "model drift",
+    "inference cost and latency"
+   ],
+   "expertise.standards": [
+    "NIST AI Risk Management Framework",
+    "ISO/IEC 42001 AI management systems",
+    "EU AI Act risk categories"
+   ],
+   "analytics.statistical_methods": [
+    "error and accuracy metrics",
+    "confidence intervals on evaluation scores",
+    "drift statistics"
+   ],
+   "analytics.computational_methods": [
+    "batch evaluation over test cases",
+    "log aggregation in SQL"
+   ],
+   "analytics.modeling_approaches": [
+    "baseline comparison",
+    "ablation"
+   ],
+   "analytics.data_transformations": [
+    "case and label normalization",
+    "aggregation of call logs by model and workload"
+   ],
+   "analytics.visualization_methods": [
+    "score tables by model",
+    "latency and cost distributions"
+   ],
+   "analytics.reporting": [
+    "evaluation report",
+    "risk assessment",
+    "recommendation with trade-offs"
+   ],
+   "data.structures": [
+    "evaluation case sets",
+    "model call logs",
+    "prediction tables"
+   ],
+   "data.quality_requirements": [
+    "labelled cases are correct and representative",
+    "logs capture model, version and configuration"
+   ],
+   "data.temporal": [
+    "evaluations are dated and tied to a model version"
+   ],
+   "data.semantic_assumptions": [
+    "metric definitions (accuracy, cost per call) are fixed across compared systems"
+   ],
+   "resources.sql": [
+    "DuckDB SQL over call logs and evaluation results"
+   ],
+   "resources.python_packages": [
+    "numpy",
+    "pandas",
+    "scipy"
+   ],
+   "resources.models": [
+    "classify",
+    "structured (grading only with recorded rubrics)"
+   ],
+   "resources.environment": [
+    "Lyst's model gateway logs; sandboxed evaluation runs"
+   ],
+   "execution.planning_depth": "deep",
+   "execution.decomposition": [
+    "define the system and version under test",
+    "fix the case set",
+    "run or collect results",
+    "score",
+    "compare and report"
+   ],
+   "execution.resource_constraints": [
+    "model calls capped by the workspace budget and tier"
+   ],
+   "execution.approval_conditions": [
+    "sending evaluation data to an external model provider",
+    "changing a production model configuration"
+   ],
+   "execution.verification_rules": [
+    "eval_reproducible",
+    "eval_leakage"
+   ],
+   "quality.correctness_criteria": [
+    "scores reproduce on the recorded cases and configuration",
+    "comparisons use identical cases"
+   ],
+   "quality.domain_tests": [
+    "re-run a sample of cases",
+    "check case/train overlap"
+   ],
+   "quality.expected_evidence": [
+    "case set version",
+    "model and configuration",
+    "per-case results"
+   ],
+   "quality.reproducibility": [
+    "fixed case sets, seeds and model versions recorded"
+   ],
+   "quality.performance_measures": [
+    "task success rate",
+    "latency percentiles",
+    "cost per successful outcome"
+   ],
+   "quality.known_limitations": [
+    "LLM-graded scores are reported as model judgments, never as ground truth."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "confidential",
+   "governance.sensitive_handling": [
+    "never include secrets or personal data in evaluation prompts",
+    "respect the workspace's external-model policy"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "evaluation sets built from customer data inherit its classification"
+   ],
+   "governance.review_requirements": [
+    "owner review before a model or prompt change is adopted"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "ai_systems_analyst",
+   "name": "AI Systems Analyst",
+   "kind": "functional",
+   "sub": "AI systems",
+   "desc": "Evaluates how AI capabilities integrate with business applications, workflows, information systems, and organizational requirements. Identifies opportunities, architectural gaps, implementation risks, and measurable AI value.",
+   "alt": [
+    "AI Solutions Analyst"
+   ],
+   "resp": [
+    "Map AI system components and data flows",
+    "Assess fitness for purpose and failure modes",
+    "Recommend controls and improvements"
+   ],
+   "know": [
+    "ML system architecture",
+    "AI product design",
+    "failure mode analysis"
+   ],
+   "terms": [
+    "inference pipeline",
+    "fallback",
+    "human in the loop",
+    "guardrail",
+    "model card"
+   ],
+   "methods": [
+    "system decomposition",
+    "failure mode and effects analysis",
+    "requirement traceability"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "risk_assessment",
+    "model_evaluation"
+   ],
+   "techniques": [
+    "trace a request through the system",
+    "review error logs",
+    "compare to requirements"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "sql_query",
+    "reporting"
+   ],
+   "opt": [
+    "model_evaluation",
+    "log_analysis"
+   ],
+   "sources": [
+    "architecture documents",
+    "model call logs",
+    "incident records"
+   ],
+   "entities": [
+    "models",
+    "pipelines",
+    "integrations"
+   ],
+   "fields": [
+    "component",
+    "model version",
+    "outcome"
+   ],
+   "verify": [
+    "source_cited"
+   ],
+   "outputs": [
+    "system assessment",
+    "risk register",
+    "improvement plan"
+   ],
+   "limits": [
+    "Assessment relies on documents and logs available to Lyst; it cannot probe external systems."
+   ],
+   "examples": [
+    "Assess the risks in our support chatbot's architecture.",
+    "Where does our document-classification pipeline fail most?"
+   ],
+   "related": [
+    "machine_learning_analyst",
+    "ai_governance_analyst",
+    "agentic_ai_analyst"
+   ],
+   "keywords": [
+    "ai system",
+    "ai architecture",
+    "ml system",
+    "ai pipeline",
+    "ai solution"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 25)"
+   ]
+  },
+  {
+   "id": "machine_learning_analyst",
+   "name": "Machine Learning Analyst",
+   "kind": "functional",
+   "sub": "Machine learning",
+   "desc": "Investigates datasets, features, algorithms, training outcomes, and prediction quality. Evaluates model performance, generalization, explainability, and deployment suitability.",
+   "alt": [
+    "ML Analyst",
+    "Applied Data Scientist"
+   ],
+   "resp": [
+    "Prepare features and labels",
+    "Train and validate models",
+    "Interpret and communicate model behaviour"
+   ],
+   "know": [
+    "supervised and unsupervised learning",
+    "feature engineering",
+    "model interpretability"
+   ],
+   "terms": [
+    "precision",
+    "recall",
+    "AUC",
+    "overfitting",
+    "feature importance"
+   ],
+   "methods": [
+    "cross-validation",
+    "baseline comparison",
+    "permutation importance",
+    "error analysis"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "segmentation",
+    "forecasting"
+   ],
+   "techniques": [
+    "confusion-matrix review",
+    "slice-based error analysis",
+    "learning curves"
+   ],
+   "req": [
+    "classification",
+    "clustering",
+    "model_evaluation"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "data_profiling"
+   ],
+   "sources": [
+    "feature tables",
+    "labelled datasets",
+    "prediction logs"
+   ],
+   "entities": [
+    "examples",
+    "features",
+    "labels",
+    "models"
+   ],
+   "fields": [
+    "entity id",
+    "features",
+    "label"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "model evaluation",
+    "error analysis",
+    "feature importance summary"
+   ],
+   "limits": [
+    "Model training is not implemented; Lyst can evaluate forecasting methods but cannot fit classifiers yet."
+   ],
+   "examples": [
+    "Evaluate this churn classifier's precision and recall by segment.",
+    "Cluster customers by purchasing behaviour."
+   ],
+   "related": [
+    "predictive_analytics_analyst",
+    "model_performance_analyst",
+    "mlops_analyst"
+   ],
+   "keywords": [
+    "machine learning",
+    "ml model",
+    "classifier",
+    "train a model",
+    "precision",
+    "recall",
+    "clustering"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 26)"
+   ]
+  },
+  {
+   "id": "generative_ai_analyst",
+   "name": "Generative AI Analyst",
+   "kind": "functional",
+   "sub": "Generative AI",
+   "desc": "Assesses language, image, audio, and multimodal generation capabilities. Evaluates output quality, factual grounding, reliability, cost, safety, and practical integration into business workflows.",
+   "alt": [
+    "GenAI Analyst",
+    "LLM Analyst"
+   ],
+   "resp": [
+    "Assess generative AI use cases",
+    "Evaluate output quality and failure modes",
+    "Estimate cost and operational impact"
+   ],
+   "know": [
+    "large language models",
+    "prompting and retrieval",
+    "output evaluation"
+   ],
+   "terms": [
+    "hallucination",
+    "grounding",
+    "token",
+    "temperature",
+    "rubric"
+   ],
+   "methods": [
+    "rubric-based evaluation",
+    "use-case value assessment",
+    "red-team sampling"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "cost_analysis",
+    "recommendation"
+   ],
+   "techniques": [
+    "sample outputs against rubrics",
+    "compare models on identical prompts",
+    "estimate cost per task"
+   ],
+   "req": [
+    "sql_query",
+    "reporting"
+   ],
+   "opt": [
+    "model_evaluation",
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "model call logs",
+    "evaluation case sets",
+    "use-case documents"
+   ],
+   "entities": [
+    "use cases",
+    "prompts",
+    "models",
+    "outputs"
+   ],
+   "fields": [
+    "model",
+    "workload",
+    "tokens",
+    "outcome"
+   ],
+   "verify": [
+    "eval_reproducible"
+   ],
+   "outputs": [
+    "use-case assessment",
+    "model comparison",
+    "risk notes"
+   ],
+   "limits": [
+    "No dedicated LLM benchmark harness; comparisons use logged calls and recorded case sets."
+   ],
+   "examples": [
+    "Which of our generative AI use cases has the best cost-to-value ratio?",
+    "How often do our summaries contain unsupported claims?"
+   ],
+   "related": [
+    "llm_evaluation_analyst",
+    "ai_cost_inference_analyst",
+    "prompt_context_analyst"
+   ],
+   "keywords": [
+    "generative ai",
+    "genai",
+    "llm",
+    "large language model",
+    "hallucination",
+    "chatgpt-style"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 27)"
+   ]
+  },
+  {
+   "id": "agentic_ai_analyst",
+   "name": "Agentic AI Analyst",
+   "kind": "functional",
+   "sub": "Agentic systems",
+   "desc": "Examines autonomous agents, planning strategies, tool selection, execution loops, task completion, and recovery. Measures whether agent-driven systems reliably achieve objectives within permissions, budgets, and constraints.",
+   "alt": [
+    "AI Agent Analyst",
+    "Agent Workflow Analyst"
+   ],
+   "resp": [
+    "Measure agent task completion and tool use",
+    "Assess autonomy boundaries and approvals",
+    "Recommend workflow and guardrail changes"
+   ],
+   "know": [
+    "agent architectures",
+    "tool use and planning",
+    "human-in-the-loop design"
+   ],
+   "terms": [
+    "tool call",
+    "plan",
+    "step",
+    "approval gate",
+    "autonomy level"
+   ],
+   "methods": [
+    "trace analysis",
+    "task success measurement",
+    "failure taxonomy"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "process_analysis",
+    "performance_analysis"
+   ],
+   "techniques": [
+    "replay task traces",
+    "classify failure causes",
+    "compare steps per completed task"
+   ],
+   "req": [
+    "sql_query",
+    "reporting"
+   ],
+   "opt": [
+    "model_evaluation",
+    "log_analysis"
+   ],
+   "sources": [
+    "task and step logs",
+    "approval records",
+    "model call logs"
+   ],
+   "entities": [
+    "tasks",
+    "steps",
+    "tools",
+    "approvals"
+   ],
+   "fields": [
+    "task id",
+    "step",
+    "capability",
+    "outcome",
+    "duration"
+   ],
+   "verify": [
+    "eval_reproducible"
+   ],
+   "outputs": [
+    "agent workflow evaluation",
+    "failure taxonomy",
+    "guardrail recommendations"
+   ],
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Evaluates Lyst's own task traces and logged agent runs; third-party agents need exported traces."
+   ],
+   "examples": [
+    "Evaluate our agent workflow's task completion, tool selection and inference cost.",
+    "Which steps fail most in our recurring tasks?"
+   ],
+   "related": [
+    "agent_reliability_analyst",
+    "ai_cost_inference_analyst",
+    "llm_evaluation_analyst"
+   ],
+   "keywords": [
+    "agent",
+    "agentic",
+    "tool selection",
+    "task completion",
+    "autonomy",
+    "agent workflow"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 28)"
+   ]
+  },
+  {
+   "id": "llm_evaluation_analyst",
+   "name": "LLM Evaluation Analyst",
+   "kind": "functional",
+   "sub": "Evaluation",
+   "desc": "Designs benchmarks and test cases for reasoning quality, factuality, instruction following, structured outputs, coding, tool use, and safety. Compares models using repeatable evidence rather than subjective impressions.",
+   "alt": [
+    "Model Evaluation Analyst",
+    "AI Evaluator"
+   ],
+   "resp": [
+    "Build representative evaluation sets",
+    "Score outputs reproducibly",
+    "Compare models and configurations fairly"
+   ],
+   "know": [
+    "evaluation methodology",
+    "benchmark design",
+    "inter-rater agreement"
+   ],
+   "terms": [
+    "eval set",
+    "golden answer",
+    "pass rate",
+    "judge model",
+    "contamination"
+   ],
+   "methods": [
+    "exact-match and rubric scoring",
+    "paired comparison",
+    "regression evaluation"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "statistical_testing"
+   ],
+   "techniques": [
+    "stratify cases by difficulty",
+    "compute paired differences",
+    "check contamination"
+   ],
+   "req": [
+    "model_evaluation",
+    "statistical_testing"
+   ],
+   "opt": [
+    "sql_query"
+   ],
+   "sources": [
+    "evaluation case banks",
+    "model outputs",
+    "baseline results"
+   ],
+   "entities": [
+    "cases",
+    "models",
+    "scores"
+   ],
+   "fields": [
+    "case id",
+    "expected answer",
+    "model output",
+    "score"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "evaluation report",
+    "regression comparison"
+   ],
+   "limits": [
+    "The equipped harness evaluates Lyst's own answers; external LLMs need cases and outputs supplied."
+   ],
+   "examples": [
+    "Did the new model configuration regress on our evaluation set?",
+    "Compare two models on these 200 questions."
+   ],
+   "related": [
+    "model_performance_analyst",
+    "generative_ai_analyst",
+    "ai_safety_alignment_analyst"
+   ],
+   "keywords": [
+    "evaluate the model",
+    "llm evaluation",
+    "eval",
+    "benchmark",
+    "regression test",
+    "pass rate"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 29)"
+   ]
+  },
+  {
+   "id": "prompt_context_analyst",
+   "name": "Prompt & Context Analyst",
+   "kind": "functional",
+   "sub": "Prompt and context design",
+   "desc": "Investigates how instructions, retrieved knowledge, context structure, memory, and prompt composition influence AI behavior. Optimizes context relevance, precision, consistency, and inference efficiency.",
+   "alt": [
+    "Prompt Engineer",
+    "Context Engineer"
+   ],
+   "resp": [
+    "Design prompts and context for tasks",
+    "Test prompt variants against cases",
+    "Reduce context size without losing quality"
+   ],
+   "know": [
+    "prompt design",
+    "in-context learning",
+    "context window management"
+   ],
+   "terms": [
+    "system prompt",
+    "few-shot",
+    "context window",
+    "prompt injection",
+    "token budget"
+   ],
+   "methods": [
+    "variant testing on fixed cases",
+    "context ablation",
+    "injection testing"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "cost_analysis"
+   ],
+   "techniques": [
+    "A/B prompt variants",
+    "remove context sections and re-score",
+    "measure tokens per task"
+   ],
+   "req": [
+    "sql_query",
+    "reporting"
+   ],
+   "opt": [
+    "model_evaluation"
+   ],
+   "sources": [
+    "prompt templates",
+    "model call logs",
+    "evaluation cases"
+   ],
+   "entities": [
+    "prompts",
+    "variants",
+    "cases"
+   ],
+   "fields": [
+    "prompt version",
+    "tokens",
+    "score"
+   ],
+   "verify": [
+    "eval_reproducible"
+   ],
+   "outputs": [
+    "prompt comparison",
+    "context budget recommendation"
+   ],
+   "limits": [
+    "Lyst's own system instructions are not editable through specializations."
+   ],
+   "examples": [
+    "Which prompt variant gives the most accurate extraction?",
+    "How much context can we cut from this workflow?"
+   ],
+   "related": [
+    "generative_ai_analyst",
+    "rag_retrieval_analyst",
+    "ai_cost_inference_analyst"
+   ],
+   "keywords": [
+    "prompt",
+    "prompting",
+    "context window",
+    "system prompt",
+    "few-shot",
+    "prompt engineering"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 30)"
+   ]
+  },
+  {
+   "id": "rag_retrieval_analyst",
+   "name": "RAG & Retrieval Analyst",
+   "kind": "functional",
+   "sub": "Retrieval",
+   "desc": "Evaluates document ingestion, embeddings, chunking, ranking, retrieval relevance, citations, and answer grounding. Diagnoses missing evidence, misleading retrieval, and knowledge-source conflicts.",
+   "alt": [
+    "Search Relevance Analyst",
+    "Retrieval Engineer (analysis)"
+   ],
+   "resp": [
+    "Measure retrieval recall and precision",
+    "Assess answer grounding in sources",
+    "Tune chunking and ranking choices"
+   ],
+   "know": [
+    "information retrieval",
+    "embeddings and ranking",
+    "grounded generation"
+   ],
+   "terms": [
+    "recall@k",
+    "chunk",
+    "embedding",
+    "reranking",
+    "faithfulness"
+   ],
+   "methods": [
+    "relevance judgments",
+    "recall@k measurement",
+    "citation verification"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "text_analytics",
+    "research_synthesis"
+   ],
+   "techniques": [
+    "label relevant passages",
+    "compare rankers",
+    "check cited passages support claims"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "model_evaluation"
+   ],
+   "opt": [
+    "text_analytics"
+   ],
+   "sources": [
+    "document stores",
+    "query logs",
+    "relevance labels"
+   ],
+   "entities": [
+    "queries",
+    "passages",
+    "answers"
+   ],
+   "fields": [
+    "query",
+    "retrieved passage ids",
+    "relevance label"
+   ],
+   "verify": [
+    "source_cited"
+   ],
+   "outputs": [
+    "retrieval evaluation",
+    "grounding audit",
+    "tuning recommendations"
+   ],
+   "limits": [
+    "No relevance-labelling workflow yet; labels must be supplied."
+   ],
+   "examples": [
+    "How often does our document search return the right passage in the top 3?",
+    "Are our answers supported by their citations?"
+   ],
+   "related": [
+    "prompt_context_analyst",
+    "knowledge_graph_analyst",
+    "llm_evaluation_analyst"
+   ],
+   "keywords": [
+    "rag",
+    "retrieval",
+    "search relevance",
+    "embeddings",
+    "grounding",
+    "citations",
+    "chunking"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 31)"
+   ]
+  },
+  {
+   "id": "ai_safety_alignment_analyst",
+   "name": "AI Safety & Alignment Analyst",
+   "kind": "functional",
+   "sub": "AI safety",
+   "desc": "Identifies harmful, unreliable, or policy-violating model behavior. Designs evaluations for unsafe instructions, prompt injection, information leakage, excessive autonomy, and failures of human oversight.",
+   "alt": [
+    "AI Red Team Analyst",
+    "Trust & Safety Analyst (AI)"
+   ],
+   "resp": [
+    "Design adversarial and misuse tests",
+    "Measure unsafe output rates",
+    "Track mitigations and residual risk"
+   ],
+   "know": [
+    "AI safety evaluation",
+    "adversarial testing",
+    "content policy"
+   ],
+   "terms": [
+    "jailbreak",
+    "prompt injection",
+    "refusal rate",
+    "harm category",
+    "red team"
+   ],
+   "methods": [
+    "red-team case design",
+    "harm taxonomy scoring",
+    "mitigation regression testing"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "risk_assessment",
+    "security_investigation"
+   ],
+   "techniques": [
+    "run injection cases",
+    "categorize failures by harm",
+    "re-test after mitigation"
+   ],
+   "req": [
+    "model_evaluation",
+    "reporting"
+   ],
+   "opt": [
+    "text_analytics"
+   ],
+   "sources": [
+    "adversarial case sets",
+    "model outputs",
+    "incident reports"
+   ],
+   "entities": [
+    "test cases",
+    "harm categories",
+    "mitigations"
+   ],
+   "fields": [
+    "case",
+    "category",
+    "model output",
+    "judgment"
+   ],
+   "verify": [
+    "eval_reproducible",
+    "human_review"
+   ],
+   "outputs": [
+    "safety evaluation",
+    "risk register",
+    "mitigation plan"
+   ],
+   "sensitivity": "restricted",
+   "limits": [
+    "Adversarial case content is held to the workspace's policy; Lyst will not generate operational harm content."
+   ],
+   "examples": [
+    "How resistant is our assistant to prompt injection from documents?",
+    "Measure unsafe output rates across these test categories."
+   ],
+   "related": [
+    "ai_governance_analyst",
+    "llm_evaluation_analyst",
+    "application_security_analyst"
+   ],
+   "keywords": [
+    "ai safety",
+    "alignment",
+    "jailbreak",
+    "red team",
+    "prompt injection",
+    "harmful output"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 32)"
+   ]
+  },
+  {
+   "id": "ai_governance_analyst",
+   "name": "AI Governance Analyst",
+   "kind": "functional",
+   "sub": "AI governance",
+   "desc": "Reviews model usage, data permissions, accountability, transparency, auditability, and organizational AI policies. Helps establish appropriate controls for enterprise AI deployment and operation.",
+   "alt": [
+    "Responsible AI Analyst",
+    "AI Risk Analyst"
+   ],
+   "resp": [
+    "Maintain an inventory of AI systems and risk levels",
+    "Check controls and documentation",
+    "Report compliance with AI frameworks"
+   ],
+   "know": [
+    "AI regulation",
+    "risk classification",
+    "model documentation"
+   ],
+   "terms": [
+    "model card",
+    "risk tier",
+    "impact assessment",
+    "human oversight",
+    "provenance"
+   ],
+   "methods": [
+    "NIST AI RMF mapping",
+    "AI impact assessment",
+    "control testing"
+   ],
+   "tasks": [
+    "compliance_review",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "map systems to risk tiers",
+    "check documentation completeness",
+    "sample decisions for oversight"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "reporting"
+   ],
+   "opt": [
+    "document_extraction",
+    "sql_query"
+   ],
+   "sources": [
+    "AI inventory",
+    "policies",
+    "model documentation",
+    "audit log"
+   ],
+   "entities": [
+    "AI systems",
+    "controls",
+    "assessments"
+   ],
+   "fields": [
+    "system",
+    "risk tier",
+    "owner",
+    "control status"
+   ],
+   "verify": [
+    "source_cited",
+    "human_review"
+   ],
+   "outputs": [
+    "AI governance report",
+    "impact assessment draft",
+    "control gap list"
+   ],
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Produces assessments for legal and compliance review; it is not legal advice."
+   ],
+   "examples": [
+    "Which of our AI systems lack an impact assessment?",
+    "Map our model usage to the EU AI Act risk categories."
+   ],
+   "related": [
+    "ai_safety_alignment_analyst",
+    "security_compliance_analyst",
+    "data_governance_analyst"
+   ],
+   "keywords": [
+    "ai governance",
+    "responsible ai",
+    "ai act",
+    "ai policy",
+    "model card",
+    "ai risk"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 33)"
+   ]
+  },
+  {
+   "id": "mlops_analyst",
+   "name": "MLOps Analyst",
+   "kind": "functional",
+   "sub": "ML operations",
+   "desc": "Monitors machine-learning pipelines, training versions, model registries, deployment health, inference performance, drift, and reproducibility. Investigates failures across the model lifecycle.",
+   "alt": [
+    "ML Platform Analyst",
+    "Model Operations Analyst"
+   ],
+   "resp": [
+    "Monitor model freshness and drift",
+    "Assess deployment and rollback practices",
+    "Measure serving reliability"
+   ],
+   "know": [
+    "ML deployment",
+    "model monitoring",
+    "CI/CD for ML"
+   ],
+   "terms": [
+    "model registry",
+    "drift",
+    "shadow deployment",
+    "rollback",
+    "feature store"
+   ],
+   "methods": [
+    "drift monitoring",
+    "deployment process review",
+    "SLO definition for models"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "performance_analysis",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "compare live and training distributions",
+    "trend prediction error",
+    "audit model versions"
+   ],
+   "req": [
+    "anomaly_detection",
+    "sql_query"
+   ],
+   "opt": [
+    "model_evaluation",
+    "change_point_detection",
+    "log_analysis"
+   ],
+   "sources": [
+    "prediction logs",
+    "model registry",
+    "serving metrics"
+   ],
+   "entities": [
+    "models",
+    "versions",
+    "deployments"
+   ],
+   "fields": [
+    "model version",
+    "timestamp",
+    "prediction",
+    "actual"
+   ],
+   "verify": [
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "model health report",
+    "drift alert summary",
+    "operations recommendations"
+   ],
+   "limits": [
+    "Monitors logged predictions; Lyst does not deploy or roll back models itself."
+   ],
+   "examples": [
+    "Is our demand model drifting?",
+    "Which models have not been retrained in six months?"
+   ],
+   "related": [
+    "model_performance_analyst",
+    "machine_learning_analyst",
+    "devops_analyst"
+   ],
+   "keywords": [
+    "mlops",
+    "model drift",
+    "model monitoring",
+    "retrain",
+    "model registry",
+    "deployment",
+    "model getting worse",
+    "model decay"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 34)"
+   ]
+  },
+  {
+   "id": "model_performance_analyst",
+   "name": "Model Performance Analyst",
+   "kind": "functional",
+   "sub": "Model performance",
+   "desc": "Analyzes model accuracy, latency, throughput, resource consumption, calibration, and degradation. Identifies opportunities for tuning, routing, replacement, or retraining.",
+   "alt": [
+    "Model Monitoring Analyst",
+    "Model Validator"
+   ],
+   "resp": [
+    "Track accuracy and calibration over time",
+    "Compare performance by segment",
+    "Explain performance changes"
+   ],
+   "know": [
+    "model validation",
+    "calibration",
+    "performance attribution"
+   ],
+   "terms": [
+    "accuracy decay",
+    "calibration",
+    "segment performance",
+    "baseline",
+    "backtest"
+   ],
+   "methods": [
+    "rolling-origin backtests",
+    "segment error analysis",
+    "calibration checks"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "anomaly_detection",
+    "root_cause"
+   ],
+   "techniques": [
+    "trend error metrics",
+    "slice errors by segment",
+    "compare to naive baselines"
+   ],
+   "req": [
+    "model_evaluation",
+    "metric_computation"
+   ],
+   "opt": [
+    "change_point_detection",
+    "statistical_testing"
+   ],
+   "sources": [
+    "prediction and actual tables",
+    "backtest results",
+    "experiment runs"
+   ],
+   "entities": [
+    "models",
+    "predictions",
+    "segments"
+   ],
+   "fields": [
+    "prediction",
+    "actual",
+    "timestamp",
+    "segment"
+   ],
+   "verify": [
+    "forecast_backtest"
+   ],
+   "outputs": [
+    "performance report",
+    "degradation explanation"
+   ],
+   "limits": [
+    "Forecast models are fully equipped; classifier metrics need predictions and actuals supplied as data."
+   ],
+   "examples": [
+    "How has our forecast's error changed this year?",
+    "Which segments does the model predict worst?"
+   ],
+   "related": [
+    "mlops_analyst",
+    "llm_evaluation_analyst",
+    "forecasting_analyst"
+   ],
+   "keywords": [
+    "model performance",
+    "accuracy",
+    "model degradation",
+    "backtest",
+    "calibration",
+    "model error",
+    "model getting worse",
+    "demand model",
+    "model accuracy over time"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 35)"
+   ]
+  },
+  {
+   "id": "multimodal_ai_analyst",
+   "name": "Multimodal AI Analyst",
+   "kind": "functional",
+   "sub": "Multimodal AI",
+   "desc": "Evaluates systems combining text, images, audio, video, and structured data. Investigates cross-modal understanding, extraction reliability, temporal synchronization, and modality-specific errors.",
+   "alt": [
+    "Vision-Language Analyst"
+   ],
+   "resp": [
+    "Evaluate multimodal model outputs",
+    "Assess media-to-data pipelines",
+    "Identify modality-specific failure modes"
+   ],
+   "know": [
+    "vision-language models",
+    "speech and audio models",
+    "media processing"
+   ],
+   "terms": [
+    "modality",
+    "captioning",
+    "OCR",
+    "transcription",
+    "alignment"
+   ],
+   "methods": [
+    "per-modality evaluation",
+    "cross-modal consistency checks"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "document_extraction"
+   ],
+   "techniques": [
+    "sample outputs per modality",
+    "compare transcripts to references"
+   ],
+   "req": [
+    "model_evaluation",
+    "document_extraction"
+   ],
+   "opt": [
+    "text_analytics"
+   ],
+   "sources": [
+    "media files",
+    "model outputs",
+    "reference annotations"
+   ],
+   "entities": [
+    "media items",
+    "annotations",
+    "model outputs"
+   ],
+   "fields": [
+    "media id",
+    "reference",
+    "output"
+   ],
+   "verify": [
+    "extraction_checked"
+   ],
+   "outputs": [
+    "multimodal evaluation",
+    "pipeline assessment"
+   ],
+   "limits": [
+    "Lyst reads text-based documents; image, audio and video understanding is not implemented."
+   ],
+   "examples": [
+    "How accurate is our invoice image extraction?",
+    "Compare transcription quality across two speech models."
+   ],
+   "related": [
+    "computer_vision_analyst",
+    "speech_audio_ai_analyst",
+    "document_intelligence_analyst"
+   ],
+   "keywords": [
+    "multimodal",
+    "image and text",
+    "vision language",
+    "media",
+    "ocr",
+    "video model"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 36)"
+   ]
+  },
+  {
+   "id": "conversational_ai_analyst",
+   "name": "Conversational AI Analyst",
+   "kind": "functional",
+   "sub": "Conversational AI",
+   "desc": "Studies dialogue quality, intent resolution, turn-taking, context preservation, task success, and user satisfaction. Optimizes conversational interfaces for natural, reliable, goal-oriented interaction.",
+   "alt": [
+    "Chatbot Analyst",
+    "Virtual Agent Analyst"
+   ],
+   "resp": [
+    "Measure containment and resolution",
+    "Find failing intents and flows",
+    "Recommend content and handoff improvements"
+   ],
+   "know": [
+    "dialog design",
+    "intent classification",
+    "contact-center metrics"
+   ],
+   "terms": [
+    "intent",
+    "containment rate",
+    "fallback",
+    "escalation",
+    "CSAT"
+   ],
+   "methods": [
+    "conversation funnel analysis",
+    "intent confusion review",
+    "transcript sampling"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "text_analytics",
+    "root_cause"
+   ],
+   "techniques": [
+    "funnel by intent",
+    "sample failed conversations",
+    "compare before and after a change"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "text_analytics",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "conversation logs",
+    "intent labels",
+    "survey results"
+   ],
+   "entities": [
+    "conversations",
+    "intents",
+    "handoffs"
+   ],
+   "fields": [
+    "conversation id",
+    "intent",
+    "outcome",
+    "timestamp"
+   ],
+   "verify": [
+    "conversion_definition"
+   ],
+   "outputs": [
+    "containment report",
+    "intent failure analysis"
+   ],
+   "limits": [
+    "Transcript themes rely on retrieval; no topic modeling or sentiment scoring."
+   ],
+   "examples": [
+    "Which intents escalate to agents most often?",
+    "Did containment improve after the new flow?"
+   ],
+   "related": [
+    "speech_audio_ai_analyst",
+    "customer_insights_analyst",
+    "nlp_text_analytics_analyst"
+   ],
+   "keywords": [
+    "chatbot",
+    "virtual agent",
+    "containment",
+    "conversation",
+    "intent",
+    "voice assistant",
+    "resolving questions",
+    "passing to agents",
+    "deflection"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 37)"
+   ]
+  },
+  {
+   "id": "speech_audio_ai_analyst",
+   "name": "Speech & Audio AI Analyst",
+   "kind": "functional",
+   "sub": "Speech and audio",
+   "desc": "Evaluates speech recognition, synthesis, speaker separation, voice activity detection, conversational latency, and acoustic quality. Investigates transcription accuracy, interruption behavior, and audio-system reliability.",
+   "alt": [
+    "ASR Analyst",
+    "Voice AI Analyst"
+   ],
+   "resp": [
+    "Measure transcription accuracy",
+    "Assess robustness across accents and noise",
+    "Evaluate voice latency and quality"
+   ],
+   "know": [
+    "automatic speech recognition",
+    "speech synthesis",
+    "audio signal basics"
+   ],
+   "terms": [
+    "word error rate",
+    "diarization",
+    "latency",
+    "barge-in",
+    "voice activity detection"
+   ],
+   "methods": [
+    "WER computation",
+    "stratified evaluation by condition",
+    "latency percentile measurement"
+   ],
+   "tasks": [
+    "model_evaluation",
+    "performance_analysis"
+   ],
+   "techniques": [
+    "align transcripts to references",
+    "stratify by speaker group",
+    "measure end-to-end latency"
+   ],
+   "req": [
+    "model_evaluation",
+    "sql_query"
+   ],
+   "opt": [
+    "text_analytics"
+   ],
+   "sources": [
+    "audio test sets",
+    "reference transcripts",
+    "voice session logs"
+   ],
+   "entities": [
+    "utterances",
+    "speakers",
+    "sessions"
+   ],
+   "fields": [
+    "utterance id",
+    "reference text",
+    "hypothesis text",
+    "latency"
+   ],
+   "verify": [
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "speech evaluation report",
+    "latency analysis"
+   ],
+   "limits": [
+    "Audio is not processed by Lyst itself; transcripts and timings must be supplied."
+   ],
+   "examples": [
+    "What is the word error rate of our voice assistant by accent?",
+    "Where does voice response latency come from?"
+   ],
+   "related": [
+    "conversational_ai_analyst",
+    "audio_podcast_analyst",
+    "multimodal_ai_analyst"
+   ],
+   "keywords": [
+    "speech",
+    "asr",
+    "transcription",
+    "word error rate",
+    "voice latency",
+    "text to speech"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 38)"
+   ]
+  },
+  {
+   "id": "ai_cost_inference_analyst",
+   "name": "AI Cost & Inference Analyst",
+   "kind": "functional",
+   "sub": "Inference economics",
+   "desc": "Examines token usage, inference routing, compute utilization, provider pricing, caching, and workload efficiency. Optimizes AI operating costs without sacrificing verified output quality.",
+   "alt": [
+    "LLM FinOps Analyst",
+    "Inference Optimization Analyst"
+   ],
+   "resp": [
+    "Attribute model spend by workload and model",
+    "Measure latency and failure rates",
+    "Recommend routing and caching changes"
+   ],
+   "know": [
+    "model pricing",
+    "token economics",
+    "inference performance"
+   ],
+   "terms": [
+    "cost per call",
+    "tokens",
+    "p95 latency",
+    "model tier",
+    "cost per verified outcome"
+   ],
+   "methods": [
+    "spend attribution",
+    "cost-quality frontier analysis",
+    "routing simulation"
+   ],
+   "tasks": [
+    "cost_analysis",
+    "performance_analysis",
+    "optimization"
+   ],
+   "techniques": [
+    "break down spend by workload",
+    "compare cost per successful task",
+    "identify cacheable calls"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "driver_decomposition",
+    "optimization"
+   ],
+   "sources": [
+    "model call logs",
+    "model catalog prices",
+    "task outcomes"
+   ],
+   "entities": [
+    "model calls",
+    "workloads",
+    "models"
+   ],
+   "fields": [
+    "model",
+    "workload",
+    "tokens",
+    "cost",
+    "latency",
+    "outcome"
+   ],
+   "verify": [
+    "rate_assumptions_stated"
+   ],
+   "outputs": [
+    "inference cost report",
+    "routing recommendations"
+   ],
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Covers calls made through Lyst's gateway; other AI spend must be imported."
+   ],
+   "examples": [
+    "What drove our model spend up this month?",
+    "Which workloads could move to a cheaper model tier?"
+   ],
+   "related": [
+    "cloud_finops_analyst",
+    "agentic_ai_analyst",
+    "generative_ai_analyst"
+   ],
+   "keywords": [
+    "inference cost",
+    "model spend",
+    "token cost",
+    "llm cost",
+    "latency",
+    "model tier",
+    "openrouter"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 39)"
+   ]
+  },
+  {
+   "id": "agent_reliability_analyst",
+   "name": "Agent Reliability Analyst",
+   "kind": "lyst_profile",
+   "sub": "Agent reliability",
+   "desc": "Investigates autonomous workflow failures, stalled tasks, excessive tool calls, context loss, retry loops, and incorrect completion states. Develops measurable improvements to recoverability and execution consistency.",
+   "alt": [
+    "Agent SRE"
+   ],
+   "resp": [
+    "Measure agent success, retry and recovery rates",
+    "Classify failures by cause",
+    "Recommend reliability improvements"
+   ],
+   "know": [
+    "reliability engineering",
+    "durable execution",
+    "failure analysis"
+   ],
+   "terms": [
+    "retry",
+    "lease takeover",
+    "timeout",
+    "idempotency",
+    "mean time to recovery"
+   ],
+   "methods": [
+    "failure classification",
+    "SLO measurement",
+    "recovery drills"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "root_cause",
+    "process_analysis"
+   ],
+   "techniques": [
+    "trend failure classes",
+    "measure time to recovery",
+    "find steps with most retries"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "log_analysis"
+   ],
+   "sources": [
+    "task and step records",
+    "runtime events",
+    "approval records"
+   ],
+   "entities": [
+    "tasks",
+    "steps",
+    "workers",
+    "failures"
+   ],
+   "fields": [
+    "task id",
+    "status",
+    "failure class",
+    "attempts",
+    "duration"
+   ],
+   "verify": [
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "agent reliability report",
+    "failure analysis",
+    "improvement backlog"
+   ],
+   "perms": [
+    "audit.read"
+   ],
+   "limits": [
+    "Analyses Lyst's own runtime records; external agent frameworks need exported logs."
+   ],
+   "examples": [
+    "How often do our recurring tasks fail and recover?",
+    "Which capabilities cause the most retries?"
+   ],
+   "related": [
+    "agentic_ai_analyst",
+    "site_reliability_analyst",
+    "mlops_analyst"
+   ],
+   "keywords": [
+    "agent reliability",
+    "retries",
+    "task failures",
+    "recovery",
+    "timeouts",
+    "takeover"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 40)"
+   ]
+  }
+ ]
+}

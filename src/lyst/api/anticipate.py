@@ -45,6 +45,10 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
     def anticipation_settings_set(request: Request, ws: str, body: AnticipationSettingsIn, user: User) -> dict[str, Any]:
         return L(request).anticipation.set_settings(user, ws, body.model_dump(exclude_none=True))
 
+    @app.get("/v1/workspaces/{ws}/anticipation/quality")
+    def anticipation_quality(request: Request, ws: str, user: User, days: int = 30) -> dict[str, Any]:
+        return L(request).anticipation.quality(user, ws, days=days)
+
     @app.get("/v1/workspaces/{ws}/attention")
     def attention(request: Request, ws: str, user: User) -> dict[str, Any]:
         """The caller's own attention preferences for anticipation."""

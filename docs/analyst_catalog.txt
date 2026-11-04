@@ -1,0 +1,304 @@
+LYST — Comprehensive Digital & Computational Analyst Role Catalog
+Enterprise Analyst Taxonomy | Specializations, Responsibilities, Analytical Capabilities & Digital Domains
+
+For Lyst, I would define Analyst broadly: a specialist who investigates information, systems, processes, performance, risks, and opportunities using digital data and computational methods to produce evidence-backed insights, recommendations, and deliverables.
+
+This encompasses much more than conventional Data Analysts or Business Analysts. It includes specialized analytical work across AI, software, infrastructure, cybersecurity, finance, enterprise operations, scientific computing, digital media, and emerging technology.
+
+Below is a comprehensive working taxonomy of 100+ Analyst specializations spanning digital and computational work. Some are established occupational titles; others are specialized functions or useful Lyst agent roles rather than universally standardized job titles. O*NET and industry role definitions support the broad distinctions among BI, systems analysis, data science, and analytics engineering. 
+Business Intelligence Analysts+1
+
+1. Core Data, Analytics & Business Intelligence
+The foundational roles for understanding datasets, extracting insights, measuring performance, and supporting organizational decisions.
+
+1. Data Analyst — Investigates structured and semi-structured datasets to identify trends, relationships, anomalies, and performance drivers. Uses SQL, Python, statistics, and visualization to transform raw information into actionable findings.
+
+2. Business Intelligence Analyst — Develops and interprets KPIs, dashboards, recurring reports, and management intelligence. Emphasizes consistent metrics, reliable reporting, organizational performance, and decision support.
+
+3. Business Analyst — Examines business requirements, processes, operational problems, and stakeholder objectives. Translates organizational needs into specifications, process improvements, systems changes, and measurable acceptance criteria.
+
+4. Analytics Engineer — Designs trusted analytical datasets, transformations, dimensional models, and semantic definitions. Bridges data engineering and business intelligence through reusable SQL models, testing, lineage, and data documentation.
+
+5. Reporting Analyst — Produces recurring operational, financial, regulatory, and executive reports. Ensures calculations, reporting periods, formatting, distribution, and reconciliation remain accurate and consistent.
+
+6. Data Quality Analyst — Evaluates completeness, uniqueness, validity, accuracy, consistency, and timeliness. Diagnoses data defects, identifies their causes, and recommends preventive controls.
+
+7. Data Governance Analyst — Examines data ownership, access policies, classifications, definitions, retention, and regulatory requirements. Supports trustworthy, authorized, and auditable use of enterprise information.
+
+8. Data Modeling Analyst — Analyzes entity relationships, schemas, keys, dimensions, facts, and business rules. Designs data structures optimized for analytical consistency, interoperability, and performance.
+
+9. Master Data Analyst — Investigates inconsistencies across customers, suppliers, products, accounts, employees, and organizational identifiers. Supports entity resolution, deduplication, canonical records, and cross-system synchronization.
+
+10. Data Integration Analyst — Evaluates data movement between applications, APIs, files, and databases. Identifies mapping errors, synchronization failures, schema incompatibilities, and transformation requirements.
+
+11. Data Warehouse Analyst — Examines warehouse architecture, query workloads, historical datasets, and analytical models. Optimizes how consolidated enterprise information supports reporting and advanced analysis.
+
+12. Data Observability Analyst — Monitors the health of data pipelines, freshness, distribution, schema stability, and transformation results. Anticipates downstream analytical failures and investigates anomalies before they affect users.
+2. Statistics, Scientific Computing & Advanced Analytics
+Specialists focused on rigorous statistical reasoning, mathematical modeling, experimentation, uncertainty, and predictive analysis.
+
+13. Statistical Analyst — Applies probability, descriptive statistics, hypothesis testing, regression, and statistical inference to quantify relationships and distinguish meaningful findings from random variation.
+
+14. Predictive Analytics Analyst — Develops statistical and machine-learning models to estimate future outcomes, classify events, and identify emerging trends. Evaluates predictive accuracy, calibration, and limitations.
+
+15. Forecasting Analyst — Models future revenue, demand, expenses, workloads, or operational conditions using time-series methods, historical patterns, explanatory variables, and scenario assumptions.
+
+16. Causal Inference Analyst — Investigates whether observed relationships plausibly represent causal effects. Applies experimental and quasi-experimental methods while accounting for confounding, selection bias, and uncertainty.
+
+17. Experimentation Analyst — Designs and evaluates A/B tests, randomized experiments, and controlled interventions. Examines treatment effects, statistical power, segmentation, guardrail metrics, and experiment validity.
+
+18. Operations Research Analyst — Uses mathematical optimization, simulation, decision theory, and statistical modeling to improve complex decisions involving resources, scheduling, logistics, capacity, and constraints.
+
+19. Simulation Analyst — Constructs computational representations of business or physical processes to evaluate alternative conditions, uncertainty, failure scenarios, and system behavior before implementation.
+
+20. Optimization Analyst — Formulates constrained optimization problems to identify efficient allocations, schedules, configurations, and operating policies. Analyzes tradeoffs between cost, quality, speed, risk, and feasibility.
+
+21. Quantitative Research Analyst — Develops mathematical and computational models to investigate complex economic, financial, scientific, or operational phenomena. Emphasizes reproducibility, statistical rigor, and model validation.
+
+22. Decision Intelligence Analyst — Frames business decisions as explicit objectives, alternatives, assumptions, constraints, and risks. Combines quantitative analysis with decision modeling to compare options and recommend defensible actions.
+
+23. Geospatial Analyst — Analyzes geographic coordinates, spatial relationships, location patterns, transportation networks, and regional conditions using GIS, spatial statistics, and geospatial computing.
+
+24. Time-Series Analyst — Investigates sequential observations, seasonality, trends, autocorrelation, regime changes, and temporal anomalies. Builds methods for monitoring, forecasting, and explaining dynamic systems.
+3. Artificial Intelligence, Machine Learning & Agentic Systems
+Analysts specializing in AI system behavior, model performance, autonomous execution, intelligent workflows, and AI governance.
+
+25. AI Systems Analyst — Evaluates how AI capabilities integrate with business applications, workflows, information systems, and organizational requirements. Identifies opportunities, architectural gaps, implementation risks, and measurable AI value.
+
+26. Machine Learning Analyst — Investigates datasets, features, algorithms, training outcomes, and prediction quality. Evaluates model performance, generalization, explainability, and deployment suitability.
+
+27. Generative AI Analyst — Assesses language, image, audio, and multimodal generation capabilities. Evaluates output quality, factual grounding, reliability, cost, safety, and practical integration into business workflows.
+
+28. Agentic AI Analyst — Examines autonomous agents, planning strategies, tool selection, execution loops, task completion, and recovery. Measures whether agent-driven systems reliably achieve objectives within permissions, budgets, and constraints.
+
+29. LLM Evaluation Analyst — Designs benchmarks and test cases for reasoning quality, factuality, instruction following, structured outputs, coding, tool use, and safety. Compares models using repeatable evidence rather than subjective impressions.
+
+30. Prompt & Context Analyst — Investigates how instructions, retrieved knowledge, context structure, memory, and prompt composition influence AI behavior. Optimizes context relevance, precision, consistency, and inference efficiency.
+
+31. RAG & Retrieval Analyst — Evaluates document ingestion, embeddings, chunking, ranking, retrieval relevance, citations, and answer grounding. Diagnoses missing evidence, misleading retrieval, and knowledge-source conflicts.
+
+32. AI Safety & Alignment Analyst — Identifies harmful, unreliable, or policy-violating model behavior. Designs evaluations for unsafe instructions, prompt injection, information leakage, excessive autonomy, and failures of human oversight.
+
+33. AI Governance Analyst — Reviews model usage, data permissions, accountability, transparency, auditability, and organizational AI policies. Helps establish appropriate controls for enterprise AI deployment and operation.
+
+34. MLOps Analyst — Monitors machine-learning pipelines, training versions, model registries, deployment health, inference performance, drift, and reproducibility. Investigates failures across the model lifecycle.
+
+35. Model Performance Analyst — Analyzes model accuracy, latency, throughput, resource consumption, calibration, and degradation. Identifies opportunities for tuning, routing, replacement, or retraining.
+
+36. Multimodal AI Analyst — Evaluates systems combining text, images, audio, video, and structured data. Investigates cross-modal understanding, extraction reliability, temporal synchronization, and modality-specific errors.
+
+37. Conversational AI Analyst — Studies dialogue quality, intent resolution, turn-taking, context preservation, task success, and user satisfaction. Optimizes conversational interfaces for natural, reliable, goal-oriented interaction.
+
+38. Speech & Audio AI Analyst — Evaluates speech recognition, synthesis, speaker separation, voice activity detection, conversational latency, and acoustic quality. Investigates transcription accuracy, interruption behavior, and audio-system reliability.
+
+39. AI Cost & Inference Analyst — Examines token usage, inference routing, compute utilization, provider pricing, caching, and workload efficiency. Optimizes AI operating costs without sacrificing verified output quality.
+
+40. Agent Reliability Analyst — Investigates autonomous workflow failures, stalled tasks, excessive tool calls, context loss, retry loops, and incorrect completion states. Develops measurable improvements to recoverability and execution consistency.
+4. Software Engineering, Applications & Digital Products
+These roles evaluate software functionality, architecture, product behavior, quality, development workflows, and application performance.
+
+41. Software Systems Analyst — Examines application components, dependencies, interfaces, and execution behavior to determine how software meets functional requirements and where architectural improvements are needed.
+
+42. Application Analyst — Investigates application configuration, user workflows, integrations, incidents, and performance. Bridges business requirements with application support, enhancement, and operational reliability.
+
+43. Software Quality Assurance Analyst — Evaluates software against functional specifications, expected behavior, edge cases, and quality standards. Designs reproducible tests, documents defects, and verifies corrections.
+
+44. Test Automation Analyst — Analyzes test coverage, execution reliability, regression patterns, and automation efficiency. Develops repeatable validation strategies for APIs, interfaces, integrations, and end-to-end workflows.
+
+45. Software Performance Analyst — Profiles application response times, CPU and memory consumption, concurrency, execution bottlenecks, and throughput. Identifies root causes and recommends measurable optimizations.
+
+46. API & Integration Analyst — Evaluates API contracts, request flows, authentication, data mappings, error handling, and service interoperability. Diagnoses integration failures and assesses reliability across connected applications.
+
+47. DevOps Analyst — Analyzes build pipelines, deployment processes, infrastructure automation, release quality, and development operations. Identifies bottlenecks, configuration drift, and opportunities to improve delivery reliability.
+
+48. Site Reliability Analyst — Examines service availability, operational incidents, recovery performance, observability, and service-level objectives. Uses telemetry and incident evidence to improve system dependability.
+
+49. Platform Engineering Analyst — Evaluates internal developer platforms, shared infrastructure, service capabilities, deployment standards, and engineering productivity. Identifies friction and reliability gaps in platform services.
+
+50. Technical Debt Analyst — Investigates code complexity, architectural coupling, outdated dependencies, duplicated functionality, and maintainability risks. Prioritizes remediation by operational impact and long-term engineering cost.
+
+51. Developer Productivity Analyst — Measures development throughput, build times, code review delays, test reliability, and delivery friction. Identifies engineering workflow improvements without reducing quality to simplistic productivity metrics.
+
+52. Product Analyst — Investigates product adoption, usage, engagement, retention, feature performance, and customer outcomes. Uses behavioral data and experimentation to guide product decisions.
+
+53. User Experience Analyst — Studies interaction patterns, task completion, navigation friction, accessibility, and user behavior. Converts quantitative telemetry and qualitative feedback into improvements to product usability.
+
+54. Digital Accessibility Analyst — Evaluates interfaces against accessibility requirements, assistive technology behavior, keyboard navigation, and inclusive design practices. Identifies barriers and validates accessible user journeys.
+5. Cloud, Infrastructure, Networks & Computing Operations
+Specialists focused on the performance, efficiency, dependability, and capacity of digital infrastructure.
+
+55. Cloud Infrastructure Analyst — Examines cloud architecture, compute instances, storage, networking, service configuration, and resource utilization. Evaluates cost, reliability, scalability, and deployment efficiency.
+
+56. Cloud FinOps Analyst — Analyzes cloud spending, allocation, usage patterns, reserved capacity, unit economics, and budget variances. Identifies opportunities to reduce infrastructure costs while preserving business performance.
+
+57. Infrastructure Performance Analyst — Investigates server performance, storage I/O, memory pressure, compute utilization, and infrastructure bottlenecks. Recommends improvements based on measured workloads.
+
+58. Network Analyst — Evaluates network topology, routing, traffic, bandwidth, latency, packet loss, and connectivity. Investigates communication failures and opportunities to improve network reliability.
+
+59. Systems Operations Analyst — Monitors servers, operating systems, services, scheduled processes, and infrastructure health. Diagnoses recurring failures, operational inefficiencies, and configuration problems.
+
+60. Capacity Planning Analyst — Forecasts computing, storage, networking, and workload requirements. Models future demand, resource constraints, scaling thresholds, and infrastructure expansion scenarios.
+
+61. Database Performance Analyst — Examines database workloads, query plans, indexing, transaction behavior, locks, resource utilization, and concurrency. Identifies performance problems and data-access inefficiencies.
+
+62. Storage & Data Infrastructure Analyst — Evaluates storage utilization, data placement, access patterns, backup performance, and retention strategies. Optimizes durability, availability, performance, and cost.
+
+63. Kubernetes & Container Analyst — Investigates container workloads, scheduling, resource limits, service discovery, deployment health, and cluster performance. Diagnoses orchestration failures and capacity constraints.
+
+64. GPU Computing Analyst — Evaluates GPU workloads, utilization, VRAM pressure, memory transfer, kernel performance, and hardware compatibility. Optimizes accelerated computing for AI inference, model training, and scientific applications.
+
+65. Distributed Systems Analyst — Examines communication, consistency, coordination, fault tolerance, partitioning, and workload distribution across multiple services or machines. Investigates failure modes that emerge under concurrency and scale.
+
+66. IT Service Management Analyst — Analyzes incidents, service requests, changes, recurring problems, and operational service levels. Identifies root causes and improvements to IT support and service delivery.
+6. Cybersecurity, Identity, Digital Risk & Compliance
+These analysts examine threats, vulnerabilities, suspicious activity, information access, and the security of digital environments.
+
+67. Cybersecurity Analyst — Monitors systems, networks, applications, and security events for threats and control failures. Investigates suspicious activity and recommends prevention, detection, and remediation measures.
+
+68. Security Operations Center Analyst — Evaluates security alerts, event correlations, endpoint telemetry, and threat indicators. Triages incidents, reconstructs suspicious activity, and supports timely response.
+
+69. Threat Intelligence Analyst — Studies attacker behavior, threat campaigns, indicators of compromise, and emerging attack techniques. Converts intelligence into actionable defensive priorities.
+
+70. Vulnerability Analyst — Assesses software, systems, and configurations for exploitable weaknesses. Prioritizes vulnerabilities according to severity, exposure, business impact, and available mitigations.
+
+71. Application Security Analyst — Evaluates source code, dependencies, APIs, authentication, authorization, and application design for security weaknesses. Supports secure development and vulnerability remediation.
+
+72. Cloud Security Analyst — Investigates cloud permissions, resource exposure, encryption, logging, workload isolation, and configuration compliance. Identifies security weaknesses across cloud infrastructure.
+
+73. Identity & Access Management Analyst — Examines user identities, roles, privileges, authentication methods, and access histories. Identifies excessive permissions, separation-of-duties conflicts, and access governance risks.
+
+74. Security Compliance Analyst — Evaluates digital security controls against organizational requirements, contractual commitments, and relevant regulatory standards. Produces audit evidence, control assessments, and remediation recommendations.
+
+75. Privacy & Data Protection Analyst — Investigates personal data flows, access, retention, processing purposes, and disclosure risks. Assesses privacy controls and supports compliant information handling.
+
+76. Digital Forensics Analyst — Examines logs, devices, filesystems, artifacts, and event timelines to reconstruct digital incidents. Preserves evidentiary integrity and distinguishes verified findings from hypotheses.
+
+77. Fraud Detection Analyst — Identifies suspicious transactions, anomalous user behavior, account misuse, and potentially fraudulent patterns. Combines rules, statistical techniques, and investigation to assess risk.
+
+78. Security Risk Analyst — Models potential security events, business consequences, control effectiveness, and exposure. Helps prioritize mitigation investments and evaluate residual risk.
+7. Financial Systems, Commerce & Enterprise Operations
+These specializations combine computational analysis with business systems, digital transactions, financial models, and organizational processes.
+
+79. Financial Data Analyst — Investigates financial transactions, account balances, expenses, revenue, and reporting data. Reconciles systems, analyzes performance, and supports financial reporting and planning.
+
+80. FP&A Analyst — Examines budgets, forecasts, operating plans, financial drivers, and variances. Produces scenario models and management insights that support financial decision-making.
+
+81. Financial Systems Analyst — Evaluates ERP, general ledger, planning, reporting, and financial integration systems. Investigates business rules, data mappings, process controls, and system improvement opportunities.
+
+82. Revenue Operations Analyst — Analyzes the systems and processes connecting marketing, sales, customer success, and revenue reporting. Identifies pipeline inefficiencies, conversion issues, and inconsistent performance definitions.
+
+83. Pricing Analyst — Evaluates pricing structures, discounts, elasticity, margins, competitive conditions, and customer behavior. Models pricing alternatives and their financial consequences.
+
+84. Procurement Analyst — Investigates purchasing patterns, supplier performance, contract utilization, spend categories, and procure-to-pay processes. Identifies savings opportunities, operational risks, and process inefficiencies.
+
+85. Supply Chain Analyst — Examines inventory, suppliers, transportation, demand, fulfillment, and production relationships. Identifies bottlenecks and improves cost, availability, and operational resilience.
+
+86. Inventory Analyst — Models stock levels, replenishment, turnover, demand variability, and shortage risks. Recommends inventory policies balancing availability, carrying cost, and working capital.
+
+87. Workforce Analytics Analyst — Investigates staffing, compensation, productivity, hiring, turnover, and labor demand. Develops workforce forecasts and supports organizational planning within appropriate privacy boundaries.
+
+88. Process Mining Analyst — Uses timestamped event logs from enterprise systems to reconstruct actual business workflows. Identifies rework, delays, compliance deviations, handoff friction, and automation opportunities.
+
+89. ERP Systems Analyst — Evaluates enterprise resource planning modules, master data, transactions, workflow configuration, and cross-functional integrations. Diagnoses process and data issues across finance, procurement, inventory, and operations.
+
+90. Risk & Controls Analyst — Examines digital business processes, transaction controls, approvals, reconciliations, and exception evidence. Evaluates whether operational and financial safeguards work as intended.
+8. Digital Marketing, Customer Intelligence & Online Commerce
+Analytical roles focused on digital audiences, acquisition, conversion, customer behavior, and commercial optimization.
+
+91. Digital Marketing Analyst — Measures campaign performance, audience engagement, acquisition channels, spending efficiency, and marketing outcomes. Evaluates which digital initiatives contribute to meaningful business results.
+
+92. Web Analytics Analyst — Investigates website traffic, user journeys, event tracking, conversion funnels, and content interactions. Identifies usability problems, acquisition patterns, and opportunities to improve digital experiences.
+
+93. Growth Analyst — Studies acquisition, activation, engagement, retention, monetization, and referrals. Uses experiments, cohort analysis, and behavioral modeling to identify scalable growth opportunities.
+
+94. Customer Insights Analyst — Combines transactional, behavioral, survey, and customer-service data to understand customer needs and experiences. Produces segmentation, satisfaction, and value insights.
+
+95. Customer Lifecycle Analyst — Examines customer onboarding, activation, retention, churn, reactivation, and lifetime value. Identifies interventions that may improve long-term customer relationships.
+
+96. Marketing Attribution Analyst — Evaluates how marketing channels and customer touchpoints contribute to conversions and revenue. Applies attribution models and incrementality methods while accounting for measurement limitations.
+
+97. Search & SEO Analyst — Studies organic search visibility, search intent, indexing, content performance, technical site health, and ranking changes. Identifies opportunities to improve discoverability and search traffic quality.
+
+98. Paid Media Analyst — Analyzes advertising expenditure, impressions, clicks, conversions, bidding, and campaign effectiveness. Optimizes advertising efficiency using attribution, experiments, and financial performance metrics.
+
+99. E-Commerce Analyst — Investigates online merchandising, conversion rates, checkout behavior, product performance, order economics, and customer purchasing patterns. Improves digital retail performance through quantitative analysis.
+
+100. Digital Experimentation Analyst — Designs tests for websites, applications, messaging, pricing, and customer journeys. Determines whether observed performance changes reflect meaningful effects.
+
+101. CRM Analyst — Evaluates customer records, engagement histories, segmentation, sales activities, and relationship-management workflows. Improves data quality, customer insights, and CRM effectiveness.
+
+102. Subscription & Monetization Analyst — Investigates recurring revenue, billing, renewals, churn, upgrades, pricing tiers, and customer lifetime economics. Models revenue growth and retention opportunities.
+9. Digital Media, Content, Communications & Information
+Analysts focused on the production, distribution, consumption, credibility, and performance of digital information and media.
+
+103. Digital Media Analyst — Evaluates how audiences consume digital publications, video, audio, social content, and interactive media. Measures reach, engagement, retention, distribution, and commercial performance.
+
+104. Content Performance Analyst — Investigates the effectiveness of articles, videos, podcasts, newsletters, and other content formats. Connects content characteristics with audience behavior and organizational objectives.
+
+105. Social Media Analyst — Analyzes platform engagement, audience growth, conversation trends, campaign results, and community behavior. Distinguishes meaningful audience signals from superficial engagement metrics.
+
+106. Audience Intelligence Analyst — Studies audience segments, consumption preferences, loyalty, engagement frequency, and content interests. Helps publishers and media organizations improve their audience strategies.
+
+107. News & Information Analyst — Examines reporting, public records, news coverage, source credibility, chronology, and emerging developments. Produces evidence-backed summaries, comparisons, and contextual analysis.
+
+108. Media Monitoring Analyst — Tracks mentions, topics, narratives, sentiment, and communications activity across authorized media sources. Identifies emerging reputational issues and significant changes in coverage.
+
+109. Communications Analyst — Evaluates internal and external communications for clarity, reach, engagement, effectiveness, and stakeholder response. Supports evidence-based communication strategy.
+
+110. Video Analytics Analyst — Examines video engagement, watch time, retention curves, completion rates, audience behavior, and distribution performance. Identifies which content and production characteristics influence outcomes.
+
+111. Audio & Podcast Analyst — Investigates listening behavior, completion, episode performance, audience growth, transcripts, and distribution. Supports audio-content strategy and performance improvement.
+
+112. Document Intelligence Analyst — Extracts, classifies, reconciles, and interprets information from PDFs, spreadsheets, presentations, contracts, and other documents. Preserves source evidence and identifies inconsistencies across complex records.
+10. Specialized Computational, Scientific & Industrial Analytics
+These roles apply digital and computational methods to engineering, healthcare, scientific, industrial, and spatial problems.
+
+113. Bioinformatics Analyst — Analyzes biological sequences, genomic information, molecular datasets, and computational biology workflows. Uses statistical and algorithmic methods to investigate biological relationships.
+
+114. Clinical Data Analyst — Evaluates clinical study data, patient-related measures, treatment outcomes, and data-quality controls. Supports reliable clinical evidence generation within regulated processes.
+
+115. Health Informatics Analyst — Investigates electronic health records, healthcare information systems, clinical workflows, and interoperability. Improves data availability, information quality, and healthcare operations.
+
+116. Epidemiological Data Analyst — Analyzes disease incidence, population health patterns, risk factors, and health outcomes. Uses statistical and temporal methods to support public-health investigations.
+
+117. Scientific Computing Analyst — Uses computational models, numerical methods, simulation, and scientific datasets to investigate research problems. Emphasizes methodological validity, numerical accuracy, and reproducibility.
+
+118. Engineering Simulation Analyst — Evaluates simulated physical systems, design alternatives, operating conditions, and engineering performance. Compares model results with observed evidence and documented assumptions.
+
+119. Manufacturing Analytics Analyst — Investigates production throughput, process variation, equipment performance, quality defects, and manufacturing efficiency. Uses operational data to identify improvement opportunities.
+
+120. Industrial IoT Analyst — Analyzes telemetry from connected machines, sensors, industrial equipment, and control systems. Detects anomalies, equipment deterioration, and operational patterns.
+
+121. Predictive Maintenance Analyst — Models equipment failure likelihood, degradation, operating conditions, and maintenance history. Recommends maintenance timing based on evidence and operational constraints.
+
+122. Energy Analytics Analyst — Investigates energy demand, consumption, efficiency, generation, pricing, and operational conditions. Builds forecasts and models for energy-related decision support.
+
+123. Environmental Data Analyst — Evaluates environmental measurements, monitoring systems, geographic observations, and longitudinal trends. Investigates environmental changes, data quality, and potential impacts.
+
+124. Transportation & Mobility Analyst — Studies traffic, route performance, fleet utilization, mobility demand, travel patterns, and transportation system efficiency. Supports route optimization and capacity planning.
+11. Emerging Digital Systems & Specialized Technology
+Additional specializations addressing new computational systems and increasingly complex digital environments.
+
+125. Digital Transformation Analyst — Examines legacy processes, enterprise applications, organizational workflows, and modernization opportunities. Develops evidence-based recommendations for adopting new digital capabilities.
+
+126. Automation & RPA Analyst — Identifies repetitive digital activities suitable for automation. Evaluates workflow rules, exception rates, integration requirements, controls, and potential operational benefits.
+
+127. Digital Twin Analyst — Investigates virtual representations of physical assets or processes using telemetry, simulations, and historical data. Compares simulated and observed behavior to support operational planning.
+
+128. Blockchain Analytics Analyst — Analyzes distributed-ledger transactions, wallet activity, smart-contract events, and network patterns. Investigates transaction flows, concentration, and potential risks using verifiable on-chain data.
+
+129. Smart Contract Security Analyst — Evaluates smart-contract logic, permissions, transaction behavior, economic assumptions, and vulnerabilities. Uses static analysis, testing, and transaction simulations to identify risks.
+
+130. Quantum Computing Analyst — Evaluates quantum algorithms, circuits, simulations, noise effects, and hardware limitations. Studies computational suitability and compares candidate quantum approaches with classical alternatives.
+
+131. Robotics & Autonomous Systems Analyst — Investigates robotic telemetry, perception, planning, control behavior, and operational performance. Evaluates system accuracy, safety, efficiency, and failure conditions.
+
+132. Computer Vision Analyst — Examines image and video datasets, object detection, segmentation, classification, and visual-model performance. Diagnoses model errors, dataset limitations, and operational suitability.
+
+133. NLP & Text Analytics Analyst — Analyzes language datasets, document content, topic distributions, sentiment, named entities, and semantic relationships. Develops evidence-grounded text classification, extraction, and synthesis methods.
+
+134. Knowledge Graph Analyst — Investigates relationships among organizational entities, documents, datasets, concepts, and processes. Creates graph-based analytical structures for discovery, reasoning, and dependency analysis.
+
+135. Digital Forensics & OSINT Analyst — Combines authorized open-source information, metadata, public digital records, and investigative techniques to verify claims, reconstruct events, and identify relationships.
+
+136. Technology Research Analyst — Evaluates emerging software, infrastructure, AI models, hardware, and technical architectures. Compares capabilities, maturity, compatibility, performance, licensing, and adoption risks.

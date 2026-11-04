@@ -44,6 +44,13 @@ Every test, discovery and read goes through one path (`ConnectionService._attemp
   version never mixes types. The dataset's data contract, if it has one, then reports the change as breaking with
   everything downstream that is affected.
 
+## Drafting a connection from an API description
+
+Upload an OpenAPI document (`POST /v1/workspaces/{ws}/connector-drafts`) and Lyst proposes a REST connection for each
+list endpoint, with its reasons. Test a draft with a token (used for that call only, never stored), correct it if
+needed, and have another admin promote it; promotion creates the connection the usual way. Drafts are settings for
+the reviewed REST connector, not new code.
+
 ## Writing a connector
 
 Add a module in `src/lyst/connectors/` with a class that declares a `Manifest` (kind, label, fields with
