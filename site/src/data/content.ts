@@ -79,7 +79,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Source reconciliation', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Authoritative sources, reconciled', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
