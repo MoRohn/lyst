@@ -1398,6 +1398,9 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     template_answer = answer
     allowed: list[float] = []
     _collect_numbers({k: o.get(k) for k in o if k not in ("understand",)}, allowed)
+    # whatever Lyst itself wrote in the answer and findings the model may reuse, in fraction or percent form
+    for n in _numbers(answer + " " + " ".join(str(f) for f in findings)):
+        allowed += [n, n / 100, n * 100]
     narrative_key = hashlib.sha256(json.dumps({"answer": answer, "findings": findings}, sort_keys=True,
                                               default=str).encode()).hexdigest()[:24]
     reused = None

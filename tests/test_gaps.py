@@ -222,3 +222,26 @@ def test_number_verification_checks_magnitude_not_sign_and_still_rejects_invente
     assert unbacked_numbers("a change of -0.03 against a year ago", [-0.03435]) == []
     assert unbacked_numbers("a change of -0.036 against a year ago", [-0.03435]) == [-0.036]
     assert unbacked_numbers("Revenue was $25.4M in Q3 2026.", allowed) == [25.4e6]
+
+
+def test_model_summary_may_reuse_any_number_lyst_wrote(seeded):
+    """The executive summary is kept when its numbers are Lyst's own, in any of the forms Lyst wrote them."""
+    from lyst.llm import LLMClient
+
+    lyst, owner = seeded
+    text = ("Operating margin fell 3.5 points to 32.5% in Q3 2026 and sits -0.034 below a year earlier. "
+            "EMEA's own rate explains 107% of the move, falling from 36.8% to 24.0%.")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        content = "{}" if body.get("response_format") else text
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}, "finish_reason": "stop"}], "usage": {}})
+
+    client = LLMClient(lyst.settings.llm, lyst.stores, transport=httpx.MockTransport(handler), credentials=lyst.credentials)
+    lyst.services.llm = lyst.llm = client
+    lyst.credentials.connect(owner, scope_kind="installation", scope_id=None, provider="openrouter", name="OpenRouter", secret="or-test-key-000001",
+                             test_first=False)
+    lyst.stores.control.execute("UPDATE workspaces SET allow_external_llm = true WHERE id = 'northwind'")
+    r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
+    assert r["supporting"]["narrative_by"] == "model (numbers verified)", r["supporting"]["narrative_by"]
+    assert r["answer"] == text
