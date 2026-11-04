@@ -858,7 +858,8 @@ def unbacked_numbers(text: str, allowed: list[float]) -> list[float]:
     for n in _numbers(text):
         if n in (0, 1, 2, 3, 4) or 1900 <= n <= 2100:
             continue
-        if not any(math.isclose(n, a, rel_tol=0.006, abs_tol=0.0006) for a in allowed):
+        # the sign is carried by the words ("fell 3.5 points" for a change of -0.035); the magnitude must be backed
+        if not any(math.isclose(abs(n), abs(a), rel_tol=0.006, abs_tol=0.0006) for a in allowed):
             bad.append(n)
     return bad
 
@@ -1215,10 +1216,13 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                  "Use only numbers given. Do not add numbers."},
                 {"role": "user", "content": json.dumps({"answer": answer, "findings": findings})},
             ], purpose="deliver", task_id=ctx.task_id, max_tokens=600, workload="chat")
-            if not unbacked_numbers(text, allowed):
+            bad = unbacked_numbers(text, allowed)
+            if not bad:
                 answer, narrative_by = text.strip(), "model (numbers verified)"
-        except LLMUnavailable:
-            pass
+            else:  # the computed answer stands; say why the model's wording was not used, without quoting it
+                narrative_by = "template (model wording dropped: unverified numbers " + ", ".join(f"{b:g}" for b in bad[:4]) + ")"
+        except LLMUnavailable as exc:
+            narrative_by = f"template (model unavailable: {str(exc)[:80]})"
 
     confidence = {"passed": "verified", "passed_with_warnings": "verified with warnings",
                   "failed": "not verified"}[v["status"]]

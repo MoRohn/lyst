@@ -210,3 +210,12 @@ def test_a_truncated_reasoning_answer_is_retried_with_a_larger_budget(seeded):
     assert out == {"question": "What moved margin?", "subtitle": "Monthly"} and budgets == [400, 1200]
     outcomes = [r["outcome"] for r in lyst.stores.control.query("SELECT outcome FROM llm_calls ORDER BY id")]
     assert outcomes[-2:] == ["truncated", "ok"]
+
+
+def test_number_verification_checks_magnitude_not_sign_and_still_rejects_invented_numbers():
+    from lyst.analyst.engine import unbacked_numbers
+
+    allowed = [0.325, 32.5, -0.035, -3.5, 1.07, 107.0]
+    assert unbacked_numbers("Operating margin fell 3.5 points to 32.5%; EMEA explains 107% of the move.", allowed) == []
+    assert unbacked_numbers("Margin fell 4.5 points to 32.5%.", allowed) == [4.5]
+    assert unbacked_numbers("Revenue was $25.4M in Q3 2026.", allowed) == [25.4e6]

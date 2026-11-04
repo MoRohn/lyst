@@ -47,7 +47,7 @@ def test_model_narrative_with_invented_numbers_is_rejected(seeded):
     from .conftest import ask
 
     r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
-    assert "47.3" not in r["answer"] and r["supporting"]["narrative_by"] == "template"
+    assert "47.3" not in r["answer"] and r["supporting"]["narrative_by"].startswith("template (model wording dropped")
 
 
 def test_openrouter_end_to_end_through_the_analyst(tmp_path, monkeypatch):
