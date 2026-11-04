@@ -11,7 +11,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # src/, when run by `streamlit run`
 
-from lyst.ui import kit  # noqa: E402
+from lyst.ui import collab, kit  # noqa: E402
 from lyst.ui.client import APIError, client  # noqa: E402
 
 ASSETS = Path(__file__).parent / "assets"
@@ -214,6 +214,7 @@ with st.sidebar:
                  format_func=lambda i: next(w["name"] for w in spaces if w["id"] == i))
 role = next(w["role"] for w in spaces if w["id"] == st.session_state.workspace)
 st.session_state.role = role
+st.session_state.me_id = me.get("user_id")
 
 
 def _waiting(ws: str) -> int:
@@ -223,6 +224,8 @@ def _waiting(ws: str) -> int:
         if role in ("admin", "owner"):
             n += len(api.get(f"/v1/workspaces/{ws}/approvals"))
         n += sum(1 for i in api.get(f"/v1/workspaces/{ws}/inbox") if i["read_status"] == "unread")
+        n += len(api.get(f"/v1/workspaces/{ws}/assignments", mine=True, status="open"))
+        n += len(api.get(f"/v1/workspaces/{ws}/reviews", status="pending", for_me=True))
     except APIError:
         pass
     return n
@@ -241,6 +244,7 @@ with st.sidebar:
                 pass
             st.session_state.pop("token", None)
             st.rerun()
+    collab.bell()
     with st.popover("What these words mean", icon=":material/help:", width="stretch"):
         st.markdown(GLOSSARY)
     q = st.text_input("Search", placeholder="Search data, metrics, documents", label_visibility="collapsed",

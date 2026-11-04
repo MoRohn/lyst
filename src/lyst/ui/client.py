@@ -108,6 +108,9 @@ class Client:
         return self._do("POST", f"/v1/workspaces/{ws}/tasks", json={"question": question},
                         headers_extra={"Idempotency-Key": key})
 
+    def put(self, path: str, json: Any) -> Any:
+        return self._do("PUT", path, json=json)
+
     def patch(self, path: str, json: Any) -> Any:
         return self._do("PATCH", path, json=json)
 

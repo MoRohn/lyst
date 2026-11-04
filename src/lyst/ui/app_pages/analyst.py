@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit
+from lyst.ui import collab, kit
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -287,7 +287,7 @@ def act_bar(task: str, t: dict, r: dict) -> None:
     wf = sup.get("workflow") or {}
     wf_id = (wf.get("used") or {}).get("id") or (wf.get("compiled") or {}).get("id")
     done = r["status"] == "complete"
-    cols = st.columns([1.5, 1.3, 1.3, 1.4, 2.5], vertical_alignment="center")
+    cols = st.columns([1.5, 1.2, 1.2, 1.1, 1.1, 1.3], vertical_alignment="center")
     if done and editor and metric.get("name"):
         name = kit.lower(metric.get("title") or metric["name"])
         with cols[0].popover("Watch this metric", icon=":material/monitor_heart:", width="stretch"):
@@ -317,7 +317,17 @@ def act_bar(task: str, t: dict, r: dict) -> None:
             for kind, text in EXPORTS:
                 st.download_button(text, _export(task, kind), file_name=f"lyst-{task}.{kind}", mime=MIME[kind],
                                    key=f"dl_{kind}_{task}", type="tertiary", on_click="ignore", width="stretch")
-    if cols[3].button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
+    with cols[3].popover("Share", icon=":material/group:", width="stretch"):
+        st.caption("Hand this answer to a colleague, or ask someone to check it before it is relied on.")
+        how = st.segmented_control("Share how", ["Assign", "Ask for a review"], default="Assign", key=f"sh_{task}",
+                                   label_visibility="collapsed") or "Assign"
+        if how == "Assign":
+            collab.assign("task", task, key=task)
+        else:
+            collab.request_review("task", task, f"Check: {t['title']}", key=task)
+    if cols[4].button("Discuss", type="tertiary", icon=":material/forum:", key=f"disc_{task}", width="stretch"):
+        collab.discuss("task", task, t["title"])
+    if cols[5].button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
         how_it_ran(task)
 
 
