@@ -16,7 +16,7 @@ const load = (weight) => {
   const buf = readFileSync(fontFile(weight));
   return opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 };
-const semibold = load(600);
+const semibold = load(700);
 const regular = load(400);
 
 const C = {
@@ -24,10 +24,10 @@ const C = {
   deep: '#10151B',
   offwhite: '#F8F9F7',
   slate: '#586471',
-  teal: '#55B8A8',
-  tealDark: '#257E74',
-  tealDeep: '#1D665E',
-  tealMid: '#3E9F92',
+  teal: '#5BC0B0',
+  tealDark: '#2A8277',
+  tealDeep: '#1F6E66',
+  tealMid: '#46A99B',
   border: '#DFE4E7',
 };
 
@@ -36,12 +36,12 @@ const C = {
 const mark = {
   viewBox: '0 0 32 32',
   stem: 'M6 3h8v17.5L6 28.5z',
-  foot: 'M6 28.5 14 20.5h13v8z',
+  foot: 'M6 28.5 14 20.5h15l-4 8z',
   seam: 'M6 28.5 14 20.5v3.2L9.2 28.5z',
 };
 const markDefs = (id) => `<defs>
   <linearGradient id="${id}s" x1="10" y1="3" x2="10" y2="28.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.tealDark}"/><stop offset="1" stop-color="${C.tealDeep}"/></linearGradient>
-  <linearGradient id="${id}f" x1="6" y1="24.5" x2="27" y2="24.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.tealMid}"/><stop offset="1" stop-color="${C.teal}"/></linearGradient>
+  <linearGradient id="${id}f" x1="6" y1="24.5" x2="29" y2="24.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.tealMid}"/><stop offset="1" stop-color="${C.teal}"/></linearGradient>
 </defs>`;
 const markShapes = (id) =>
   `<path d="${mark.stem}" fill="url(#${id}s)"/><path d="${mark.foot}" fill="url(#${id}f)"/><path d="${mark.seam}" fill="${C.tealDeep}" fill-opacity=".35"/>`;

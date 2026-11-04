@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Lyst"><defs>
-  <linearGradient id="fvs" x1="10" y1="3" x2="10" y2="28.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#257E74"/><stop offset="1" stop-color="#1D665E"/></linearGradient>
-  <linearGradient id="fvf" x1="6" y1="24.5" x2="27" y2="24.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3E9F92"/><stop offset="1" stop-color="#55B8A8"/></linearGradient>
-</defs><path d="M6 3h8v17.5L6 28.5z" fill="url(#fvs)"/><path d="M6 28.5 14 20.5h13v8z" fill="url(#fvf)"/><path d="M6 28.5 14 20.5v3.2L9.2 28.5z" fill="#1D665E" fill-opacity=".35"/></svg>
+  <linearGradient id="fvs" x1="10" y1="3" x2="10" y2="28.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2A8277"/><stop offset="1" stop-color="#1F6E66"/></linearGradient>
+  <linearGradient id="fvf" x1="6" y1="24.5" x2="29" y2="24.5" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#46A99B"/><stop offset="1" stop-color="#5BC0B0"/></linearGradient>
+</defs><path d="M6 3h8v17.5L6 28.5z" fill="url(#fvs)"/><path d="M6 28.5 14 20.5h15l-4 8z" fill="url(#fvf)"/><path d="M6 28.5 14 20.5v3.2L9.2 28.5z" fill="#1F6E66" fill-opacity=".35"/></svg>
