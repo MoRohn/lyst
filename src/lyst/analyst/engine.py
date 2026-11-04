@@ -51,6 +51,8 @@ class Services:
     connections: Any = None  # connectors.ConnectionService
     workflows: Any = None  # workflows.WorkflowService
     catalog: Any = None  # catalog.CatalogService
+    scenarios: Any = None  # scenarios.ScenarioService
+    decisions: Any = None  # decisions.DecisionService
 
 
 # ------------------------------------------------------------------------------- helpers
@@ -227,6 +229,14 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         intent = "sync"
     elif studio_mod.wants_dashboard(text) and resolved["metrics"]:
         intent = "dashboard"
+    scenario_model = None
+    if intent not in ("sql", "skill", "refresh", "sync", "dashboard") and s.scenarios is not None:
+        from .. import scenarios as scenario_mod  # noqa: PLC0415
+
+        if scenario_mod.wants_what_if(text):
+            scenario_model = s.scenarios.match(ctx.actor, ctx.workspace_id, text)
+            if scenario_model:
+                intent = "what_if"
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
@@ -240,7 +250,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "sync": {"connection_id": sync.group(1), "source_table": sync.group(2), "cursor_column": sync.group(3),
                      "dataset": sync.group(4)} if sync else None,
             "audience": ("executive" if re.search(r"\b(board|executive|ceo|cfo|leadership|briefing)\b", text, re.I) else "analyst"),
-            "refresh_every": studio_mod.refresh_interval(text)}
+            "refresh_every": studio_mod.refresh_interval(text), "scenario_model": scenario_model}
 
 
 def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
@@ -350,6 +360,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         add("refresh_dashboard", "refresh", dashboard_id=u["refresh_dashboard"])
     elif u["intent"] == "sync":
         add("sync_connection", "sync", **u["sync"])
+    elif u["intent"] == "what_if":
+        add("what_if", "scenario", model=u["scenario_model"], question=u["question"])
     elif u["intent"] == "dashboard":
         if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "data.ingest"):
             add("design_dashboard", "design", metrics=u["metrics"], dimension=u.get("by"), every_seconds=u.get("refresh_every"))
@@ -521,6 +533,21 @@ def metric_value(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     value = r.rows[0][0] if r.rows else None
     return _clean({"metric": spec.name, "period": p, "value": float(value) if value is not None else None,
                    "rows_in_period": rows.rows[0][0] if rows else None, "evidence": [_evidence(r, f"{spec.name} for {p['label']}")]})
+
+
+@capability(REGISTRY, "what_if", agent="analytics_engineer", phase="execute", permission="data.query",
+            description="Apply the changes in a what-if question to a workspace driver model (hypothetical result).")
+def what_if(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    r = ctx.services.scenarios.ask(ctx.actor, ctx.workspace_id, args["question"], name=args["model"])
+    r["evidence"] = [{"purpose": f"{n} observed for the scenario base", "sql": v["sql"], "query_id": v["query_id"],
+                      "datasets": [v["dataset"]]} for n, v in r["observed"].items()]
+    return _clean(r)
+
+
+def fmt_plain(v: float | None, kind: str | None) -> str:
+    from ..scenarios import _fmt  # noqa: PLC0415
+
+    return _fmt(v, kind)
 
 
 @capability(REGISTRY, "metric_breakdown", agent="analytics_engineer", phase="execute", permission="data.query",
@@ -1160,6 +1187,25 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             assumptions.append("Page wording (question, subtitle, KPI order) was suggested by the model; every number is computed.")
         tables.append({"title": "Files", "columns": ["file"], "rows": [[f] for f in db_["files"]]})
         status = "complete" if ok else "unverified"
+    elif u["intent"] == "what_if":
+        sc = o["scenario"]
+        answer = sc["summary"]
+        findings = [f"{x['label']}: {fmt_plain(x['base'], x.get('format'))} observed basis → "
+                    f"{fmt_plain(x['scenario'], x.get('format'))} under the scenario" for x in sc["outputs"]]
+        findings += [f"{v.get('label') or k.replace('_', ' ')} observed for {v['period']['label'] if v.get('period') else 'all rows'} "
+                     f"from {v['dataset']} v{v['dataset_version']} (data through {v['data_through']})" for k, v in sc["observed"].items()]
+        assumptions += [f"{k.replace('_', ' ')} = {a['value']:g} (assumed; plausible {a['low']:g} to {a['high']:g})"
+                        if a.get("low") is not None else f"{k.replace('_', ' ')} = {a['value']:g} (assumed)"
+                        for k, a in sc["assumptions"].items()]
+        assumptions += [f"{n} = {e}" for n, e in sc["formulas"].items()]
+        assumptions.append("Scenario figures are hypothetical: the observed base with the stated changes applied.")
+        findings += [f"⚠ {chk['detail']}" for chk in sc["validation"] if chk["status"] != "pass"]
+        if sc.get("unmatched"):
+            findings.append("Not modelled (no matching driver): " + ", ".join(sc["unmatched"]))
+        actions.append(f"Explore ranges, sensitivity and best/worst cases for {sc['model']['name']} under Data › Saved analyses.")
+        tables.append({"title": "Scenario vs observed basis", "columns": ["output", "observed basis", "scenario", "change"],
+                       "rows": [[x["label"], x["base"], x["scenario"], x["delta"]] for x in sc["outputs"]]})
+        status = "complete" if all(chk["status"] != "fail" for chk in sc["validation"]) else "unverified"
     elif u["intent"] == "sync":
         sy = o["sync"]
         answer = (f"Synced {sy['source_table']} into dataset {sy['dataset']} v{sy['version']}: {sy['rows_added']:,} rows added "

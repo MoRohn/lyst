@@ -116,6 +116,11 @@ class Lyst:
         onboarding = OnboardingService(stores, guard, catalog=catalog, semantic=semantic, contracts=contracts, data=data,
                                        knowledge=knowledge, runtime=runtime)
         ingest = IngestService(stores, guard, data, knowledge)
+        from .decisions import DecisionService  # noqa: PLC0415
+        from .scenarios import ScenarioService  # noqa: PLC0415
+
+        services.scenarios = ScenarioService(stores, guard, data, semantic)
+        services.decisions = DecisionService(stores, guard, runtime)
         anticipation = AnticipationService(stores, guard, services=services, runtime=runtime, semantic=semantic, connections=connections)
         data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
         semantic.after_change.append(anticipation.after_definition)

@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse,
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
 
+from .. import decisions as decision_mod
 from .. import observability as obs
 from .. import operations
 from ..app import Lyst
@@ -65,6 +66,64 @@ class ScheduleIn(BaseModel):
     weekdays: list[str] | None = None  # e.g. ["mon"]; empty = every day
     timezone: str | None = None  # IANA name, e.g. Europe/London
     overlap: str = "skip"
+
+
+class ScenarioModelIn(BaseModel):
+    name: str
+    spec: dict[str, Any]
+    note: str = ""
+
+
+class ScenarioRun(BaseModel):
+    overrides: dict[str, Any] = {}
+    version: int | None = None
+    previous: dict[str, Any] | None = None  # an earlier result: only changed nodes are recomputed
+
+
+class ScenarioAnalysisIn(BaseModel):
+    overrides: dict[str, Any] = {}
+    output: str | None = None
+    draws: int = 10_000
+    seed: int = 7
+    thresholds: dict[str, float] | None = None
+
+
+class ScenarioSave(BaseModel):
+    name: str
+    overrides: dict[str, Any] = {}
+    note: str = ""
+
+
+class WhatIf(BaseModel):
+    question: str
+    model: str | None = None
+
+
+class DecisionIn(BaseModel):
+    title: str
+    spec: dict[str, Any]
+    task_id: str | None = None  # the task or answer this decision follows from
+
+
+class DecisionSubmit(BaseModel):
+    chosen: str
+    rationale: str = ""
+
+
+class DecisionReview(BaseModel):
+    observed: float
+    note: str = ""
+
+
+class AllocateIn(BaseModel):
+    items: list[dict[str, Any]]
+    budget: float
+    groups: dict[str, int] | None = None
+    integer: bool = True
+
+
+class FrameIn(BaseModel):
+    question: str
 
 
 class QuotasIn(BaseModel):
@@ -1013,6 +1072,87 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def schedule(request: Request, ws: str, body: ScheduleIn, user: User):
         return L(request).runtime.create_schedule(user, ws, body.title, body.question, body.every_seconds, at=body.at,
                                                   weekdays=body.weekdays, timezone=body.timezone, overlap=body.overlap)
+
+    # -- scenarios and decisions ------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/scenario-models")
+    def scenario_models(request: Request, ws: str, user: User):
+        return L(request).services.scenarios.models(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/scenario-models")
+    def define_scenario_model(request: Request, ws: str, body: ScenarioModelIn, user: User):
+        return L(request).services.scenarios.define(user, ws, body.name, body.spec, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/metrics/{metric}/scenario-models")
+    def scenario_models_for_metric(request: Request, ws: str, metric: str, user: User):
+        return L(request).services.scenarios.for_metric(user, ws, metric)
+
+    @app.get("/v1/workspaces/{ws}/scenario-models/{name}")
+    def scenario_model(request: Request, ws: str, name: str, user: User, version: int | None = None):
+        return L(request).services.scenarios.get(user, ws, name, version)
+
+    @app.post("/v1/workspaces/{ws}/scenario-models/{name}/evaluate")
+    def evaluate_scenario(request: Request, ws: str, name: str, body: ScenarioRun, user: User):
+        return L(request).services.scenarios.evaluate(user, ws, name, body.overrides, version=body.version,
+                                                      previous=body.previous)
+
+    @app.post("/v1/workspaces/{ws}/scenario-models/{name}/analyze")
+    def analyze_scenario(request: Request, ws: str, name: str, body: ScenarioAnalysisIn, user: User):
+        return L(request).services.scenarios.analyze(user, ws, name, body.overrides, output=body.output, draws=body.draws,
+                                                     seed=body.seed, thresholds=body.thresholds)
+
+    @app.get("/v1/workspaces/{ws}/scenario-models/{name}/scenarios")
+    def saved_scenarios(request: Request, ws: str, name: str, user: User):
+        return L(request).services.scenarios.saved(user, ws, name)
+
+    @app.post("/v1/workspaces/{ws}/scenario-models/{name}/scenarios")
+    def save_scenario(request: Request, ws: str, name: str, body: ScenarioSave, user: User):
+        return L(request).services.scenarios.save(user, ws, name, body.name, body.overrides, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/scenarios/compare")
+    def compare_scenarios(request: Request, ws: str, ids: str, user: User):
+        return L(request).services.scenarios.compare_saved(user, ws, [i for i in ids.split(",") if i])
+
+    @app.post("/v1/workspaces/{ws}/scenarios/{scenario_id}/reproduce")
+    def reproduce_scenario(request: Request, ws: str, scenario_id: str, user: User):
+        return L(request).services.scenarios.reproduce(user, ws, scenario_id)
+
+    @app.post("/v1/workspaces/{ws}/what-if")
+    def what_if(request: Request, ws: str, body: WhatIf, user: User):
+        return L(request).services.scenarios.ask(user, ws, body.question, body.model)
+
+    @app.post("/v1/workspaces/{ws}/decision-records/frame")
+    def frame_decision(request: Request, ws: str, body: FrameIn, user: User):
+        L(request).services.guard.require(user, ws, "workspace.read")
+        return decision_mod.frame(body.question)
+
+    @app.post("/v1/workspaces/{ws}/decision-records/allocate")
+    def allocate(request: Request, ws: str, body: AllocateIn, user: User):
+        L(request).services.guard.require(user, ws, "workspace.read")
+        return decision_mod.allocate(body.items, body.budget, groups=body.groups, integer=body.integer)
+
+    @app.get("/v1/workspaces/{ws}/decision-records")
+    def list_decisions(request: Request, ws: str, user: User):
+        return L(request).services.decisions.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/decision-records")
+    def create_decision(request: Request, ws: str, body: DecisionIn, user: User):
+        lyst = L(request)
+        if body.task_id:
+            lyst.runtime.get(user, body.task_id)  # the person must be able to read the task they link
+        return lyst.services.decisions.create(user, ws, body.title, body.spec, task_id=body.task_id)
+
+    @app.get("/v1/workspaces/{ws}/decision-records/{decision_id}")
+    def get_decision(request: Request, ws: str, decision_id: str, user: User):
+        return L(request).services.decisions.get(user, ws, decision_id)
+
+    @app.post("/v1/workspaces/{ws}/decision-records/{decision_id}/submit")
+    def submit_decision(request: Request, ws: str, decision_id: str, body: DecisionSubmit, user: User):
+        return L(request).services.decisions.submit(user, ws, decision_id, body.chosen, body.rationale)
+
+    @app.post("/v1/workspaces/{ws}/decision-records/{decision_id}/review")
+    def review_decision(request: Request, ws: str, decision_id: str, body: DecisionReview, user: User):
+        return L(request).services.decisions.review(user, ws, decision_id, body.observed, body.note)
 
     # -- operations -------------------------------------------------------------------------
 

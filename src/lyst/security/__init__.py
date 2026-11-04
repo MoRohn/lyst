@@ -44,6 +44,8 @@ PERMISSIONS: dict[str, str] = {
     "skill.approve": "owner",
     "workspace.admin": "admin",
     "audit.read": "admin",
+    "scenario.define": "editor",
+    "decision.create": "editor",
 }
 
 
