@@ -134,13 +134,29 @@ if m:
 elif s.get("provider") == "openrouter":
     st.write("No model credential is connected yet. Lyst plans with rules and writes answers from templates; every number "
              "comes from SQL either way.")
-    if cred.get("installation_admin"):
-        st.info("Connect an OpenRouter key under **Secrets & Connections › Installation** below; it is tested before it is "
-                "saved and never shown again.", icon=":material/key:")
+    quick_scope = ("installation", None) if cred.get("installation_admin") else \
+        (("workspace", ws) if owner and (cred.get("policy") or {}).get("workspace_override") else None)
+    if quick_scope:
+        # the common case needs one field: paste the key, Lyst tests it with OpenRouter and seals it
+        with st.form("connect-openrouter", clear_on_submit=True, border=True):
+            st.markdown("**Connect OpenRouter**")
+            q = st.columns([4, 1], vertical_alignment="bottom")
+            key = q[0].text_input("API key", type="password", autocomplete="off", placeholder="sk-or-…",
+                                  help="Checked with OpenRouter before it is saved, sealed, and never shown again.")
+            if q[1].form_submit_button("Connect", type="primary", icon=":material/key:") and key:
+                try:
+                    out = api.post("/v1/credentials", {"provider": "openrouter", "name": "OpenRouter", "secret": key,
+                                                       "scope_kind": quick_scope[0], "scope_id": quick_scope[1]})
+                    if admin and not s["workspace"]["allow_external_llm"]:  # the workspace that connected it may use it at once
+                        api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": True})
+                    st.success(f"Connected. OpenRouter reports {out['test'].get('label') or 'the key'} is valid; the model is available now.")
+                    st.rerun()
+                except APIError as e:
+                    _reauth(e)
+            st.caption("Shared by every workspace." if quick_scope[0] == "installation" else "Used by this workspace only.")
     elif owner:
-        st.info("An installation administrator connects the OpenRouter key in Settings. "
-                + ("This workspace may also connect its own key below." if (cred.get("policy") or {}).get("workspace_override")
-                   else "Workspace-level keys are not allowed by the installation policy."), icon=":material/key:")
+        st.info("An installation administrator connects the OpenRouter key in Settings; workspace-level keys are not allowed by "
+                "the installation policy.", icon=":material/key:")
 else:
     st.write("No model configured. Set LYST_LLM_BASE_URL and LYST_LLM_MODEL for a local OpenAI-compatible model, or use OpenRouter.")
 if admin:
@@ -169,7 +185,9 @@ if owner:
     st.caption("You manage connections; Lyst manages the secrets. Values are entered once, tested, sealed with AES-256-GCM under "
                "a master key kept outside the database, and never displayed or returned again. Every connect, test, replace, "
                "revoke and use is in a tamper-evident history.")
-    tabs = st.tabs(["This workspace", "Installation", "Personal"]) if cred.get("installation_admin") else st.tabs(["This workspace", "Personal"])
+    personal = bool((cred.get("policy") or {}).get("user_credentials"))
+    names = ["This workspace"] + (["Installation"] if cred.get("installation_admin") else []) + (["Personal"] if personal else [])
+    tabs = st.tabs(names)
     with tabs[0]:
         credential_panel("workspace", ws, key="ws", title=f"Credentials of {s['workspace']['name']}",
                          intro="Database passwords, API tokens and OAuth clients used by this workspace's connections. "
@@ -216,12 +234,10 @@ if owner:
                     if inst["events"]:
                         st.dataframe(pd.DataFrame(inst["events"])[["occurred_at", "actor", "action", "credential_id", "outcome", "detail"]],
                                      hide_index=True, width="stretch")
-    with tabs[-1]:
-        if (cred.get("policy") or {}).get("user_credentials"):
+    if personal:
+        with tabs[-1]:
             credential_panel("user", None, key="me", title="Your personal credentials",
                              intro="Used only for your own work, never for anyone else's.")
-        else:
-            st.caption("Personal credentials are not enabled by the installation policy.")
 
 # ---------------------------------------------------------------------------- notifications
 
