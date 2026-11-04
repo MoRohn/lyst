@@ -1,0 +1,1331 @@
+{
+ "domain": {
+  "id": "statistics_advanced",
+  "letter": "B",
+  "title": "Statistics, Scientific Computing & Advanced Analytics",
+  "summary": "Quantifying uncertainty, testing hypotheses, forecasting, estimating effects and optimizing decisions.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Cross-industry quantitative analysis and decision support"
+   ],
+   "expertise.technical_concepts": [
+    "sampling and uncertainty",
+    "bias and variance",
+    "model assumptions",
+    "out-of-sample validation"
+   ],
+   "expertise.standards": [
+    "ASA statement on p-values and statistical significance",
+    "Reproducible analysis: code, data versions and seeds recorded"
+   ],
+   "analytics.statistical_methods": [
+    "hypothesis tests",
+    "confidence and prediction intervals",
+    "bootstrap resampling"
+   ],
+   "analytics.computational_methods": [
+    "vectorized numerical computing",
+    "resampling",
+    "numerical optimization"
+   ],
+   "analytics.modeling_approaches": [
+    "statistical models with stated assumptions",
+    "baseline-first model comparison"
+   ],
+   "analytics.data_transformations": [
+    "aggregation to an analysis grain",
+    "differencing and scaling",
+    "train/test splitting by time"
+   ],
+   "analytics.visualization_methods": [
+    "interval plots",
+    "residual plots",
+    "distribution plots"
+   ],
+   "analytics.reporting": [
+    "method note with assumptions and limitations",
+    "estimate with uncertainty"
+   ],
+   "data.structures": [
+    "tabular observations",
+    "regular time series",
+    "panel data"
+   ],
+   "data.quality_requirements": [
+    "enough observations for the procedure",
+    "consistent measurement over the study period",
+    "known missingness"
+   ],
+   "data.temporal": [
+    "no future information in features (no leakage)",
+    "regular grain for time-series methods"
+   ],
+   "data.semantic_assumptions": [
+    "the measured quantity is the quantity of interest",
+    "units are consistent"
+   ],
+   "resources.sql": [
+    "DuckDB SQL for extraction and aggregation"
+   ],
+   "resources.python_packages": [
+    "numpy",
+    "scipy",
+    "statsmodels",
+    "pandas"
+   ],
+   "resources.models": [
+    "classify (request understanding)",
+    "chat (method narrative, numbers checked)"
+   ],
+   "resources.environment": [
+    "in-process numerical Python; sandboxed skills for approved new methods"
+   ],
+   "execution.planning_depth": "deep",
+   "execution.decomposition": [
+    "state the question and estimand",
+    "check data adequacy",
+    "fit or test",
+    "validate assumptions",
+    "report with uncertainty"
+   ],
+   "execution.resource_constraints": [
+    "simulation draws and backtest folds capped by the task budget"
+   ],
+   "execution.approval_conditions": [
+    "registering a new statistical method as a skill",
+    "acting on an estimate with material financial effect"
+   ],
+   "execution.verification_rules": [
+    "uncertainty_stated",
+    "causal_claims_guarded"
+   ],
+   "quality.correctness_criteria": [
+    "the procedure matches the data and the question",
+    "assumptions are checked or disclosed",
+    "uncertainty is quantified"
+   ],
+   "quality.domain_tests": [
+    "known-answer tests on synthetic data",
+    "backtests on held-out history"
+   ],
+   "quality.expected_evidence": [
+    "test statistics and intervals",
+    "method and parameters",
+    "data window and sample size"
+   ],
+   "quality.reproducibility": [
+    "fixed seeds for resampling",
+    "recorded inputs and environment fingerprint"
+   ],
+   "quality.performance_measures": [
+    "backtest error (MASE, MAPE)",
+    "interval coverage",
+    "computation time"
+   ],
+   "quality.known_limitations": [
+    "Statistical significance is not practical significance; effect sizes are reported alongside."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "standard",
+   "governance.sensitive_handling": [
+    "aggregate before reporting small groups",
+    "do not expose row-level personal data in examples"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "model outputs inherit the classification of their training data"
+   ],
+   "governance.review_requirements": [
+    "peer review of the method before a model is used for a recurring decision"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "statistical_analyst",
+   "name": "Statistical Analyst",
+   "kind": "job_title",
+   "sub": "Applied statistics",
+   "desc": "Applies probability, descriptive statistics, hypothesis testing, regression, and statistical inference to quantify relationships and distinguish meaningful findings from random variation.",
+   "alt": [
+    "Statistician",
+    "Biostatistician (general)"
+   ],
+   "resp": [
+    "Select appropriate statistical procedures",
+    "Test hypotheses and quantify uncertainty",
+    "Check and disclose assumptions"
+   ],
+   "know": [
+    "inferential statistics",
+    "experimental design",
+    "nonparametric methods"
+   ],
+   "terms": [
+    "p-value",
+    "confidence interval",
+    "effect size",
+    "power",
+    "null hypothesis"
+   ],
+   "methods": [
+    "two-sample tests",
+    "bootstrap intervals",
+    "power analysis",
+    "correlation analysis"
+   ],
+   "tasks": [
+    "statistical_testing",
+    "experiment_analysis",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "compare group distributions",
+    "test for significance",
+    "estimate effect size"
+   ],
+   "req": [
+    "statistical_testing",
+    "metric_computation"
+   ],
+   "opt": [
+    "regression",
+    "root_cause_analysis"
+   ],
+   "sources": [
+    "workspace datasets",
+    "survey extracts",
+    "experiment logs"
+   ],
+   "entities": [
+    "observations",
+    "groups",
+    "measures"
+   ],
+   "fields": [
+    "group label",
+    "outcome measure",
+    "unit identifier"
+   ],
+   "verify": [
+    "hypotheses_decided",
+    "sample_size",
+    "multiple_comparisons"
+   ],
+   "outputs": [
+    "test results with intervals",
+    "method note",
+    "recommendation"
+   ],
+   "limits": [
+    "No Bayesian or mixed-effects modeling yet; multiple-comparison correction is not automated."
+   ],
+   "examples": [
+    "Is the difference in conversion between regions significant?",
+    "Test whether average order value changed after the price update."
+   ],
+   "related": [
+    "experimentation_analyst",
+    "causal_inference_analyst",
+    "data_analyst"
+   ],
+   "keywords": [
+    "significant",
+    "significance",
+    "hypothesis",
+    "statistical test",
+    "p-value",
+    "confidence interval",
+    "t-test"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 13)"
+   ]
+  },
+  {
+   "id": "predictive_analytics_analyst",
+   "name": "Predictive Analytics Analyst",
+   "kind": "job_title",
+   "sub": "Predictive modeling",
+   "desc": "Develops statistical and machine-learning models to estimate future outcomes, classify events, and identify emerging trends. Evaluates predictive accuracy, calibration, and limitations.",
+   "alt": [
+    "Predictive Modeler",
+    "Data Scientist (predictive)"
+   ],
+   "resp": [
+    "Frame prediction targets",
+    "Build and validate predictive models",
+    "Explain drivers of predictions"
+   ],
+   "know": [
+    "supervised learning",
+    "feature engineering",
+    "model validation"
+   ],
+   "terms": [
+    "target",
+    "feature",
+    "holdout",
+    "calibration",
+    "lift"
+   ],
+   "methods": [
+    "train/validation/test splits",
+    "cross-validation",
+    "baseline comparison",
+    "feature importance"
+   ],
+   "tasks": [
+    "forecasting",
+    "model_evaluation",
+    "segmentation"
+   ],
+   "techniques": [
+    "build a naive baseline",
+    "measure lift over baseline",
+    "check calibration"
+   ],
+   "req": [
+    "time_series_forecasting",
+    "model_evaluation",
+    "classification"
+   ],
+   "opt": [
+    "regression",
+    "clustering"
+   ],
+   "sources": [
+    "customer histories",
+    "transaction data",
+    "event data"
+   ],
+   "entities": [
+    "customers",
+    "accounts",
+    "events"
+   ],
+   "fields": [
+    "entity id",
+    "outcome label",
+    "observation date"
+   ],
+   "verify": [
+    "forecast_backtest",
+    "eval_leakage"
+   ],
+   "outputs": [
+    "model evaluation report",
+    "scored list",
+    "driver explanation"
+   ],
+   "limits": [
+    "Supervised classification is not implemented; only time-series prediction is equipped."
+   ],
+   "examples": [
+    "Which customers are likely to churn next quarter?",
+    "Predict next month's demand by product."
+   ],
+   "related": [
+    "machine_learning_analyst",
+    "forecasting_analyst",
+    "customer_lifecycle_analyst"
+   ],
+   "keywords": [
+    "predict",
+    "prediction",
+    "predictive",
+    "propensity",
+    "likely to",
+    "churn model",
+    "score"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 14)"
+   ]
+  },
+  {
+   "id": "forecasting_analyst",
+   "name": "Forecasting Analyst",
+   "kind": "job_title",
+   "sub": "Forecasting",
+   "desc": "Models future revenue, demand, expenses, workloads, or operational conditions using time-series methods, historical patterns, explanatory variables, and scenario assumptions.",
+   "alt": [
+    "Demand Planner (analytics)",
+    "Forecast Analyst"
+   ],
+   "resp": [
+    "Produce forecasts with intervals",
+    "Backtest and compare methods",
+    "Explain forecast revisions"
+   ],
+   "know": [
+    "time-series forecasting",
+    "forecast accuracy measurement",
+    "planning cycles"
+   ],
+   "terms": [
+    "horizon",
+    "prediction interval",
+    "MAPE",
+    "MASE",
+    "seasonality"
+   ],
+   "methods": [
+    "exponential smoothing",
+    "seasonal naive baselines",
+    "rolling-origin backtesting",
+    "forecast reconciliation"
+   ],
+   "tasks": [
+    "forecasting",
+    "trend_analysis",
+    "capacity_planning"
+   ],
+   "techniques": [
+    "decompose seasonality",
+    "backtest methods",
+    "track forecast bias"
+   ],
+   "req": [
+    "time_series_forecasting",
+    "metric_computation",
+    "model_evaluation"
+   ],
+   "opt": [
+    "change_point_detection",
+    "scenario_modeling"
+   ],
+   "sources": [
+    "sales history",
+    "operational volumes",
+    "financial actuals"
+   ],
+   "entities": [
+    "series",
+    "products",
+    "regions"
+   ],
+   "fields": [
+    "date",
+    "measure",
+    "series key"
+   ],
+   "verify": [
+    "forecast_backtest"
+   ],
+   "outputs": [
+    "forecast with interval",
+    "method comparison",
+    "accuracy report"
+   ],
+   "limits": [
+    "No exogenous drivers or hierarchical reconciliation; forecasts extend the series' own history."
+   ],
+   "examples": [
+    "Forecast revenue for the next two quarters.",
+    "How accurate were last year's demand forecasts?"
+   ],
+   "related": [
+    "time_series_analyst",
+    "fpa_analyst",
+    "capacity_planning_analyst"
+   ],
+   "keywords": [
+    "forecast",
+    "next quarter",
+    "next month",
+    "projection",
+    "outlook",
+    "predict revenue",
+    "demand forecast"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 15)"
+   ]
+  },
+  {
+   "id": "causal_inference_analyst",
+   "name": "Causal Inference Analyst",
+   "kind": "functional",
+   "sub": "Causal inference",
+   "desc": "Investigates whether observed relationships plausibly represent causal effects. Applies experimental and quasi-experimental methods while accounting for confounding, selection bias, and uncertainty.",
+   "alt": [
+    "Econometrician",
+    "Impact Analyst"
+   ],
+   "resp": [
+    "Define the causal question and estimand",
+    "Choose a credible identification strategy",
+    "Estimate effects with uncertainty and assumptions"
+   ],
+   "know": [
+    "potential outcomes",
+    "quasi-experimental design",
+    "econometrics"
+   ],
+   "terms": [
+    "counterfactual",
+    "treatment effect",
+    "parallel trends",
+    "confounder",
+    "identification"
+   ],
+   "methods": [
+    "difference-in-differences",
+    "interrupted time series",
+    "regression discontinuity (design review)",
+    "synthetic control (design review)"
+   ],
+   "tasks": [
+    "causal_estimation",
+    "statistical_testing",
+    "recommendation"
+   ],
+   "techniques": [
+    "check pre-period trends",
+    "test placebo dates",
+    "estimate effect intervals"
+   ],
+   "req": [
+    "causal_impact",
+    "metric_computation"
+   ],
+   "opt": [
+    "statistical_testing",
+    "regression"
+   ],
+   "sources": [
+    "outcome series",
+    "treatment records",
+    "comparison groups"
+   ],
+   "entities": [
+    "units",
+    "treatments",
+    "periods"
+   ],
+   "fields": [
+    "unit id",
+    "treatment indicator or date",
+    "outcome"
+   ],
+   "verify": [
+    "model_assumptions"
+   ],
+   "outputs": [
+    "effect estimate with interval",
+    "assumption audit",
+    "decision memo"
+   ],
+   "limits": [
+    "Only interrupted time series and difference-in-differences are implemented."
+   ],
+   "examples": [
+    "What effect did the March price change have on orders?",
+    "Did the new onboarding flow cause higher retention?"
+   ],
+   "related": [
+    "experimentation_analyst",
+    "statistical_analyst",
+    "marketing_attribution_analyst"
+   ],
+   "keywords": [
+    "causal",
+    "effect of",
+    "impact of",
+    "caused",
+    "counterfactual",
+    "difference in differences",
+    "did it work"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 16)"
+   ]
+  },
+  {
+   "id": "experimentation_analyst",
+   "name": "Experimentation Analyst",
+   "kind": "job_title",
+   "sub": "Experimentation",
+   "desc": "Designs and evaluates A/B tests, randomized experiments, and controlled interventions. Examines treatment effects, statistical power, segmentation, guardrail metrics, and experiment validity.",
+   "alt": [
+    "A/B Testing Analyst",
+    "Experiment Analyst"
+   ],
+   "resp": [
+    "Design experiments with adequate power",
+    "Monitor experiment health",
+    "Read out results and recommend decisions"
+   ],
+   "know": [
+    "randomized controlled trials",
+    "online experimentation",
+    "sequential testing"
+   ],
+   "terms": [
+    "variant",
+    "control",
+    "minimum detectable effect",
+    "sample ratio mismatch",
+    "guardrail metric"
+   ],
+   "methods": [
+    "two-proportion tests",
+    "power analysis",
+    "CUPED variance reduction (design review)"
+   ],
+   "tasks": [
+    "experiment_analysis",
+    "statistical_testing",
+    "recommendation"
+   ],
+   "techniques": [
+    "check sample ratio",
+    "compute lift with interval",
+    "review guardrail metrics"
+   ],
+   "req": [
+    "statistical_testing",
+    "metric_computation"
+   ],
+   "opt": [
+    "causal_impact"
+   ],
+   "sources": [
+    "experiment assignment logs",
+    "event data",
+    "product analytics"
+   ],
+   "entities": [
+    "experiments",
+    "variants",
+    "users"
+   ],
+   "fields": [
+    "variant assignment",
+    "user id",
+    "conversion outcome"
+   ],
+   "verify": [
+    "sample_size",
+    "conversion_definition",
+    "multiple_comparisons"
+   ],
+   "outputs": [
+    "experiment readout",
+    "decision recommendation"
+   ],
+   "limits": [
+    "Sequential testing corrections are not automated; do not stop tests early on the readout."
+   ],
+   "examples": [
+    "Did variant B improve checkout conversion?",
+    "How many users do we need to detect a 2% lift?"
+   ],
+   "related": [
+    "digital_experimentation_analyst",
+    "statistical_analyst",
+    "product_analyst"
+   ],
+   "keywords": [
+    "a/b test",
+    "ab test",
+    "experiment",
+    "variant",
+    "control group",
+    "lift",
+    "split test"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 17)"
+   ]
+  },
+  {
+   "id": "operations_research_analyst",
+   "name": "Operations Research Analyst",
+   "kind": "job_title",
+   "sub": "Operations research",
+   "desc": "Uses mathematical optimization, simulation, decision theory, and statistical modeling to improve complex decisions involving resources, scheduling, logistics, capacity, and constraints.",
+   "alt": [
+    "OR Analyst",
+    "Management Scientist"
+   ],
+   "resp": [
+    "Formulate decision problems mathematically",
+    "Solve and test optimization models",
+    "Quantify trade-offs for decision makers"
+   ],
+   "know": [
+    "mathematical programming",
+    "queueing theory",
+    "stochastic modeling"
+   ],
+   "terms": [
+    "objective function",
+    "constraint",
+    "decision variable",
+    "feasible region",
+    "shadow price"
+   ],
+   "methods": [
+    "linear and integer programming",
+    "queueing models",
+    "Monte Carlo simulation"
+   ],
+   "tasks": [
+    "optimization",
+    "simulation",
+    "capacity_planning"
+   ],
+   "techniques": [
+    "sensitivity analysis on constraints",
+    "scenario comparison",
+    "bottleneck identification"
+   ],
+   "req": [
+    "optimization",
+    "simulation"
+   ],
+   "opt": [
+    "scenario_modeling",
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "operational plans",
+    "demand data",
+    "resource rosters"
+   ],
+   "entities": [
+    "resources",
+    "tasks",
+    "constraints"
+   ],
+   "fields": [
+    "capacities",
+    "demand",
+    "costs"
+   ],
+   "verify": [
+    "model_assumptions"
+   ],
+   "outputs": [
+    "optimized plan",
+    "trade-off analysis",
+    "scenario comparison"
+   ],
+   "limits": [
+    "No general LP/MIP solver; allocation and staffing are the equipped cases."
+   ],
+   "examples": [
+    "How many agents do we need per shift to meet service levels?",
+    "Allocate the budget across channels for the best return."
+   ],
+   "related": [
+    "optimization_analyst",
+    "simulation_analyst",
+    "supply_chain_analyst"
+   ],
+   "keywords": [
+    "operations research",
+    "schedule",
+    "allocation",
+    "queueing",
+    "routing",
+    "staffing model"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 18)"
+   ]
+  },
+  {
+   "id": "simulation_analyst",
+   "name": "Simulation Analyst",
+   "kind": "job_title",
+   "sub": "Simulation",
+   "desc": "Constructs computational representations of business or physical processes to evaluate alternative conditions, uncertainty, failure scenarios, and system behavior before implementation.",
+   "alt": [
+    "Simulation Modeler",
+    "Monte Carlo Analyst"
+   ],
+   "resp": [
+    "Build and validate simulation models",
+    "Run scenarios under uncertainty",
+    "Report outcome distributions and risks"
+   ],
+   "know": [
+    "Monte Carlo methods",
+    "discrete-event simulation",
+    "probability distributions"
+   ],
+   "terms": [
+    "draw",
+    "distribution",
+    "percentile",
+    "scenario",
+    "convergence"
+   ],
+   "methods": [
+    "Monte Carlo sampling",
+    "sensitivity analysis",
+    "historical validation"
+   ],
+   "tasks": [
+    "simulation",
+    "risk_assessment",
+    "capacity_planning"
+   ],
+   "techniques": [
+    "vary one driver at a time",
+    "compare percentile outcomes",
+    "check convergence of estimates"
+   ],
+   "req": [
+    "simulation",
+    "scenario_modeling"
+   ],
+   "opt": [
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "driver models",
+    "historical outcomes",
+    "assumption tables"
+   ],
+   "entities": [
+    "drivers",
+    "scenarios",
+    "outcomes"
+   ],
+   "fields": [
+    "driver values",
+    "distributions",
+    "outcome formula"
+   ],
+   "verify": [
+    "numerical_stability"
+   ],
+   "outputs": [
+    "outcome distribution",
+    "scenario comparison",
+    "risk summary"
+   ],
+   "limits": [
+    "Monte Carlo over driver models only; no discrete-event or agent-based simulation."
+   ],
+   "examples": [
+    "What is the range of next year's profit if volume and price vary?",
+    "Simulate staffing shortfall risk for the holiday peak."
+   ],
+   "related": [
+    "operations_research_analyst",
+    "engineering_simulation_analyst",
+    "decision_intelligence_analyst"
+   ],
+   "keywords": [
+    "simulate",
+    "simulation",
+    "monte carlo",
+    "what if",
+    "range of outcomes",
+    "scenario"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 19)"
+   ]
+  },
+  {
+   "id": "optimization_analyst",
+   "name": "Optimization Analyst",
+   "kind": "functional",
+   "sub": "Optimization",
+   "desc": "Formulates constrained optimization problems to identify efficient allocations, schedules, configurations, and operating policies. Analyzes tradeoffs between cost, quality, speed, risk, and feasibility.",
+   "alt": [
+    "Decision Optimization Analyst",
+    "Prescriptive Analyst"
+   ],
+   "resp": [
+    "Define objectives and constraints",
+    "Compute optimal or near-optimal allocations",
+    "Test robustness of the recommendation"
+   ],
+   "know": [
+    "convex optimization",
+    "heuristics",
+    "marginal analysis"
+   ],
+   "terms": [
+    "objective",
+    "constraint",
+    "marginal return",
+    "trade-off",
+    "robustness"
+   ],
+   "methods": [
+    "greedy allocation by marginal return",
+    "constrained optimization",
+    "sensitivity analysis"
+   ],
+   "tasks": [
+    "optimization",
+    "recommendation",
+    "cost_analysis"
+   ],
+   "techniques": [
+    "compare against current allocation",
+    "stress assumptions",
+    "identify binding constraints"
+   ],
+   "req": [
+    "optimization",
+    "scenario_modeling"
+   ],
+   "opt": [
+    "simulation"
+   ],
+   "sources": [
+    "budget plans",
+    "channel returns",
+    "capacity data"
+   ],
+   "entities": [
+    "options",
+    "budgets",
+    "constraints"
+   ],
+   "fields": [
+    "cost per option",
+    "expected return",
+    "limits"
+   ],
+   "verify": [
+    "model_assumptions"
+   ],
+   "outputs": [
+    "recommended allocation",
+    "trade-off table",
+    "sensitivity summary"
+   ],
+   "limits": [
+    "Allocation uses greedy marginal-return logic; non-convex or integer problems are not solved exactly."
+   ],
+   "examples": [
+    "What is the best split of a $2M budget across five channels?",
+    "Minimize cost while keeping service level above 90%."
+   ],
+   "related": [
+    "operations_research_analyst",
+    "pricing_analyst",
+    "cloud_finops_analyst"
+   ],
+   "keywords": [
+    "optimize",
+    "optimization",
+    "best allocation",
+    "maximize",
+    "minimize",
+    "constraint",
+    "budget split"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 20)"
+   ]
+  },
+  {
+   "id": "quantitative_research_analyst",
+   "name": "Quantitative Research Analyst",
+   "kind": "job_title",
+   "sub": "Quantitative research",
+   "desc": "Develops mathematical and computational models to investigate complex economic, financial, scientific, or operational phenomena. Emphasizes reproducibility, statistical rigor, and model validation.",
+   "alt": [
+    "Quant Analyst",
+    "Quantitative Researcher"
+   ],
+   "resp": [
+    "Develop and test quantitative hypotheses",
+    "Measure risk and return characteristics",
+    "Document reproducible research"
+   ],
+   "know": [
+    "financial econometrics",
+    "time-series statistics",
+    "risk measurement"
+   ],
+   "terms": [
+    "signal",
+    "alpha",
+    "drawdown",
+    "volatility",
+    "look-ahead bias"
+   ],
+   "methods": [
+    "rolling-window analysis",
+    "factor analysis (design review)",
+    "bootstrap confidence intervals"
+   ],
+   "tasks": [
+    "statistical_testing",
+    "trend_analysis",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "out-of-sample testing",
+    "rolling statistics",
+    "regime analysis"
+   ],
+   "req": [
+    "statistical_testing",
+    "metric_computation",
+    "change_point_detection"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "regression",
+    "simulation"
+   ],
+   "sources": [
+    "market data extracts",
+    "financial time series",
+    "research datasets"
+   ],
+   "entities": [
+    "instruments",
+    "returns",
+    "factors"
+   ],
+   "fields": [
+    "date",
+    "price or return",
+    "instrument id"
+   ],
+   "verify": [
+    "eval_leakage",
+    "multiple_comparisons"
+   ],
+   "outputs": [
+    "research note",
+    "risk statistics",
+    "backtest summary"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Research only: Lyst does not give investment advice or execute trades."
+   ],
+   "examples": [
+    "Measure the volatility regimes in this return series.",
+    "Is this signal's performance robust out of sample?"
+   ],
+   "related": [
+    "statistical_analyst",
+    "time_series_analyst",
+    "financial_data_analyst"
+   ],
+   "keywords": [
+    "quant",
+    "quantitative",
+    "volatility",
+    "returns",
+    "signal",
+    "drawdown",
+    "risk factor"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 21)"
+   ]
+  },
+  {
+   "id": "decision_intelligence_analyst",
+   "name": "Decision Intelligence Analyst",
+   "kind": "functional",
+   "sub": "Decision intelligence",
+   "desc": "Frames business decisions as explicit objectives, alternatives, assumptions, constraints, and risks. Combines quantitative analysis with decision modeling to compare options and recommend defensible actions.",
+   "alt": [
+    "Decision Scientist",
+    "Decision Analyst"
+   ],
+   "resp": [
+    "Frame decisions and their options",
+    "Model drivers and outcomes",
+    "Record decisions with evidence and review outcomes"
+   ],
+   "know": [
+    "decision analysis",
+    "driver modeling",
+    "behavioural decision science"
+   ],
+   "terms": [
+    "decision model",
+    "option",
+    "expected value",
+    "regret",
+    "decision record"
+   ],
+   "methods": [
+    "decision trees and expected value",
+    "driver trees",
+    "pre-mortems",
+    "decision logging"
+   ],
+   "tasks": [
+    "recommendation",
+    "simulation",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "compare options on expected value and risk",
+    "test sensitivity to key drivers",
+    "review past decisions"
+   ],
+   "req": [
+    "scenario_modeling",
+    "metric_computation",
+    "reporting"
+   ],
+   "opt": [
+    "simulation",
+    "driver_decomposition",
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "driver models",
+    "metrics",
+    "decision records"
+   ],
+   "entities": [
+    "decisions",
+    "options",
+    "drivers"
+   ],
+   "fields": [
+    "option definitions",
+    "driver values",
+    "decision owner"
+   ],
+   "verify": [
+    "human_review"
+   ],
+   "outputs": [
+    "decision memo",
+    "option comparison",
+    "decision record"
+   ],
+   "perms": [
+    "decision.create"
+   ],
+   "limits": [
+    "Recommends; the decision and its owner are always a person."
+   ],
+   "examples": [
+    "Should we expand to the west region given cost and demand uncertainty?",
+    "Compare three pricing options for next year."
+   ],
+   "related": [
+    "simulation_analyst",
+    "optimization_analyst",
+    "fpa_analyst"
+   ],
+   "keywords": [
+    "decide",
+    "decision",
+    "should we",
+    "options",
+    "trade-off",
+    "recommend",
+    "choose between"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 22)"
+   ]
+  },
+  {
+   "id": "geospatial_analyst",
+   "name": "Geospatial Analyst",
+   "kind": "job_title",
+   "sub": "Geospatial",
+   "desc": "Analyzes geographic coordinates, spatial relationships, location patterns, transportation networks, and regional conditions using GIS, spatial statistics, and geospatial computing.",
+   "alt": [
+    "GIS Analyst",
+    "Location Intelligence Analyst"
+   ],
+   "resp": [
+    "Map and aggregate data by location",
+    "Measure distance and coverage",
+    "Explain spatial patterns"
+   ],
+   "know": [
+    "geographic information systems",
+    "spatial statistics",
+    "cartography"
+   ],
+   "terms": [
+    "coordinate reference system",
+    "geocoding",
+    "spatial join",
+    "catchment",
+    "choropleth"
+   ],
+   "methods": [
+    "spatial aggregation",
+    "distance analysis",
+    "hotspot analysis"
+   ],
+   "tasks": [
+    "geospatial_analysis",
+    "segmentation",
+    "descriptive_reporting"
+   ],
+   "techniques": [
+    "aggregate by region",
+    "compute catchments",
+    "compare density"
+   ],
+   "req": [
+    "geospatial_analysis"
+   ],
+   "opt": [
+    "metric_computation",
+    "visualization"
+   ],
+   "sources": [
+    "address data",
+    "coordinates",
+    "regional boundaries"
+   ],
+   "entities": [
+    "locations",
+    "regions",
+    "routes"
+   ],
+   "fields": [
+    "latitude and longitude or region code"
+   ],
+   "verify": [
+    "units_consistent"
+   ],
+   "outputs": [
+    "regional analysis",
+    "coverage map description"
+   ],
+   "limits": [
+    "Geometry and spatial joins are not implemented; analysis by region names works through ordinary breakdowns."
+   ],
+   "examples": [
+    "Which stores are more than 50 km from a warehouse?",
+    "Where are our customers concentrated?"
+   ],
+   "related": [
+    "transportation_mobility_analyst",
+    "environmental_data_analyst",
+    "data_analyst"
+   ],
+   "keywords": [
+    "map",
+    "geospatial",
+    "location",
+    "distance",
+    "region map",
+    "gis",
+    "latitude",
+    "coordinates"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 23)"
+   ]
+  },
+  {
+   "id": "time_series_analyst",
+   "name": "Time-Series Analyst",
+   "kind": "functional",
+   "sub": "Time series",
+   "desc": "Investigates sequential observations, seasonality, trends, autocorrelation, regime changes, and temporal anomalies. Builds methods for monitoring, forecasting, and explaining dynamic systems.",
+   "alt": [
+    "Temporal Data Analyst"
+   ],
+   "resp": [
+    "Decompose series into trend and seasonality",
+    "Detect breaks and anomalies",
+    "Prepare series for forecasting"
+   ],
+   "know": [
+    "time-series statistics",
+    "seasonal decomposition",
+    "stationarity"
+   ],
+   "terms": [
+    "seasonality",
+    "trend",
+    "change point",
+    "autocorrelation",
+    "stationarity"
+   ],
+   "methods": [
+    "seasonal decomposition",
+    "change-point detection",
+    "robust anomaly scoring"
+   ],
+   "tasks": [
+    "trend_analysis",
+    "anomaly_detection",
+    "forecasting"
+   ],
+   "techniques": [
+    "compare to the same period last year",
+    "segment by regime",
+    "flag outliers"
+   ],
+   "req": [
+    "metric_computation",
+    "change_point_detection",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "metric histories",
+    "sensor or event series",
+    "financial actuals"
+   ],
+   "entities": [
+    "series",
+    "periods"
+   ],
+   "fields": [
+    "timestamp",
+    "measure"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "trend and seasonality description",
+    "break and anomaly list"
+   ],
+   "limits": [
+    "Univariate methods only; cross-series dependence is not modeled."
+   ],
+   "examples": [
+    "When did the trend in weekly signups change?",
+    "Is this month's dip seasonal or unusual?"
+   ],
+   "related": [
+    "forecasting_analyst",
+    "statistical_analyst",
+    "industrial_iot_analyst"
+   ],
+   "keywords": [
+    "time series",
+    "seasonality",
+    "trend",
+    "change point",
+    "over time",
+    "seasonal",
+    "spike"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 24)"
+   ]
+  }
+ ]
+}

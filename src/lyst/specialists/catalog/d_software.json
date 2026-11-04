@@ -1,0 +1,1515 @@
+{
+ "domain": {
+  "id": "software_digital_products",
+  "letter": "D",
+  "title": "Software Engineering, Applications & Digital Products",
+  "summary": "Assessing software quality, reliability and performance, and how digital products are used.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Software companies and any organization that builds or runs digital products"
+   ],
+   "expertise.technical_concepts": [
+    "reproducible evidence",
+    "test coverage",
+    "latency percentiles",
+    "release and change management"
+   ],
+   "expertise.standards": [
+    "ISO/IEC 25010 software quality model",
+    "DORA delivery metrics",
+    "Google SRE practices"
+   ],
+   "analytics.statistical_methods": [
+    "percentiles and distributions",
+    "trend analysis of defect and incident rates"
+   ],
+   "analytics.computational_methods": [
+    "log and event aggregation in SQL",
+    "test and trace evidence collection"
+   ],
+   "analytics.modeling_approaches": [
+    "quality models",
+    "funnel and retention models"
+   ],
+   "analytics.data_transformations": [
+    "sessionization of events",
+    "aggregation by release and component"
+   ],
+   "analytics.visualization_methods": [
+    "release-over-release comparisons",
+    "latency distributions",
+    "funnels"
+   ],
+   "analytics.reporting": [
+    "findings with file, test or trace evidence",
+    "prioritized improvement backlog"
+   ],
+   "data.structures": [
+    "event logs",
+    "issue tracker exports",
+    "CI results",
+    "repository metadata"
+   ],
+   "data.quality_requirements": [
+    "events carry release version and timestamp",
+    "issues carry component and severity"
+   ],
+   "data.temporal": [
+    "compare equal windows around a release"
+   ],
+   "data.semantic_assumptions": [
+    "component and service names are consistent across sources"
+   ],
+   "resources.sql": [
+    "DuckDB SQL over imported logs, issues and events"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (findings narrative, evidence-cited)"
+   ],
+   "resources.environment": [
+    "imported tabular evidence; code execution only in Lyst's sandbox for approved skills"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "define the scope (service, release, period)",
+    "collect evidence",
+    "analyse",
+    "verify against reproducible evidence",
+    "prioritize findings"
+   ],
+   "execution.resource_constraints": [
+    "no access to repositories or hosts beyond approved connections"
+   ],
+   "execution.approval_conditions": [
+    "any change to code, configuration or a production system"
+   ],
+   "execution.verification_rules": [
+    "reproducible_failure"
+   ],
+   "quality.correctness_criteria": [
+    "every finding cites a test, trace, log line or measurement",
+    "severity follows a stated rubric"
+   ],
+   "quality.domain_tests": [
+    "reproduce a sample of findings",
+    "check measurements state their conditions"
+   ],
+   "quality.expected_evidence": [
+    "test results, traces or log aggregates",
+    "release and component identifiers"
+   ],
+   "quality.reproducibility": [
+    "queries and inputs recorded so findings can be re-derived"
+   ],
+   "quality.performance_measures": [
+    "finding precision on review",
+    "time to triage"
+   ],
+   "quality.known_limitations": [
+    "Without a repository connector Lyst analyses exported evidence, not live code."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "confidential",
+   "governance.sensitive_handling": [
+    "redact secrets and tokens found in logs",
+    "do not reproduce proprietary code beyond what a finding needs"
+   ],
+   "governance.network": "workspace_connections",
+   "governance.classification_notes": [
+    "source code and logs are confidential by default"
+   ],
+   "governance.review_requirements": [
+    "an engineer reviews findings before changes are made"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "software_systems_analyst",
+   "name": "Software Systems Analyst",
+   "kind": "job_title",
+   "sub": "Systems analysis",
+   "desc": "Examines application components, dependencies, interfaces, and execution behavior to determine how software meets functional requirements and where architectural improvements are needed.",
+   "alt": [
+    "Systems Analyst",
+    "Software Architect (analysis)"
+   ],
+   "resp": [
+    "Map components, dependencies and interfaces",
+    "Identify architecture risks",
+    "Prioritize evidence-backed improvements"
+   ],
+   "know": [
+    "software architecture",
+    "dependency analysis",
+    "requirements traceability"
+   ],
+   "terms": [
+    "coupling",
+    "dependency graph",
+    "interface contract",
+    "single point of failure",
+    "architecture decision record"
+   ],
+   "methods": [
+    "architecture review",
+    "dependency analysis",
+    "risk-based prioritization"
+   ],
+   "tasks": [
+    "code_analysis",
+    "risk_assessment",
+    "performance_analysis"
+   ],
+   "techniques": [
+    "map dependencies",
+    "correlate incidents with components",
+    "review change hotspots"
+   ],
+   "req": [
+    "code_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "log_analysis",
+    "graph_analysis",
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "repositories",
+    "architecture documents",
+    "incident and issue trackers"
+   ],
+   "entities": [
+    "services",
+    "modules",
+    "dependencies",
+    "incidents"
+   ],
+   "fields": [
+    "component",
+    "dependency",
+    "change count",
+    "incident count"
+   ],
+   "verify": [
+    "source_cited"
+   ],
+   "outputs": [
+    "architecture risk assessment",
+    "improvement backlog"
+   ],
+   "limits": [
+    "Repository analysis is not implemented; assessments use exported issue, incident and dependency data."
+   ],
+   "examples": [
+    "Analyze this repository for architecture risks, test failures and performance bottlenecks.",
+    "Which components cause most incidents?"
+   ],
+   "related": [
+    "technical_debt_analyst",
+    "software_performance_analyst",
+    "application_analyst"
+   ],
+   "keywords": [
+    "architecture",
+    "repository",
+    "codebase",
+    "software system",
+    "components",
+    "dependencies"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 41)"
+   ]
+  },
+  {
+   "id": "application_analyst",
+   "name": "Application Analyst",
+   "kind": "job_title",
+   "sub": "Application support",
+   "desc": "Investigates application configuration, user workflows, integrations, incidents, and performance. Bridges business requirements with application support, enhancement, and operational reliability.",
+   "alt": [
+    "Application Support Analyst",
+    "Applications Analyst"
+   ],
+   "resp": [
+    "Analyse application issues and usage",
+    "Specify configuration changes and enhancements",
+    "Track application health"
+   ],
+   "know": [
+    "business applications",
+    "configuration management",
+    "incident handling"
+   ],
+   "terms": [
+    "ticket",
+    "configuration",
+    "workaround",
+    "release note",
+    "user acceptance testing"
+   ],
+   "methods": [
+    "ticket trend analysis",
+    "root-cause analysis of recurring issues",
+    "usage analysis"
+   ],
+   "tasks": [
+    "root_cause",
+    "descriptive_reporting",
+    "process_analysis"
+   ],
+   "techniques": [
+    "group tickets by cause",
+    "trend issues by release",
+    "measure feature usage"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "text_analytics"
+   ],
+   "sources": [
+    "ticketing system",
+    "application logs",
+    "usage data"
+   ],
+   "entities": [
+    "applications",
+    "tickets",
+    "users",
+    "releases"
+   ],
+   "fields": [
+    "ticket id",
+    "category",
+    "opened and closed time",
+    "application"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "application health report",
+    "recurring issue analysis"
+   ],
+   "limits": [
+    "Ticket text themes rely on categories; free-text classification is limited."
+   ],
+   "examples": [
+    "What are the top recurring issues in our HR application?",
+    "Did tickets drop after the last release?"
+   ],
+   "related": [
+    "software_systems_analyst",
+    "it_service_management_analyst",
+    "erp_systems_analyst"
+   ],
+   "keywords": [
+    "application",
+    "app issues",
+    "tickets",
+    "application support",
+    "configuration"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 42)"
+   ]
+  },
+  {
+   "id": "software_qa_analyst",
+   "name": "Software Quality Assurance Analyst",
+   "kind": "job_title",
+   "sub": "Quality assurance",
+   "desc": "Evaluates software against functional specifications, expected behavior, edge cases, and quality standards. Designs reproducible tests, documents defects, and verifies corrections.",
+   "alt": [
+    "QA Analyst",
+    "Quality Engineer",
+    "Test Analyst"
+   ],
+   "resp": [
+    "Plan risk-based testing",
+    "Analyse defects and escapes",
+    "Assess release readiness"
+   ],
+   "know": [
+    "software testing",
+    "defect management",
+    "quality metrics"
+   ],
+   "terms": [
+    "escaped defect",
+    "regression",
+    "test coverage",
+    "severity",
+    "release readiness"
+   ],
+   "methods": [
+    "risk-based test planning",
+    "defect density analysis",
+    "release readiness criteria"
+   ],
+   "tasks": [
+    "code_analysis",
+    "descriptive_reporting",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "defect density by component",
+    "escape-rate trend",
+    "flaky-test detection"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "code_analysis",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "test results",
+    "defect tracker",
+    "CI history"
+   ],
+   "entities": [
+    "tests",
+    "defects",
+    "releases",
+    "components"
+   ],
+   "fields": [
+    "test id",
+    "result",
+    "defect severity",
+    "release"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "quality report",
+    "release readiness assessment",
+    "test priority list"
+   ],
+   "limits": [
+    "Analyses test and defect records; Lyst does not run third-party test suites."
+   ],
+   "examples": [
+    "Is release 4.2 ready based on open defects and test results?",
+    "Which components leak the most defects to production?"
+   ],
+   "related": [
+    "test_automation_analyst",
+    "software_systems_analyst",
+    "technical_debt_analyst"
+   ],
+   "keywords": [
+    "qa",
+    "quality assurance",
+    "defects",
+    "release readiness",
+    "test results",
+    "bugs"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 43)"
+   ]
+  },
+  {
+   "id": "test_automation_analyst",
+   "name": "Test Automation Analyst",
+   "kind": "job_title",
+   "sub": "Test automation",
+   "desc": "Analyzes test coverage, execution reliability, regression patterns, and automation efficiency. Develops repeatable validation strategies for APIs, interfaces, integrations, and end-to-end workflows.",
+   "alt": [
+    "Automation Test Analyst",
+    "SDET (analysis)"
+   ],
+   "resp": [
+    "Measure suite coverage and reliability",
+    "Find flaky and slow tests",
+    "Prioritize automation of high-risk paths"
+   ],
+   "know": [
+    "test automation frameworks",
+    "CI pipelines",
+    "test design"
+   ],
+   "terms": [
+    "flaky test",
+    "coverage",
+    "test pyramid",
+    "pipeline duration",
+    "quarantine"
+   ],
+   "methods": [
+    "flake-rate analysis",
+    "duration profiling",
+    "coverage-gap analysis"
+   ],
+   "tasks": [
+    "code_analysis",
+    "performance_analysis",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "compute pass/fail flip rates",
+    "rank tests by duration",
+    "map coverage to change hotspots"
+   ],
+   "req": [
+    "sql_query",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "code_analysis"
+   ],
+   "sources": [
+    "CI results",
+    "coverage reports",
+    "test logs"
+   ],
+   "entities": [
+    "tests",
+    "runs",
+    "pipelines"
+   ],
+   "fields": [
+    "test name",
+    "run id",
+    "result",
+    "duration"
+   ],
+   "verify": [
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "flaky and slow test list",
+    "coverage gap analysis"
+   ],
+   "limits": [
+    "Coverage mapping to code needs exported coverage data; repositories are not read directly."
+   ],
+   "examples": [
+    "Which tests are flaky in the last 30 days of CI?",
+    "What makes our pipeline slow?"
+   ],
+   "related": [
+    "software_qa_analyst",
+    "devops_analyst",
+    "developer_productivity_analyst"
+   ],
+   "keywords": [
+    "test automation",
+    "flaky tests",
+    "ci",
+    "test suite",
+    "pipeline duration",
+    "coverage"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 44)"
+   ]
+  },
+  {
+   "id": "software_performance_analyst",
+   "name": "Software Performance Analyst",
+   "kind": "job_title",
+   "sub": "Performance",
+   "desc": "Profiles application response times, CPU and memory consumption, concurrency, execution bottlenecks, and throughput. Identifies root causes and recommends measurable optimizations.",
+   "alt": [
+    "Performance Engineer",
+    "Performance Test Analyst"
+   ],
+   "resp": [
+    "Measure latency and throughput",
+    "Locate bottlenecks in traces and profiles",
+    "Quantify fix impact"
+   ],
+   "know": [
+    "performance engineering",
+    "load testing",
+    "profiling"
+   ],
+   "terms": [
+    "p95",
+    "throughput",
+    "saturation",
+    "hot path",
+    "load profile"
+   ],
+   "methods": [
+    "percentile analysis",
+    "load test analysis",
+    "bottleneck attribution"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "root_cause",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "compare latency by endpoint and release",
+    "find saturation points",
+    "attribute time to spans"
+   ],
+   "req": [
+    "sql_query",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "log_analysis",
+    "change_point_detection"
+   ],
+   "sources": [
+    "APM traces",
+    "load test results",
+    "server metrics"
+   ],
+   "entities": [
+    "endpoints",
+    "requests",
+    "spans",
+    "releases"
+   ],
+   "fields": [
+    "endpoint",
+    "latency",
+    "timestamp",
+    "release"
+   ],
+   "verify": [
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "performance assessment",
+    "bottleneck analysis"
+   ],
+   "limits": [
+    "Traces must be exported to tabular form; there is no trace-native analysis."
+   ],
+   "examples": [
+    "Which endpoints got slower after the last release?",
+    "Where is time spent in checkout requests?"
+   ],
+   "related": [
+    "infrastructure_performance_analyst",
+    "database_performance_analyst",
+    "site_reliability_analyst"
+   ],
+   "keywords": [
+    "latency",
+    "performance",
+    "slow",
+    "throughput",
+    "p95",
+    "bottleneck",
+    "load test"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 45)"
+   ]
+  },
+  {
+   "id": "api_integration_analyst",
+   "name": "API & Integration Analyst",
+   "kind": "functional",
+   "sub": "APIs and integration",
+   "desc": "Evaluates API contracts, request flows, authentication, data mappings, error handling, and service interoperability. Diagnoses integration failures and assesses reliability across connected applications.",
+   "alt": [
+    "Integration Analyst",
+    "API Analyst"
+   ],
+   "resp": [
+    "Document and review API contracts",
+    "Investigate integration failures",
+    "Measure API usage and error rates"
+   ],
+   "know": [
+    "REST and event-driven APIs",
+    "API versioning",
+    "integration patterns"
+   ],
+   "terms": [
+    "endpoint",
+    "schema",
+    "breaking change",
+    "rate limit",
+    "idempotency"
+   ],
+   "methods": [
+    "contract review",
+    "error-rate analysis",
+    "consumer impact analysis"
+   ],
+   "tasks": [
+    "root_cause",
+    "performance_analysis",
+    "data_quality"
+   ],
+   "techniques": [
+    "group errors by endpoint and code",
+    "diff contract versions",
+    "identify affected consumers"
+   ],
+   "req": [
+    "sql_query",
+    "schema_validation"
+   ],
+   "opt": [
+    "log_analysis",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "API gateway logs",
+    "OpenAPI specifications",
+    "integration monitoring"
+   ],
+   "entities": [
+    "endpoints",
+    "consumers",
+    "requests"
+   ],
+   "fields": [
+    "endpoint",
+    "status code",
+    "consumer",
+    "timestamp"
+   ],
+   "verify": [
+    "contract_conformance"
+   ],
+   "outputs": [
+    "integration health report",
+    "contract review"
+   ],
+   "limits": [
+    "Reads exported gateway logs and specifications; Lyst does not call third-party APIs for testing."
+   ],
+   "examples": [
+    "Why did the payments integration error rate spike yesterday?",
+    "Which consumers break if we remove this field?"
+   ],
+   "related": [
+    "data_integration_analyst",
+    "software_systems_analyst",
+    "devops_analyst"
+   ],
+   "keywords": [
+    "api",
+    "integration",
+    "endpoint",
+    "webhook",
+    "error rate",
+    "breaking change",
+    "openapi"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 46)"
+   ]
+  },
+  {
+   "id": "devops_analyst",
+   "name": "DevOps Analyst",
+   "kind": "functional",
+   "sub": "Delivery",
+   "desc": "Analyzes build pipelines, deployment processes, infrastructure automation, release quality, and development operations. Identifies bottlenecks, configuration drift, and opportunities to improve delivery reliability.",
+   "alt": [
+    "Release Analyst",
+    "Delivery Analyst"
+   ],
+   "resp": [
+    "Measure DORA delivery metrics",
+    "Find pipeline bottlenecks",
+    "Analyse failed changes"
+   ],
+   "know": [
+    "CI/CD",
+    "release engineering",
+    "DORA research"
+   ],
+   "terms": [
+    "lead time for changes",
+    "deployment frequency",
+    "change failure rate",
+    "MTTR",
+    "pipeline stage"
+   ],
+   "methods": [
+    "DORA metric measurement",
+    "value stream mapping",
+    "change failure analysis"
+   ],
+   "tasks": [
+    "process_analysis",
+    "performance_analysis",
+    "root_cause"
+   ],
+   "techniques": [
+    "time each pipeline stage",
+    "link deployments to incidents",
+    "trend metrics by team"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "process_mining",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "CI/CD system",
+    "deployment records",
+    "incident tracker"
+   ],
+   "entities": [
+    "deployments",
+    "changes",
+    "pipelines",
+    "incidents"
+   ],
+   "fields": [
+    "commit time",
+    "deploy time",
+    "result",
+    "incident link"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "delivery performance report",
+    "bottleneck analysis"
+   ],
+   "limits": [
+    "Process discovery from pipeline events is not implemented; stage timings come from SQL."
+   ],
+   "examples": [
+    "What is our change failure rate this quarter?",
+    "Which pipeline stage adds the most lead time?"
+   ],
+   "related": [
+    "site_reliability_analyst",
+    "platform_engineering_analyst",
+    "developer_productivity_analyst"
+   ],
+   "keywords": [
+    "devops",
+    "deployment",
+    "dora",
+    "lead time",
+    "ci/cd",
+    "change failure",
+    "release pipeline"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 47)"
+   ]
+  },
+  {
+   "id": "site_reliability_analyst",
+   "name": "Site Reliability Analyst",
+   "kind": "functional",
+   "sub": "Reliability",
+   "desc": "Examines service availability, operational incidents, recovery performance, observability, and service-level objectives. Uses telemetry and incident evidence to improve system dependability.",
+   "alt": [
+    "SRE Analyst",
+    "Reliability Analyst"
+   ],
+   "resp": [
+    "Track SLOs and error budgets",
+    "Analyse incident patterns and causes",
+    "Prioritize reliability work"
+   ],
+   "know": [
+    "site reliability engineering",
+    "incident management",
+    "observability"
+   ],
+   "terms": [
+    "SLO",
+    "SLI",
+    "error budget",
+    "incident",
+    "postmortem"
+   ],
+   "methods": [
+    "error budget accounting",
+    "incident trend analysis",
+    "blameless postmortem review"
+   ],
+   "tasks": [
+    "performance_analysis",
+    "root_cause",
+    "anomaly_detection"
+   ],
+   "techniques": [
+    "compute burn rate",
+    "cluster incidents by cause",
+    "measure time to detect and resolve"
+   ],
+   "req": [
+    "metric_computation",
+    "anomaly_detection",
+    "sql_query"
+   ],
+   "opt": [
+    "log_analysis",
+    "change_point_detection"
+   ],
+   "sources": [
+    "monitoring metrics",
+    "incident records",
+    "postmortems"
+   ],
+   "entities": [
+    "services",
+    "SLOs",
+    "incidents"
+   ],
+   "fields": [
+    "service",
+    "timestamp",
+    "good and total events",
+    "incident severity"
+   ],
+   "verify": [
+    "measurement_conditions"
+   ],
+   "outputs": [
+    "SLO report",
+    "incident analysis",
+    "reliability backlog"
+   ],
+   "limits": [
+    "Works from exported metrics and incident records; no live alerting integration."
+   ],
+   "examples": [
+    "How much error budget has the checkout service used this month?",
+    "What causes most of our incidents?"
+   ],
+   "related": [
+    "devops_analyst",
+    "systems_operations_analyst",
+    "data_observability_analyst"
+   ],
+   "keywords": [
+    "sre",
+    "slo",
+    "error budget",
+    "incident",
+    "availability",
+    "uptime",
+    "reliability"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 48)"
+   ]
+  },
+  {
+   "id": "platform_engineering_analyst",
+   "name": "Platform Engineering Analyst",
+   "kind": "functional",
+   "sub": "Platform",
+   "desc": "Evaluates internal developer platforms, shared infrastructure, service capabilities, deployment standards, and engineering productivity. Identifies friction and reliability gaps in platform services.",
+   "alt": [
+    "Internal Platform Analyst"
+   ],
+   "resp": [
+    "Measure platform adoption and usage",
+    "Find developer friction points",
+    "Assess platform cost and value"
+   ],
+   "know": [
+    "internal developer platforms",
+    "developer experience",
+    "service catalogs"
+   ],
+   "terms": [
+    "golden path",
+    "self-service",
+    "service catalog",
+    "paved road",
+    "platform SLO"
+   ],
+   "methods": [
+    "adoption funnel analysis",
+    "friction logging",
+    "cost-to-serve analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "process_analysis",
+    "cost_analysis"
+   ],
+   "techniques": [
+    "measure template usage",
+    "trend support requests",
+    "compare onboarding time"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation"
+   ],
+   "opt": [
+    "driver_decomposition"
+   ],
+   "sources": [
+    "platform usage logs",
+    "service catalog",
+    "support tickets"
+   ],
+   "entities": [
+    "teams",
+    "services",
+    "templates"
+   ],
+   "fields": [
+    "team",
+    "service",
+    "template",
+    "timestamp"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "platform adoption report",
+    "friction analysis"
+   ],
+   "limits": [
+    "Developer sentiment needs survey data supplied as a dataset."
+   ],
+   "examples": [
+    "Which teams are not using the deployment golden path?",
+    "What does each platform service cost per team?"
+   ],
+   "related": [
+    "devops_analyst",
+    "developer_productivity_analyst",
+    "cloud_infrastructure_analyst"
+   ],
+   "keywords": [
+    "platform engineering",
+    "developer platform",
+    "golden path",
+    "self-service",
+    "service catalog"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 49)"
+   ]
+  },
+  {
+   "id": "technical_debt_analyst",
+   "name": "Technical Debt Analyst",
+   "kind": "functional",
+   "sub": "Maintainability",
+   "desc": "Investigates code complexity, architectural coupling, outdated dependencies, duplicated functionality, and maintainability risks. Prioritizes remediation by operational impact and long-term engineering cost.",
+   "alt": [
+    "Code Health Analyst",
+    "Maintainability Analyst"
+   ],
+   "resp": [
+    "Inventory and size technical debt",
+    "Link debt to defects, delay and incidents",
+    "Prioritize remediation"
+   ],
+   "know": [
+    "software maintainability",
+    "refactoring",
+    "code metrics"
+   ],
+   "terms": [
+    "code churn",
+    "hotspot",
+    "complexity",
+    "deprecation",
+    "interest"
+   ],
+   "methods": [
+    "hotspot analysis (churn x complexity)",
+    "cost-of-delay estimation",
+    "debt registers"
+   ],
+   "tasks": [
+    "code_analysis",
+    "risk_assessment",
+    "recommendation"
+   ],
+   "techniques": [
+    "rank files by churn and defects",
+    "estimate rework cost",
+    "track deprecated dependency use"
+   ],
+   "req": [
+    "code_analysis",
+    "sql_query"
+   ],
+   "opt": [
+    "driver_decomposition"
+   ],
+   "sources": [
+    "version control history",
+    "static analysis results",
+    "defect tracker"
+   ],
+   "entities": [
+    "files",
+    "modules",
+    "dependencies",
+    "defects"
+   ],
+   "fields": [
+    "file path",
+    "change count",
+    "complexity",
+    "defect links"
+   ],
+   "verify": [
+    "source_cited"
+   ],
+   "outputs": [
+    "technical debt register",
+    "remediation priorities"
+   ],
+   "limits": [
+    "Static analysis and version history must be exported; Lyst cannot read repositories yet."
+   ],
+   "examples": [
+    "Where is our technical debt costing us the most?",
+    "Which modules change most and break most?"
+   ],
+   "related": [
+    "software_systems_analyst",
+    "software_qa_analyst",
+    "developer_productivity_analyst"
+   ],
+   "keywords": [
+    "technical debt",
+    "tech debt",
+    "refactor",
+    "code quality",
+    "hotspots",
+    "maintainability"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 50)"
+   ]
+  },
+  {
+   "id": "developer_productivity_analyst",
+   "name": "Developer Productivity Analyst",
+   "kind": "functional",
+   "sub": "Engineering effectiveness",
+   "desc": "Measures development throughput, build times, code review delays, test reliability, and delivery friction. Identifies engineering workflow improvements without reducing quality to simplistic productivity metrics.",
+   "alt": [
+    "Engineering Effectiveness Analyst",
+    "DevEx Analyst"
+   ],
+   "resp": [
+    "Measure flow and cycle time",
+    "Find systemic blockers",
+    "Evaluate the impact of tooling changes"
+   ],
+   "know": [
+    "SPACE framework",
+    "DORA metrics",
+    "developer experience research"
+   ],
+   "terms": [
+    "cycle time",
+    "review latency",
+    "work in progress",
+    "flow efficiency",
+    "build time"
+   ],
+   "methods": [
+    "SPACE-based measurement",
+    "cycle time decomposition",
+    "before/after comparisons"
+   ],
+   "tasks": [
+    "process_analysis",
+    "performance_analysis",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "split cycle time into stages",
+    "trend review wait time",
+    "compare teams on systemic measures only"
+   ],
+   "req": [
+    "sql_query",
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "statistical_testing"
+   ],
+   "sources": [
+    "version control metadata",
+    "code review records",
+    "CI history"
+   ],
+   "entities": [
+    "pull requests",
+    "reviews",
+    "builds",
+    "teams"
+   ],
+   "fields": [
+    "opened and merged time",
+    "review times",
+    "team"
+   ],
+   "verify": [
+    "period_coverage"
+   ],
+   "outputs": [
+    "engineering flow report",
+    "blocker analysis"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Reports team-level and system-level measures only; it does not rank individual engineers."
+   ],
+   "examples": [
+    "Where does time go between opening and merging a pull request?",
+    "Did the new CI runners shorten cycle time?"
+   ],
+   "related": [
+    "devops_analyst",
+    "platform_engineering_analyst",
+    "test_automation_analyst"
+   ],
+   "keywords": [
+    "developer productivity",
+    "cycle time",
+    "pull request",
+    "code review",
+    "engineering velocity",
+    "devex"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 51)"
+   ]
+  },
+  {
+   "id": "product_analyst",
+   "name": "Product Analyst",
+   "kind": "job_title",
+   "sub": "Product analytics",
+   "desc": "Investigates product adoption, usage, engagement, retention, feature performance, and customer outcomes. Uses behavioral data and experimentation to guide product decisions.",
+   "alt": [
+    "Product Data Analyst",
+    "Product Insights Analyst"
+   ],
+   "resp": [
+    "Measure activation, engagement and retention",
+    "Analyse funnels and feature adoption",
+    "Evaluate product changes"
+   ],
+   "know": [
+    "product analytics",
+    "behavioural cohorts",
+    "experimentation"
+   ],
+   "terms": [
+    "activation",
+    "retention curve",
+    "DAU/MAU",
+    "funnel",
+    "feature adoption"
+   ],
+   "methods": [
+    "funnel analysis",
+    "cohort retention analysis",
+    "feature impact analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "segmentation",
+    "experiment_analysis",
+    "variance_explanation"
+   ],
+   "techniques": [
+    "build step funnels",
+    "compare cohorts by signup month",
+    "attribute changes to releases"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "statistical_testing",
+    "causal_impact"
+   ],
+   "sources": [
+    "product event data",
+    "user tables",
+    "feature flags"
+   ],
+   "entities": [
+    "users",
+    "events",
+    "features",
+    "accounts"
+   ],
+   "fields": [
+    "user id",
+    "event name",
+    "timestamp"
+   ],
+   "verify": [
+    "conversion_definition",
+    "period_coverage"
+   ],
+   "outputs": [
+    "product metrics report",
+    "funnel analysis",
+    "feature evaluation"
+   ],
+   "limits": [
+    "Clustering-based behavioural segments are not available; segments are rule-based."
+   ],
+   "examples": [
+    "Where do new users drop off in onboarding?",
+    "Did the new search feature improve weekly retention?"
+   ],
+   "related": [
+    "user_experience_analyst",
+    "growth_analyst",
+    "experimentation_analyst"
+   ],
+   "keywords": [
+    "product analytics",
+    "feature adoption",
+    "retention",
+    "funnel",
+    "activation",
+    "engagement",
+    "dau"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 52)"
+   ]
+  },
+  {
+   "id": "user_experience_analyst",
+   "name": "User Experience Analyst",
+   "kind": "job_title",
+   "sub": "UX research",
+   "desc": "Studies interaction patterns, task completion, navigation friction, accessibility, and user behavior. Converts quantitative telemetry and qualitative feedback into improvements to product usability.",
+   "alt": [
+    "UX Analyst",
+    "UX Researcher (quantitative)"
+   ],
+   "resp": [
+    "Measure task success and effort",
+    "Synthesize research findings",
+    "Recommend design improvements"
+   ],
+   "know": [
+    "usability",
+    "UX research methods",
+    "survey design"
+   ],
+   "terms": [
+    "task success",
+    "time on task",
+    "SUS score",
+    "friction",
+    "journey map"
+   ],
+   "methods": [
+    "usability metric analysis",
+    "journey mapping",
+    "survey analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "research_synthesis",
+    "text_analytics"
+   ],
+   "techniques": [
+    "compare task completion by path",
+    "theme qualitative feedback",
+    "map friction points"
+   ],
+   "req": [
+    "metric_computation",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "text_analytics",
+    "statistical_testing"
+   ],
+   "sources": [
+    "product events",
+    "survey responses",
+    "research notes"
+   ],
+   "entities": [
+    "users",
+    "tasks",
+    "sessions",
+    "feedback"
+   ],
+   "fields": [
+    "task",
+    "outcome",
+    "duration",
+    "feedback text"
+   ],
+   "verify": [
+    "source_cited"
+   ],
+   "outputs": [
+    "UX findings report",
+    "friction map",
+    "design recommendations"
+   ],
+   "limits": [
+    "Session recordings and heatmaps are not analysed; qualitative themes need ingested notes."
+   ],
+   "examples": [
+    "Where do users struggle in the checkout journey?",
+    "Summarize the themes from last month's usability sessions."
+   ],
+   "related": [
+    "product_analyst",
+    "digital_accessibility_analyst",
+    "customer_insights_analyst"
+   ],
+   "keywords": [
+    "ux",
+    "user experience",
+    "usability",
+    "friction",
+    "user research",
+    "journey"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 53)"
+   ]
+  },
+  {
+   "id": "digital_accessibility_analyst",
+   "name": "Digital Accessibility Analyst",
+   "kind": "job_title",
+   "sub": "Accessibility",
+   "desc": "Evaluates interfaces against accessibility requirements, assistive technology behavior, keyboard navigation, and inclusive design practices. Identifies barriers and validates accessible user journeys.",
+   "alt": [
+    "Accessibility Specialist",
+    "A11y Analyst"
+   ],
+   "resp": [
+    "Audit against WCAG success criteria",
+    "Prioritize barriers by impact",
+    "Verify remediation"
+   ],
+   "know": [
+    "WCAG 2.2",
+    "assistive technologies",
+    "inclusive design"
+   ],
+   "terms": [
+    "success criterion",
+    "contrast ratio",
+    "screen reader",
+    "ARIA",
+    "keyboard trap"
+   ],
+   "methods": [
+    "WCAG conformance review",
+    "severity and reach prioritization",
+    "remediation verification"
+   ],
+   "tasks": [
+    "compliance_review",
+    "risk_assessment"
+   ],
+   "techniques": [
+    "group audit findings by criterion",
+    "estimate affected users",
+    "track fix verification"
+   ],
+   "req": [
+    "sql_query",
+    "reporting"
+   ],
+   "opt": [
+    "knowledge_retrieval",
+    "document_extraction"
+   ],
+   "sources": [
+    "accessibility audit exports",
+    "issue tracker",
+    "standards documents"
+   ],
+   "entities": [
+    "pages",
+    "components",
+    "findings"
+   ],
+   "fields": [
+    "page or component",
+    "criterion",
+    "severity",
+    "status"
+   ],
+   "verify": [
+    "source_cited",
+    "human_review"
+   ],
+   "outputs": [
+    "accessibility audit summary",
+    "remediation priorities"
+   ],
+   "expertise.standards": [
+    "WCAG 2.2 AA",
+    "EN 301 549",
+    "Section 508"
+   ],
+   "limits": [
+    "Lyst does not crawl or test pages itself; it analyses audit results supplied as data."
+   ],
+   "examples": [
+    "Summarize our WCAG audit findings by severity.",
+    "Which barriers affect the most users?"
+   ],
+   "related": [
+    "user_experience_analyst",
+    "security_compliance_analyst",
+    "software_qa_analyst"
+   ],
+   "keywords": [
+    "accessibility",
+    "wcag",
+    "a11y",
+    "screen reader",
+    "contrast",
+    "ada compliance"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 54)"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1105 @@
+{
+ "domain": {
+  "id": "media_content_information",
+  "letter": "I",
+  "title": "Digital Media, Content, Communications & Information",
+  "summary": "Measuring audiences and content, monitoring information, and turning documents into usable knowledge.",
+  "defaults": {
+   "expertise.industry_context": [
+    "Publishers, media companies, communications teams and any organization with large content or document estates"
+   ],
+   "expertise.technical_concepts": [
+    "reach vs engagement",
+    "sampling bias in platform data",
+    "source reliability",
+    "document provenance"
+   ],
+   "expertise.standards": [
+    "Media Rating Council measurement standards",
+    "platform API terms of use",
+    "citation of sources for every claim"
+   ],
+   "analytics.statistical_methods": [
+    "engagement rate distributions",
+    "trend and seasonality",
+    "comparison of means across content groups"
+   ],
+   "analytics.computational_methods": [
+    "SQL aggregation of content and audience metrics",
+    "passage retrieval over documents"
+   ],
+   "analytics.modeling_approaches": [
+    "content performance benchmarks",
+    "audience funnels"
+   ],
+   "analytics.data_transformations": [
+    "normalization of metrics by reach or exposure",
+    "content taxonomy mapping",
+    "text extraction from documents"
+   ],
+   "analytics.visualization_methods": [
+    "content leaderboards normalized by exposure",
+    "trend lines",
+    "topic tables"
+   ],
+   "analytics.reporting": [
+    "performance report",
+    "briefing with cited sources",
+    "recommendation"
+   ],
+   "data.structures": [
+    "content metadata",
+    "platform analytics exports",
+    "documents and transcripts"
+   ],
+   "data.quality_requirements": [
+    "consistent content identifiers across platforms",
+    "comparable metric definitions across platforms"
+   ],
+   "data.temporal": [
+    "compare content at equal age since publication"
+   ],
+   "data.semantic_assumptions": [
+    "platform metric names (views, reach) follow each platform's definition and are not interchangeable"
+   ],
+   "resources.sql": [
+    "DuckDB SQL through the SQL guard"
+   ],
+   "resources.python_packages": [
+    "pandas",
+    "numpy"
+   ],
+   "resources.models": [
+    "classify",
+    "chat (summaries with citations)"
+   ],
+   "resources.environment": [
+    "in-process analysis of ingested data and documents"
+   ],
+   "execution.planning_depth": "standard",
+   "execution.decomposition": [
+    "fix the content set and window",
+    "normalize metrics",
+    "compare and find patterns",
+    "cite sources",
+    "report"
+   ],
+   "execution.resource_constraints": [
+    "task budget of the workspace"
+   ],
+   "execution.approval_conditions": [
+    "publishing or distributing summaries externally"
+   ],
+   "execution.verification_rules": [
+    "source_cited",
+    "period_coverage"
+   ],
+   "quality.correctness_criteria": [
+    "metrics compared on equal definitions and age",
+    "summaries cite their sources"
+   ],
+   "quality.domain_tests": [
+    "recompute normalized metrics",
+    "check citations support statements"
+   ],
+   "quality.expected_evidence": [
+    "content set and window",
+    "passages cited",
+    "metric definitions"
+   ],
+   "quality.reproducibility": [
+    "recorded queries, document versions and retrieval results"
+   ],
+   "quality.performance_measures": [
+    "engagement rate",
+    "time to insight"
+   ],
+   "quality.known_limitations": [
+    "Lyst does not fetch from social or news platforms; data and documents must be ingested."
+   ],
+   "governance.required_permissions": [
+    "data.query"
+   ],
+   "governance.sensitivity": "standard",
+   "governance.sensitive_handling": [
+    "respect copyright: summarize rather than reproduce",
+    "aggregate audience data"
+   ],
+   "governance.network": "none",
+   "governance.classification_notes": [
+    "unpublished content and internal documents keep their source classification"
+   ],
+   "governance.review_requirements": [
+    "communications owner review before external use"
+   ]
+  }
+ },
+ "roles": [
+  {
+   "id": "digital_media_analyst",
+   "name": "Digital Media Analyst",
+   "kind": "job_title",
+   "sub": "Media analytics",
+   "desc": "Evaluates how audiences consume digital publications, video, audio, social content, and interactive media. Measures reach, engagement, retention, distribution, and commercial performance.",
+   "alt": [
+    "Media Analyst",
+    "Audience Analyst (media)"
+   ],
+   "resp": [
+    "Report audience and engagement across properties",
+    "Explain changes in reach and revenue",
+    "Recommend distribution and programming changes"
+   ],
+   "know": [
+    "digital media business models",
+    "audience measurement",
+    "advertising and subscription revenue"
+   ],
+   "terms": [
+    "reach",
+    "unique visitors",
+    "engagement time",
+    "RPM",
+    "distribution"
+   ],
+   "methods": [
+    "audience trend analysis",
+    "revenue per audience analysis",
+    "channel mix analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "variance_explanation",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "decompose audience change by channel",
+    "normalize revenue by audience",
+    "compare properties"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "time_series_forecasting",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "web and app analytics",
+    "ad server reports",
+    "subscription data"
+   ],
+   "entities": [
+    "properties",
+    "channels",
+    "audiences"
+   ],
+   "fields": [
+    "date",
+    "property",
+    "audience",
+    "revenue"
+   ],
+   "verify": [],
+   "outputs": [
+    "media performance report",
+    "distribution recommendations"
+   ],
+   "limits": [
+    "Cross-platform audience deduplication requires supplied identity data."
+   ],
+   "examples": [
+    "Analyze audience engagement, content performance and recurring trends across our digital media data.",
+    "Why did RPM fall this quarter?"
+   ],
+   "related": [
+    "content_performance_analyst",
+    "audience_intelligence_analyst",
+    "video_analytics_analyst"
+   ],
+   "keywords": [
+    "media",
+    "audience",
+    "reach",
+    "rpm",
+    "publisher",
+    "digital media",
+    "engagement"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 103)"
+   ]
+  },
+  {
+   "id": "content_performance_analyst",
+   "name": "Content Performance Analyst",
+   "kind": "job_title",
+   "sub": "Content",
+   "desc": "Investigates the effectiveness of articles, videos, podcasts, newsletters, and other content formats. Connects content characteristics with audience behavior and organizational objectives.",
+   "alt": [
+    "Content Analyst",
+    "Editorial Analyst"
+   ],
+   "resp": [
+    "Measure content engagement and conversion",
+    "Find patterns across topics and formats",
+    "Guide content strategy"
+   ],
+   "know": [
+    "content strategy",
+    "editorial analytics",
+    "engagement measurement"
+   ],
+   "terms": [
+    "engaged time",
+    "scroll depth",
+    "evergreen content",
+    "format",
+    "topic cluster"
+   ],
+   "methods": [
+    "normalized content benchmarking",
+    "topic and format comparison",
+    "content decay analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "segmentation",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "compare content at equal age",
+    "group by topic and format",
+    "measure decay curves"
+   ],
+   "req": [
+    "metric_computation",
+    "driver_decomposition"
+   ],
+   "opt": [
+    "text_analytics",
+    "statistical_testing"
+   ],
+   "sources": [
+    "CMS metadata",
+    "web analytics",
+    "newsletter data"
+   ],
+   "entities": [
+    "articles",
+    "topics",
+    "authors",
+    "formats"
+   ],
+   "fields": [
+    "content id",
+    "publish date",
+    "topic",
+    "views",
+    "engaged time"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "content performance report",
+    "topic and format insights"
+   ],
+   "limits": [
+    "Topic modeling of text is not available; topics come from CMS tags."
+   ],
+   "examples": [
+    "Which topics drive the most engaged time?",
+    "Does long-form content convert better than short-form?"
+   ],
+   "related": [
+    "digital_media_analyst",
+    "search_seo_analyst",
+    "social_media_analyst"
+   ],
+   "keywords": [
+    "content performance",
+    "articles",
+    "engaged time",
+    "editorial",
+    "topics",
+    "content strategy"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 104)"
+   ]
+  },
+  {
+   "id": "social_media_analyst",
+   "name": "Social Media Analyst",
+   "kind": "job_title",
+   "sub": "Social",
+   "desc": "Analyzes platform engagement, audience growth, conversation trends, campaign results, and community behavior. Distinguishes meaningful audience signals from superficial engagement metrics.",
+   "alt": [
+    "Social Analyst",
+    "Social Insights Analyst"
+   ],
+   "resp": [
+    "Report social performance and audience growth",
+    "Track share of voice and sentiment themes",
+    "Measure social's business impact"
+   ],
+   "know": [
+    "social platforms",
+    "community management",
+    "social listening"
+   ],
+   "terms": [
+    "engagement rate",
+    "impressions",
+    "share of voice",
+    "follower growth",
+    "virality"
+   ],
+   "methods": [
+    "engagement benchmarking",
+    "share-of-voice analysis",
+    "post-level performance analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "text_analytics",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "normalize engagement by impressions",
+    "compare post formats",
+    "track mentions over time"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "text_analytics",
+    "anomaly_detection"
+   ],
+   "sources": [
+    "social platform exports",
+    "listening tool exports",
+    "web analytics"
+   ],
+   "entities": [
+    "posts",
+    "accounts",
+    "mentions"
+   ],
+   "fields": [
+    "post id",
+    "platform",
+    "date",
+    "impressions",
+    "engagements"
+   ],
+   "verify": [],
+   "outputs": [
+    "social performance report",
+    "share of voice analysis"
+   ],
+   "limits": [
+    "Sentiment scoring is not implemented; themes come from retrieval over ingested mentions."
+   ],
+   "examples": [
+    "Which post formats get the highest engagement rate?",
+    "How has our share of voice changed versus competitors?"
+   ],
+   "related": [
+    "media_monitoring_analyst",
+    "content_performance_analyst",
+    "audience_intelligence_analyst"
+   ],
+   "keywords": [
+    "social media",
+    "instagram",
+    "linkedin",
+    "tiktok",
+    "engagement rate",
+    "followers",
+    "share of voice"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 105)"
+   ]
+  },
+  {
+   "id": "audience_intelligence_analyst",
+   "name": "Audience Intelligence Analyst",
+   "kind": "functional",
+   "sub": "Audience",
+   "desc": "Studies audience segments, consumption preferences, loyalty, engagement frequency, and content interests. Helps publishers and media organizations improve their audience strategies.",
+   "alt": [
+    "Audience Insights Analyst"
+   ],
+   "resp": [
+    "Profile and segment audiences",
+    "Measure loyalty and frequency",
+    "Identify growth audiences"
+   ],
+   "know": [
+    "audience segmentation",
+    "loyalty measurement",
+    "first-party data"
+   ],
+   "terms": [
+    "loyalty tier",
+    "frequency",
+    "recency",
+    "audience segment",
+    "lookalike"
+   ],
+   "methods": [
+    "RFM segmentation",
+    "loyalty funnel analysis",
+    "cross-channel overlap analysis"
+   ],
+   "tasks": [
+    "segmentation",
+    "descriptive_reporting",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "recency-frequency tiers",
+    "compare segment consumption",
+    "track movement between tiers"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "clustering",
+    "statistical_testing"
+   ],
+   "sources": [
+    "first-party audience data",
+    "analytics",
+    "registration and subscription data"
+   ],
+   "entities": [
+    "audience members",
+    "segments",
+    "channels"
+   ],
+   "fields": [
+    "audience id",
+    "visit dates",
+    "channel",
+    "content consumed"
+   ],
+   "verify": [
+    "sample_size"
+   ],
+   "outputs": [
+    "audience segmentation",
+    "loyalty report"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Segments are rule-based; clustering is not implemented."
+   ],
+   "examples": [
+    "How many of our readers are loyal (weekly visitors)?",
+    "Which audience segments are growing?"
+   ],
+   "related": [
+    "customer_insights_analyst",
+    "digital_media_analyst",
+    "social_media_analyst"
+   ],
+   "keywords": [
+    "audience",
+    "readers",
+    "viewers",
+    "loyalty",
+    "segments",
+    "audience profile"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 106)"
+   ]
+  },
+  {
+   "id": "news_information_analyst",
+   "name": "News & Information Analyst",
+   "kind": "functional",
+   "sub": "Information analysis",
+   "desc": "Examines reporting, public records, news coverage, source credibility, chronology, and emerging developments. Produces evidence-backed summaries, comparisons, and contextual analysis.",
+   "alt": [
+    "Information Analyst",
+    "Research Analyst (news)"
+   ],
+   "resp": [
+    "Synthesize information on assigned topics",
+    "Assess source reliability",
+    "Produce cited briefings"
+   ],
+   "know": [
+    "information literacy",
+    "source evaluation",
+    "intelligence briefing"
+   ],
+   "terms": [
+    "primary source",
+    "corroboration",
+    "claim",
+    "reliability rating",
+    "briefing"
+   ],
+   "methods": [
+    "source triangulation",
+    "claim tracking",
+    "structured briefing"
+   ],
+   "tasks": [
+    "research_synthesis",
+    "text_analytics"
+   ],
+   "techniques": [
+    "corroborate claims across sources",
+    "date and attribute every statement",
+    "summarize by question"
+   ],
+   "req": [
+    "knowledge_retrieval",
+    "reporting"
+   ],
+   "opt": [
+    "web_research",
+    "text_analytics",
+    "document_extraction"
+   ],
+   "sources": [
+    "ingested news articles",
+    "reports",
+    "internal documents"
+   ],
+   "entities": [
+    "sources",
+    "claims",
+    "topics"
+   ],
+   "fields": [
+    "source",
+    "date",
+    "claim",
+    "passage"
+   ],
+   "verify": [],
+   "outputs": [
+    "cited briefing",
+    "claim tracker"
+   ],
+   "limits": [
+    "Lyst does not browse the web; briefings use documents ingested into the workspace."
+   ],
+   "examples": [
+    "Brief me on what our documents say about the new regulation.",
+    "Which claims about the merger are corroborated?"
+   ],
+   "related": [
+    "media_monitoring_analyst",
+    "technology_research_analyst",
+    "document_intelligence_analyst"
+   ],
+   "keywords": [
+    "news",
+    "briefing",
+    "information",
+    "sources",
+    "what do our documents say",
+    "summary of reports"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 107)"
+   ]
+  },
+  {
+   "id": "media_monitoring_analyst",
+   "name": "Media Monitoring Analyst",
+   "kind": "job_title",
+   "sub": "Monitoring",
+   "desc": "Tracks mentions, topics, narratives, sentiment, and communications activity across authorized media sources. Identifies emerging reputational issues and significant changes in coverage.",
+   "alt": [
+    "Media Intelligence Analyst",
+    "Coverage Analyst"
+   ],
+   "resp": [
+    "Track coverage volume and themes",
+    "Benchmark against competitors",
+    "Flag emerging issues"
+   ],
+   "know": [
+    "media monitoring",
+    "issues management",
+    "PR measurement"
+   ],
+   "terms": [
+    "mention",
+    "coverage volume",
+    "prominence",
+    "share of voice",
+    "issue"
+   ],
+   "methods": [
+    "coverage trend analysis",
+    "share-of-voice benchmarking",
+    "spike detection"
+   ],
+   "tasks": [
+    "anomaly_detection",
+    "trend_analysis",
+    "text_analytics"
+   ],
+   "techniques": [
+    "detect mention spikes",
+    "compare share of voice",
+    "group coverage by theme"
+   ],
+   "req": [
+    "metric_computation",
+    "anomaly_detection"
+   ],
+   "opt": [
+    "text_analytics",
+    "knowledge_retrieval"
+   ],
+   "sources": [
+    "monitoring tool exports",
+    "ingested articles",
+    "social mentions"
+   ],
+   "entities": [
+    "mentions",
+    "outlets",
+    "topics",
+    "competitors"
+   ],
+   "fields": [
+    "date",
+    "outlet",
+    "headline",
+    "topic"
+   ],
+   "verify": [],
+   "outputs": [
+    "coverage report",
+    "issue alert summary"
+   ],
+   "limits": [
+    "Tone and sentiment are not scored automatically."
+   ],
+   "examples": [
+    "Was there a spike in coverage about our product recall?",
+    "How does our coverage compare to competitors this month?"
+   ],
+   "related": [
+    "social_media_analyst",
+    "communications_analyst",
+    "news_information_analyst"
+   ],
+   "keywords": [
+    "media monitoring",
+    "coverage",
+    "mentions",
+    "press",
+    "share of voice",
+    "news coverage"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 108)"
+   ]
+  },
+  {
+   "id": "communications_analyst",
+   "name": "Communications Analyst",
+   "kind": "job_title",
+   "sub": "Communications",
+   "desc": "Evaluates internal and external communications for clarity, reach, engagement, effectiveness, and stakeholder response. Supports evidence-based communication strategy.",
+   "alt": [
+    "Comms Analyst",
+    "Internal Communications Analyst",
+    "PR Analyst"
+   ],
+   "resp": [
+    "Measure communication reach and engagement",
+    "Assess message effectiveness",
+    "Recommend channel and message changes"
+   ],
+   "know": [
+    "communications measurement",
+    "message testing",
+    "stakeholder communication"
+   ],
+   "terms": [
+    "open rate",
+    "message recall",
+    "outtake",
+    "outcome",
+    "channel mix"
+   ],
+   "methods": [
+    "AMEC measurement framework",
+    "survey-based message testing",
+    "channel effectiveness comparison"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "research_synthesis",
+    "experiment_analysis"
+   ],
+   "techniques": [
+    "compare engagement by channel",
+    "survey before and after",
+    "theme feedback"
+   ],
+   "req": [
+    "metric_computation",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "statistical_testing",
+    "text_analytics"
+   ],
+   "sources": [
+    "email and intranet analytics",
+    "surveys",
+    "media coverage"
+   ],
+   "entities": [
+    "communications",
+    "audiences",
+    "channels"
+   ],
+   "fields": [
+    "communication id",
+    "channel",
+    "audience",
+    "engagement"
+   ],
+   "verify": [],
+   "outputs": [
+    "communications effectiveness report",
+    "message recommendations"
+   ],
+   "limits": [
+    "Message recall and understanding need survey data."
+   ],
+   "examples": [
+    "Which internal channels actually reach frontline staff?",
+    "Did the policy announcement improve understanding?"
+   ],
+   "related": [
+    "media_monitoring_analyst",
+    "audience_intelligence_analyst",
+    "customer_insights_analyst"
+   ],
+   "keywords": [
+    "communications",
+    "internal comms",
+    "pr",
+    "message",
+    "announcement",
+    "newsletter"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 109)"
+   ]
+  },
+  {
+   "id": "video_analytics_analyst",
+   "name": "Video Analytics Analyst",
+   "kind": "functional",
+   "sub": "Video",
+   "desc": "Examines video engagement, watch time, retention curves, completion rates, audience behavior, and distribution performance. Identifies which content and production characteristics influence outcomes.",
+   "alt": [
+    "Video Audience Analyst",
+    "Streaming Analyst"
+   ],
+   "resp": [
+    "Measure starts, completion and watch time",
+    "Analyse audience retention curves",
+    "Evaluate video monetization"
+   ],
+   "know": [
+    "video platforms",
+    "streaming metrics",
+    "video advertising"
+   ],
+   "terms": [
+    "view-through rate",
+    "watch time",
+    "completion rate",
+    "retention curve",
+    "CPM"
+   ],
+   "methods": [
+    "retention curve analysis",
+    "content benchmarking by length",
+    "monetization analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "trend_analysis",
+    "segmentation"
+   ],
+   "techniques": [
+    "compare completion by length band",
+    "find drop-off points",
+    "normalize by impressions"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "anomaly_detection",
+    "driver_decomposition"
+   ],
+   "sources": [
+    "video platform analytics",
+    "ad server reports",
+    "streaming logs"
+   ],
+   "entities": [
+    "videos",
+    "viewers",
+    "sessions"
+   ],
+   "fields": [
+    "video id",
+    "date",
+    "starts",
+    "watch time",
+    "completions"
+   ],
+   "verify": [],
+   "outputs": [
+    "video performance report",
+    "retention analysis"
+   ],
+   "limits": [
+    "Video frames are not analysed; only viewing metrics."
+   ],
+   "examples": [
+    "Where do viewers drop off in our tutorial videos?",
+    "Which video lengths get the best completion?"
+   ],
+   "related": [
+    "digital_media_analyst",
+    "computer_vision_analyst",
+    "audio_podcast_analyst"
+   ],
+   "keywords": [
+    "video",
+    "youtube",
+    "watch time",
+    "completion rate",
+    "streaming",
+    "views"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 110)"
+   ]
+  },
+  {
+   "id": "audio_podcast_analyst",
+   "name": "Audio & Podcast Analyst",
+   "kind": "functional",
+   "sub": "Audio",
+   "desc": "Investigates listening behavior, completion, episode performance, audience growth, transcripts, and distribution. Supports audio-content strategy and performance improvement.",
+   "alt": [
+    "Podcast Analyst",
+    "Audio Analyst"
+   ],
+   "resp": [
+    "Measure downloads, listens and completion",
+    "Compare episodes and shows",
+    "Evaluate audio advertising"
+   ],
+   "know": [
+    "podcast measurement",
+    "audio advertising",
+    "audience growth"
+   ],
+   "terms": [
+    "download",
+    "listen-through rate",
+    "IAB podcast metrics",
+    "ad slot",
+    "episode"
+   ],
+   "methods": [
+    "episode benchmarking at equal age",
+    "listen-through analysis",
+    "ad performance analysis"
+   ],
+   "tasks": [
+    "descriptive_reporting",
+    "trend_analysis"
+   ],
+   "techniques": [
+    "compare episodes at 30 days",
+    "track listen-through by segment",
+    "trend subscribers"
+   ],
+   "req": [
+    "metric_computation",
+    "sql_query"
+   ],
+   "opt": [
+    "time_series_forecasting"
+   ],
+   "sources": [
+    "podcast hosting analytics",
+    "listening platform exports",
+    "ad reports"
+   ],
+   "entities": [
+    "shows",
+    "episodes",
+    "listeners"
+   ],
+   "fields": [
+    "episode id",
+    "publish date",
+    "downloads",
+    "listen-through"
+   ],
+   "verify": [],
+   "outputs": [
+    "podcast performance report",
+    "episode comparison"
+   ],
+   "limits": [
+    "Audio content is not transcribed or analysed by Lyst."
+   ],
+   "examples": [
+    "Which episodes performed best in their first 30 days?",
+    "Is our listener base growing?"
+   ],
+   "related": [
+    "video_analytics_analyst",
+    "speech_audio_ai_analyst",
+    "digital_media_analyst"
+   ],
+   "keywords": [
+    "podcast",
+    "audio",
+    "episodes",
+    "downloads",
+    "listeners",
+    "spotify"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 111)"
+   ]
+  },
+  {
+   "id": "document_intelligence_analyst",
+   "name": "Document Intelligence Analyst",
+   "kind": "functional",
+   "sub": "Documents",
+   "desc": "Extracts, classifies, reconciles, and interprets information from PDFs, spreadsheets, presentations, contracts, and other documents. Preserves source evidence and identifies inconsistencies across complex records.",
+   "alt": [
+    "Document Analyst",
+    "Intelligent Document Processing Analyst"
+   ],
+   "resp": [
+    "Extract structured facts and tables from documents",
+    "Verify extraction accuracy",
+    "Answer questions across documents with citations"
+   ],
+   "know": [
+    "document processing",
+    "information extraction",
+    "records management"
+   ],
+   "terms": [
+    "extraction",
+    "table",
+    "clause",
+    "citation",
+    "document version"
+   ],
+   "methods": [
+    "template-free table extraction",
+    "passage retrieval",
+    "extraction verification against source"
+   ],
+   "tasks": [
+    "document_extraction",
+    "research_synthesis",
+    "text_analytics"
+   ],
+   "techniques": [
+    "extract tables to datasets",
+    "cite page and passage",
+    "check row counts against source"
+   ],
+   "req": [
+    "document_extraction",
+    "knowledge_retrieval"
+   ],
+   "opt": [
+    "text_analytics"
+   ],
+   "sources": [
+    "PDF, DOCX, PPTX, HTML and Markdown documents"
+   ],
+   "entities": [
+    "documents",
+    "pages",
+    "tables",
+    "passages"
+   ],
+   "fields": [
+    "document",
+    "page",
+    "passage or table"
+   ],
+   "verify": [
+    "extraction_checked"
+   ],
+   "outputs": [
+    "extracted dataset",
+    "cited answer",
+    "document summary"
+   ],
+   "perms": [
+    "data.read",
+    "data.ingest"
+   ],
+   "sensitivity": "confidential",
+   "limits": [
+    "Scanned images are not read (no OCR)."
+   ],
+   "examples": [
+    "Extract the tables from these supplier contracts into a dataset.",
+    "What do our policy documents say about data retention?"
+   ],
+   "related": [
+    "nlp_text_analytics_analyst",
+    "news_information_analyst",
+    "multimodal_ai_analyst"
+   ],
+   "keywords": [
+    "document",
+    "pdf",
+    "contract",
+    "extract",
+    "tables from",
+    "policy documents",
+    "invoice"
+   ],
+   "provenance.revisions": [
+    "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 112)"
+   ]
+  }
+ ]
+}
