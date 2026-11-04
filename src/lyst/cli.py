@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""lyst init | init-demo | serve | ui | token | backup | restore | rotate-master-key | prune | eval"""
+"""lyst start | init | init-demo | serve | ui | token | backup | restore | rotate-master-key | prune | eval"""
 
 from __future__ import annotations
 
@@ -31,9 +31,10 @@ def _ensure_master_key() -> None:
         if masterkey.keyring_available() is None:
             sys.exit("No master encryption key: run the engine and open the interface on this machine to initialise it, or mount "
                      "the key for an unattended deployment (docs/SECURITY.md).")
-        masterkey.provision_into_keyring()
-        print(f"Generated the master key into the {masterkey.keyring_available()} credential store (service 'lyst'). "
-              "Keep a recovery copy: `lyst init --show` prints it only on first generation, so export it from the store.", file=sys.stderr)
+        mk = masterkey.provision_into_keyring()
+        print(f"Generated the master key into the {masterkey.keyring_available()} credential store (service 'lyst').\n"
+              "Recovery copy, shown once; keep it offline (Lyst never stores it):", file=sys.stderr)
+        print(mk.key.hex(), file=sys.stderr)
 
 
 def init_demo() -> None:
@@ -166,6 +167,85 @@ def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = Tru
     return new_key.hex()
 
 
+def _wait_http(url: str, seconds: float) -> dict | None:
+    import time
+    import urllib.request
+
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=2) as r:  # noqa: S310 - loopback
+                body = r.read()
+                return json.loads(body) if body.strip().startswith(b"{") else {}
+        except Exception:  # noqa: BLE001 - not up yet
+            time.sleep(0.4)
+    return None
+
+
+UI_HOST = "lyst.localhost"   # resolves to the loopback address on macOS, Linux and in every browser
+
+
+def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -> dict:
+    """One terminal: encryption, the demo if asked, the engine, the interface, and the browser at http://lyst.localhost:8501.
+    Ctrl-C stops everything."""
+    import signal
+    import webbrowser
+
+    from .secrets import masterkey
+
+    settings = load_settings()
+    if masterkey.resolve() is None and masterkey.keyring_available():
+        _ensure_master_key()
+    if demo:
+        init_demo()
+    api_port = os.environ.get("LYST_PORT", "8770")
+    ui_port = os.environ.get("LYST_UI_PORT", "8501")
+    env = {**os.environ, "LYST_HOME": str(settings.home), "LYST_API_URL": f"http://127.0.0.1:{api_port}",
+           "STREAMLIT_SERVER_HEADLESS": "true", "STREAMLIT_BROWSER_GATHER_USAGE_STATS": "false"}
+    root = Path(__file__).resolve().parents[2]
+    procs: list[subprocess.Popen] = []
+    try:
+        procs.append(subprocess.Popen([sys.executable, "-c", "from lyst.cli import main; main(['serve'])"], env=env, cwd=root))
+        health = _wait_http(f"http://127.0.0.1:{api_port}/health", 60)
+        if health is None:
+            raise SystemExit("the engine did not come up; see the lines above")
+        app = Path(__file__).parent / "ui" / "app.py"
+        procs.append(subprocess.Popen([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", ui_port, "--server.headless", "true",
+                                       "--browser.serverAddress", UI_HOST, "--server.address", "localhost"],
+                                      env=env, cwd=root))
+        if _wait_http(f"http://127.0.0.1:{ui_port}/_stcore/health", 60) is None:
+            raise SystemExit("the interface did not come up; see the lines above")
+        url = f"http://{UI_HOST}:{ui_port}"
+        print(f"\nLyst is running at {url}  (engine on http://127.0.0.1:{api_port}). Ctrl-C stops it.", file=sys.stderr)
+        if health.get("setup_required"):
+            print("First run: the page asks you to initialise encryption; keep the recovery key it shows once.", file=sys.stderr)
+        if open_browser:
+            webbrowser.open(url)
+        info = {"url": url, "api": f"http://127.0.0.1:{api_port}", "setup_required": bool(health.get("setup_required")), "pids": [p.pid for p in procs]}
+        if not hold:
+            return info
+        stop = {"now": False}
+
+        def _stop(*_):
+            stop["now"] = True
+
+        signal.signal(signal.SIGINT, _stop)
+        signal.signal(signal.SIGTERM, _stop)
+        while not stop["now"] and all(p.poll() is None for p in procs):
+            signal.pause() if hasattr(signal, "pause") else __import__("time").sleep(0.5)
+        return info
+    finally:
+        if hold:
+            for p in procs:
+                if p.poll() is None:
+                    p.terminate()
+            for p in procs:
+                try:
+                    p.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    p.kill()
+
+
 def backup(dest: Path) -> None:
     from .app import Lyst
 
@@ -251,6 +331,9 @@ def run_eval(label: str) -> None:
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="lyst")
     sub = p.add_subparsers(dest="cmd", required=True)
+    st = sub.add_parser("start", help="one terminal: encryption, the engine, the interface and the browser at http://lyst.localhost:8501")
+    st.add_argument("--demo", action="store_true", help="also seed the Northwind demo workspace on first run")
+    st.add_argument("--no-browser", action="store_true")
     sub.add_parser("init-demo", help="create the demo workspace and a development token")
     sub.add_parser("serve", help="run the API and workers")
     sub.add_parser("ui", help="run the Streamlit interface")
@@ -282,7 +365,9 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _dispatch(args) -> None:
-    if args.cmd == "init-demo":
+    if args.cmd == "start":
+        start(demo=args.demo, open_browser=not args.no_browser)
+    elif args.cmd == "init-demo":
         init_demo()
     elif args.cmd == "serve":
         from .api import main as serve
@@ -312,6 +397,6 @@ def _dispatch(args) -> None:
         app = Path(__file__).parent / "ui" / "app.py"
         settings = load_settings()
         env = {**os.environ, "LYST_HOME": str(settings.home)}
-        sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app),
+        sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app), "--browser.serverAddress", UI_HOST,
                                   "--server.port", os.environ.get("LYST_UI_PORT", "8501")], env=env,
                                  cwd=Path(__file__).resolve().parents[2]))

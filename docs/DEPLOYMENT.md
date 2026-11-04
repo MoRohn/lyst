@@ -27,7 +27,8 @@ image build and the services are checked in CI once it exists.
 
 ## A workstation or a single server without containers
 
-`uv run lyst serve`, open the UI: with no master key anywhere the engine is in **setup mode** and the UI's
+`uv run lyst start` runs the engine and the interface from one terminal and opens http://lyst.localhost:8501
+(`--demo` seeds the demo workspace; Ctrl-C stops both). With no master key anywhere the engine is in **setup mode** and the UI's
 first page initialises encryption from the engine host (loopback only), generating the key into the OS
 credential store and showing a recovery copy once. `lyst init` does the same from a terminal; `lyst init
 --recovery` restores a saved key on a rebuilt machine. Headless Linux without Secret Service: mount the key

@@ -20,10 +20,9 @@ answer with the evidence behind it. It is judged by completed, verifiable work, 
 
 ```bash
 uv sync --all-extras
-uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
-uv run lyst serve            # API + workers on http://127.0.0.1:8770
-uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 185 tests
+uv run lyst start --demo     # one terminal: encryption, the Northwind demo, engine and interface; opens http://lyst.localhost:8501
+# (or separately: lyst init-demo, lyst serve on http://127.0.0.1:8770, lyst ui)
+uv run pytest                # 186 tests
 uv run lyst eval             # scores 19 analytical questions against independent answers
 ```
 
