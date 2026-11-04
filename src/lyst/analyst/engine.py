@@ -11,6 +11,7 @@ is rejected (Acumane's ``unbackedClaims`` rule, ported).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -249,7 +250,17 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
     ref = ctx.request.get("workflow")
     if not ref and ctx.services.skills and ctx.services.skills.match(ctx.actor, ctx.workspace_id, text):
         return None  # a capability registered since the workflow was compiled now fits better: plan afresh
-    wf = wfs.for_run(ctx.actor, ctx.workspace_id, ref) if ref else wfs.match(ctx.actor, ctx.workspace_id, text)
+    if ref and ref.get("fallback"):
+        # a schedule names its workflow but asks a full question: if the workflow went stale or was retired,
+        # plan the question afresh (and recompile on a verified answer) instead of failing the recurring run
+        from ..workflows import WorkflowStale  # noqa: PLC0415
+
+        try:
+            wf = wfs.for_run(ctx.actor, ctx.workspace_id, {"id": ref["id"]})
+        except WorkflowStale:
+            wf = None
+    else:
+        wf = wfs.for_run(ctx.actor, ctx.workspace_id, ref) if ref else wfs.match(ctx.actor, ctx.workspace_id, text)
     if not wf:
         return None
     u = dict(wf["definition"]["understanding"])
@@ -273,10 +284,14 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     for name in u["metrics"]:
         spec = s.semantic.get(ctx.actor, ctx.workspace_id, name)
         ds = catalog.get(spec.dataset, {})
-        md = _max_date(ctx, spec)
+        have = {col["name"] for col in ds.get("schema", [])}
+        missing = sorted(spec.columns() - have) if ds else []
+        # schema drift: a column the definition needs is gone from the current version; plan() blocks on it
+        md = _max_date(ctx, spec) if not missing else None
         anchor = anchor or md
         metrics.append({"spec": spec.model_dump(), "dataset_version": ds.get("version"),
-                        "dataset_rows": ds.get("row_count"), "max_date": md.isoformat() if md else None})
+                        "dataset_rows": ds.get("row_count"), "max_date": md.isoformat() if md else None,
+                        "missing_columns": missing})
     memory = s.memory.recall(ctx.actor, ctx.workspace_id, u["question"], limit=5)
     period = None
     if anchor:
@@ -317,6 +332,7 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     def add(cap: str, key: str, after: list[str] | None = None, **a):
         steps.append({"capability": cap, "key": key, "args": a, "after": after if after is not None else ["plan"]})
 
+    drift = [m for m in c.get("metrics", []) if m.get("missing_columns")]
     if u["ambiguous"]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
@@ -354,6 +370,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             add("quality_scan", "quality", dataset=u["dataset"])
         else:
             blockers.append("Name the dataset to profile. Available: " + ", ".join(c["datasets"]))
+    elif drift:
+        for m in drift:
+            blockers.append(f"The approved definition of {m['spec']['title'].lower()} needs column(s) "
+                            f"{', '.join(m['missing_columns'])}, which {m['spec']['dataset']} v{m['dataset_version']} no longer "
+                            "has. Lyst did not compute it on a changed schema. An admin can update the metric in "
+                            "Intelligence, or the data owner can restore the column.")
     elif not u["metrics"]:
         if not blockers:
             blockers.append("No approved metric matches this request. Approved metrics are listed in "
@@ -429,6 +451,18 @@ def _compiled_plan(ctx: Context, u: dict[str, Any], c: dict[str, Any]) -> dict[s
     d = wf["definition"]
     return {"steps": steps, "blockers": [], "depth": d.get("depth"), "verification": d["validation"]["intensity"],
             "strategy": "compiled", "workflow": ref, "success_criteria": d.get("success_criteria", [])}
+
+
+_DOWN = re.compile(r"\b(declin\w*|fall(s|en|ing)?|fell|drop(s|ped|ping)?|decreas\w*|shr[iau]nk\w*|worsen\w*|"
+                   r"deteriorat\w*|(go|went|gone) down|slump\w*|weaken\w*)\b", re.I)
+_UP = re.compile(r"\b(rise|rises|rising|risen|rose|increas\w*|gr[eo]w(s|n|ing)?|improv\w*|(go|went|gone) up|"
+                 r"jump(s|ed|ing)?|climb\w*|strengthen\w*)\b", re.I)
+
+
+def _premise(question: str) -> str | None:
+    """The direction a request takes for granted ("why did margin decline"), or None if it takes none or both."""
+    down, up = bool(_DOWN.search(question)), bool(_UP.search(question))
+    return "down" if down and not up else ("up" if up and not down else None)
 
 
 def _prev_period(p: dict[str, Any]) -> dict[str, Any]:
@@ -768,8 +802,15 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if c.get("period") and "current" in o:
         anchor = date.fromisoformat(c["period"]["anchor"])
         end = date.fromisoformat(c["period"]["end"])
+        to_date = bool(_TO_DATE.search(ctx.outputs["understand"]["question"])) or c["period"].get("grain") == "ytd"
+        # comparing a period the data covers only partly with a complete one manufactures a change; that is an
+        # error unless the person asked for period-to-date
         check("freshness", anchor >= end - pd.Timedelta(days=1),
-              f"data runs to {anchor.isoformat()}; the period ends {end.isoformat()} (exclusive)", "warning")
+              f"data runs to {anchor.isoformat()}; {c['period']['label']} ends {end.isoformat()} (exclusive), so it is "
+              "incomplete" + ("" if to_date else " and not comparable with a complete period"),
+              "warning" if to_date else "error")
+    for name, passed, detail, severity in _integrity(ctx):
+        check(name, passed, detail, severity)
     d = o.get("drivers")
     if d and "by_dimension" in d and "current" in o and "prior" in o:
         cur, prev = o["current"]["value"], o["prior"]["value"]
@@ -830,6 +871,72 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")
     return {"checks": checks, "status": status, "intensity": intensity}
+
+
+_TO_DATE = re.compile(r"\b(this|current) (quarter|month|year)\b|\b(ytd|year to date|so far|to date)\b", re.I)
+_CURRENCY_COL = re.compile(r"^(currency|ccy|currency_code|iso_currency|cur)$", re.I)
+
+
+def _integrity(ctx: Context) -> list[tuple[str, bool, str, str]]:
+    """Data problems that make a correct-looking number wrong (master prompt 4.1), checked inside the period
+    actually analysed: exact duplicate rows, several currencies summed together, and periods the data covers
+    only partly at the start. Checks a role cannot run (column policies) are left out, not failed."""
+    from ..data.sqlguard import QueryRejected  # noqa: PLC0415
+    from ..security import AccessDenied  # noqa: PLC0415
+
+    o = ctx.outputs
+    cur = o.get("current")
+    metrics = (o.get("contextualize") or {}).get("metrics") or []
+    if not cur or not metrics or "period" not in cur:
+        return []
+    spec = MetricSpec.model_validate(metrics[0]["spec"])
+    if not spec.time_column:
+        return []
+    out: list[tuple[str, bool, str, str]] = []
+    p = cur["period"]
+    tc, ds = f'"{spec.time_column}"', f'"{spec.dataset}"'
+    where = f"{tc} >= DATE '{p['start']}' AND {tc} < DATE '{p['end']}'"
+    schema = next((d["schema"] for d in ctx.services.data.catalog(ctx.actor, ctx.workspace_id) if d["name"] == spec.dataset), [])
+    cols = [col["name"] for col in schema]
+    try:
+        r = _query(ctx, f"SELECT count(*), (SELECT count(*) FROM (SELECT DISTINCT * FROM {ds} WHERE {where})) "
+                        f"FROM {ds} WHERE {where}")
+        n, distinct = r.rows[0]
+        if n:
+            dup = n - distinct
+            out.append(("duplicate_rows", dup == 0,
+                        f"{dup} of {n} rows in {p['label']} are exact duplicates of another row; totals would be "
+                        f"overstated" if dup else f"no exact duplicate rows among {n} in {p['label']}", "error"))
+    except (QueryRejected, AccessDenied):
+        pass
+    filtered = {f["column"] for f in (ctx.outputs["understand"].get("filters") or [])} | {
+        f.column for m in (spec.measure, spec.numerator, spec.denominator) if m for f in m.filters} | {
+        f.column for f in spec.filters}
+    for col in cols:
+        if _CURRENCY_COL.match(col) and col not in filtered:
+            try:
+                vals = [v for (v,) in _query(ctx, f'SELECT DISTINCT "{col}" FROM {ds} WHERE {where} ORDER BY 1').rows
+                        if v is not None]
+            except (QueryRejected, AccessDenied):
+                continue
+            out.append(("single_currency", len(vals) <= 1,
+                        f"{spec.title} adds amounts in {len(vals)} currencies ({', '.join(map(str, vals[:5]))}) in "
+                        f"{p['label']}; convert to one currency or ask by {col}" if len(vals) > 1
+                        else f"one currency ({vals[0] if vals else 'none'})", "error"))
+    try:
+        lo = _query(ctx, f"SELECT min({tc}) FROM {ds}").rows[0][0]
+    except (QueryRejected, AccessDenied):
+        lo = None
+    if lo is not None:
+        lo = pd.Timestamp(lo).date()
+        for key, sev in (("current", "error"), ("prior", "error"), ("year_ago", "warning")):
+            v = o.get(key)
+            if v and "period" in v and (v.get("rows_in_period") or 0):
+                start = date.fromisoformat(v["period"]["start"])
+                if lo > start:
+                    out.append((f"period_start:{key}", False, f"the data starts {lo.isoformat()}, after "
+                                f"{v['period']['label']} begins ({start.isoformat()}), so that period is incomplete", sev))
+    return out
 
 
 def _independent_recompute(ctx: Context, current: dict[str, Any]) -> dict[str, Any]:
@@ -896,6 +1003,18 @@ def _numbers(text: str) -> list[float]:
         except ValueError:
             pass
     return out
+
+
+def _same_figures(prior: str, template: str, final: str) -> bool | None:
+    """Do two answers state the same figures? Wording may differ (a corrected premise, a model's narrative);
+    the numbers may not. None when either states no figures, so they cannot be compared."""
+    if prior in (template, final):
+        return True
+    a = {round(x, 6) for x in _numbers(prior)}
+    b = {round(x, 6) for x in _numbers(template)}
+    if not a or not b:
+        return None
+    return a <= b or b <= a
 
 
 def unbacked_numbers(text: str, allowed: list[float]) -> list[float]:
@@ -1063,6 +1182,16 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             if ya and ya["value"] is not None and cur["value"] is not None:
                 parts.append(f"and {fmt(cur['value'] - ya['value'], spec, delta=True)} versus {ya['period']['label']}")
             answer = parts[0] + (", " + ", ".join(parts[1:]) if len(parts) > 1 else "") + "."
+            premise = _premise(u["question"])
+            if premise and prev and prev["value"] is not None and cur["value"] is not None:
+                dlt = cur["value"] - prev["value"]
+                if (premise == "down" and dlt >= 0) or (premise == "up" and dlt <= 0):
+                    # a wrong premise is said first, not answered as if it were true
+                    moved = "was unchanged" if dlt == 0 else ("rose" if dlt > 0 else "fell")
+                    answer = (f"{spec.title} did not {'decline' if premise == 'down' else 'increase'} in "
+                              f"{cur['period']['label']}; it {moved} versus {prev['period']['label']}. " + answer)
+                    assumptions.append("The request assumed a " + ("decline" if premise == "down" else "rise")
+                                       + " that the data does not show; the drivers below explain the actual change.")
         d = o.get("drivers")
         if d and d.get("best"):
             b = d["best"]
@@ -1251,11 +1380,31 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if u.get("filters") and spec:
             assumptions.append("Filtered to " + ", ".join(f"{f['column']} = {f['value']}" for f in u["filters"]) + ".")
         status = "complete" if v["status"] != "failed" else "unverified"
+        # a number that failed verification is never presented first: the reason is (missing data already says so)
+        failed = [c for c in v["checks"] if not c["passed"] and c["severity"] == "error" and not c["name"].startswith("coverage")]
+        if status == "unverified" and answer and failed:
+            answer = f"Not verified: {failed[0]['detail']}. As computed, " + answer[0].lower() + answer[1:]
+            if any(c["name"] in ("duplicate_rows", "single_currency") or c["name"].startswith(("freshness", "period_start"))
+                   for c in failed):
+                implications.insert(0, "Do not use these figures for decisions until the data problem above is fixed.")
+                actions.insert(0, "Ask the dataset owner to fix the data (or ask Lyst for a period or split the data covers "
+                                  "cleanly), then run this again.")
 
     narrative_by = "template"
+    template_answer = answer
     allowed: list[float] = []
     _collect_numbers({k: o.get(k) for k in o if k not in ("understand",)}, allowed)
-    if status == "complete" and ctx.services.llm.allowed_for(ctx.workspace_id) and findings:
+    narrative_key = hashlib.sha256(json.dumps({"answer": answer, "findings": findings}, sort_keys=True,
+                                              default=str).encode()).hexdigest()[:24]
+    reused = None
+    if status == "complete" and findings:
+        # the same answer and findings were already worded by a model and verified: reuse that wording
+        reused = ctx.services.semantic.stores.workspace(ctx.workspace_id).query(
+            "SELECT answer->>'$.answer' AS text FROM analyses WHERE evidence->>'$.narrative_key' = ? "
+            "AND starts_with(evidence->>'$.narrative_by', 'model') ORDER BY created_at DESC LIMIT 1", [narrative_key])
+    if reused and not unbacked_numbers(reused[0]["text"], allowed):
+        answer, narrative_by = reused[0]["text"], "model (numbers verified; reused for identical findings)"
+    elif status == "complete" and ctx.services.llm.allowed_for(ctx.workspace_id) and findings:
         try:
             text = ctx.services.llm.chat(ctx.workspace_id, [
                 {"role": "system", "content": "Rewrite the answer and findings as two short executive sentences. "
@@ -1293,7 +1442,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             continue
         same_sources = {(x["dataset"], x["version"]) for x in pa.get("sources", [])}
         consistency = {"analysis_id": pa["analysis_id"], "at": pa["at"], "answer": pa["answer"],
-                       "same_data": None, "agrees": pa["answer"] == answer}
+                       "same_data": None, "agrees": _same_figures(pa["answer"], template_answer, answer)}
         break
     sources = []
     for m in c.get("metrics", []):
@@ -1306,10 +1455,10 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                             "rows": vr["row_count"], "loaded_at": str(vr["created_at"]), "data_through": m["max_date"]})
     if consistency:
         consistency["same_data"] = same_sources == {(x["dataset"], x["version"]) for x in sources}
-        if not consistency["agrees"] and consistency["same_data"]:
+        if consistency["agrees"] is False and consistency["same_data"]:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) on the same data answered differently: "
                                f"\"{consistency['answer'][:160]}\". Review both before relying on either.")
-        elif not consistency["agrees"]:
+        elif consistency["agrees"] is False:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) answered differently on an earlier data version.")
     assumptions += context_notes
     audience = u.get("audience", "analyst")
@@ -1339,6 +1488,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "assumptions": assumptions,
             "plan": [{"capability": s["capability"], "agent": s["agent"]} for s in pl["steps"]],
             "narrative_by": narrative_by,
+            "narrative_key": narrative_key,
             "workflow": {"used": u.get("workflow"), "strategy": pl.get("strategy", "planned"), "compiled": None},
             "reproduce": "Re-run each query in Supporting work against the dataset versions listed; the metric "
                          "definition version is pinned above.",

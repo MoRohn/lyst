@@ -112,6 +112,13 @@ def instantiate(value: Any, slots: dict[str, dict]) -> Any:
     return value
 
 
+def fill_period(purpose: str, period: str) -> str:
+    """'Why did margin decline in {period}?' with 'Q4 2026' or 'last quarter' (no 'in last quarter')."""
+    if period.lower().startswith(("last ", "this ", "previous ")):
+        return re.sub(r"\b(?:in|for|during|over)\s+\{period\}", period, purpose).replace("{period}", period)
+    return purpose.replace("{period}", period)
+
+
 class WorkflowStale(ValueError):
     """The workflow's data dependencies changed since it was verified; it must not run as compiled."""
 
@@ -315,12 +322,23 @@ class WorkflowService:
         if period and not re.fullmatch(r"[A-Za-z0-9 '\-]{2,24}", period):
             raise ValueError("period must look like 'Q4 2026', 'Aug 2026', '2025' or 'last quarter'")
         if period and "{period}" in purpose:
-            question = purpose.replace("{period}", period)
+            question = fill_period(purpose, period)
         elif period:
             question = f"{purpose} ({period})"
         else:
             question = purpose
         return runtime.submit(actor, ws, question, kind="workflow", workflow={"id": wf["id"], "version": wf["version"]})
+
+    def schedule(self, actor: Principal, ws: str, wf_id: str, runtime, every_seconds: int) -> dict[str, Any]:
+        """A recurring run of the compiled workflow on a rolling period (the last complete one at run time).
+        Needs an admin's approval like any schedule; falls back to planning if the workflow goes stale."""
+        wf = self.for_run(actor, ws, {"id": wf_id})
+        grain = (wf["definition"]["inputs"].get("period") or {}).get("grain")
+        purpose = wf["definition"]["purpose"]
+        rolling = f"last {grain}" if grain in ("quarter", "month", "year") else None
+        question = fill_period(purpose, rolling) if rolling else purpose
+        return runtime.create_schedule(actor, ws, wf["title"], question, every_seconds,
+                                       workflow={"id": wf["id"], "fallback": True})
 
     def retire(self, actor: Principal, ws: str, wf_id: str) -> None:
         self.guard.require(actor, ws, "skill.propose", wf_id)

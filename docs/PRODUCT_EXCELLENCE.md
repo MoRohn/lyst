@@ -93,3 +93,65 @@ model); the narrative call is kept on compiled runs by design, because wording i
 Scenario coverage after this pass: A, C (adversarial), G (resume) and H (isolation) by existing tests; B and D by
 `test_workflows.py` and the benchmark; E (cross-product continuity) partly, Build › Workflows → Analyst, checked
 in the running app; F (first-time user) by the journey table above, not yet with a person.
+
+
+## Pass 2, 2026-11-04: open items, adversarial data, and the interface revamp
+
+Baseline 188 tests on `main` at `2143664`; after this pass 219 (31 new). `lyst eval` 19/19.
+
+### Closed from the open register
+
+| # | Finding | Fix | Proof |
+|---|---|---|---|
+| O1 | A task whose answer needs the person's input was shown as *Done* | Tasks carry an `outcome` (complete, needs input, not verified); every list shows it; Work and Home list them under *Needs you* | `test_a_finished_task_reports_its_outcome…` |
+| O2 | Schedules re-asked the question text | A schedule can run a compiled workflow on a rolling period and plans afresh if it went stale | `test_a_scheduled_workflow_runs_compiled…` |
+| O3 | Work fetched and drew all tabs on every rerun | Three views; only the one in view is fetched, each reruns alone | Running app |
+| O4 | `Failed to detach context` logged on every suite run | Spans always closed; abandoned requests end their span without detaching in a foreign context | 0 occurrences in the suite (was 1 per run) |
+| O7 | Depth and format fixed by keywords | One answer, four depths (Business, Analyst, Engineer, Executive), switched without re-running and remembered; caveats visible at every depth | `test_ui_answer.py` |
+| O8 | The model reworded identical findings on every run | Identical answer and findings reuse the earlier verified wording | `test_identical_findings_reuse…` |
+
+### New findings, found by probing, and fixed (scenario C)
+
+| Finding (before) | Sev | Now | Proof |
+|---|---|---|---|
+| Six duplicated rows made Q3 revenue 24% higher and the answer said **verified** | S1 | `duplicate_rows` error inside the analysed period; the answer leads with "Not verified: 6 of 42 rows…" | `test_adversarial_data.py` |
+| EUR and USD amounts were summed and **verified** | S1 | `single_currency` error unless filtered to one currency | same |
+| A quarter with two of three months showed a 31.5% "decline" with only a warning, and "why did it decline" accepted the premise | S1 | Incomplete current or prior period is an error unless the person asked period-to-date | same |
+| Data starting inside the prior period compared a partial with a full period | S1 | `period_start:*` checks | same |
+| A dropped metric column crashed the task with a raw database error | S2 | A plain blocker naming the column and the dataset version | same |
+| A corrupt upload returned a server error | S3 | HTTP 400 with what to fix; nothing loaded | same |
+| "Why did margin decline" when it rose was answered as if it had declined | S1 | The answer says first that it rose | `test_premise.py` |
+| A reworded or narrated answer was reported as contradicting an earlier one | S2 | Consistency compares figures, not wording | `test_rewording_is_not_a_contradiction…` |
+
+### Interface revamp
+
+Rohn's verdict on the interface was that it was fragmented and not user-friendly. What changed:
+
+* **One navigation.** The six areas live in the sidebar with the logo, the workspace and an account menu; Work shows how
+  many things wait on you.
+* **One design kit** (`src/lyst/ui/kit.py`): page header with one primary action, at most three sections per page (kept
+  in the URL), list rows with status chips instead of raw tables, empty states that say what to do, toasts for every
+  action, readable times ("26 min ago"), and one stylesheet that also keeps rows on one line on a phone.
+* **Analyst is home**: the ask box, suggestions generated from the workspace's own metrics, what Lyst can use, *Needs you*
+  (approvals, unread findings, answers waiting on you) and *Continue where you left off*. Follow-ups sit under the answer.
+* **Work** = Needs you · Activity · Recurring (schedules, monitors, findings); a task's steps open in a dialog.
+  **Data** = Datasets · Connections · SQL with one *Add data* dialog (upload or connect; the dataset name is derived from
+  the file). **Intelligence** = Definitions · Documents · Memory. **Build** = Workflows · Dashboards · Skills, with a
+  *New dashboard* form instead of a sentence you had to know.
+
+Measured by walking each journey in the running app (clicks after arriving at Lyst):
+
+| Journey | Before | After |
+|---|---:|---:|
+| Approve a waiting step | 3, and nothing told you one was waiting | 2, with a count in the navigation and on Home |
+| Add a CSV as a dataset | 5 (tab, file, type a name, add) | 4 (name filled in) |
+| Build a dashboard | Only by typing the exact phrasing | 4 (New dashboard, metrics, split, Build it) |
+| Schedule a recurring analysis on a verified workflow | Not possible | 3 |
+| Reopen earlier work | Scroll, Open | 1 from Home |
+| Export a briefing | 2 (pass 1 made it 1) | 1 |
+| Sub-views across the five work areas | 21 tabs | 12 sections + Home |
+
+Every page is rendered headlessly against the in-process API in `tests/test_ui_pages.py` (no page may raise); light,
+dark and phone widths were checked in a browser. Limitations: Streamlit decides much of the chrome (the sidebar toggle,
+dialog sizes); Settings keeps the build thread's layout under the shared header; no usability session with a first-time
+user has been run yet (scenario F).

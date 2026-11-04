@@ -133,3 +133,13 @@ def test_a_repeated_question_does_not_pile_up_duplicate_memories(seeded):
     rows = lyst.stores.workspace("northwind").query(
         "SELECT count(*) AS n, count(DISTINCT content) AS d FROM memory WHERE content LIKE 'Q: What was revenue in Q3 2026%'")
     assert rows == [{"n": 1, "d": 1}]
+
+
+def test_rewording_is_not_a_contradiction_but_different_figures_are():
+    from lyst.analyst.engine import _same_figures
+
+    base = "Operating margin was 36.0% in Q4 2025, +0.2 pts versus Q3 2025 (35.9%)."
+    reworded = "Operating margin did not decline in Q4 2025; it rose versus Q3 2025. " + base
+    assert _same_figures(base, reworded, reworded) is True
+    assert _same_figures(base, base.replace("36.0%", "31.0%"), "x") is False
+    assert _same_figures("EMEA drove the decline.", base, base) is None  # a numberless narrative cannot be compared

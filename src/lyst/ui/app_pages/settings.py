@@ -5,10 +5,11 @@
 import pandas as pd
 import streamlit as st
 
+from lyst.ui import kit
 from lyst.ui.client import APIError, client, workspace
 
 api, ws = client(), workspace()
-st.markdown("## Settings")
+kit.header("Settings", "Models, secrets and connections, members, and how this workspace is governed.")
 s = api.get(f"/v1/workspaces/{ws}/settings")
 admin = s["role"] in ("admin", "owner")
 owner = s["role"] == "owner"
