@@ -20,3 +20,11 @@ def attach(lyst) -> None:
     from .experiments import ExperimentService
 
     lyst.experiments = ExperimentService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lambda: lyst)
+
+    # -- other lanes
+    from . import events as _events
+    from .voice import VoiceService
+
+    lyst.voice = VoiceService(lyst.stores, lyst.guard, runtime=lyst.runtime, llm=lyst.llm, governance=lyst.governance)
+    lyst.runtime.periodic.append(lyst.voice.prune_all)  # transcript and audio retention, idle sessions closed
+    _events.CATALOG.update({"voice.settings": ("voice.settings_changed", "workspace")})
