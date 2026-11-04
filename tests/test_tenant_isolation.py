@@ -68,6 +68,7 @@ def test_no_route_lets_another_workspace_reach_the_victim(two_tenants):
                 errors.append(f"{method} {url} -> {r.status_code}")
             if any(s in r.text for s in secrets) or "Northwind Industries" in r.text:
                 leaks.append(f"{method} {url} body names victim data")
+    print(f"route sweep: {checked} route/method pairs")
     assert checked > 60
     assert leaks == [], leaks
     assert errors == [], errors

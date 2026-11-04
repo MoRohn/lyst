@@ -185,6 +185,13 @@ def _wait_http(url: str, seconds: float) -> dict | None:
 UI_HOST = "lyst.localhost"   # resolves to the loopback address on macOS, Linux and in every browser
 
 
+def ui_address(env: dict[str, str]) -> tuple[str, bool]:
+    """Where `lyst ui` listens, and whether that is loopback only. Streamlit's own default is every interface; Lyst's
+    is localhost, and a deployment that wants the network says so (STREAMLIT_SERVER_ADDRESS, as Compose does)."""
+    address = env.get("STREAMLIT_SERVER_ADDRESS") or "localhost"
+    return address, address in ("localhost", "127.0.0.1", "::1")
+
+
 def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -> dict:
     """One terminal: encryption, the demo if asked, the engine, the interface, and the browser at http://lyst.localhost:8501.
     Ctrl-C stops everything."""
@@ -212,7 +219,7 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
         app = Path(__file__).parent / "ui" / "app.py"
         procs.append(subprocess.Popen([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", ui_port, "--server.headless", "true",
                                        "--browser.serverAddress", UI_HOST, "--server.address", "localhost"],
-                                      env=env, cwd=root))
+                                      env={**env, "LYST_UI_LOCAL": "1"}, cwd=root))
         if _wait_http(f"http://127.0.0.1:{ui_port}/_stcore/health", 60) is None:
             raise SystemExit("the interface did not come up; see the lines above")
         url = f"http://{UI_HOST}:{ui_port}"
@@ -396,7 +403,9 @@ def _dispatch(args) -> None:
     elif args.cmd == "ui":
         app = Path(__file__).parent / "ui" / "app.py"
         settings = load_settings()
-        env = {**os.environ, "LYST_HOME": str(settings.home)}
+        address, local = ui_address(os.environ)
+        env = {**os.environ, "LYST_HOME": str(settings.home), "LYST_UI_LOCAL": "1" if local else "0"}
         sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app), "--browser.serverAddress", UI_HOST,
+                                  "--server.address", address,
                                   "--server.port", os.environ.get("LYST_UI_PORT", "8501")], env=env,
                                  cwd=Path(__file__).resolve().parents[2]))

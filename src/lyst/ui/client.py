@@ -18,6 +18,33 @@ class APIError(RuntimeError):
         self.status = status
 
 
+LOOPBACK = {"127.0.0.1", "::1", "localhost"}
+
+
+def shared_identity_allowed(client_ip: str | None, env: dict[str, str], proxied: bool = False) -> bool:
+    """Whether a browser may borrow the installation's shared token (LYST_TOKEN or the dev-token file) instead of
+    signing in: only when the interface listens on loopback alone (LYST_UI_LOCAL=1, set by `lyst start` and
+    `lyst ui`), the browser is on this machine, and no proxy forwarded the request. Otherwise anyone who could
+    reach the port, on the network or through a proxy, would act as the token's owner.
+
+    Streamlit reports a loopback client as ``None`` (st.context.ip_address), so None means this machine; the
+    binding is the real control, since a loopback-only socket accepts nothing else."""
+    if env.get("LYST_UI_LOCAL") != "1" or proxied:
+        return False
+    return client_ip is None or client_ip in LOOPBACK
+
+
+def _client() -> tuple[str | None, bool]:
+    try:
+        headers = st.context.headers
+        proxied = any(h in headers for h in ("X-Forwarded-For", "Forwarded", "X-Real-Ip"))
+        ip = st.context.ip_address
+        # a real session gives a string or None (loopback); anything else is a test harness with no request
+        return (ip if isinstance(ip, str) else None), proxied
+    except Exception:  # noqa: BLE001 - outside a browser session (bare mode)
+        return None, False
+
+
 def _token() -> str | None:
     if t := st.session_state.get("token"):
         return t
@@ -26,6 +53,9 @@ def _token() -> str | None:
         st.session_state["token"] = t
         del st.query_params["token"]
         return t
+    ip, proxied = _client()
+    if not shared_identity_allowed(ip, dict(os.environ), proxied=proxied):
+        return None  # sign in (OIDC) or paste a personal token
     if t := os.environ.get("LYST_TOKEN"):
         return t
     home = Path(os.environ.get("LYST_HOME", "var"))
