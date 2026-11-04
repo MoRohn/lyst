@@ -38,7 +38,9 @@ def _client() -> tuple[str | None, bool]:
     try:
         headers = st.context.headers
         proxied = any(h in headers for h in ("X-Forwarded-For", "Forwarded", "X-Real-Ip"))
-        return st.context.ip_address, proxied
+        ip = st.context.ip_address
+        # a real session gives a string or None (loopback); anything else is a test harness with no request
+        return (ip if isinstance(ip, str) else None), proxied
     except Exception:  # noqa: BLE001 - outside a browser session (bare mode)
         return None, False
 

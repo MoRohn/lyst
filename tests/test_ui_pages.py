@@ -27,6 +27,7 @@ def ui(seeded, monkeypatch):
     ask(lyst, owner, "Why did operating margin decline in Q3 2026?")  # some history and a compiled workflow
     ask(lyst, owner, "What is our margin?")  # needs input
     monkeypatch.setenv("LYST_TOKEN", lyst.guard.issue_token(owner))
+    monkeypatch.setenv("LYST_UI_LOCAL", "1")  # what lyst start sets for a loopback-only interface (AppTest has no request)
     with TestClient(create_app(lyst, start_workers=False), base_url="http://127.0.0.1:8770") as http:
         import lyst.ui.client as client_mod
 

@@ -1,8 +1,8 @@
 {
   "pass": 1,
   "date": "2026-11-04",
-  "base": "main@6134237",
-  "tests": {"suite": "pytest", "passed": null, "failed": null, "note": "filled from the CI run of the PR that carries this file"},
+  "base": "main@88d2adb",
+  "tests": {"suite": "pytest", "passed": 233, "failed": 0, "where": "local, Mac mini, branch engineering-excellence-2 on main@88d2adb"},
   "gates": {
     "critical_security_unresolved": 0,
     "critical_data_integrity_unresolved": 0,
@@ -14,7 +14,7 @@
     "primary_ui_journeys": "not yet evaluated end to end"
   },
   "findings": [
-    {"id": "Q1", "severity": "high", "status": "verified_fixed", "evidence": "CI run on PR #6"},
+    {"id": "Q1", "severity": "high", "status": "verified_fixed", "evidence": "GitHub Actions run 41849943613 on PR #6"},
     {"id": "R1", "severity": "critical", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_a_step_longer_than_the_lease_is_not_run_twice"},
     {"id": "R2", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_cancel_during_the_last_step_is_not_overwritten_by_done"},
     {"id": "R3", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_runtime_integrity.py::test_a_task_that_keeps_killing_its_worker_is_abandoned"},
@@ -22,7 +22,7 @@
     {"id": "T1", "severity": "medium", "status": "verified_fixed", "evidence": "tests/test_tenant_isolation.py"},
     {"id": "C1", "severity": "high", "status": "verified_fixed", "evidence": "tests/test_secret_leakage.py"},
     {"id": "U1", "severity": "critical", "status": "verified_fixed", "evidence": "tests/test_ui_identity.py and a Playwright run from the LAN address before and after"},
-    {"id": "A1", "severity": "medium", "status": "confirmed_open", "evidence": "scripts/bench_large.py answer text; engine owned by the build thread"},
+    {"id": "A1", "severity": "medium", "status": "verified_fixed", "evidence": "fixed by the build thread in 88d2adb; scripts/bench_large.py re-run shows the split in the answer"},
     {"id": "P1", "severity": "medium", "status": "confirmed_open", "evidence": "scripts/load_test.py --users 100"},
     {"id": "H1", "severity": "low", "status": "partially_resolved", "evidence": "design note"}
   ],
