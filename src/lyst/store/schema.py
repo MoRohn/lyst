@@ -1230,3 +1230,26 @@ WORKSPACE.append((
     CREATE INDEX experiment_runs_by_experiment ON experiment_runs (experiment_id)
     """,
 ))
+
+# Connector drafts: connections Lyst proposes from an API description, tested in a dry run and promoted by an admin.
+CONTROL.append((
+    14,
+    """
+    CREATE TABLE connector_drafts (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        name VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        source VARCHAR NOT NULL,
+        proposal JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        test_report JSON,
+        connection_id VARCHAR,
+        created_by VARCHAR NOT NULL,
+        reviewed_by VARCHAR,
+        review_note VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))

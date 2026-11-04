@@ -98,7 +98,9 @@ class RestConnector(Connector):
                 yield [rec for rec in records if isinstance(rec, dict)]
                 seen += len(records)
                 if self.config.get("next_key"):
-                    cursor = body.get(self.config["next_key"]) if isinstance(body, dict) else None
+                    cursor = body
+                    for part in self.config["next_key"].split("."):  # "meta.next" reads a nested next link
+                        cursor = cursor.get(part) if isinstance(cursor, dict) else None
                     if not cursor:
                         return
                 elif self.config.get("page_param"):
