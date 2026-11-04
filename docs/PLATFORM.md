@@ -81,7 +81,7 @@ Acceptance scenarios covered: **A** (catalog intelligence), **B** (metric lineag
 real dashboard in a unit test is slow; the impact walk reads the same table the Studio writes), **G** for data and
 definitions (search across workflows and documents; collaboration permissions are PR D).
 
-## PR B: connector maturity
+## PR B: connector maturity (#29, merged)
 
 Built in `src/lyst/connectors/reliability.py`, `src/lyst/connectors/__init__.py` and `src/lyst/notices.py`;
 control migration 13 (`connection_events`; health columns on `connections`; `connection_syncs.last_schema`); tests
@@ -108,7 +108,7 @@ Not built: connectors for MySQL, SQL Server, warehouses and SaaS systems (no ser
 `docs/CONNECTORS.md`); generated connectors with sandbox tests and approved promotion (G13 below); webhook-driven
 (push) syncs.
 
-## PR C: artifact intelligence and lifecycle
+## PR C: artifact intelligence and lifecycle (#34, merged)
 
 Built in `src/lyst/assets.py` with hooks in `deliverables.py`, `studio.py`, `workflows.py`, `semantic` and the
 runtime's worker tick; workspace migration 10 (`assets`, `asset_versions`); tests in `tests/test_assets.py`.
@@ -140,13 +140,47 @@ dataset version, and version 1's file is untouched.
 Not built: polished output standards beyond the existing PDF, Excel and slide builders (citations are carried; no
 template review); editing an asset in place; repairs that rewrite a broken definition (they stop and ask).
 
+## PR D: team collaboration
+
+Built in `src/lyst/collab.py` (with `notices.py` honouring preferences and asset shares in `assets.py`); workspace
+migration 11 (`comments`, `assignments`, `reviews`, `asset_shares`, `user_notifications`, `notification_prefs`);
+tests in `tests/test_collab.py`. No new roles or administration screens: it uses the existing viewer, editor,
+admin and owner roles.
+
+* **Discussion on any object** (an investigation task, an analysis, an asset, a metric, a dataset): comments,
+  replies, `@email` mentions, **change requests** (open until the requester, the owner or an admin resolves them) and
+  **decisions** (recorded by editors and up, listed across the workspace). A private asset's thread is as private as
+  the asset.
+* **Assignments**: hand an object to a member with a note and a due date; completing it tells the assigner.
+* **Reviews that gate shared changes**: an editor proposes a metric definition, a data contract or the publication
+  of a private asset; an admin who is not the proposer approves (the change is then applied as the approver, with
+  the review id in the metric history and the audit) or asks for changes (nothing applied). A plain "please look"
+  review goes to a named member.
+* **Sharing and ownership**: assets can be private, shared with named members, or visible to the workspace; owners
+  and admins hand ownership of assets, datasets and metrics to an editor or above.
+* **Personal notifications**: mentions, assignments, completed assignments, review requests and decisions, comments
+  on what you own, merged with platform notices (contracts, connections, assets) in one list with read state;
+  each kind can be switched off per person, and platform notices honour the same switches.
+* REST under `/v1/workspaces/{ws}/objects/{kind}/{id}/comments|activity`, `/comments/{id}/resolve`, `/decisions`,
+  `/assignments`, `/reviews`, `/assets/{id}/share`, `/ownership`, `/notifications`, `/notification-preferences`.
+
+Verified: 320 tests pass (5 new). Scenario **E** end to end: Avery shares a private report with Sam (a viewer cannot
+see it or its thread), assigns it, Sam requests a change mentioning Avery, Avery resolves it and records a decision,
+Sam completes the assignment, ownership moves to Sam, and every step is in the audit log. Metric and contract
+changes proposed by an editor are applied only after an admin other than the proposer approves.
+
+Not built: email or chat delivery of personal notifications (the inbox and the existing workspace webhook only),
+digests, team or organizational workspaces above a workspace (a workspace is the team today), and real-time
+co-editing.
+
 ## Where it surfaces (handed to the UX thread)
 
 The API is complete; the screens are the UX thread's call. Proposed placement, following their layout:
 catalog rows, insights and contracts in **Data › Datasets** (a dataset dialog with Summary · Detail · Method tabs:
 summary sentence and risks; columns and relationships; contract and check history); metric lineage, history,
 deprecation and the semantic audit in **Brain › Definitions**; search in the single box on Home or the sidebar;
-contract findings already arrive in the existing inbox. Assets go in **Data › Dashboards** and **Saved analyses** (a health
+contract findings already arrive in the existing inbox. Collaboration goes on the answer act bar and in Work (comments, assign, request review on an investigation),
+with a notifications list and preferences under the person's menu, and pending reviews for admins. Assets go in **Data › Dashboards** and **Saved analyses** (a health
 badge, the reason, the proposal and a Repair button, and the version list). Connection health and events go in **Data › Datasets ›
 Sources** (a state badge, the reasons and the required action per connection, the event list on open).
 
@@ -160,7 +194,9 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | G1 | Connector health and diagnostics, shared retries and rate limits, schema evolution on sync | 1 | done (PR B) |
 | G2 | Unified artifact registry with versions, dependencies, health and verified repair | 1 | done (PR C) |
 | G15 | Output standards review: house templates, citation formatting and an automated layout check for PDF and slides | 2 | open |
-| G3 | Collaboration: share an investigation, comments on artifacts, review and approval of metric changes and contracts, ownership transfer, notification preferences | 1 | next (PR D) |
+| G3 | Collaboration: comments, change requests, decisions, assignments, reviews gating metric and contract changes, sharing, ownership, notification preferences | 1 | done (PR D) |
+| G16 | Personal notifications by email or chat, and digests | 2 | open |
+| G17 | Team and organizational spaces above a workspace (shared definitions across workspaces) | 3 | open |
 | G4 | Natural-language transformations: derived datasets from a DuckDB SQL or Polars definition, verified by running them and checking the result against a contract, with lineage | 2 | open |
 | G5 | Fiscal calendars: periods such as "last fiscal quarter" resolved by a workspace calendar; today metric periods are calendar periods only | 2 | open |
 | G6 | Source precedence as a rule (which of two overlapping sources answers), not only an audit finding | 2 | open |
@@ -172,3 +208,21 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | G13 | Generated connectors: Lyst drafts an adapter from an API description, tests it in the skill sandbox, and an admin promotes it | 2 | open |
 | G14 | Connectors for MySQL, SQL Server, Snowflake, Databricks, Redshift, object storage and SaaS systems | 2 | waiting (servers to test against) |
 | G12 | Insights on very large tables run exact distinct counts for keys; fine to tens of millions of rows on one machine, not measured beyond that | 3 | open |
+
+## Where each workstream of the prompt stands after this iteration
+
+| Workstream | State |
+|---|---|
+| 1 Data intelligence | Discovery, profiling, relationships, contracts done (PR A); natural-language transformations open (G4) |
+| 2 Integrations | Uniform operations, retries, health, schema evolution done (PR B); new connectors wait on test servers (G14); generated connectors open (G13) |
+| 3 Knowledge and semantics | Semantic audit, lifecycle, history, lineage done (PR A); fiscal calendars and source precedence open (G5, G6) |
+| 4 Automation | Unchanged this iteration: approval-gated schedules, monitors, compiled workflows; composition with branches and gates open (G8) |
+| 5 Artifacts | Registry, health, verified repair done (PR C); output-standards review open (G15) |
+| 6 Collaboration | Done for a workspace (PR D); email/chat delivery and cross-workspace spaces open (G16, G17) |
+| 7 Search | Catalog search across data, definitions, saved work and documents done (PR A); embeddings for catalog items open (G11) |
+| 8 Personalization | Notification preferences only (PR D); the rest is open |
+| 9 Administration | Unchanged this iteration |
+| 10 Platform health | Connection health done (PR B); a single platform health page open (G9) |
+| 11 Extensibility | Connector manifests now declare auth and retries (PR B); a general extension manifest open (G10) |
+| 12 Cross-system | Overlapping sources reconciled by totals (PR A); reusable reconciliation and entity matching open |
+| 13 Acceptance scenarios | A, B, C (dashboard), D, E, F, G pass in tests; H (an SDK extension end to end) is covered by the existing connector and skill tests, not re-run as one scenario |

@@ -11,6 +11,7 @@ from . import observability as obs
 from .analyst.engine import REGISTRY, Services
 from .assets import AssetService
 from .catalog import CatalogService
+from .collab import CollaborationService
 from .config import Settings, load_settings
 from .connectors import ConnectionService
 from .contracts import ContractService
@@ -51,6 +52,7 @@ class Lyst:
     catalog: CatalogService
     contracts: ContractService
     assets: AssetService
+    collab: CollaborationService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -99,8 +101,9 @@ class Lyst:
         data.after_ingest.append(assets.after_ingest)  # after the contract check, so a breaking version reads as broken
         semantic.after_change.append(assets.after_definition)
         runtime.periodic.append(assets.complete_all)
+        collab = CollaborationService(stores, guard, semantic=semantic, contracts=contracts, assets=assets)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets)
+                   studio, connections, credentials, catalog, contracts, assets, collab)
 
     def close(self) -> None:
         self.runtime.stop()

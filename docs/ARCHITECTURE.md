@@ -68,6 +68,14 @@ dataset and checks each new version through the same ingest hook, listing downst
 `catalog.impact_of` and raising an inbox finding. `semantic.audit`, `history` and `deprecate` keep definitions
 consistent; `catalog.explain_metric` answers where a metric comes from. The register is `docs/PLATFORM.md`.
 
+## Assets and collaboration
+
+`assets.py` registers every deliverable with its dependencies and re-assesses health after each ingest and
+definition change (hooks on `DataService.after_ingest` and `SemanticService.after_change`); repairs run as ordinary
+tasks and complete on the worker tick (`TaskRuntime.periodic`). `collab.py` keeps comments, assignments, reviews,
+shares and personal notifications in the workspace database; reviews apply metric and contract changes through the
+same services, as the approving admin. Platform notices (`notices.py`) share the findings inbox with monitors.
+
 ## Inference
 
 Every model call goes through the gateway in `llm/gateway.py`, a port of Acumane's AcuRout: workload-based
