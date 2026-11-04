@@ -115,7 +115,14 @@ class Database:
             raise RuntimeError(f"database {self.name} is closed")
         fut: Future = Future()
         self._queue.put((fn, fut))
-        return fut.result(timeout=timeout)
+        try:
+            return fut.result(timeout=timeout)
+        except TimeoutError:
+            # Withdraw the write if it has not started, so a caller told "timed out" never sees it applied later.
+            # If it already started it runs to its own commit or rollback; wait for that outcome rather than lie.
+            if fut.cancel():
+                raise TimeoutError(f"write to {self.name} not started within {timeout}s; withdrawn") from None
+            return fut.result()
 
     def execute(self, sql: str, params: list | tuple | None = None) -> None:
         self.write(lambda c: c.execute(sql, params or []))

@@ -230,7 +230,10 @@ class ConnectionService:
 
     def delete(self, actor: Principal, ws: str, cid: str) -> None:
         self.guard.require(actor, ws, "workspace.admin", cid)
-        cred = self.stores.control.scalar("SELECT credential_id FROM connections WHERE id = ? AND workspace_id = ?", [cid, ws])
+        rows = self.stores.control.query("SELECT credential_id FROM connections WHERE id = ? AND workspace_id = ?", [cid, ws])
+        if not rows:  # not in this workspace: a 404, never an audited "ok" for a delete that removed nothing
+            raise KeyError(cid)
+        cred = rows[0]["credential_id"]
         if cred and self.credentials is not None:
             self.credentials.delete_connector_secrets(actor, ws, cred)
         self.stores.control.execute("DELETE FROM connections WHERE id = ? AND workspace_id = ?", [cid, ws])

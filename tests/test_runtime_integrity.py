@@ -71,3 +71,25 @@ def test_a_task_that_keeps_killing_its_worker_is_abandoned(seeded):
     assert rt.claim() is None
     t = rt.get(owner, tid)
     assert t["status"] == "failed" and "abandoned" in t["error"]
+
+
+def test_a_write_that_times_out_in_the_queue_is_withdrawn_not_applied_later(tmp_path):
+    """S-DB1: Database.write raised TimeoutError while the queued write stayed queued and was committed later,
+    so a caller that reported failure (or retried) saw the write applied anyway."""
+    import pytest
+
+    from lyst.store.db import Database
+
+    db = Database(tmp_path / "t.duckdb", name="t", master_key=b"k" * 32, encrypt=False)
+    db.execute("CREATE TABLE t (v INTEGER)")
+    gate = threading.Event()
+    blocker = threading.Thread(target=lambda: db.write(lambda c: gate.wait(5)))
+    blocker.start()
+    time.sleep(0.1)
+    with pytest.raises(TimeoutError, match="withdrawn"):
+        db.write(lambda c: c.execute("INSERT INTO t VALUES (1)"), timeout=0.2)
+    gate.set()
+    blocker.join()
+    db.execute("INSERT INTO t VALUES (2)")
+    assert [r["v"] for r in db.query("SELECT v FROM t")] == [2]
+    db.close()
