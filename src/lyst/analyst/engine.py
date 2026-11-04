@@ -215,6 +215,10 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     gap = foundry.detect_gap(text) if intent != "skill" else None
     if gap and resolved["metrics"]:
         intent = "gap"
+        # reuse before drafting: an approved, compatible skill that does this already runs instead of a new draft
+        found = s.skills.discover(ctx.actor, ctx.workspace_id, text, s.registry).get("reuse") if s.skills else None
+        if found:
+            skill, intent, gap = {"name": found}, "skill", None
     causal = bool(re.search(r"\b(cause[sd]?|causing|because of|leads? to|drives?|driven by|due to)\b", text, re.I))
     second = None
     if len(resolved["metrics"]) >= 2 and re.search(r"\b(correlat\w*|relationship|related|cause[sd]?|drives?|driven by)\b", text, re.I):

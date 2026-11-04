@@ -105,3 +105,18 @@ baseline `docs/quality/eval-baseline.json`; CI runs `lyst eval --baseline docs/q
 Remaining risks: measured routing reacts to failures and errors, not to answer quality; quality per model comes from
 `lyst eval` runs with a model configured, which CI does not have (no key), so the checked-in baseline is the
 rules-only path. Latency baselines come from the development Mac; the factor and floor absorb CI's slower runners.
+
+## Slice 4: skill discovery and conversational drill-down
+
+Modules `src/lyst/skills/discovery.py` and `src/lyst/followups.py`; small hooks in the analyst (`understand`), the
+runtime (`submit(derived_from=…)`) and the API.
+
+| # | Existing limitation | Root cause | Implemented solution | Tests | Verified result |
+|---|---|---|---|---|---|
+| SK1 | A request worded differently from a skill's triggers drafted a second skill for a method Lyst already had | `SkillService.match` compares trigger phrases only | Discovery: BM25 over purpose, triggers, name and parameters with light stemming and a business-synonym table, over approved skills and built-in capabilities; each skill checked for compatibility (input datasets present, columns its SQL names still exist), permission, last test report and use count. When the analyst would draft a new capability, it first reuses a compatible, approved skill that discovery ranks first | `test_scenario_d_a_paraphrased_request_reuses_the_validated_skill` | "Calculate the market concentration of revenue across regions last quarter" runs `hhi_concentration`; the HHI equals pandas; no new skill version is drafted |
+| SK2 | Nothing explained why a skill was not used | — | Unusable candidates are listed with reasons (missing column, permission, failed tests); discovery never changes a skill | `test_an_incompatible_or_failing_skill…` | A renamed input column is named in the reason; nothing is reused |
+| DD1 | A follow-up had to be retyped as a full question, and the earlier metric, period and filters were re-guessed | No link between tasks | `POST /v1/tasks/{id}/follow-up`: the follow-up is resolved against the parent task's verified understanding (metric, period, member filters, split): "break that down by region", "compare it to last year", "top contributing…", "what about Q1 2026", "make this a dashboard", "schedule this every Monday at 9" (an approval-gated calendar schedule) | `test_follow_up_phrases…`, `test_drill_down_carries_context…`, `test_follow_up_endpoint…` | "Break that down by product line" after "revenue in EMEA last quarter" keeps EMEA and Q3 2026; Hardware equals pandas |
+| DD2 | Hidden session assumptions could change results | — | Each follow-up task stores `derived_from` (parent task, the follow-up words, what changed, what was carried) and an explicit question; re-asking the recorded question reproduces the tables. Follow-ups Lyst cannot honour (dropping "unusual" rows, a significance test) say so and offer what it can do, never silently changing the number | same | Re-run tables identical |
+
+Remaining risks: discovery is lexical with synonyms (no embeddings yet; the knowledge layer's embedding model could
+be added when configured); drill-down covers the follow-ups listed above, and anything else asks for a full question.
