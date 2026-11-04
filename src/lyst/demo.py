@@ -57,6 +57,25 @@ def ledger(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def demand(seed: int = 11) -> pd.DataFrame:
+    """Monthly support demand by channel, Jan 2024 to Sep 2026: growth, seasonality (a Q4 peak), noise."""
+    rng = np.random.default_rng(seed)
+    months = pd.date_range("2024-01-01", "2026-09-01", freq="MS")
+    rows = []
+    for i, m in enumerate(months):
+        season = 1 + 0.15 * (1 if m.month in (10, 11, 12) else 0) + 0.05 * np.sin(2 * np.pi * m.month / 12)
+        for channel, base in (("email", 6000), ("chat", 4000), ("phone", 2500)):
+            tickets = base * (1 + 0.015 * i) * season * rng.normal(1, 0.04)
+            rows.append({"month": m.date(), "channel": channel, "tickets": int(round(tickets))})
+    return pd.DataFrame(rows)
+
+
+def staffing() -> pd.DataFrame:
+    months = pd.date_range("2024-01-01", "2026-09-01", freq="MS")
+    return pd.DataFrame({"month": [m.date() for m in months], "agents": [38 + i // 6 for i in range(len(months))],
+                         "capacity_per_agent": [420] * len(months), "cost_per_agent": [5200.0] * len(months)})
+
+
 def csv_bytes(df: pd.DataFrame) -> bytes:
     buf = io.StringIO()
     df.to_csv(buf, index=False)
@@ -82,6 +101,9 @@ METRICS = [
                numerator=Measure(agg="sum", column="cogs"), denominator=Measure(agg="sum", column="revenue"),
                time_column="month", dimensions=["region", "product_line"], format="percent",
                higher_is_better=False, synonyms=["cost of goods ratio", "margin"]),
+    MetricSpec(name="tickets", title="Support tickets", dataset="demand", description="Tickets opened, all channels.",
+               measure=Measure(agg="sum", column="tickets"), time_column="month", dimensions=["channel"],
+               format="number", unit="tickets", higher_is_better=False, synonyms=["support demand", "demand", "ticket volume"]),
     MetricSpec(name="hardware_revenue", title="Hardware revenue", dataset="pnl",
                measure=Measure(agg="sum", column="revenue", filters=[Filter(column="product_line", value="Hardware")]),
                time_column="month", dimensions=["region"], format="currency"),
@@ -95,6 +117,10 @@ def seed(lyst, owner, workspace_id: str = "northwind") -> None:
                      description="Management P&L by region and product line", classification="confidential")
     lyst.data.ingest(owner, workspace_id, "pnl_ledger", csv_bytes(ledger(frame)), filename="ledger.csv",
                      title="P&L from the ledger", description="The finance ledger's view of the same P&L")
+    lyst.data.ingest(owner, workspace_id, "demand", csv_bytes(demand()), filename="demand.csv", title="Support demand",
+                     description="Monthly tickets opened by channel")
+    lyst.data.ingest(owner, workspace_id, "staffing", csv_bytes(staffing()), filename="staffing.csv", title="Support staffing",
+                     description="Agents on staff, capacity and cost per agent, by month")
     for m in METRICS:
         lyst.semantic.define(owner, workspace_id, m, note="seeded")
     lyst.semantic.set_term(owner, workspace_id, "ebitda", "Not defined in this workspace yet.", source="demo")

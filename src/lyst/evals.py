@@ -71,7 +71,7 @@ def score(case: EvalCase, task: dict[str, Any], seconds: float, outputs: dict[st
         candidates = ([cur] if cur is not None else []) + _values_in(r)
         ok = any(abs(c - case.value) <= abs(case.value) * case.value_tolerance + 1e-9 for c in candidates)
         checks.append(CheckResult("value", ok, f"expected {case.value:.6g}; current {cur}"))
-    text = " ".join([r.get("answer", "")] + list(r.get("evidence", [])))
+    text = " ".join([r.get("answer", "")] + list(r.get("evidence", [])) + list((r.get("supporting") or {}).get("assumptions", [])))
     for needle in case.contains:
         checks.append(CheckResult(f"contains:{needle}", needle.lower() in text.lower(), "in answer or evidence"))
     if case.driver:
@@ -171,6 +171,12 @@ def demo_bank() -> list[EvalCase]:
                  "isolate the strongest contributing factors, test alternative explanations, and prepare an executive "
                  "briefing.", metric="operating_margin", value=margin(q3), driver="EMEA",
                  contains=["favours concentration", "confined to Q3 2026"], max_seconds=15),
+        EvalCase("scenario-c", "Forecast next quarter's support demand, quantify uncertainty, and evaluate three "
+                 "staffing scenarios.", metric="tickets", contains=["Q4 2026", "80% interval", "shortfall risk under 5%"]),
+        EvalCase("impact-emea", "What was the impact of the supplier price increase on operating margin in EMEA since "
+                 "July 2026?", metric="operating_margin", contains=["plausible causal estimate", "Filtered to region = EMEA"]),
+        EvalCase("member-filter", "What was revenue in EMEA last quarter?", metric="revenue",
+                 value=float(q3[q3.region == "EMEA"].revenue.sum())),
         EvalCase("prior-quarter-value", "What was operating margin in Q2 2026?", metric="operating_margin",
                  value=margin(q2), contains=["Q2 2026"]),
     ]

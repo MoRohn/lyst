@@ -28,7 +28,7 @@ from ..llm import LLMClient, LLMUnavailable
 from ..memory import MemoryService
 from ..security import Guard, untrusted
 from ..semantic import Measure, MetricSpec, SemanticService, _cond, _q, compile_metric, value_expr
-from . import periods, reasoning
+from . import periods, prescriptive, reasoning
 from .registry import REGISTRY, Context, Registry, capability
 
 
@@ -184,12 +184,30 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
     if skill and intent not in ("sql",):
         intent = "skill"
+    filters = []
+    if resolved["metrics"]:
+        spec0 = metrics[resolved["metrics"][0]]
+        for d in spec0.dimensions:
+            try:
+                vals = s.data.query(ctx.actor, ctx.workspace_id, f'SELECT DISTINCT "{d}" FROM "{spec0.dataset}" LIMIT 200',
+                                    task_id=ctx.task_id).rows
+            except Exception:  # noqa: BLE001
+                vals = []
+            for (v,) in vals:
+                if isinstance(v, str) and len(v) >= 3 and re.search(rf"(?<![a-z0-9]){re.escape(v.lower())}(?![a-z0-9])", text.lower()):
+                    filters.append({"column": d, "op": "=", "value": v})
+    impact = prescriptive.wants_impact(text)
+    if impact and resolved["metrics"]:
+        intent = "impact"
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
             "ambiguous": resolved["ambiguous"], "by": by, "dataset": dataset, "method": method,
             "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
-            "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None}
+            "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
+            "filters": filters, "scenarios": prescriptive.wants_scenarios(text),
+            "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
+            "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I))}
 
 
 # ------------------------------------------------------------------- 2. contextualize
@@ -293,9 +311,15 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if u["intent"] in ("trend", "explain"):
             add("metric_series", "series", metric=m, grain="month")
             add("anomaly_scan", "anomalies", series_key="series", after=["series"])
-        if u["intent"] == "forecast":
+        if u["intent"] == "forecast" and (u.get("next_period") or u.get("scenarios")):
+            add("forecast_period", "forecast_period", metric=m, grain="quarter" if "month" not in u["question"].lower() else "month")
+            if u.get("scenarios"):
+                add("staffing_scenarios", "scenarios", forecast_key="forecast_period", after=["forecast_period"])
+        elif u["intent"] == "forecast":
             add("metric_series", "series", metric=m, grain="month")
             add("forecast_metric", "forecast", series_key="series", horizon=6, after=["series"])
+        if u["intent"] == "impact":
+            add("event_impact", "impact", metric=m, **u["impact"])
     everything = [st["key"] for st in steps]
     intensity = "high" if (u.get("depth") == "deep" or re.search(r"\b(board|executive|audit|financial statement|"
                                                                 r"regulat\w*|investor)", u["question"], re.I)) else (
@@ -339,10 +363,19 @@ def _year_ago(p: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _spec(ctx: Context, name: str) -> MetricSpec:
-    for m in ctx.outputs["contextualize"]["metrics"]:
+    spec = None
+    for m in ctx.outputs.get("contextualize", {}).get("metrics", []):
         if m["spec"]["name"] == name:
-            return MetricSpec.model_validate(m["spec"])
-    return ctx.services.semantic.get(ctx.actor, ctx.workspace_id, name)
+            spec = MetricSpec.model_validate(m["spec"])
+    spec = spec or ctx.services.semantic.get(ctx.actor, ctx.workspace_id, name)
+    extra = ctx.outputs.get("understand", {}).get("filters") or []
+    if extra:
+        from ..semantic import Filter  # noqa: PLC0415
+
+        fixed = {f["column"] for f in extra}
+        spec = spec.model_copy(update={"filters": spec.filters + [Filter(**f) for f in extra],
+                                       "dimensions": [d for d in spec.dimensions if d not in fixed]})
+    return spec
 
 
 @capability(REGISTRY, "metric_value", agent="analytics_engineer", phase="execute", permission="data.query",
@@ -583,6 +616,14 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     cp = o.get("changepoints")
     if cp and cp.get("latest") and "current" in o:
         check("changepoint_consistent", cp["points"] >= 4, f"{cp['points']} periods scanned, {len(cp['breaks'])} break(s)", "warning")
+    sc = o.get("scenarios")
+    if sc and not sc.get("skipped"):
+        ok = all(math.isclose(r["capacity"], r["agents"] * sc["capacity_per_agent_month"] * sc["months"], rel_tol=1e-9) for r in sc["scenarios"])
+        check("scenario_capacity", ok, "capacity = agents × capacity per agent × months for every scenario")
+        fp = o.get("forecast_period", {})
+        if fp:
+            tot = fp["total"]
+            check("forecast_interval", tot["lo"] <= tot["total"] <= tot["hi"], "the period total lies inside its interval")
     if intensity == "high" and "current" in o and o["current"].get("value") is not None:
         rec = _independent_recompute(ctx, o["current"])
         check("independent_recompute", rec["ok"], rec["detail"])
@@ -877,9 +918,69 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                            "hi": [r["hi"] for r in f["table"]], "format": spec.format,
                            "history_x": [p["period"] for p in o["series"]["points"]],
                            "history_y": [p["value"] for p in o["series"]["points"]]})
+        if o.get("forecast_period"):
+            fp = o["forecast_period"]
+            tot = fp["total"]
+            answer = (f"Lyst forecasts {spec.title.lower()} of {fmt(tot['total'], spec)} for {fp['period_label']} "
+                      f"(80% interval {fmt(tot['lo'], spec)} to {fmt(tot['hi'], spec)}), against {fmt(fp['history_last']['value'], spec)} "
+                      f"in the latest month.")
+            if fp.get("backtest_mape") is not None:
+                findings.append(f"Method: {fp['method']}; backtest error {fp['backtest_mape']:.1%} over the last "
+                                f"{fp['backtest_points']} months. The interval treats months as independent.")
+            tables.append({"title": f"Monthly forecast for {fp['period_label']}", "columns": ["month", "forecast", "low", "high"],
+                           "rows": [[m["period"], m["yhat"], m["lo"], m["hi"]] for m in fp["monthly"]]})
+            charts.append({"type": "forecast", "title": f"{spec.title} forecast", "x": [m["period"] for m in fp["monthly"]],
+                           "y": [m["yhat"] for m in fp["monthly"]], "lo": [m["lo"] for m in fp["monthly"]],
+                           "hi": [m["hi"] for m in fp["monthly"]], "format": spec.format,
+                           "history_x": [h["period"] for h in fp["history"]], "history_y": [h["value"] for h in fp["history"]]})
+        if o.get("scenarios"):
+            sc = o["scenarios"]
+            if sc.get("skipped"):
+                findings.append(f"Scenarios were not evaluated: {sc['skipped']}.")
+            else:
+                rows = sc["scenarios"]
+                tables.append({"title": f"Staffing scenarios for {sc['period_label']}",
+                               "columns": ["scenario", "agents", "capacity", "p_shortfall", "expected_shortfall", "utilisation", "cost"],
+                               "rows": [[r_["name"], r_["agents"], r_["capacity"], r_["p_shortfall"], r_["expected_shortfall"],
+                                         r_["utilisation"], r_["cost"]] for r_ in rows]})
+                for r_ in rows:
+                    findings.append(f"{r_['name']}: {r_['p_shortfall']:.0%} chance of falling short, expected shortfall "
+                                    f"{r_['expected_shortfall']:,.0f}, utilisation {r_['utilisation']:.0%}"
+                                    + (f", cost ${r_['cost']:,.0f}" if r_["cost"] is not None else "") + ".")
+                findings.append(f"The smallest headcount that keeps shortfall risk under 5% is {sc['minimum_agents_for_5pct']} agents "
+                                f"(current {int(sc['current_agents'])}).")
+                if sc.get("recommended"):
+                    actions.insert(0, f"Plan for {sc['recommended']}: it is the cheapest scenario that keeps shortfall risk at or under 5%.")
+                else:
+                    actions.insert(0, f"None of the scenarios keeps shortfall risk under 5%; {sc['minimum_agents_for_5pct']} agents would.")
+                implications.append("Shortfall risk is the probability that demand exceeds capacity over the period, under the "
+                                    "forecast's uncertainty; it is not a service-level guarantee.")
+                assumptions.append(f"Staffing parameters come from {sc['staffing_source']}: {sc['capacity_per_agent_month']:g} tickets per "
+                                   f"agent per month" + (f", ${sc['cost_per_agent_month']:,.0f} per agent per month" if sc.get("cost_per_agent_month") else "") + ".")
+        if o.get("impact"):
+            im = o["impact"]
+            if im.get("skipped"):
+                answer = answer or f"The impact could not be estimated: {im['skipped']}."
+            else:
+                sig = im["p_value"] < 0.05
+                answer = (f"Since {im['break_date'][:7]}, {spec.title.lower()} has averaged {fmt(im['effect'], spec, delta=True)} "
+                          f"against its pre-event trend (95% interval {fmt(im['ci'][0], spec, delta=True)} to "
+                          f"{fmt(im['ci'][1], spec, delta=True)}, p = {im['p_value']:.3f}). "
+                          + ("This is a plausible causal estimate under the stated assumptions, not proof." if sig else
+                             "The gap is not statistically distinguishable from the pre-event trend."))
+                findings.append(f"Immediate level change {fmt(im['details']['level_change'], spec, delta=True)}; slope change "
+                                f"{im['details']['slope_change']:+.4g} per month; {im['details']['pre_points']} months before and "
+                                f"{im['details']['post_points']} after.")
+                assumptions += [f"Identification ({im['method']}): {a}" for a in im["assumptions"]]
+                for w in im["warnings"]:
+                    findings.append(f"Caution: {w}.")
+                charts.append({"type": "line", "title": f"{spec.title} by month", "x": [p["period"] for p in im["series"]],
+                               "y": [p["value"] for p in im["series"]], "format": spec.format})
         if not answer and o.get("series"):
             pts = o["series"]["points"]
             answer = f"{spec.title} over {len(pts)} months, latest {fmt(pts[-1]['value'], spec)} ({pts[-1]['period']})."
+        if u.get("filters") and spec:
+            assumptions.append("Filtered to " + ", ".join(f"{f['column']} = {f['value']}" for f in u["filters"]) + ".")
         status = "complete" if v["status"] != "failed" else "unverified"
 
     narrative_by = "template"

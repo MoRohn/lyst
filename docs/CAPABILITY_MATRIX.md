@@ -16,7 +16,10 @@
 | Analyst | Value with prior period and year-ago comparison | Tested | `test_a_values_match_pandas` |
 | Analyst | Driver attribution (exact rate/mix for ratios, contribution for totals) | Tested | `test_a_operating_margin_decline_finds_emea` |
 | Analyst | Breakdown, trend, anomaly scan, ETS forecast with backtest | Tested | `test_runtime.py::test_trend_and_forecast` |
-| Analyst | Data-quality investigation | Tested | Scenario C |
+| Analyst | Data-quality investigation | Tested | `test_scenarios.py` |
+| Analyst | Next-period forecast with interval and staffing scenarios under uncertainty (Monte Carlo), minimum headcount, named scenarios | Tested | New scenario C, `test_prescriptive.py` |
+| Analyst | Event impact by interrupted time series with stated identification assumptions; DiD and linear allocation helpers | Tested | `test_prescriptive.py` |
+| Analyst | Dimension member filters from the request ("in EMEA") applied to every step | Tested | `test_prescriptive.py::test_member_filters_apply_everywhere` |
 | Analyst | Independent validation and evidence package (checks, queries, dataset versions with hashes, timestamps) | Tested | Scenario A |
 | Analyst | Reasoning depth (fast / analytical / deep / project) chosen from the request | Tested | `test_reasoning.py` |
 | Analyst | Deep investigation: quarterly horizon, change points, seven competing hypotheses decided by computation, related-metric corroboration | Tested | `test_reasoning.py::test_a_deep_investigation_tests_competing_explanations` |
