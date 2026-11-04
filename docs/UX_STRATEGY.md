@@ -1,7 +1,6 @@
 # Lyst UX strategy: intuitive for business users, just as capable for experts
 
-Status: proposal, 2026-11-04. Part A (low-regret) is implemented in the PR that adds this file. Part B needs Rohn's
-decision before it is built. Screenshots: `docs/ux/before/` (main at a28e200) and `docs/ux/after/` (this branch).
+Status: 2026-11-04. Part A (low-regret) and Part B (decided by Rohn) are implemented in PR #22. Screenshots: `docs/ux/before/` (main at a28e200) and `docs/ux/after/` (this branch).
 
 ## 1. Who we design for
 
@@ -115,21 +114,23 @@ existing API endpoints; nothing new in the engine.
 * **Build**: opens on Dashboards (the business artefact); Workflows and Skills keep their places.
 * **Glossary** in the sidebar: "What these words mean".
 
-## 8. Part B: proposals that need a decision
+## 8. Part B: decided by Rohn (2026-11-04) and implemented
 
-**B1. Name the areas by the job.** Home · Work · Data · **Knowledge** (was Intelligence) · **Reports** (was Build:
-Dashboards, Saved analyses, and the Watched metrics / Scheduled questions now in Work › Recurring) · Settings, with
-Skills, the capability list and evaluation runs under Settings › **Advanced**. Still six areas, one navigation; the
-business user's "set it and be told" jobs live with the reports they produce, and engineering lives in one place.
-Cost: links and README/site copy change; the website thread would be told.
+**B1. Areas named by the job: Home · Work · Data · Brain · Settings.** Intelligence is now **Brain** (definitions,
+documents, memory). Build is folded into **Data**, which holds what Lyst reads and what it makes from it:
+Datasets (with their Sources), Dashboards, Saved analyses, SQL. The builder tools (skills, the capability list,
+evaluation runs) moved to **Settings › Advanced**. Five areas, one navigation. Watched metrics and scheduled
+questions stay in Work › Recurring, since they produce work that lands there.
 
-**B2. Name the depths by how much they show.** Business · Analyst · Engineer · Executive become **Summary · Detail ·
-Method**, with **Brief** (today's Executive) as an action that opens the two-line brief and a shareable PDF. Persona
-names make people pick a job title rather than a level of detail, and "Engineer" reads as "not for me".
+**B2. Depths named by how much they show: Summary · Detail · Method**, with **Brief** as an action: a dialog with the
+two-line brief, the trust line, one chart, what to do and the PDF to forward. A depth remembered under an old name
+(Business, Analyst, Engineer) opens the same depth; an executive request opens on the brief.
 
-**B3. A business pulse on Home** (later, needs an engine endpoint): the approved metrics' latest value and change as
-three to five quiet tiles above the ask box, each opening "Why did X change?". It turns Home from an empty box into
-a status page, at the cost of a query per metric per visit (cached).
+**B3. A business pulse on Home.** `GET /v1/workspaces/{ws}/pulse` returns each approved metric's last complete month
+against the one before (change in points for ratios, percent otherwise), whether that move is good for the business,
+and a twelve-month history. It runs through the SQL guard as the reader, so column and row policies apply and a
+metric the reader cannot query is left out. Home shows up to six tiles; "Why?" on a tile asks why it changed. Cached
+per session for five minutes.
 
 ## 9. How we will know
 

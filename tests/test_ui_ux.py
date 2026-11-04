@@ -42,7 +42,7 @@ def test_owners_open_answers_at_the_business_depth_with_trust_in_words(seeded):
     r = ask(lyst, owner, "Why did operating margin decline in Q3 2026?")["result"]
     at = _answer(r, role="owner")
     view = at.get("button_group")[0]
-    assert view.value == "Business"
+    assert view.value == "Summary"
     assert not at.dataframe[1:]  # only the checks (inside the collapsed method); tables wait for a deeper view
     captions = " ".join(c.value for c in at.caption)
     assert "checks passed" in captions and "recomputed independently" in captions
@@ -79,8 +79,20 @@ def test_work_speaks_in_business_words(ui):  # noqa: F811
     assert "Watched metrics" in body and "Scheduled questions" in body and "σ" not in body
 
 
+def test_pulse_compares_complete_months_as_the_reader(seeded):
+    lyst, owner = seeded
+    tiles = lyst.monitors.pulse(owner, "northwind")
+    assert tiles and len(tiles) <= 6
+    m = next(t for t in tiles if t["metric"] == "operating_margin")
+    assert m["format"] == "percent" and m["change_text"].endswith("pts")
+    assert abs(m["change"] - (m["value"] - m["prior"])) < 1e-12 and len(m["history"]) <= 12
+    rev = next(t for t in tiles if t["metric"] == "revenue")
+    assert rev["change_text"].endswith("%") and rev["value_text"].startswith("$")
+
+
 def test_home_guides_a_first_run(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     body = _texts(at)
     assert "Get started" in body and "Keep watch" in body
+    assert "at a glance" in body  # the business pulse above the suggestions

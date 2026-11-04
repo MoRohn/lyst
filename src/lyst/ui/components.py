@@ -94,16 +94,33 @@ def table(t: dict[str, Any]) -> None:
     st.dataframe(df, hide_index=True, width="stretch", column_config=cfg)
 
 
-VIEWS = ("Business", "Analyst", "Engineer", "Executive")
+VIEWS = ("Summary", "Detail", "Method")
+_OLD_VIEWS = {"Business": "Summary", "Analyst": "Detail", "Engineer": "Method", "Executive": "Summary"}
 _CAVEAT = re.compile(r"\b(did not|does not|disagree|differently|no period was named|assumed|filtered|caution|not verified)\b", re.I)
 
 
 def _default_view(r: dict[str, Any]) -> str:
-    if r.get("audience") == "executive":
-        return "Executive"
-    if st.session_state.get("view_pref") in VIEWS:
-        return st.session_state["view_pref"]
-    return "Business"  # everyone starts at the business depth; the depth a person picks is remembered
+    pref = st.session_state.get("view_pref")
+    pref = _OLD_VIEWS.get(pref, pref)
+    if pref in VIEWS:
+        return pref
+    return "Summary"  # everyone starts at the summary; the depth a person picks is remembered
+
+
+@st.dialog("Brief", width="large")
+def brief(r: dict[str, Any], pdf: Any = None, key: str = "answer") -> None:
+    """The two-line version for someone who will read nothing else, with what to do and a file to forward."""
+    st.markdown("#### " + md(r.get("brief") or r["answer"]))
+    if tl := trust_line(r):
+        st.caption(md(tl))
+    for c in r.get("charts", [])[:1]:
+        chart(c)
+    if r.get("actions"):
+        st.markdown("**What to do**")
+        st.markdown(bullets(r["actions"]))
+    if pdf is not None:
+        st.download_button("Download the PDF briefing", pdf, file_name=f"lyst-{key}.pdf", mime="application/pdf",
+                           icon=":material/download:", type="primary", on_click="ignore", key=f"brief_pdf_{key}")
 
 
 def trust_line(r: dict[str, Any]) -> str | None:
@@ -130,22 +147,25 @@ def caveats(r: dict[str, Any]) -> list[str]:
     return out
 
 
-def answer(r: dict[str, Any], key: str = "answer") -> None:
-    """One result, four depths, no re-run: Business (answer, evidence, implications, actions), Analyst (adds tables,
-    hypotheses, assumptions and sources), Engineer (adds plan, checks and every query), Executive (the brief and
-    what to do). Limitations are visible at every depth."""
+def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
+    """One result, three depths, no re-run: Summary (answer, evidence, what it means, what to do), Detail (adds
+    tables, hypotheses, assumptions and sources), Method (adds plan, checks and every query). Brief opens the
+    two-line version with a PDF to forward; an executive request opens on it. Limitations show at every depth."""
     conf = r.get("confidence", {})
     level = conf.get("level", "")
     sup = r.get("supporting", {}) or {}
     with st.container(border=True):
         head = st.empty()
-        bar = st.columns([3, 2], vertical_alignment="center")
+        bar = st.columns([3, 0.9, 2], vertical_alignment="center")
         default = _default_view(r)
-        view = bar[1].segmented_control("View", VIEWS, default=default, key=f"view_{key}",
+        view = bar[2].segmented_control("Depth", VIEWS, default=default, key=f"view_{key}",
                                         label_visibility="collapsed", width="stretch") or default
-        if not (view == "Executive" and r.get("audience") == "executive"):
-            st.session_state["view_pref"] = view  # the depth a person picks carries to their next answers
-        head.markdown("#### " + md(r["brief"] if view == "Executive" and r.get("brief") else r["answer"]))
+        st.session_state["view_pref"] = view  # the depth a person picks carries to their next answers
+        exec_ = view == "Summary" and r.get("audience") == "executive"  # an executive asked: lead with the brief
+        if bar[1].button("Brief", icon=":material/summarize:", type="tertiary", key=f"brief_{key}", width="stretch",
+                         help="The two-line version, with what to do and a PDF to forward"):
+            brief(r, pdf, key)
+        head.markdown("#### " + md(r["brief"] if exec_ and r.get("brief") else r["answer"]))
         if r["status"] == "needs_input":
             bar[0].badge("Needs your input", color="orange", icon=":material/help:")
         elif level == "verified":
@@ -164,10 +184,10 @@ def answer(r: dict[str, Any], key: str = "answer") -> None:
         cav = caveats(r)
         if cav:
             st.warning(bullets(cav), icon=":material/info:")
-        if view != "Executive" and r.get("evidence"):
+        if not exec_ and r.get("evidence"):
             st.markdown("**Evidence**")
             st.markdown(bullets(r["evidence"]))
-        for c in (r.get("charts", [])[:1] if view == "Executive" else r.get("charts", [])):
+        for c in (r.get("charts", [])[:1] if exec_ else r.get("charts", [])):
             chart(c)
         cols = st.columns(2)
         if r.get("implications"):
@@ -178,7 +198,7 @@ def answer(r: dict[str, Any], key: str = "answer") -> None:
             with cols[1]:
                 st.markdown("**What to do**")
                 st.markdown(bullets(r["actions"]))
-        if view in ("Analyst", "Engineer"):
+        if view in ("Detail", "Method"):
             for t in r.get("tables", []):
                 table(t)
             if r.get("hypotheses"):
@@ -191,13 +211,13 @@ def answer(r: dict[str, Any], key: str = "answer") -> None:
                 st.markdown("**Assumptions**")
                 st.markdown(bullets(sup["assumptions"]))
         with st.expander("Show the method, checks and queries", icon=":material/fact_check:",
-                         expanded=view == "Engineer"):
+                         expanded=view == "Method"):
             if sup.get("sources"):
                 st.markdown("**Sources**")
                 for src in sup["sources"]:
                     st.caption(f"{src['dataset']} v{src['version']} · {src['rows']:,} rows · data through {src['data_through']} · "
                                f"sha256 {src['sha256'][:12]}… · loaded {str(src['loaded_at'])[:16]}")
-            if view not in ("Analyst", "Engineer") and sup.get("assumptions"):
+            if view not in ("Detail", "Method") and sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown(bullets(sup["assumptions"]))
             if sup.get("citations"):

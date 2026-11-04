@@ -36,8 +36,8 @@ from these, so two people asking the same question get the same number.
 
 **Verified**: every figure in the answer was recomputed independently and every required check passed.
 
-**Depth**: how much of the method an answer shows. Business is the answer and what to do; Analyst adds the tables
-and what was tested; Engineer adds every query; Executive is the two-line brief.
+**Depth**: how much of the method an answer shows. Summary is the answer and what to do; Detail adds the tables
+and what was tested; Method adds every check and query. **Brief** is the two-line version with a PDF to forward.
 
 **Watch a metric**: Lyst checks it on its own and investigates unusual moves. Sensitivity sets how unusual a move
 must be before it tells you.
@@ -48,19 +48,21 @@ must be before it tells you.
 
 **Needs you**: approvals, questions Lyst needs answered, and results that did not pass verification.
 
-**Skill**: a new method a builder adds to Lyst in Python. It is tested in a sandbox and approved before use.
+**Brain**: what Lyst knows about this business: approved definitions, documents, and what it has learned.
+
+**Skill**: a new method a builder adds to Lyst in Python (Settings › Advanced). It is tested in a sandbox and
+approved before use.
 """
 
 
 def make_pages(waiting: int = 0) -> list:
-    """The six areas, in one place: the sidebar. Work carries the count of things waiting on you."""
+    """The five areas, in one place: the sidebar. Work carries the count of things waiting on you."""
     return [
         st.Page(here / "analyst.py", title="Home", icon=":material/home:", default=True),
         st.Page(here / "work.py", title=f"Work · {waiting}" if waiting else "Work", icon=":material/view_kanban:",
                 url_path="work"),
         st.Page(here / "data.py", title="Data", icon=":material/database:"),
-        st.Page(here / "intelligence.py", title="Intelligence", icon=":material/menu_book:"),
-        st.Page(here / "build.py", title="Build", icon=":material/construction:"),
+        st.Page(here / "brain.py", title="Brain", icon=":material/psychology:"),
         st.Page(here / "settings.py", title="Settings", icon=":material/settings:"),
     ]
 
