@@ -24,7 +24,7 @@ from typing import Any
 
 from .. import notices
 from ..security import Principal
-from . import model, policy, recurring
+from . import model, nextaction, policy, recurring
 
 log = logging.getLogger("lyst.anticipate")
 
@@ -49,7 +49,7 @@ class AnticipationService:
         self.runtime = runtime
         self.semantic = semantic
         self.connections = connections
-        self.anticipators = [recurring]
+        self.anticipators = [recurring, nextaction]
         self.every = float(os.environ.get("LYST_ANTICIPATE_EVERY", "300"))
         self._last_tick = 0.0
         self._local = threading.local()
@@ -156,7 +156,11 @@ class AnticipationService:
                     cand["_ctx"] = ctx
                     prep = mod.prepare(self, ws, cand, now, automate=s.allows("automate"))   # prepare + verify
                     policy.charge(db, "prepare", prep["resources"]["compute_ms"], now)
-                    cand["scores"].update(_after(prep["verdict"]))
+                    if prep["verdict"] == "drop":   # verification showed it would not help: say nothing
+                        model.transition(db, stored["id"], "suppressed", detail={"reason": prep["reasons"][-1],
+                                                                                 "checks": prep["verification"]["checks"]})
+                        continue
+                    cand["scores"].update(prep.get("scores", {}))   # what preparation learned about value and evidence
                     score = combine(cand["scores"], self.learned(ws, cand["kind"]))
                     model.set_prepared(db, stored["id"], verdict=prep["verdict"], prepared=prep["prepared"],
                                        verification=prep["verification"], resources=prep["resources"], reasons=prep["reasons"])
@@ -204,7 +208,7 @@ class AnticipationService:
         return actor.user_id in a["audience"] or self.guard.can(actor, ws, "workspace.admin")
 
     def list(self, actor: Principal, ws: str, *, status: str = "open", kind: str | None = None, limit: int = 50,
-             now: datetime | None = None) -> list[dict[str, Any]]:
+             now: datetime | None = None, subject_id: str | None = None) -> list[dict[str, Any]]:
         """The activity center: prepared work, warnings and suggestions for this person, highest value first."""
         self.guard.require(actor, ws, "workspace.read")
         now = now or datetime.now(UTC)
@@ -214,6 +218,9 @@ class AnticipationService:
         if kind:
             sql += " AND kind = ?"
             params.append(kind)
+        if subject_id:
+            sql += " AND subject_id = ?"
+            params.append(subject_id)
         rows = [model.row(r) for r in self._db(ws).query(sql + " ORDER BY score DESC, created_at DESC", params)]
         out = []
         for a in rows:
@@ -258,11 +265,12 @@ class AnticipationService:
         if action in offered:
             if a["status"] not in model.OPEN:
                 raise ValueError(f"this suggestion is {a['status']}")
-            task_id = self._run(actor, ws, a, action)
-            model.transition(db, aid, "accepted", actor=actor.user_id, detail={"action": action, "task_id": task_id, "note": note},
+            done = self._run(actor, ws, a, action)
+            task_id = done.get("task_id")
+            model.transition(db, aid, "accepted", actor=actor.user_id, detail={"action": action, **done, "note": note},
                              outcome="accepted", decided_by=actor.user_id, decided_at=now, task_id=task_id)
-            self.guard.audit(actor, ws, "anticipation.accept", aid, "ok", {"action": action, "task_id": task_id})
-            return {"id": aid, "status": "accepted", "task_id": task_id}
+            self.guard.audit(actor, ws, "anticipation.accept", aid, "ok", {"action": action, **done})
+            return {"id": aid, "status": "accepted", **done}
         if action == "dismiss":
             self.guard.require(actor, ws, "workspace.read")
             model.transition(db, aid, "dismissed", actor=actor.user_id, detail={"note": note}, outcome="dismissed",
@@ -281,21 +289,11 @@ class AnticipationService:
             return {"id": aid, "status": a["status"], "feedback": action}
         raise ValueError(f"unknown action {action}; this item offers {', '.join(offered) or 'no actions'} and {', '.join(USER_ACTIONS)}")
 
-    def _run(self, actor: Principal, ws: str, a: dict[str, Any], action: str) -> str | None:
-        if a["kind"] == "recurring_prep" and action == "run_now":
-            sched = self.stores.control.query("SELECT request, workspace_id FROM schedules WHERE id = ?", [a["subject_id"]])
-            if not sched or sched[0]["workspace_id"] != ws:
-                raise KeyError(a["subject_id"])
-            req = json.loads(sched[0]["request"])
-            return self.runtime.submit(actor, ws, req["question"], kind="analysis", workflow=req.get("workflow"))
+    def _run(self, actor: Principal, ws: str, a: dict[str, Any], action: str) -> dict[str, Any]:
+        for mod in self.anticipators:
+            if a["kind"] in getattr(mod, "KINDS", ()):
+                return mod.run(self, actor, ws, a, action)
         raise ValueError(f"{action} is not available for {a['kind']}")
-
-
-def _after(verdict: str) -> dict[str, float]:
-    return {"blocked": {"value": 0.9, "evidence": 0.9, "interruption": 1.0},
-            "ready_with_warnings": {"value": 0.7, "evidence": 0.85},
-            "ready": {"value": 0.5, "evidence": 0.9}}[verdict]
-
 
 def _aware(ts):
     return ts if ts is None or ts.tzinfo else ts.replace(tzinfo=UTC)

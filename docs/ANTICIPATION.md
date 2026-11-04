@@ -14,6 +14,7 @@ open. It is kept honest: "Planned" means not built.
 | `model.py` | Prepared work as explicit objects (`anticipations`) with an append-only trail (`anticipation_events`) |
 | `service.py` | The cycle, the activity center, explanations, a person's responses, level changes |
 | `recurring.py` | Anticipator: approved recurring work (schedules) prepared just in time |
+| `nextaction.py` | Anticipator: next-best analytical action after finished work |
 
 The cycle per workspace: **observe** (signals from authorized metadata) -> **contextualize** (the run's datasets and
 definitions, from its compiled workflow, the metrics its question names and the datasets its last run queried) ->
@@ -68,6 +69,21 @@ estimate, and the workspace's model budget when the operations module is present
 `ready_with_warnings` or `blocked`. A blocked item is raised once to the inbox through `notices.raise_notice`, within the
 daily surface budget. The only offered action is "Run it now", which submits the same request as the person accepting.
 
+## Next-best analytical action (scenario D)
+
+Signal: an analysis, investigation or follow-up finished in the last 7 days. Each suggestion is grounded in what that
+analysis found and checked before it is shown; at most three per analysis, never for a question the person already asked
+(compared by question pattern, period aside), never pushed to the inbox:
+
+| Suggestion | When | Verified by | Action |
+| --- | --- | --- | --- |
+| Look inside the driver | one member explains at least half of the change and the metric has a dimension the analysis did not use | counting the rows of that slice as the person (an empty slice or lost access drops it) | run the drill-down question now, as the person (`kind=followup`) |
+| Watch the metric | a change large enough to attribute drivers, and no monitor on the metric | the metric is still approved | request a monthly monitor; an admin still approves it |
+| Make it recurring | the same question asked 3+ times in 60 days, no schedule | - | propose a schedule at the observed rhythm (day, week or month); an admin still approves it |
+| Extend into a forecast | a quarter or year reviewed, no forecast of it in 30 days | at least 12 months of history | run the forecast question now |
+
+`GET /v1/workspaces/{ws}/anticipations?subject=<task id>` lists the suggestions for one answer.
+
 ## API
 
 | Route | Purpose |
@@ -95,7 +111,7 @@ inside a 5 s bound; at level 2 the same item only warns and writes nothing.
 
 | # | Gap | State |
 | --- | --- | --- |
-| N1 | Next-best analytical action after completed work (scenario D) | Planned, slice 2 |
+| N1 | Next-best action: comparisons against other periods, hypothesis tests and briefings as further suggestion kinds | Planned |
 | N2 | Early-warning analytics and read-only investigation before notifying (scenario B) | Planned, slice 3 |
 | N3 | Data and integration health foresight: schema-change impact with validated repair proposals, credential age and expiry, latency and failure trends (scenarios C, F) | Planned, slice 4 |
 | N4 | Attention management: per-person frequency, quiet periods, relevance thresholds, muted kinds, opt-out (scenario H) | Planned, slice 5 (table exists) |

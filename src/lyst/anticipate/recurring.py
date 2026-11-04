@@ -29,6 +29,11 @@ from typing import Any
 
 from ..security import Principal
 
+KINDS = ("recurring_prep",)
+# a blocker is worth an interruption; ready work is quiet
+_AFTER = {"blocked": {"value": 0.9, "evidence": 0.9, "interruption": 1.0},
+          "ready_with_warnings": {"value": 0.7, "evidence": 0.85},
+          "ready": {"value": 0.5, "evidence": 0.9}}
 MIN_LEAD = timedelta(hours=1)
 MAX_LEAD = timedelta(hours=24)
 
@@ -276,9 +281,19 @@ def prepare(svc, ws: str, cand: dict[str, Any], now: datetime, *, automate: bool
     elif last_run:
         reasons.append(f"Its inputs have new data since the last run {_ago(last_run, now)}.")
     ms = int((time.perf_counter() - t0) * 1000)
-    return {"verdict": verdict,
+    return {"verdict": verdict, "scores": _AFTER[verdict],
             "prepared": {"datasets": deps["datasets"], "metrics": deps["metrics"], "question": deps["question"], "estimate": estimate,
                          "refreshed": refreshed},
             "verification": {"checks": checks, "complete": True},
             "resources": {"compute_ms": ms, "queries": 0, "model_calls": 0, "refreshes": len(refreshed)},
             "reasons": reasons}
+
+
+def run(svc, actor: Principal, ws: str, a: dict[str, Any], action: str) -> dict[str, Any]:
+    if action != "run_now":
+        raise ValueError(f"{action} is not available here")
+    sched = svc.stores.control.query("SELECT request, workspace_id FROM schedules WHERE id = ?", [a["subject_id"]])
+    if not sched or sched[0]["workspace_id"] != ws:
+        raise KeyError(a["subject_id"])
+    req = json.loads(sched[0]["request"])
+    return {"task_id": svc.runtime.submit(actor, ws, req["question"], kind="analysis", workflow=req.get("workflow"))}

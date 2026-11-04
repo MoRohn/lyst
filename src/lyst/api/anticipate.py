@@ -36,8 +36,10 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return L(request).anticipation.set_settings(user, ws, body.model_dump(exclude_none=True))
 
     @app.get("/v1/workspaces/{ws}/anticipations")
-    def anticipations(request: Request, ws: str, user: User, status: str = "open", kind: str | None = None, limit: int = 50):
-        return L(request).anticipation.list(user, ws, status=status, kind=kind, limit=min(limit, 200))
+    def anticipations(request: Request, ws: str, user: User, status: str = "open", kind: str | None = None, limit: int = 50,
+                      subject: str | None = None):
+        """The activity center; ``subject`` narrows it to one object (a task id for the next steps under an answer)."""
+        return L(request).anticipation.list(user, ws, status=status, kind=kind, limit=min(limit, 200), subject_id=subject)
 
     @app.post("/v1/workspaces/{ws}/anticipations/refresh")
     def anticipations_refresh(request: Request, ws: str, user: User) -> dict[str, Any]:
