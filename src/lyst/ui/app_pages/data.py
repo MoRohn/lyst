@@ -293,7 +293,7 @@ def column_profiles(name: str, ins: dict) -> None:
                                       compact=True)
             if c.get("issues"):
                 body += f'<div class="lyst-card-meta" style="color:var(--lyst-warn)">{kit._esc("; ".join(c["issues"]))}</div>'
-            with slot.container(border=True):
+            with slot, kit.card(f"col_{name}_{c['name']}"):
                 st.html(body)
 
 
@@ -411,7 +411,7 @@ def datasets(catalog: list[dict]) -> None:
     for start in range(0, len(full), 2):
         cols = st.columns(2)
         for col, c in zip(cols, full[start:start + 2], strict=False):
-            with col.container(border=True):
+            with col, kit.card(f"ds_{c['name']}"):
                 hit = dataset_card(c, by.get(c["name"]) or [])
             if hit or st.query_params.get("dataset") == c["name"]:
                 st.query_params.pop("dataset", None)

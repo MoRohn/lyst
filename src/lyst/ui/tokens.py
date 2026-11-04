@@ -32,8 +32,23 @@ _FALLBACK = {
 
 # Status colours carry meaning (good, caution, bad, in progress); both themes meet 4.5:1 on their background.
 _STATUS = {
-    "light": {"good": "#1a7f37", "warn": "#9a6700", "bad": "#c62828", "info": "#0b5cad", "neutral": "#5b6577"},
+    "light": {"good": "#176f31", "warn": "#865a00", "bad": "#b42318", "info": "#0b5cad", "neutral": "#5b6577"},
     "dark": {"good": "#4ac26b", "warn": "#d4a72c", "bad": "#f47067", "info": "#6cb6ff", "neutral": "#9aa4b5"},
+}
+
+# Material: the raised surface cards and sheets sit on, its translucent variant for the sidebar and sheets'
+# backdrop, and three elevations. Shadows are soft and short; dark mode leans on a lighter edge instead.
+_MATERIAL = {
+    "light": {"raised": "#ffffff", "material": "rgba(255,255,255,.72)", "scrim": "rgba(15,18,24,.28)",
+              "edge": "rgba(15,18,24,.06)",
+              "shadow-1": "0 1px 2px rgba(15,18,24,.05), 0 1px 1px rgba(15,18,24,.03)",
+              "shadow-2": "0 2px 6px rgba(15,18,24,.06), 0 8px 24px rgba(15,18,24,.06)",
+              "shadow-3": "0 12px 40px rgba(15,18,24,.16), 0 2px 8px rgba(15,18,24,.08)"},
+    "dark": {"raised": "#14161b", "material": "rgba(22,24,30,.72)", "scrim": "rgba(0,0,0,.5)",
+             "edge": "rgba(255,255,255,.06)",
+             "shadow-1": "0 1px 0 rgba(255,255,255,.04) inset, 0 1px 2px rgba(0,0,0,.4)",
+             "shadow-2": "0 1px 0 rgba(255,255,255,.05) inset, 0 8px 24px rgba(0,0,0,.35)",
+             "shadow-3": "0 1px 0 rgba(255,255,255,.06) inset, 0 16px 48px rgba(0,0,0,.6)"},
 }
 
 # Type: one family (the theme's), a short modular scale (rem, 15px base), and weights that rank without shouting.
@@ -42,10 +57,10 @@ TYPE = {
     "size-sm": ".84rem",   # metadata, captions, helper text
     "size-md": "1rem",     # body
     "size-lg": "1.2rem",   # answer headlines, dialog titles
-    "size-xl": "1.65rem",  # the page title (one per page)
-    "weight-regular": "400", "weight-medium": "560", "weight-strong": "650",
+    "size-xl": "2rem",     # the large page title (one per page), as on a native app's root view
+    "weight-regular": "400", "weight-medium": "560", "weight-strong": "680",
     "leading-tight": "1.25", "leading-body": "1.55",
-    "tracking-label": ".06em", "tracking-title": "-0.01em",
+    "tracking-label": ".06em", "tracking-title": "-0.022em",
 }
 
 # Spacing: a 4px grid. Pages use steps, never raw pixels.
@@ -55,10 +70,11 @@ SPACE = {"0": "0", "1": ".25rem", "2": ".5rem", "3": ".75rem", "4": "1rem", "5":
 LAYOUT = {"content-max": "1120px", "canvas-max": "1480px", "dialog-max": "760px", "gutter-mobile": "1rem",
           "touch-target": "2.25rem"}
 
-RADIUS = {"sm": "4px", "md": "6px", "lg": "10px", "pill": "999px"}
+RADIUS = {"sm": "6px", "md": "10px", "lg": "14px", "xl": "20px", "pill": "999px"}
 
 # Motion: short, and none when the person asks for reduced motion (see css()).
-MOTION = {"fast": "120ms", "base": "180ms", "ease": "cubic-bezier(.2,.0,.0,1)"}
+MOTION = {"fast": "120ms", "base": "200ms", "slow": "320ms", "ease": "cubic-bezier(.2,.0,.0,1)",
+          "spring": "cubic-bezier(.34,1.3,.64,1)"}
 
 ICON = {"sm": "1rem", "md": "1.25rem", "lg": "2rem"}
 
@@ -96,6 +112,7 @@ def colors(mode: str = "light") -> dict[str, str]:
         "border": t["borderColor"], "grid": _mix(t["backgroundColor"], t["borderColor"], .75),
         "focus": t["linkColor"],
         "good": s["good"], "warn": s["warn"], "bad": s["bad"], "info": s["info"], "neutral": s["neutral"],
+        **_MATERIAL["dark" if mode == "dark" else "light"],
     }
 
 
@@ -115,7 +132,8 @@ def css(mode: str = "light") -> str:
     props |= {f"--lyst-icon-{k}": v for k, v in ICON.items()}
     body = "; ".join(f"{k}: {v}" for k, v in props.items())
     return (f":root {{{body};}}\n"
-            "@media (prefers-reduced-motion: reduce) {:root {--lyst-motion-fast: 0ms; --lyst-motion-base: 0ms;}"
+            "@media (prefers-reduced-motion: reduce) {:root {--lyst-motion-fast: 0ms; --lyst-motion-base: 0ms;"
+            " --lyst-motion-slow: 0ms;}"
             " *, *::before, *::after {animation-duration: 0ms !important; transition-duration: 0ms !important;}}")
 
 

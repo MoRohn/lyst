@@ -118,7 +118,7 @@ def metric_cards(metrics: list[dict], terms: list[dict], per_row: int = 3) -> No
         cols = st.columns(per_row)
         for col, m in zip(cols, metrics[start:start + per_row], strict=False):
             p = live.get(m["name"])
-            with col.container(border=True):
+            with col, kit.card(f"m_{m['name']}"):
                 dims = ", ".join(d.replace("_", " ") for d in m.get("dimensions") or [])
                 head = (f'<div class="lyst-card-title">{kit._esc(m["title"])}</div>'
                         + (f'<div class="lyst-card-value lyst-num">{kit._esc(p["value_text"])}</div>'

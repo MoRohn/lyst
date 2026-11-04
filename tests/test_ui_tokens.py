@@ -112,3 +112,13 @@ def test_a_breakdown_answer_gets_a_bar_chart_in_summary():
     assert c["type"] == "bar" and c["x"] == ["EMEA", "APAC"] and c["format"] == "currency"
     assert breakdown_chart({**r, "charts": [{"type": "line"}]}) is None  # its own chart wins
     assert breakdown_chart({"tables": [{"columns": ["a", "b", "c"], "rows": [[1, 2, 3]]}]}) is None
+
+
+def test_material_tokens_and_surfaces():
+    for mode in ("light", "dark"):
+        c = tokens.colors(mode)
+        for k in ("raised", "material", "edge", "shadow-1", "shadow-3"):
+            assert c[k]
+        assert tokens.contrast(c["text-muted"], c["raised"]) >= 4.5
+    kit = (UI / "kit.py").read_text()
+    assert "data-lyst-surface" in kit and "prefers-reduced-motion" in tokens.css()

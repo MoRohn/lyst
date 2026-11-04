@@ -25,6 +25,27 @@ stylesheet contains no raw colours (a test enforces it). Contrast is tested: eve
 Selectors target only `data-testid`, ARIA attributes (`aria-checked`), `st-key-<key>` classes and Prism token
 classes, never Streamlit's generated `st-emotion-cache-*` classes.
 
+## Lyst material
+
+The visual language, inspired by the craft of native apps without imitating them:
+
+* **Canvas and surfaces.** A faintly cool canvas (`#f6f7f9` light, `#0b0c0f` dark) with raised surfaces on it
+  (`--lyst-raised`: white / graphite), a soft edge (`--lyst-edge`) and three short shadows (`--lyst-shadow-1..3`; dark
+  mode uses a light inner edge instead of heavy shadow). Cards (`kit.card`), every bordered container and form, and
+  expanders are raised. Streamlit gives bordered containers no attribute, so one small observer in `kit.style()`
+  marks them `data-lyst-surface`; without JavaScript they keep their hairline.
+* **Material.** The sidebar and toasts are translucent (`--lyst-material` + backdrop blur); dialogs are sheets with a
+  20px radius, the deepest shadow and a rise-in.
+* **Type.** The system UI face (SF Pro on Apple devices, Segoe UI Variable on Windows), a 2rem large title at
+  -0.022em, tabular figures for data.
+* **Controls.** Segmented controls are an inset track with a raised thumb; buttons press (scale .975) and secondary
+  buttons sit raised; inputs glow with the accent on focus; the current page in the sidebar is a raised pill with an
+  accent icon.
+* **Motion.** Pages rise in over 320 ms, sheets over 320 ms, controls over 120 ms; all 0 ms under
+  `prefers-reduced-motion`. Motion never stands in for progress: status comes from the engine.
+* **Sidebar.** Search (⌘K) and workspace first, then **Recent**: the latest four questions with their real status
+  icon (running, waiting for approval, failed), one click back to each.
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.

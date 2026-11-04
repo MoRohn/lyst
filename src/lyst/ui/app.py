@@ -209,7 +209,37 @@ def _count_waiting(ws: str) -> int:
 
 st.session_state.waiting = _waiting(st.session_state.workspace)
 nav = st.navigation(make_pages(st.session_state.waiting), position="sidebar")
+
+
+def _recent(ws: str) -> list[dict]:
+    """The person's latest questions in this workspace, for one-click return; refreshed like the waiting count."""
+    import time  # noqa: PLC0415
+
+    hit = st.session_state.get("_recent")
+    if hit and hit[0] == ws and time.monotonic() - hit[1] < WAITING_TTL:
+        return hit[2]
+    try:
+        tasks = [t for t in api.get(f"/v1/workspaces/{ws}/tasks") if t.get("kind", "analysis") == "analysis"][:4]
+    except APIError:
+        tasks = []
+    st.session_state["_recent"] = (ws, time.monotonic(), tasks)
+    return tasks
+
+
+RECENT_ICON = {"queued": ":material/schedule:", "running": ":material/progress_activity:",
+               "awaiting_approval": ":material/approval:", "failed": ":material/error:",
+               "paused": ":material/pause:"}
+
 with st.sidebar:
+    if recent := _recent(st.session_state.workspace):
+        kit.label("Recent")
+        for t in recent:
+            if st.button(t.get("title") or "Untitled", key=f"lyst_recent_{t['id']}", type="tertiary", width="stretch",
+                         icon=RECENT_ICON.get(t["status"], ":material/chat_bubble:"),
+                         help=f"{t['status'].replace('_', ' ').capitalize()} · {kit.when(t.get('updated_at'))}"):
+                st.session_state.task_id = t["id"]
+                st.switch_page("app_pages/analyst.py", query_params={"task": t["id"]})
+        st.html('<div style="height:.4rem"></div>')
     with st.popover(me["email"], icon=":material/account_circle:", width="stretch"):
         st.caption(f"{me.get('name') or me['email']} · {role} in "
                    f"{next(w['name'] for w in spaces if w['id'] == st.session_state.workspace)}")
