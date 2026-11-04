@@ -44,8 +44,24 @@ mutation of a file is serialized on its writer thread; a task's outcome is writt
 | C1 | High | Secrets | A driver error that echoes its DSN stored the database password in `connections.last_error` and returned it to the browser; discover/sync failures answered 500 | Pattern redaction cannot know an arbitrary password is secret | Every connector wrapped: failures become `ConnectorError` with the raw and URL-encoded secret values removed, no chained cause | Verified Fixed (`test_secret_leakage.py`) |
 | U1 | Critical | Identity | `lyst ui` listened on every interface and lent the owner's dev token to any browser; a LAN browser opened the UI signed in as the owner (reproduced with Playwright on 192.168.68.73) | Streamlit binds all interfaces by default; the token fallback ignored who was asking | `lyst ui` binds localhost unless `STREAMLIT_SERVER_ADDRESS` says otherwise; shared token only with `LYST_UI_LOCAL=1`, a loopback client and no proxy headers | Verified Fixed (browser re-run: LAN refused; network-bound UI asks for a token; local UI signed in) |
 | A1 | Medium | Analyst | "What was revenue last quarter by region?" answers with the total only; the breakdown is in a table and a finding | The value template led with the total for breakdown intent | Fixed by the build thread in `88d2adb` (split with shares in the answer sentence) | Verified Fixed (re-run of `scripts/bench_large.py`: answer now lists AMER/APAC/EMEA/LATAM with shares) |
-| P1 | Medium | Performance | Submit p95 is 300 ms with 100 people at once (objective in PERFORMANCE.md: 200 ms) | Not isolated. Hypothesis, unverified: GIL-bound analysis on 4 worker threads plus 100 polling clients | — | Confirmed Open |
+| P1 | Medium | Performance | Submit p95 was 300 ms with 100 people at once (objective in PERFORMANCE.md: 200 ms) | Isolated in pass 3: one submit takes 6 ms (40 sequential, p50 6.1 ms); the load test fired all 100 in the same instant, so requests queued (server histogram: all 100 between 100 and 500 ms). Worker count did not matter (1 worker: p95 331 ms) | `load_test.py --ramp/--think` models arrival and think time; authentication no longer writes `last_used_at` on every request (once a minute per token) | Verified: 100 people, 3 questions each, arrivals over 30 s, 10 s think: submit p95 31 ms, end-to-end p95 0.68 s. A true simultaneous burst of 100 still queues to ~300-440 ms |
 | H1 | Low | Runtime | The heartbeat cannot help if the whole process stalls longer than the lease (GIL starvation, debugger) | Leases are time-based | Fencing (R1/R2) keeps a stale worker from writing results; a stalled step may still run twice | Partially Resolved |
+
+## Pass 3 findings (2026-11-04)
+
+| ID | Severity | Area | Finding | Root cause | Fix | Status |
+|---|---|---|---|---|---|---|
+| N1 | High | Model narrative | Live on OpenRouter, 4 of 5 answers dropped the model's wording as "unverified numbers" | `_numbers` read "$25.41 million" as 25.41 and "3.5 points" as 3.5, so correct wording failed verification | Spelled-out scales (thousand, million, billion, mn, bn) and points/percent are scaled; invented figures still rejected | Verified Fixed in code and tests (`test_model_wording_with_spelled_out_scales_is_verified_not_dropped`). Live re-run needs the running engine restarted on this code |
+| J1 | High | Analytical correctness | `sum(o.amount)` over orders joined to order lines returned 800 for a true 600 and was marked verified with no checks | Fan-out was checked only for queries without an aggregate | A probe counts joined rows against distinct rows of each summed table under the same FROM/JOIN/WHERE; inflation is a failed `join_fanout` check with the factor | Verified Fixed (`tests/test_join_inflation.py`: flagged, many-side and one-to-one joins not flagged) |
+| M-R1 | Medium | Model routing | The first model call after idle took 11 to 14 s (understand: 14.3 s, contextualize: 11.3 s); later calls 0.55 to 0.73 s | Every workload, including `classify` for metric mapping, goes to the one pinned reasoning model (deepseek-v4-pro); the cause of the cold delay (provider or reasoning) is not isolated, and the engine exposes only aggregated call records | None here: model choice per workload belongs to the model-tier thread | Confirmed Open |
+| O1 | Low | Observability | `/v1/workspaces/{ws}/model-usage` is aggregated per model and provider, so a slow call cannot be tied to a task or step | Per-call records are stored but not exposed | — | Confirmed Open |
+| U2 | Low | UI | A long question's page title is cut mid-word ("…contributing factors, te") | Title truncated by characters | Belongs to the product-excellence thread | Confirmed Open |
+
+Model routing as it runs (live, 5 questions, OpenRouter): rules resolve metrics and plans; the model is called to
+map an unrecognised metric name (`classify`), to word hypotheses, and to rewrite the final answer, and every number in
+that rewrite is checked against tool output. Simple value questions make at most one chat call. Embeddings
+(`openai/text-embedding-3-small`) serve memory recall and document search. No multi-agent delegation on simple
+tasks. Aggregated over this instance's history: chat calls p95 0.9 to 2.7 s by provider, about $0.0003 a call.
 
 ## Measurements (Mac mini, Apple Silicon, Python 3.13, DuckDB 2.0; 2026-11-04)
 
@@ -69,16 +85,19 @@ What these do not say: no model call is included; the demo dataset is small; one
 
 | # | Scenario | Status |
 |---|---|---|
+| 5 | Misleading data | Partially: join inflation now flagged (J1); conflicting definitions disclosed (`test_contradictory_documentation_is_disclosed_and_the_approved_definition_wins`) |
+| 9 | Reused analytical workflow | Verified (`scripts/bench_workflows.py`, pass 3): compiled workflows 12 tasks, 9 model calls, 142 queries; compilation off 12, 160; 12/12 verified both ways |
+| 10 | Complete user journey | Verified in a browser (Playwright, pass 3): Home ready 1.2 s, deep question submitted, answer verified with chart, export control present, task listed on Work |
 | 2 | Concurrent jobs across workspaces | Partially: load test (one workspace) and route sweep (two); a mixed multi-workspace load run is not yet done |
 | 3 | Mid-execution worker failure | Verified by tests: resume from checkpoints (`test_h_resume_after_interruption`), no duplicate step under lease expiry (R1), fenced results (R2), crash loops abandoned (R3) |
 | 4 | Compromised or missing credentials | Partially: connector errors scrubbed (C1); revoked credentials already covered by `test_gaps.py` |
-| 6 | Browser closed mid-task | Design verified in code: tasks run in the engine and the Home page restores `?task=` from the URL; not yet driven end to end in a browser |
+| 6 | Browser closed mid-task | Verified in a browser (pass 3): the browser closed right after submitting; a new browser at the task link showed the verified answer 3.8 s later |
 | 7 | Cross-tenant security | Verified (T2) |
 | 8 | Large analytical workload | Measured (above) |
-| 1, 5, 9, 10 | Financial investigation, misleading data, workflow reuse, full journey | Not Yet Evaluated in this pass (existing coverage: `test_adversarial.py`, `test_workflows.py`, `scripts/bench_workflows.py`) |
+| 1 | Complex financial investigation | Partially: the six-quarter investigation runs with every check passing (live and in tests; `independent_recompute` against pandas); multi-dataset deliverables not separately verified |
 
 ## Not yet evaluated, and why
 
-Model routing quality/latency/cost (no OpenRouter key connected yet; GAPS M1), a real identity provider (GAPS S10),
+Model choice per workload (model-tier thread), a real identity provider (GAPS S10),
 Docker/Compose (no Docker on this machine; GAPS O1), untrusted MCP servers, knowledge-layer retrieval quality,
 backup during an active workload, multi-workspace load.

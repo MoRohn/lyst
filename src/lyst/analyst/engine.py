@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import re
 import uuid
@@ -718,6 +719,48 @@ def run_skill(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                               params=args.get("params")))
 
 
+def _aggregate_fanout(ctx: Context, tree) -> list[str]:
+    """J1: a SUM/AVG/COUNT over a column of table T is inflated when the join repeats T's rows. For each such T,
+    count the joined rows against the distinct rows of T under the same FROM, JOINs and WHERE (DuckDB lets a table
+    alias stand for its whole row). Rows of T that are exact duplicates count once; the duplicate check covers those."""
+    from sqlglot import exp  # noqa: PLC0415
+
+    select = tree if isinstance(tree, exp.Select) else tree.find(exp.Select)
+    from_key = "from_" if "from_" in (select.args if select is not None else {}) else "from"
+    if select is None or select.args.get(from_key) is None:
+        return []
+    aliases = {}
+    for t in select.find_all(exp.Table):
+        if t.find_ancestor(exp.Subquery) is None:
+            aliases[(t.alias_or_name or "").lower()] = t.name
+    summed = set()
+    for agg in select.find_all(exp.Sum, exp.Avg, exp.Count):
+        if isinstance(agg, exp.Count) and (agg.args.get("distinct") or isinstance(agg.this, exp.Distinct)):
+            continue
+        for col in agg.find_all(exp.Column):
+            if col.table and col.table.lower() in aliases:
+                summed.add(col.table.lower())
+    out = []
+    for alias in sorted(summed):
+        probe = exp.select(exp.Count(this=exp.Star()).as_("n"),
+                           exp.Count(this=exp.Distinct(expressions=[exp.column(alias)])).as_("d"))
+        probe.set(from_key, select.args[from_key].copy())
+        probe.set("joins", [j.copy() for j in select.args.get("joins") or []])
+        if select.args.get("where") is not None:
+            probe.set("where", select.args["where"].copy())
+        try:
+            n, d = ctx.services.data.query(ctx.actor, ctx.workspace_id, probe.sql(dialect="duckdb"),
+                                           task_id=ctx.task_id).rows[0]
+        except Exception:  # noqa: BLE001 - the probe is a check; the answer's own query already ran
+            logging.getLogger("lyst.analyst").warning("fan-out probe failed for %s", alias, exc_info=True)
+            continue
+        if d and n > d:
+            out.append(f"join fan-out: each row of {aliases[alias]} appears {n / d:.2f} times on average after the join "
+                       f"({n:,} joined rows from {d:,} rows), so sums, averages and counts over {aliases[alias]} columns "
+                       "are inflated; aggregate it before joining or join on a unique key")
+    return out
+
+
 @capability(REGISTRY, "run_sql", agent="analytics_engineer", phase="execute", permission="data.query",
             description="Run one guarded, read-only query.")
 def run_sql(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
@@ -731,6 +774,8 @@ def run_sql(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         joins = list(tree.find_all(exp.Join))
     except Exception:  # noqa: BLE001
         joins = []
+    if joins and tree.find(exp.AggFunc) is not None and len(r.datasets) >= 2:
+        warnings += _aggregate_fanout(ctx, tree)
     if joins and not tree.find(exp.AggFunc) and len(r.datasets) >= 2:
         counts = {}
         for d in r.datasets:
@@ -987,19 +1032,27 @@ def _independent_recompute(ctx: Context, current: dict[str, Any]) -> dict[str, A
 # ----------------------------------------------------------------- 7-8. interpret, deliver
 
 
+_SCALE_WORDS = {"thousand": 1e3, "k": 1e3, "million": 1e6, "mn": 1e6, "m": 1e6, "billion": 1e9, "bn": 1e9, "b": 1e9}
+_NUMBER = re.compile(r"-?\$?\d[\d,]*\.?\d*(?:\s*(?:%|per ?cent\b|percent\b|(?:percentage )?points?\b|pts\b|"
+                     r"(?:thousand|million|billion|mn|bn)\b|[KMB]\b))?")
+
+
 def _numbers(text: str) -> list[float]:
+    """Figures in text, scaled: "$2.69M", "$2.69 million", "1.3%", "3.5 pts" and "3.5 percentage points" all parse.
+    Spelled-out scales are how a model words money, so leaving them unscaled rejected correct wording (N1)."""
     out = []
-    for m in re.finditer(r"-?\$?\d[\d,]*\.?\d*\s*(?:%|pts|[KMB])?", text):
-        tok = m.group(0).replace("$", "").replace(",", "").strip()
-        mult = 1.0
-        if tok.endswith("%") or tok.endswith("pts"):
-            tok = tok.rstrip("%").replace("pts", "").strip()
+    for m in _NUMBER.finditer(text):
+        tok = m.group(0).replace("$", "").replace(",", "")
+        num = re.match(r"-?\d+\.?\d*", tok)
+        if not num:
+            continue
+        unit = tok[num.end():].strip().lower()
+        if unit in ("%", "pts", "point", "points", "percent", "per cent", "percentage point", "percentage points"):
             mult = 0.01
-        elif tok[-1:] in "KMB":
-            mult = {"K": 1e3, "M": 1e6, "B": 1e9}[tok[-1]]
-            tok = tok[:-1]
+        else:
+            mult = _SCALE_WORDS.get(unit, 1.0)
         try:
-            out.append(float(tok) * mult)
+            out.append(float(num.group(0)) * mult)
         except ValueError:
             pass
     return out

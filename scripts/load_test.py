@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import statistics
 import threading
 import time
@@ -28,7 +29,8 @@ QUESTIONS = [
 ]
 
 
-def run(url: str, token: str, workspace: str, users: int, rounds: int, timeout: float) -> dict:
+def run(url: str, token: str, workspace: str, users: int, rounds: int, timeout: float, ramp: float = 0.0,
+        think: float = 0.0) -> dict:
     h = {"Authorization": f"Bearer {token}"}
     submit_ms: list[float] = []
     e2e_s: list[float] = []
@@ -36,8 +38,13 @@ def run(url: str, token: str, workspace: str, users: int, rounds: int, timeout: 
     lock = threading.Lock()
 
     def person(i: int) -> None:
+        # people arrive spread over the ramp and pause between questions; 0 and 0 is a burst (everyone at once)
+        rnd = random.Random(i)  # noqa: S311 - load shaping, not security
+        time.sleep(rnd.uniform(0, ramp))
         with httpx.Client(base_url=url, timeout=30) as c:
             for r in range(rounds):
+                if r:
+                    time.sleep(rnd.expovariate(1 / think) if think else 0)
                 q = QUESTIONS[(i + r) % len(QUESTIONS)]
                 t0 = time.perf_counter()
                 resp = c.post(f"/v1/workspaces/{workspace}/tasks", json={"question": q}, headers=h)
@@ -75,7 +82,7 @@ def run(url: str, token: str, workspace: str, users: int, rounds: int, timeout: 
         xs = sorted(xs)
         return xs[min(len(xs) - 1, int(round(p * (len(xs) - 1))))]
 
-    return {"users": users, "rounds": rounds, "tasks": users * rounds, "completed": len(e2e_s), "failures": failures,
+    return {"users": users, "rounds": rounds, "ramp_s": ramp, "think_s": think, "tasks": users * rounds, "completed": len(e2e_s), "failures": failures,
             "wall_seconds": round(wall, 2), "tasks_per_second": round(len(e2e_s) / wall, 2) if wall else None,
             "submit_ms_p50": round(statistics.median(submit_ms), 1) if submit_ms else None,
             "submit_ms_p95": round(pct(submit_ms, 0.95), 1) if submit_ms else None,
@@ -92,5 +99,7 @@ if __name__ == "__main__":
     ap.add_argument("--users", type=int, default=8)
     ap.add_argument("--rounds", type=int, default=2)
     ap.add_argument("--timeout", type=float, default=120)
+    ap.add_argument("--ramp", type=float, default=0.0, help="spread arrivals over this many seconds (0: all at once)")
+    ap.add_argument("--think", type=float, default=0.0, help="mean pause between one person's questions, seconds")
     a = ap.parse_args()
-    print(json.dumps(run(a.url, a.token, a.workspace, a.users, a.rounds, a.timeout), indent=1))
+    print(json.dumps(run(a.url, a.token, a.workspace, a.users, a.rounds, a.timeout, a.ramp, a.think), indent=1))
