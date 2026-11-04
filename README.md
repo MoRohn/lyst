@@ -216,15 +216,14 @@ where they point, with Mark all read and "What to tell me about".
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
-* **Prepares recurring work before it runs.** Shortly before an approved schedule is due, Lyst checks it as its
-  owner would: access, each input's freshness since the last run, failing connections, broken contracts, changed
-  or retired definitions, out-of-date saved analyses, recent failures, expected run time and model budget. The
-  verdict is ready, ready with warnings, or blocked, and only a blocker is pushed to a person. Prepared work is
-  re-checked as soon as data or a definition changes, and each item explains why it was raised and can be run
-  now, dismissed, snoozed or rated. A per-workspace autonomy level (off, suggest by default, prepare, investigate,
-  automate) with daily budgets sets how far Lyst goes on its own. Levels never widen permissions, and
-  consequential actions still need approval. Deterministic and local, with no model calls. Through the API today
-  ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
+* **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
+  owner that the run will work: its datasets have new data, its connections are healthy, its definitions are still
+  approved and unchanged, its contracts hold, and its saved analysis still matches its inputs. Ready work waits
+  quietly in the activity center with **Run it now**; a problem that would break the run reaches the inbox once,
+  before the run. Each workspace picks a level: Off, Suggest (the default, where nothing executes), Prepare,
+  Investigate or Automate, with daily budgets for preparation, investigation, compute and notices. Every item
+  explains from recorded evidence why it appeared, and preparation never distributes reports, edits data or
+  bypasses approvals. Through the API today ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
