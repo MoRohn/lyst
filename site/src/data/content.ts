@@ -166,7 +166,7 @@ export const enterprise = {
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
     { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
-    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on (OIDC) and member roles decide what Lyst can see and do.', status: 'available' as Status },
+    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.', status: 'dev' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Docker packaging and encrypted backups; run it where your policies require.', status: 'available' as Status },
