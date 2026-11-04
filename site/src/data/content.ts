@@ -85,8 +85,8 @@ export const capabilities: {
   {
     icon: 'Blocks',
     title: 'Build',
-    text: 'Deliverables people can use on Monday.',
-    items: ['Generated dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Data extracts'],
+    text: 'Deliverables people can use on Monday, verified on every refresh.',
+    items: ['Interactive Dash dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Governed extracts'],
     status: 'available',
   },
   {
@@ -99,8 +99,8 @@ export const capabilities: {
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'PostgreSQL and files today, with more sources on the way.',
-    items: ['PostgreSQL', 'Files and documents', 'MCP server', 'Webhooks', 'Warehouses and SaaS'],
+    text: 'Databases, APIs and files today, with more sources on the way.',
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files and documents', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
@@ -127,7 +127,7 @@ export const openSource = {
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
   ],
   attribution:
-    'Python is a trademark of the Python Software Foundation. DuckDB is a trademark of the DuckDB Foundation. Streamlit is a trademark of Snowflake Inc. Lyst is not affiliated with or endorsed by these organizations. Connected commercial systems remain the products of their owners and are not part of Lyst’s open-source distribution.',
+    'Python is a trademark of the Python Software Foundation. DuckDB is a trademark of the DuckDB Foundation. Streamlit is a trademark of Snowflake Inc. Plotly and Dash are trademarks of Plotly Technologies Inc. Lyst is not affiliated with or endorsed by these organizations. Connected commercial systems remain the products of their owners and are not part of Lyst’s open-source distribution.',
 };
 
 export const architecture = [
@@ -143,7 +143,7 @@ export const architecture = [
   },
   {
     layer: 'Engines',
-    items: ['DuckDB', 'Python data stack', 'Statistics'],
+    items: ['DuckDB', 'Python data stack', 'Statistics', 'Plotly Dash'],
     tone: 'ink',
   },
   {
