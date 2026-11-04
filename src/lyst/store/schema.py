@@ -1025,3 +1025,54 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Scenario models (versioned driver models), saved scenarios with their result and a reproducibility digest, and
+# decision records (analysis, recommendation, the person's choice, approval and outcome review).
+WORKSPACE.append((
+    20,
+    """
+    CREATE TABLE scenario_models (
+        name VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        title VARCHAR NOT NULL,
+        spec JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (name, version)
+    );
+    CREATE TABLE scenarios (
+        id VARCHAR PRIMARY KEY,
+        model VARCHAR NOT NULL,
+        model_version INTEGER NOT NULL,
+        name VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        overrides JSON NOT NULL,
+        result JSON NOT NULL,
+        digest VARCHAR NOT NULL,
+        seed INTEGER,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE decisions (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        question VARCHAR,
+        spec JSON NOT NULL,
+        analysis JSON,
+        recommendation JSON,
+        status VARCHAR NOT NULL,
+        chosen VARCHAR,
+        rationale VARCHAR,
+        approval_id VARCHAR,
+        decided_by VARCHAR,
+        decided_at TIMESTAMPTZ,
+        review_at TIMESTAMPTZ,
+        outcome JSON,
+        task_id VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))

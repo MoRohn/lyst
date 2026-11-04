@@ -49,3 +49,35 @@ interface sets it yet; the supervisor's stall threshold is one global setting.
 
 Interface: none in this PR. The operations report and quotas belong under Settings (installation and workspace
 sections), placement to be agreed with the UX thread, which owns `src/lyst/ui/`.
+
+## Slice 2: decision intelligence and scenario analysis
+
+Modules `src/lyst/scenarios.py` and `src/lyst/decisions.py`; a `what_if` intent and capability in the analyst;
+WORKSPACE migration 20 (`scenario_models`, `scenarios`, `decisions`); permissions `scenario.define` and
+`decision.create` (editor). The demo workspace gets a driver model, `pnl_drivers` (revenue, COGS ratio and operating
+expenses observed for the last quarter; labor share of operating expenses an assumption with a range, since the demo
+P&L has no labor line).
+
+| # | Existing limitation | Root cause | Implemented solution | Tests | Verified result |
+|---|---|---|---|---|---|
+| DI1 | "What happens to operating margin if labor costs increase 6% while revenue grows 3%?" was read as an explain question about the past | No what-if model or intent | Driver models: inputs (assumed, or observed through the SQL guard from a governed metric or a dataset measure for a named period), arithmetic formulas parsed with `ast` (no `eval`), outputs. A what-if sentence is parsed into changes on any node; unknown drivers are listed, never guessed. The Home question plans `what_if → validate → deliver`; the answer is labelled hypothetical and lists observed inputs (period, dataset version, data-through), assumptions and formulas; each observed input's query is evidence | `test_what_if_sentences_are_parsed…`, `test_scenario_e_what_if_from_home…` | Margin and base equal an independent pandas recomputation from raw rows (rel. 1e-9) |
+| DI2 | No sensitivity, uncertainty or best/worst analysis outside the staffing forecast | — | Tornado sensitivity (range ends or ±10%) with elasticity; best/base/worst from each input's favourable end; seeded vectorized Monte Carlo (normal, triangular, uniform; relative ranges for observed inputs) with P5/P50/P95, histogram and probability below a threshold | `test_sensitivity_cases_and_simulation…` | Worst < P5 < P50 < P95 < best; same seed gives identical output |
+| DI3 | Changing one assumption would recompute everything | — | Evaluation with a previous result recomputes only nodes downstream of the changed overrides; observed inputs are cached per dataset version | `test_only_downstream_nodes_are_recomputed`, `test_scenario_e_adjust_save_reproduce_and_compare` | Changing labor share recomputes 5 of 9 nodes; incremental equals full recalculation |
+| DI4 | No saved, versioned, reproducible scenarios | — | Named scenarios saved as versions with their result and a digest of model version, changes and observed inputs; `reproduce` re-runs on the pinned model version and reports any difference and which observed inputs moved; compare saved scenarios of one model | same | Reproduce returns `same` with no moved inputs |
+| DI5 | Validity of what-if inputs unchecked | — | Validation: input ranges, changes over 50%, non-finite results (division by zero said plainly, not an exception), observed data older than 120 days | `test_scenario_validation_flags…` | Revenue −100% gives a `fail` on margin; viewers may explore but not define models |
+| DI6 | No structured decision support (scenario A) | — | `frame` (objective, alternatives, constraints, analysis vs decision needing authorization, what is missing); `analyze` (min-max weighted criteria, constraints with reasons, triangular uncertainty → probability each ranks first and score intervals, weight at which the leader changes, cost-benefit and risk-adjusted score); `allocate` (SciPy `milp`/HiGHS with groups and unit bounds) | `test_framing…`, `test_scenario_a_compares…`, `test_allocation_under_a_budget_is_optimal` | Infeasible option removed with its reason; allocation equals brute force |
+| DI7 | Recommendations could be stated with unsupported certainty | — | Recommendation contract: evidence, assumptions, expected impact, uncertainty, alternatives, risks, implementation, monitoring; `insufficient_evidence` without evidence, `no_clear_winner` when the top two are not separated beyond the uncertainty; always `requires_human_decision` | `test_no_false_certainty…` | Identical alternatives give no winner |
+| DI8 | No reviewable decision workflow | — | Decision records: analyzed → submitted (approval request `decision.approve`; the person may choose differently from the recommendation, both kept) → approved/rejected by an approver → reviewed against the expected impact (met / partly met / not met). Nothing is executed | `test_decision_record_needs_a_person…` | Approval by another member moves it to approved with a review date |
+
+API: `/v1/workspaces/{ws}/scenario-models[/{name}[/evaluate|/analyze|/scenarios]]`, `/scenarios/compare`,
+`/scenarios/{id}/reproduce`, `/what-if`, `/decision-records[/frame|/allocate|/{id}[/submit|/review]]` (decision records; `/decisions` is the collaboration list of comments recorded as decisions).
+
+Performance: a what-if on the demo model runs three aggregate queries once per dataset version (cached afterwards);
+`scripts/bench_scenarios.py` on the development Mac: first what-if 56 ms (reads the data), repeated 6.5 ms (cached
+base), one assumption changed 4.1 ms, sensitivity + best/worst + 10,000-draw simulation 5 ms (median).
+
+Remaining risks: formulas are arithmetic only (no conditionals or time series: a scenario is one period); the
+what-if parser understands percentage changes ("rises 3%", "falls by 2 percent"), not absolute amounts in a sentence
+(the API takes `value` and `change_abs`); OR-Tools and Pyomo were not added because SciPy's `milp` covers the
+allocation problems here; the scenario explorer and decision views are not built yet (placement agreed with the UX
+thread first).

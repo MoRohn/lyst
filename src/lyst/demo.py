@@ -110,6 +110,37 @@ METRICS = [
 ]
 
 
+# A driver model of the quarter's P&L for what-if questions ("what happens to operating margin if labor costs increase
+# 6% while revenue grows 3%?"). Revenue, the COGS ratio and operating expenses are observed from the data; the labor
+# share of operating expenses is an assumption (the demo P&L has no labor line), stated with its range.
+PNL_DRIVERS = {
+    "title": "Quarterly P&L drivers",
+    "metric": "operating_margin",
+    "inputs": [
+        {"name": "revenue", "label": "Revenue", "unit": "USD", "source": {"metric": "revenue", "period": "last quarter"},
+         "range_pct": [-8, 8], "distribution": "normal", "sd_pct": 3, "synonyms": ["sales", "top line"]},
+        {"name": "cogs_ratio", "label": "COGS ratio", "unit": "ratio", "source": {"metric": "cogs_ratio", "period": "last quarter"},
+         "range_pct": [-5, 5], "distribution": "triangular", "synonyms": ["cost of goods ratio"]},
+        {"name": "opex", "label": "Operating expenses", "unit": "USD",
+         "source": {"dataset": "pnl", "column": "opex", "agg": "sum", "time_column": "month", "period": "last quarter"},
+         "range_pct": [-4, 6], "distribution": "triangular", "synonyms": ["operating costs", "overheads"]},
+        {"name": "labor_share", "label": "Labor share of operating expenses", "unit": "ratio", "value": 0.55, "low": 0.45, "high": 0.65,
+         "distribution": "triangular"},
+    ],
+    "formulas": [
+        {"name": "cogs", "label": "Cost of goods", "expr": "revenue * cogs_ratio", "synonyms": ["cost of goods sold"]},
+        {"name": "labor_costs", "label": "Labor costs", "expr": "opex * labor_share",
+         "synonyms": ["labor", "labour costs", "labour", "wages", "payroll", "staff costs"]},
+        {"name": "other_opex", "label": "Other operating expenses", "expr": "opex * (1 - labor_share)"},
+        {"name": "operating_income", "label": "Operating income", "expr": "revenue - cogs - labor_costs - other_opex",
+         "synonyms": ["ebit"]},
+        {"name": "operating_margin", "label": "Operating margin", "expr": "operating_income / revenue",
+         "synonyms": ["op margin", "margin"]},
+    ],
+    "outputs": [{"name": "operating_margin", "format": "percent"}, {"name": "operating_income", "format": "currency"}],
+}
+
+
 def seed(lyst, owner, workspace_id: str = "northwind") -> None:
     lyst.guard.create_workspace(owner, workspace_id, "Northwind Industries")
     frame = pnl()
@@ -123,4 +154,6 @@ def seed(lyst, owner, workspace_id: str = "northwind") -> None:
                      description="Agents on staff, capacity and cost per agent, by month")
     for m in METRICS:
         lyst.semantic.define(owner, workspace_id, m, note="seeded")
+    if getattr(lyst.services, "scenarios", None) is not None:
+        lyst.services.scenarios.define(owner, workspace_id, "pnl_drivers", PNL_DRIVERS, note="seeded")
     lyst.semantic.set_term(owner, workspace_id, "ebitda", "Not defined in this workspace yet.", source="demo")
