@@ -5,21 +5,34 @@ import overview from '../assets/product/studio-overview.png';
 import breakdown from '../assets/product/studio-breakdown.png';
 import answerLight from '../assets/product/analyst-answer-light.png';
 import answerDark from '../assets/product/analyst-answer-dark.png';
+import homeLight from '../assets/product/home-light.png';
+import homeDark from '../assets/product/home-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
 
 const views: View[] = [
   {
+    id: 'home',
+    tab: 'Home',
+    img: homeLight,
+    dark: homeDark,
+    alt: 'Lyst Home: a plain-language question box with an Ask Lyst button, and “This month at a glance”: six metric tiles (COGS ratio, hardware revenue, operating income, operating margin, revenue, support tickets), each with its value, change versus the prior month, a sparkline and a Why? link.',
+    callouts: [
+      { icon: 'LayoutDashboard', text: 'Every approved metric at a glance', x: '45%', y: '30.2%' },
+      { icon: 'ScanSearch', text: 'Why? starts an investigation', x: '30%', y: '59.3%' },
+    ],
+  },
+  {
     id: 'answer',
-    tab: 'Analyst answer',
+    tab: 'Answer',
     img: answerLight,
     dark: answerDark,
-    alt: 'Lyst Analyst answering “Why did operating margin change last quarter?”: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend chart, business implications, recommended actions and a driver table, with Business, Analyst, Engineer and Executive depth tabs.',
+    alt: 'Lyst Analyst answering “Why did operating margin change last quarter?”: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend chart, what it means and what to do, with Summary, Detail and Method views and a one-page Brief.',
     callouts: [
-      { icon: 'BadgeCheck', text: 'Verified, with evidence', x: '33%', y: '18.6%' },
-      { icon: 'Layers', text: 'Four depths, one answer', x: '64%', y: '25.5%' },
-      { icon: 'ListChecks', text: 'Drivers and next steps', x: '73%', y: '75%' },
+      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '33%', y: '19%' },
+      { icon: 'Layers', text: 'Summary, Detail or Method', x: '66%', y: '24.6%' },
+      { icon: 'ListChecks', text: 'What it means, what to do', x: '72%', y: '78.6%' },
     ],
   },
   {
