@@ -292,6 +292,12 @@ where they point, with Mark all read and "What to tell me about".
   citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
 * **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
   a sandbox with adversarial cases, and registers it only after another role approves.
+* **Knows which source wins.** An administrator can mark a dataset as the authoritative source (optionally for a
+  subject such as "P&L") or as secondary. When one term names two definitions that compute the same number from
+  different sources, the authoritative one answers instead of the question bouncing back as ambiguous, and the
+  answer says which source was used and why; if the calculations differ, Lyst still asks. The semantic audit
+  flags definitions built on secondary sources, a secondary source is never marked trusted, and search ranks
+  authoritative sources first.
 * **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
   with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
   and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
