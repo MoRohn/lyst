@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import kit, onboarding, reports, scenarios, transforms
+from lyst.ui import anticipate, kit, onboarding, reports, scenarios, transforms
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -197,6 +197,7 @@ def dataset_detail(d: dict) -> None:
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
         if not ins:
             return
+        anticipate.about("dataset", name, key=f"hf_d{name}")
         risks = ins.get("risks") or []
         if not risks:
             st.markdown(md(ins.get("summary") or ""))
@@ -381,6 +382,7 @@ def source_detail(cid: str) -> None:
     kit.chip(text, tone, top[1])
     if h.get("required_action"):
         st.error(md(h["required_action"]), icon=":material/build:")
+    anticipate.about("connection", cid, key=f"hf_c{cid}")
     for r in h.get("reasons") or []:
         st.caption(md(r))
     day = h.get("last_24h") or {}
@@ -465,9 +467,16 @@ def connections() -> None:
         health = {}
     if (cid := st.session_state.pop("_sync_after", None)) and (c := next((x for x in conns if x["id"] == cid), None)):
         sync(c)
+    ahead = anticipate.health_by_subject()
     for i, c in enumerate(conns):
         h = health.get(c["id"]) or {}
         state = STATE.get(h.get("state")) or (("Connected", "ok") if c["status"] == "ok" else (c["status"].capitalize(), "warn"))
+        seen = ahead.get(("connection", c["id"]))
+        if seen and state[1] == "ok":
+            state = anticipate.VERDICT.get(seen.get("verdict"), state)
+        if st.query_params.get("connection") == c["id"]:
+            st.query_params.pop("connection", None)
+            source_detail(c["id"])
         n = len(h.get("tables") or [])
         meta = h.get("required_action") or " · ".join(x for x in (
             c["kind"], f"feeds {n} dataset{'s' * (n != 1)}" if n else None,

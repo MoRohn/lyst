@@ -342,3 +342,15 @@ def test_what_if_and_decisions_are_reachable_where_people_work(seeded, ui):  # n
     at.get("button_group")[-1].set_value("Decisions").run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Compare options" for b in at.button)
+
+
+def test_health_foresight_and_attention_are_where_people_look(seeded, ui):  # noqa: F811
+    from lyst.ui import anticipate  # noqa: PLC0415
+
+    assert anticipate._wants_person({"kind": "health_foresight", "verdict": "risk"})
+    assert not anticipate._wants_person({"kind": "health_foresight", "verdict": "watch"})
+    assert anticipate.VERDICT["risk"][0] == "At risk"
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(t.label == "Tell me about them" for t in at.sidebar.toggle)  # personal attention, in Notifications
