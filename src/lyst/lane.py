@@ -24,6 +24,11 @@ def attach(lyst) -> None:
     from .workbench import WorkbenchService
 
     lyst.workbench = WorkbenchService(lyst.stores, lyst.guard, lyst.data, lyst.knowledge, lyst.settings.home)
+
+    from .portability import PortabilityService
+
+    lyst.portability = PortabilityService(lyst.stores, lyst.guard, lyst.credentials, lyst.settings.home)
+    lyst.portability.governance = getattr(lyst, 'governance', None)
     # -- other lanes
     from .specialists.core import UniversalAnalystCore  # noqa: PLC0415 - specializations lane
 

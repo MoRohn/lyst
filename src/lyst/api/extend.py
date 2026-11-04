@@ -10,6 +10,7 @@ from typing import Annotated, Any
 
 from fastapi import File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 MAX_UPLOAD = 200 * 1024 * 1024
@@ -54,6 +55,13 @@ class PythonIn(BaseModel):
 class SaveIn(BaseModel):
     name: str
     description: str | None = None
+
+
+class ExportIn(BaseModel):
+    passphrase: str | None = None
+    encrypt: bool = True
+    include_history: bool = False
+    include_files: bool = True
 
 
 class IngestCommit(BaseModel):
@@ -225,4 +233,48 @@ def register(app, L, User) -> None:
     @app.post("/v1/workspaces/{ws}/workbench/runs/{rid}/save")
     async def workbench_save(request: Request, ws: str, rid: str, body: SaveIn, user: User):
         return await run_in_threadpool(L(request).workbench.save, user, ws, rid, body.name, description=body.description)
+
+    # -- workspace export, import and migration -----------------------------------------------
+
+    @app.post("/v1/workspaces/{ws}/exports", status_code=201)
+    async def workspace_export(request: Request, ws: str, body: ExportIn, user: User):
+        """Seal the whole workspace into a pack (passphrase-encrypted by default); download it within 24 hours."""
+        return await run_in_threadpool(L(request).portability.export, user, ws, passphrase=body.passphrase,
+                                       encrypt=body.encrypt, include_history=body.include_history,
+                                       include_files=body.include_files)
+
+    @app.get("/v1/workspaces/{ws}/exports")
+    def workspace_exports(request: Request, ws: str, user: User):
+        return L(request).portability.exports(user, ws)
+
+    @app.get("/v1/workspaces/{ws}/exports/{eid}/download")
+    def workspace_export_download(request: Request, ws: str, eid: str, user: User):
+        path = L(request).portability.export_path(user, ws, eid)
+        return FileResponse(path, media_type="application/octet-stream", filename=f"{ws}-{eid}.lystpack")
+
+    @app.delete("/v1/workspaces/{ws}/exports/{eid}")
+    def workspace_export_delete(request: Request, ws: str, eid: str, user: User):
+        return {"deleted": L(request).portability.delete_export(user, ws, eid)}
+
+    async def _pack(file: UploadFile) -> bytes:
+        content = await file.read(4 * MAX_UPLOAD + 1)
+        if len(content) > 4 * MAX_UPLOAD:
+            raise HTTPException(413, "pack too large (800 MB at most)")
+        return content
+
+    @app.post("/v1/imports/inspect")
+    async def import_inspect(request: Request, user: User, file: Annotated[UploadFile, File()],
+                             passphrase: Annotated[str | None, Form()] = None):
+        """Every check an import makes (checksums, schema compatibility, members), changing nothing."""
+        content = await _pack(file)
+        return await run_in_threadpool(L(request).portability.inspect_pack, user, content, passphrase=passphrase)
+
+    @app.post("/v1/imports", status_code=201)
+    async def import_pack(request: Request, user: User, file: Annotated[UploadFile, File()],
+                          passphrase: Annotated[str | None, Form()] = None,
+                          workspace_id: Annotated[str | None, Form()] = None, name: Annotated[str | None, Form()] = None,
+                          activate: Annotated[bool, Form()] = False, add_members: Annotated[bool, Form()] = True):
+        content = await _pack(file)
+        return await run_in_threadpool(L(request).portability.import_pack, user, content, passphrase=passphrase,
+                                       workspace_id=workspace_id, name=name, activate=activate, add_members=add_members)
 
