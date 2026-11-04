@@ -54,6 +54,12 @@ def add_data() -> None:
                         format_func=lambda k: next(x["label"] for x in kinds if x["kind"] == k))
     man = next(k for k in kinds if k["kind"] == kind)
     st.caption(man["notes"])
+    auth = {"none": "no sign-in", "password": "a user name and password", "token": "an access token",
+            "api_key": "an API key"}.get(man.get("auth"), None)
+    st.caption(" · ".join(x for x in ("Read-only: Lyst never writes to it" if man.get("read_only") else None,
+                                      f"Needs {auth}" if auth else None,
+                                      f"Retries up to {man['retry_attempts']} times on a passing failure"
+                                      if man.get("retry_attempts") else None) if x))
     with st.form("connection", border=False):
         name = st.text_input("Name", placeholder="Finance warehouse")
         values = {}
@@ -262,6 +268,79 @@ def datasets(catalog: list[dict]) -> None:
         if hit or st.query_params.get("dataset") == d["name"]:
             st.query_params.pop("dataset", None)
             dataset_detail(c)
+STATE = {"healthy": ("Healthy", "ok"), "degraded": ("Degraded", "warn"), "failing": ("Failing", "bad"),
+         "needs_action": ("Needs action", "bad"), "untested": ("Not tested", "off")}
+CATEGORY = {"auth": "sign-in", "permission": "permissions", "rate_limit": "rate limit", "timeout": "time-out",
+            "network": "network", "source": "the source itself", "not_found": "a missing table or path",
+            "schema": "a changed layout", "config": "settings", "unknown": "an unknown cause"}
+ACTION = {"test": "Test", "discover": "List tables", "read": "Read", "load": "Load", "schema_change": "Layout changed"}
+
+
+@st.dialog("Source", width="large")
+def source_detail(cid: str) -> None:
+    """Why a source is healthy or not, what to do about it, what it feeds, and what happened recently."""
+    h = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/connections/{cid}/health"))
+    if not h:
+        return
+    text, tone = STATE.get(h["state"], (h["state"], "info"))
+    top = st.columns([4, 1.4], vertical_alignment="center")
+    top[0].markdown(f"**{md(h['name'])}** · {h['kind']}")
+    kit.chip(text, tone, top[1])
+    if h.get("required_action"):
+        st.error(md(h["required_action"]), icon=":material/build:")
+    for r in h.get("reasons") or []:
+        st.caption(md(r))
+    day = h.get("last_24h") or {}
+    st.caption(" · ".join(x for x in (
+        f"last worked {kit.when(h.get('last_success_at'))}" if h.get("last_success_at") else "has not worked yet",
+        f"last failed {kit.when(h.get('last_failure_at'))}" if h.get("last_failure_at") else None,
+        f"{h['consecutive_failures']} failures in a row" if h.get("consecutive_failures") else None,
+        f"cause: {CATEGORY.get(h['failure_category'], h['failure_category'])}" if h.get("failure_category") else None,
+        f"24 h: {day.get('operations', 0)} operations, {day.get('errors', 0)} errors, {day.get('retries', 0)} retries"
+        + (f", {day['rate_limited']} rate limited" if day.get("rate_limited") else "")) if x))
+    tables = h.get("tables") or []
+    kit.label(f"What it feeds · {len(tables)}" if tables else "What it feeds")
+    if not tables:
+        st.caption("Nothing synced from it yet. Use Sync to load a table as a dataset.")
+    for k, t in enumerate(tables):
+        sched = t.get("schedule") or {}
+        fresh = (t.get("data_freshness") or {}).get("latest")
+        con = t.get("contract") or {}
+        status = (("Overdue", "warn") if t.get("overdue") else
+                  ("Contract broken", "bad") if con.get("outcome") in ("fail", "breaking") else None)
+        if kit.row(t["dataset"], " · ".join(x for x in (
+                f"from {t['source_table']}", "new rows only" if t.get("mode") == "incremental" else "full reload",
+                f"{t.get('rows') or 0:,} rows", f"data through {fresh}" if fresh else None,
+                f"synced {kit.when(t.get('last_sync_at'))}" if t.get("last_sync_at") else "never synced",
+                (f"repeats {EVERY.get(sched.get('every_seconds'), 'on a schedule').lower()}"
+                 + ("" if sched.get("enabled") else " (awaiting approval)")) if sched else None) if x),
+                status=status, actions=[("Open", "open")], key=f"st_{cid}_{k}", divider=k < len(tables) - 1):
+            st.query_params["dataset"] = t["dataset"]
+            st.rerun()
+    cred = h.get("credential")
+    if cred:
+        st.caption(f"Credential v{cred.get('version')} · {cred.get('status')}"
+                   + (f" · last used {kit.when(cred.get('last_used_at'))}" if cred.get("last_used_at") else "")
+                   + ". Replace or revoke it in Settings › Connections.")
+    with st.expander("Recent activity", icon=":material/history:"):
+        ev = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/connections/{cid}/events", limit=50)) or []
+        if not ev:
+            st.caption("Nothing recorded yet.")
+        else:
+            st.dataframe(pd.DataFrame([{
+                "When": kit.when(e["occurred_at"]), "What": ACTION.get(e["action"], e["action"]),
+                "Table": e.get("source_table") or "", "Outcome": "OK" if e["outcome"] == "ok" else "Error",
+                "Cause": CATEGORY.get(e.get("category"), e.get("category") or ""), "Message": e.get("message") or "",
+                "Attempts": e.get("attempts"), "Time": f"{e['ms']} ms" if e.get("ms") is not None else ""} for e in ev]),
+                hide_index=True, width="stretch", height=min(38 + 35 * len(ev), 360))
+    b = st.columns([1.2, 1.2, 4])
+    if b[0].button("Test", icon=":material/network_check:", key=f"src_test_{cid}"):
+        kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/connections/{cid}/test"), "Connection works")
+    if editor and b[1].button("Sync", icon=":material/sync:", key=f"src_sync_{cid}"):
+        st.session_state["_sync_after"] = cid
+        st.rerun()
+
+
 def connections() -> None:
     conns = api.get(f"/v1/workspaces/{ws}/connections")
     kit.label(f"Sources · {len(conns)}" if conns else "Sources")
@@ -269,13 +348,24 @@ def connections() -> None:
         st.caption("No database or service is connected. Add data › Connect a source links PostgreSQL, SQLite, a REST "
                    "API or a file at a URL; Lyst reads with least privilege and loads tables as versioned datasets.")
         return
+    try:
+        health = {h["id"]: h for h in api.get(f"/v1/workspaces/{ws}/connections/health")}
+    except APIError:
+        health = {}
+    if (cid := st.session_state.pop("_sync_after", None)) and (c := next((x for x in conns if x["id"] == cid), None)):
+        sync(c)
     for i, c in enumerate(conns):
-        hit = kit.row(c["name"], f"{c['kind']} · tested {kit.when(c.get('last_tested_at')) or 'never'}"
-                      + (f" · {c['last_error']}" if c.get("last_error") else ""),
-                      status=("Connected", "ok") if c["status"] == "ok" else (c["status"].capitalize(), "warn"),
-                      actions=[("Test", "test"), ("Sync", "sync")], key=f"c{c['id']}", divider=i < len(conns) - 1)
-        if hit == "test":
-            kit.guarded(lambda x=c: api.post(f"/v1/workspaces/{ws}/connections/{x['id']}/test"), "Connection works")
+        h = health.get(c["id"]) or {}
+        state = STATE.get(h.get("state")) or (("Connected", "ok") if c["status"] == "ok" else (c["status"].capitalize(), "warn"))
+        n = len(h.get("tables") or [])
+        meta = h.get("required_action") or " · ".join(x for x in (
+            c["kind"], f"feeds {n} dataset{'s' * (n != 1)}" if n else None,
+            f"last worked {kit.when(h['last_success_at'])}" if h.get("last_success_at") else
+            f"tested {kit.when(c.get('last_tested_at')) or 'never'}") if x)
+        hit = kit.row(c["name"], meta, status=state, actions=[("Open", "open"), ("Sync", "sync")], key=f"c{c['id']}",
+                      divider=i < len(conns) - 1)
+        if hit == "open":
+            source_detail(c["id"])
         elif hit == "sync":
             sync(c)
 

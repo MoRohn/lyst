@@ -132,3 +132,24 @@ def test_search_results_open_where_each_thing_lives():
     assert dest({"kind": "metric", "name": "revenue"}) == ("app_pages/brain.py", {"metric": "revenue"})
     assert dest({"kind": "column", "name": "pnl.region"}) == ("app_pages/data.py", {"dataset": "pnl"})
     assert dest({"kind": "analysis", "name": "t_1"}) == ("app_pages/analyst.py", {"task": "t_1"})
+
+
+def test_sources_show_health_and_the_action_to_take(seeded, ui, tmp_path, monkeypatch):  # noqa: F811
+    import sqlite3  # noqa: PLC0415
+
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    root = tmp_path / "imports"
+    root.mkdir()
+    monkeypatch.setenv("LYST_IMPORT_ROOT", str(root))
+    with sqlite3.connect(root / "crm.sqlite") as c:
+        c.execute("CREATE TABLE deals (id INTEGER PRIMARY KEY, amount REAL)")
+        c.execute("INSERT INTO deals (amount) VALUES (1.0)")
+    conn = lyst.connections.create(owner, "northwind", kind="sqlite", name="CRM export", values={"path": "crm.sqlite"})
+    lyst.connections.sync(owner, "northwind", conn["id"], source_table="deals")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "CRM export" in _texts(at) and "feeds 1 dataset" in _texts(at)
+    assert any("badge[" in m.value and "Healthy" in m.value for m in at.markdown)
