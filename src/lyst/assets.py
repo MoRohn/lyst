@@ -179,7 +179,9 @@ class AssetService:
         return out
 
     def _visible(self, actor: Principal, ws: str, r: dict[str, Any]) -> bool:
-        return r["visibility"] != "private" or r["owner"] == actor.user_id or self.guard.can(actor, ws, "workspace.admin")
+        if r["visibility"] != "private" or r["owner"] == actor.user_id or self.guard.can(actor, ws, "workspace.admin"):
+            return True
+        return bool(self._db(ws).scalar("SELECT count(*) FROM asset_shares WHERE asset_id = ? AND user_id = ?", [r["id"], actor.user_id]))
 
     def list(self, actor: Principal, ws: str, *, kind: str | None = None, health: str | None = None,
              include_retired: bool = False) -> list[dict[str, Any]]:

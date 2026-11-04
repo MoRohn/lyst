@@ -165,6 +165,54 @@ class DeprecateIn(BaseModel):
     note: str = ""
 
 
+class CommentIn(BaseModel):
+    body: str
+    kind: str = "comment"
+    parent_id: str | None = None
+
+
+class ResolveIn(BaseModel):
+    note: str | None = None
+
+
+class AssignIn(BaseModel):
+    object_kind: str
+    object_id: str
+    assignee: str
+    note: str = ""
+    due: str | None = None
+
+
+class CompleteIn(BaseModel):
+    note: str = ""
+
+
+class ProposeIn(BaseModel):
+    action: str
+    object_kind: str
+    object_id: str
+    payload: dict[str, Any] = {}
+    summary: str
+    reviewer: str | None = None
+
+
+class DecideIn(BaseModel):
+    approve: bool
+    note: str = ""
+
+
+class ShareIn(BaseModel):
+    visibility: str | None = None
+    users: list[str] = []
+
+
+class TransferIn(BaseModel):
+    object_kind: str
+    object_id: str
+    to_user: str
+    note: str = ""
+
+
 class EntityIn(BaseModel):
     kind: str
     name: str
@@ -755,6 +803,78 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.post("/v1/workspaces/{ws}/assets/{asset_id}/retire")
     def retire_asset(request: Request, ws: str, asset_id: str, user: User):
         return L(request).assets.retire(user, ws, asset_id)
+
+    # -- collaboration --------------------------------------------------------------------------
+
+    @app.get("/v1/workspaces/{ws}/objects/{kind}/{oid}/activity")
+    def activity(request: Request, ws: str, kind: str, oid: str, user: User):
+        return L(request).collab.activity(user, ws, kind, oid)
+
+    @app.get("/v1/workspaces/{ws}/objects/{kind}/{oid}/comments")
+    def list_comments(request: Request, ws: str, kind: str, oid: str, user: User):
+        return L(request).collab.comments(user, ws, kind, oid)
+
+    @app.post("/v1/workspaces/{ws}/objects/{kind}/{oid}/comments")
+    def add_comment(request: Request, ws: str, kind: str, oid: str, body: CommentIn, user: User):
+        return L(request).collab.comment(user, ws, kind, oid, body.body, kind=body.kind, parent_id=body.parent_id)
+
+    @app.post("/v1/workspaces/{ws}/comments/{comment_id}/resolve")
+    def resolve_comment(request: Request, ws: str, comment_id: str, body: ResolveIn, user: User):
+        return L(request).collab.resolve(user, ws, comment_id, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/decisions")
+    def decisions(request: Request, ws: str, user: User, object_kind: str | None = None, object_id: str | None = None):
+        return L(request).collab.decisions(user, ws, object_kind=object_kind, object_id=object_id)
+
+    @app.get("/v1/workspaces/{ws}/assignments")
+    def assignments(request: Request, ws: str, user: User, mine: bool = False, status: str | None = None):
+        return L(request).collab.assignments(user, ws, mine=mine, status=status)
+
+    @app.post("/v1/workspaces/{ws}/assignments")
+    def assign(request: Request, ws: str, body: AssignIn, user: User):
+        return L(request).collab.assign(user, ws, body.object_kind, body.object_id, body.assignee, note=body.note, due=body.due)
+
+    @app.post("/v1/workspaces/{ws}/assignments/{assignment_id}/complete")
+    def complete_assignment(request: Request, ws: str, assignment_id: str, body: CompleteIn, user: User):
+        return L(request).collab.complete(user, ws, assignment_id, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/reviews")
+    def reviews(request: Request, ws: str, user: User, status: str | None = None, for_me: bool = False):
+        return L(request).collab.reviews(user, ws, status=status, for_me=for_me)
+
+    @app.post("/v1/workspaces/{ws}/reviews")
+    def propose(request: Request, ws: str, body: ProposeIn, user: User):
+        return L(request).collab.propose(user, ws, body.action, object_kind=body.object_kind, object_id=body.object_id,
+                                         payload=body.payload, summary=body.summary, reviewer=body.reviewer)
+
+    @app.post("/v1/workspaces/{ws}/reviews/{review_id}/decide")
+    def decide_review(request: Request, ws: str, review_id: str, body: DecideIn, user: User):
+        return L(request).collab.decide(user, ws, review_id, approve=body.approve, note=body.note)
+
+    @app.post("/v1/workspaces/{ws}/assets/{asset_id}/share")
+    def share_asset(request: Request, ws: str, asset_id: str, body: ShareIn, user: User):
+        return L(request).collab.share(user, ws, asset_id, visibility=body.visibility, users=body.users)
+
+    @app.post("/v1/workspaces/{ws}/ownership")
+    def transfer_ownership(request: Request, ws: str, body: TransferIn, user: User):
+        return L(request).collab.transfer(user, ws, body.object_kind, body.object_id, body.to_user, note=body.note)
+
+    @app.get("/v1/workspaces/{ws}/notifications")
+    def my_notifications(request: Request, ws: str, user: User, unread: bool = False):
+        return L(request).collab.notifications(user, ws, unread_only=unread)
+
+    @app.post("/v1/workspaces/{ws}/notifications/{notification_id}/read")
+    def read_notification(request: Request, ws: str, notification_id: str, user: User):
+        L(request).collab.mark_read(user, ws, notification_id)
+        return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/notification-preferences")
+    def notification_prefs(request: Request, ws: str, user: User):
+        return L(request).collab.preferences(user, ws)
+
+    @app.put("/v1/workspaces/{ws}/notification-preferences")
+    def set_notification_prefs(request: Request, ws: str, body: dict[str, bool], user: User):
+        return L(request).collab.set_preferences(user, ws, body)
 
     # -- analyst and work -------------------------------------------------------------------
 

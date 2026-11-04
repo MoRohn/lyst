@@ -48,6 +48,7 @@
 | Accuracy | Productivity measure in evaluation runs: declared human baseline ÷ (agent time + declared supervision), passing cases only, labelled as an estimate | Built | `lyst eval` |
 | Runtime | Long-running project resumes without duplicate side effects (dashboard build keyed on the task) | Tested | New scenario G, `test_studio.py` |
 | UI | Executive audience gets a brief (answer + implications + first action) ahead of the detail | Tested | `test_adversarial.py::test_executive_audience_gets_a_brief` |
+| Collaboration | Comments, mentions, change requests, decisions on tasks, analyses, assets, metrics and datasets; assignments; reviews that gate metric, contract and publication changes (approver is an admin other than the proposer); private and shared assets; ownership transfer; personal notifications with per-kind preferences honoured by platform notices | Tested | `test_collab.py` (scenario E) |
 | Memory | Layers, trust, promotion, revocation, corrections | Built, partly tested | `memory.py`; promotion path untested |
 | UI | Six-area Streamlit app with live progress, light and dark themes | Checked by hand with Playwright screenshots | `docs/images/` |
 | API | Versioned FastAPI endpoints | Tested | `test_api.py` |

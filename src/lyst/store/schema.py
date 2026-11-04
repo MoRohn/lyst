@@ -726,3 +726,78 @@ WORKSPACE.append((
     CREATE INDEX assets_by_ref ON assets (ref_kind, ref_id)
     """,
 ))
+
+# Collaboration: comments (with change requests and decisions), assignments, reviews of proposed changes, asset
+# shares, personal notifications and per-person notification preferences.
+WORKSPACE.append((
+    11,
+    """
+    CREATE TABLE comments (
+        id VARCHAR PRIMARY KEY,
+        object_kind VARCHAR NOT NULL,
+        object_id VARCHAR NOT NULL,
+        parent_id VARCHAR,
+        kind VARCHAR NOT NULL,
+        body VARCHAR NOT NULL,
+        mentions JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        author VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        resolved_by VARCHAR,
+        resolved_at TIMESTAMPTZ
+    );
+    CREATE INDEX comments_by_object ON comments (object_kind, object_id);
+    CREATE TABLE assignments (
+        id VARCHAR PRIMARY KEY,
+        object_kind VARCHAR NOT NULL,
+        object_id VARCHAR NOT NULL,
+        assignee VARCHAR NOT NULL,
+        assigned_by VARCHAR NOT NULL,
+        note VARCHAR,
+        due DATE,
+        status VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        completed_at TIMESTAMPTZ
+    );
+    CREATE TABLE reviews (
+        id VARCHAR PRIMARY KEY,
+        object_kind VARCHAR NOT NULL,
+        object_id VARCHAR NOT NULL,
+        action VARCHAR NOT NULL,
+        payload JSON NOT NULL,
+        summary VARCHAR NOT NULL,
+        requested_by VARCHAR NOT NULL,
+        reviewer VARCHAR,
+        min_role VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        decided_by VARCHAR,
+        decision_note VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        decided_at TIMESTAMPTZ
+    );
+    CREATE TABLE asset_shares (
+        asset_id VARCHAR NOT NULL,
+        user_id VARCHAR NOT NULL,
+        shared_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (asset_id, user_id)
+    );
+    CREATE TABLE user_notifications (
+        id VARCHAR PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        object_kind VARCHAR,
+        object_id VARCHAR,
+        text VARCHAR NOT NULL,
+        actor VARCHAR,
+        status VARCHAR NOT NULL DEFAULT 'unread',
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE notification_prefs (
+        user_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        enabled BOOLEAN NOT NULL,
+        PRIMARY KEY (user_id, kind)
+    )
+    """,
+))
