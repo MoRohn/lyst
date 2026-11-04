@@ -1,0 +1,135 @@
+{
+ "id": "professional_services",
+ "version": "1.0.0",
+ "title": "Professional services",
+ "summary": "Utilization, billable hours, project margin, backlog and realization.",
+ "signals": [
+  "project",
+  "engagement",
+  "timesheet",
+  "hours",
+  "billable",
+  "non_billable",
+  "utilization",
+  "consultant",
+  "rate",
+  "bill_rate",
+  "realization",
+  "backlog",
+  "client",
+  "matter",
+  "wip",
+  "milestone"
+ ],
+ "concepts": [
+  {
+   "name": "project",
+   "synonyms": [
+    "project",
+    "project_id",
+    "engagement",
+    "matter"
+   ]
+  },
+  {
+   "name": "consultant",
+   "synonyms": [
+    "consultant",
+    "employee",
+    "resource"
+   ]
+  },
+  {
+   "name": "client",
+   "synonyms": [
+    "client",
+    "customer",
+    "client_id"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "billable_hours",
+   "title": "Billable hours",
+   "agg": "sum",
+   "columns": [
+    "billable_hours",
+    "hours_billable"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "hours",
+   "title": "Hours logged",
+   "agg": "sum",
+   "columns": [
+    "hours",
+    "hours_worked"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "fees",
+   "title": "Fees billed",
+   "agg": "sum",
+   "columns": [
+    "fees",
+    "billed_amount",
+    "revenue"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "wip",
+   "title": "Work in progress",
+   "agg": "sum",
+   "columns": [
+    "wip",
+    "unbilled"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Which practices have the lowest utilization this month?",
+  "Which projects are over budget on hours?",
+  "How has realization changed by client?"
+ ],
+ "sources": [
+  {
+   "name": "Time and expense",
+   "signals": [
+    "timesheet",
+    "hours",
+    "billable"
+   ]
+  },
+  {
+   "name": "Project accounting",
+   "signals": [
+    "project",
+    "wip",
+    "milestone"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "utilization",
+   "definition": "Billable hours as a share of available hours."
+  },
+  {
+   "term": "realization",
+   "definition": "Fees collected as a share of the standard value of hours worked."
+  }
+ ]
+}

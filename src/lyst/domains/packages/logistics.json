@@ -1,0 +1,137 @@
+{
+ "id": "logistics",
+ "version": "1.0.0",
+ "title": "Logistics and distribution",
+ "summary": "Shipments, carriers, on-time delivery, freight cost and warehouses.",
+ "signals": [
+  "shipment",
+  "carrier",
+  "freight",
+  "delivery",
+  "delivered",
+  "on_time",
+  "route",
+  "warehouse",
+  "dc",
+  "tracking",
+  "origin",
+  "destination",
+  "weight",
+  "pallet",
+  "transit",
+  "eta",
+  "fulfillment"
+ ],
+ "concepts": [
+  {
+   "name": "shipment",
+   "synonyms": [
+    "shipment",
+    "shipment_id",
+    "tracking_number",
+    "consignment"
+   ]
+  },
+  {
+   "name": "carrier",
+   "synonyms": [
+    "carrier",
+    "shipper"
+   ]
+  },
+  {
+   "name": "warehouse",
+   "synonyms": [
+    "warehouse",
+    "dc",
+    "distribution_center"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "shipments",
+   "title": "Shipments",
+   "agg": "count_distinct",
+   "columns": [
+    "shipment_id",
+    "tracking_number"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "freight_cost",
+   "title": "Freight cost",
+   "agg": "sum",
+   "columns": [
+    "freight_cost",
+    "shipping_cost",
+    "freight"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "transit_days",
+   "title": "Transit time (days)",
+   "agg": "avg",
+   "columns": [
+    "transit_days",
+    "transit_time"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "shipped_weight",
+   "title": "Weight shipped",
+   "agg": "sum",
+   "columns": [
+    "weight",
+    "weight_kg",
+    "gross_weight"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Which carriers have the worst on-time delivery rate?",
+  "How has freight cost per shipment changed by route?",
+  "Which warehouses are slowest to fulfill orders?"
+ ],
+ "sources": [
+  {
+   "name": "Transportation management",
+   "signals": [
+    "shipment",
+    "carrier",
+    "freight"
+   ]
+  },
+  {
+   "name": "Warehouse management",
+   "signals": [
+    "warehouse",
+    "pallet",
+    "fulfillment"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "otif",
+   "definition": "On time in full: deliveries that arrived when promised and complete."
+  },
+  {
+   "term": "transit time",
+   "definition": "Days between dispatch and delivery.",
+   "metric": "transit_days"
+  }
+ ]
+}

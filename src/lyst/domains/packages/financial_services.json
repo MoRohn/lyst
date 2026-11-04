@@ -1,0 +1,140 @@
+{
+ "id": "financial_services",
+ "version": "1.0.0",
+ "title": "Financial services",
+ "summary": "Accounts, balances, loans, deposits, transactions, risk and fraud.",
+ "signals": [
+  "account",
+  "balance",
+  "loan",
+  "deposit",
+  "transaction",
+  "interest",
+  "rate",
+  "principal",
+  "default",
+  "delinquency",
+  "dpd",
+  "credit",
+  "exposure",
+  "portfolio",
+  "aum",
+  "fraud",
+  "chargeback",
+  "branch"
+ ],
+ "concepts": [
+  {
+   "name": "account",
+   "synonyms": [
+    "account",
+    "account_id",
+    "account_number"
+   ]
+  },
+  {
+   "name": "product",
+   "synonyms": [
+    "product",
+    "product_type",
+    "loan_type"
+   ]
+  },
+  {
+   "name": "branch",
+   "synonyms": [
+    "branch",
+    "region",
+    "channel"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "balance",
+   "title": "Balance",
+   "agg": "sum",
+   "columns": [
+    "balance",
+    "outstanding_balance",
+    "principal"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "transactions",
+   "title": "Transactions",
+   "agg": "count_distinct",
+   "columns": [
+    "transaction_id",
+    "txn_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "transaction_value",
+   "title": "Transaction value",
+   "agg": "sum",
+   "columns": [
+    "transaction_amount",
+    "txn_amount",
+    "amount"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "days_past_due",
+   "title": "Days past due",
+   "agg": "avg",
+   "columns": [
+    "dpd",
+    "days_past_due"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "How has the delinquent share of the loan book changed?",
+  "Which products drive deposit growth?",
+  "Where are chargebacks rising?"
+ ],
+ "sources": [
+  {
+   "name": "Core banking",
+   "signals": [
+    "account",
+    "balance",
+    "deposit",
+    "loan"
+   ]
+  },
+  {
+   "name": "Card and payments",
+   "signals": [
+    "transaction",
+    "chargeback",
+    "fraud"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "dpd",
+   "definition": "Days past due on a loan payment.",
+   "metric": "days_past_due"
+  },
+  {
+   "term": "npl",
+   "definition": "Non-performing loan: typically 90 or more days past due."
+  }
+ ],
+ "notes": "Account-level data is financially sensitive; Lyst proposes column policies for account numbers and personal fields."
+}

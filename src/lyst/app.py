@@ -21,6 +21,7 @@ from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
 from .monitoring import MonitorService
+from .onboarding import OnboardingService
 from .runtime import TaskRuntime
 from .secrets import CredentialService, backend_from_env
 from .security import Guard
@@ -53,6 +54,7 @@ class Lyst:
     contracts: ContractService
     assets: AssetService
     collab: CollaborationService
+    onboarding: OnboardingService | None = None
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -102,8 +104,10 @@ class Lyst:
         semantic.after_change.append(assets.after_definition)
         runtime.periodic.append(assets.complete_all)
         collab = CollaborationService(stores, guard, semantic=semantic, contracts=contracts, assets=assets)
+        onboarding = OnboardingService(stores, guard, catalog=catalog, semantic=semantic, contracts=contracts, data=data,
+                                       knowledge=knowledge, runtime=runtime)
         return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge, monitors,
-                   studio, connections, credentials, catalog, contracts, assets, collab)
+                   studio, connections, credentials, catalog, contracts, assets, collab, onboarding=onboarding)
 
     def close(self) -> None:
         self.runtime.stop()

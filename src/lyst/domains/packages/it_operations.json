@@ -1,0 +1,138 @@
+{
+ "id": "it_operations",
+ "version": "1.0.0",
+ "title": "Technology and IT operations",
+ "summary": "Incidents, availability, change, cloud cost and service performance.",
+ "signals": [
+  "incident",
+  "severity",
+  "service",
+  "host",
+  "server",
+  "uptime",
+  "availability",
+  "latency",
+  "error",
+  "outage",
+  "change",
+  "deployment",
+  "mttr",
+  "alert",
+  "cloud",
+  "instance",
+  "cpu",
+  "memory"
+ ],
+ "concepts": [
+  {
+   "name": "service",
+   "synonyms": [
+    "service",
+    "application",
+    "app",
+    "system"
+   ]
+  },
+  {
+   "name": "incident",
+   "synonyms": [
+    "incident",
+    "incident_id",
+    "outage"
+   ]
+  },
+  {
+   "name": "host",
+   "synonyms": [
+    "host",
+    "server",
+    "instance",
+    "node"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "incidents",
+   "title": "Incidents",
+   "agg": "count_distinct",
+   "columns": [
+    "incident_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": ""
+  },
+  {
+   "name": "downtime_minutes",
+   "title": "Downtime (minutes)",
+   "agg": "sum",
+   "columns": [
+    "downtime_minutes",
+    "outage_minutes"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "cloud_cost",
+   "title": "Cloud cost",
+   "agg": "sum",
+   "columns": [
+    "cloud_cost",
+    "cost",
+    "unblended_cost"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": ""
+  },
+  {
+   "name": "latency_ms",
+   "title": "Latency (ms)",
+   "agg": "avg",
+   "columns": [
+    "latency_ms",
+    "response_time_ms",
+    "p95_latency"
+   ],
+   "format": "number",
+   "higher_is_better": false,
+   "description": ""
+  }
+ ],
+ "questions": [
+  "Which services had the most severe incidents this quarter?",
+  "How has mean time to restore changed?",
+  "Which accounts drive the growth in cloud cost?"
+ ],
+ "sources": [
+  {
+   "name": "Incident management",
+   "signals": [
+    "incident",
+    "severity",
+    "outage"
+   ]
+  },
+  {
+   "name": "Cloud billing",
+   "signals": [
+    "cloud",
+    "unblended_cost",
+    "instance"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "mttr",
+   "definition": "Mean time to restore service after an incident."
+  },
+  {
+   "term": "availability",
+   "definition": "The share of time a service was usable."
+  }
+ ]
+}
