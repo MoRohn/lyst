@@ -56,7 +56,7 @@ test.describe('page', () => {
       ['How It Works', 'how-it-works'],
       ['Capabilities', 'capabilities'],
       ['Open Source', 'open-source'],
-      ['Early Access', 'early-access'],
+      ['Learn More', 'learn-more'],
     ]) {
       await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: label, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`#${id}$`));
@@ -169,21 +169,47 @@ test.describe('demonstrations', () => {
   });
 });
 
-test.describe('early access (configured backend)', () => {
+test.describe('studio showcase and verification', () => {
+  test('switches between real dashboard pages and loads responsive images', async ({ page }) => {
+    const errors = trackErrors(page);
+    await page.goto('/#studio');
+    const list = page.getByRole('tablist', { name: 'Dashboard pages' });
+    const overview = page.locator('#st-view-overview img');
+    await overview.scrollIntoViewIfNeeded();
+    await expect(overview).toBeVisible();
+    await expect.poll(() => overview.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    expect(await page.locator('#st-view-overview source[type="image/avif"]').count()).toBe(1);
+    await list.getByRole('tab', { name: 'By region' }).click();
+    await expect(page.locator('#st-view-region img')).toBeVisible();
+    await expect(overview).toBeHidden();
+    await page.keyboard.press('ArrowRight');
+    await expect(overview).toBeVisible();
+    await expect(page.getByText('Real output · sample data')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('verification flow has a text equivalent', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.verify ol li')).toHaveCount(5);
+    await expect(page.locator('.verify svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+test.describe('learn more sign-up (configured backend)', () => {
   const unique = () => `qa+${Date.now()}${Math.floor(Math.random() * 1e6)}@example.com`;
 
   test('validates empty and invalid input without sending', async ({ page }) => {
     let sent = 0;
     page.on('request', (r) => r.url().includes('/v1/registrations') && sent++);
-    await page.goto('/#early-access');
-    const form = page.locator('#early-access form[data-waitlist]').first();
-    await form.getByRole('button', { name: 'Join Early Access' }).click();
+    await page.goto('/#learn-more');
+    const form = page.locator('#learn-more form[data-waitlist]').first();
+    await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByText('Enter your work email address.')).toBeVisible();
     await expect(form.getByText('Please confirm you agree to be contacted.')).toBeVisible();
     await expect(form.getByLabel(/Work email/)).toBeFocused();
     await expect(form.getByLabel(/Work email/)).toHaveAttribute('aria-invalid', 'true');
     await form.getByLabel(/Work email/).fill('not-an-email');
-    await form.getByRole('button', { name: 'Join Early Access' }).click();
+    await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByText(/Enter a valid email address/)).toBeVisible();
     expect(sent).toBe(0);
   });
@@ -191,8 +217,8 @@ test.describe('early access (configured backend)', () => {
   test('registers against the real service, then handles a duplicate', async ({ page, browser }) => {
     const email = unique();
     for (const p of [page, await browser.newPage()]) {
-      await p.goto('http://localhost:4329/#early-access');
-      const form = p.locator('#early-access form[data-waitlist]').first();
+      await p.goto('http://localhost:4329/#learn-more');
+      const form = p.locator('#learn-more form[data-waitlist]').first();
       await form.getByLabel(/Work email/).fill(email);
       await form.getByLabel(/Role/).selectOption('Analytics engineer');
       await form.getByLabel(/Organization/).fill('Example Co');
@@ -200,32 +226,32 @@ test.describe('early access (configured backend)', () => {
       await form.getByLabel(/I agree that Lyst may email me/).check();
       const [res] = await Promise.all([
         p.waitForResponse((r) => r.url().endsWith('/v1/registrations') && r.request().method() === 'POST'),
-        form.getByRole('button', { name: 'Join Early Access' }).click(),
+        form.getByRole('button', { name: 'Keep me posted' }).click(),
       ]);
       expect(res.status()).toBe(200);
-      await expect(form.getByRole('status')).toHaveText(/You’re on the early-access list/);
+      await expect(form.getByRole('status')).toHaveText(/We’ll keep you posted/);
       await expect(form.getByLabel(/Work email/)).toBeDisabled();
     }
   });
 
   test('server-side validation errors are shown on the field', async ({ page }) => {
-    await page.goto('/#early-access');
-    const form = page.locator('#early-access form[data-waitlist]').first();
+    await page.goto('/#learn-more');
+    const form = page.locator('#learn-more form[data-waitlist]').first();
     // Passes the browser check but fails the server's stricter rule (single-label TLD).
     await form.getByLabel(/Work email/).fill('person@example.c0');
     await form.getByLabel(/I agree that Lyst may email me/).check();
-    await form.getByRole('button', { name: 'Join Early Access' }).click();
+    await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByRole('status')).toHaveText(/need attention/);
     await expect(form.getByText(/Enter a valid email address/)).toBeVisible();
   });
 
   test('network failure is reported truthfully', async ({ page }) => {
     await page.route('**/v1/registrations', (r) => r.abort('connectionrefused'));
-    await page.goto('/#early-access');
-    const form = page.locator('#early-access form[data-waitlist]').first();
+    await page.goto('/#learn-more');
+    const form = page.locator('#learn-more form[data-waitlist]').first();
     await form.getByLabel(/Work email/).fill(unique());
     await form.getByLabel(/I agree that Lyst may email me/).check();
-    await form.getByRole('button', { name: 'Join Early Access' }).click();
+    await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByRole('status')).toHaveText(/couldn’t reach the registration service. Nothing was stored/);
     await expect(form.getByLabel(/Work email/)).toBeEnabled();
   });
@@ -233,30 +259,15 @@ test.describe('early access (configured backend)', () => {
   test('server failure and rate limit are reported truthfully', async ({ page }) => {
     let status = 503;
     await page.route('**/v1/registrations', (r) => r.fulfill({ status, contentType: 'application/json', body: '{}' }));
-    await page.goto('/#early-access');
-    const form = page.locator('#early-access form[data-waitlist]').first();
+    await page.goto('/#learn-more');
+    const form = page.locator('#learn-more form[data-waitlist]').first();
     await form.getByLabel(/Work email/).fill(unique());
     await form.getByLabel(/I agree that Lyst may email me/).check();
-    await form.getByRole('button', { name: 'Join Early Access' }).click();
+    await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByRole('status')).toHaveText(/couldn’t save your registration/);
     status = 429;
-    await form.getByRole('button', { name: 'Join Early Access' }).click();
+    await form.getByRole('button', { name: 'Keep me posted' }).click();
     await expect(form.getByRole('status')).toHaveText(/Too many attempts/);
-  });
-
-  test('design partner application', async ({ page }) => {
-    await page.goto('/#design-partners');
-    await page.getByText('Apply as a design partner').click();
-    const form = page.locator('[data-partner] form');
-    await form.getByRole('button', { name: 'Send application' }).click();
-    await expect(form.getByText('Enter your organization.')).toBeVisible();
-    await form.getByLabel(/Work email/).fill(unique());
-    await form.getByLabel(/Organization/).fill('Example Co');
-    await form.getByLabel(/Analytics team size/).selectOption('6–20');
-    await form.getByLabel(/What would you want Lyst to take on/).fill('Month-end variance commentary');
-    await form.getByLabel(/design partner program/).check();
-    await form.getByRole('button', { name: 'Send application' }).click();
-    await expect(form.getByRole('status')).toHaveText(/design partner application was received/);
   });
 });
 
@@ -265,7 +276,7 @@ test.describe('unconfigured, public-mode build', () => {
     const errors = trackErrors(page);
     await page.goto(CLOSED);
     await expect(page.locator('form[data-waitlist]')).toHaveCount(0);
-    await expect(page.getByText('Early-access registration is not open on this site yet.')).toBeVisible();
+    await expect(page.getByText('Sign-up isn’t open on this site yet.')).toBeVisible();
     await expect(page.locator('.hero .badge')).toContainText('Open-source release');
     await expect(page.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute('href', 'https://github.com/MoRohn/lyst');
     await expect(page.locator('.hero').getByRole('link', { name: /Get Lyst/ })).toHaveAttribute('href', 'https://github.com/MoRohn/lyst');

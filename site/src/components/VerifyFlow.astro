@@ -1,0 +1,276 @@
+---
+/** Animated diagram of how Lyst plans, executes and verifies a task. Pure SVG + CSS. */
+import { verification } from '../data/content';
+
+type N = { id: string; x: number; y: number; label: string; sub?: string; tone?: 'start' | 'exec' | 'check' | 'done' };
+const nodes: N[] = [
+  { id: 'q', x: 70, y: 140, label: 'Question', sub: 'plain language', tone: 'start' },
+  { id: 'p', x: 245, y: 140, label: 'Plan', sub: 'task graph' },
+  { id: 'sql', x: 445, y: 55, label: 'SQL', sub: 'DuckDB, read-only', tone: 'exec' },
+  { id: 'py', x: 445, y: 140, label: 'Python', sub: 'sandboxed', tone: 'exec' },
+  { id: 'st', x: 445, y: 225, label: 'Statistics', sub: 'tests, models', tone: 'exec' },
+  { id: 'rc', x: 660, y: 95, label: 'Recompute', sub: 'a second, independent way', tone: 'check' },
+  { id: 'ad', x: 660, y: 185, label: 'Adversarial checks', sub: 'gaps, conflicts, injection', tone: 'check' },
+  { id: 'v', x: 852, y: 140, label: 'Verified answer', tone: 'done' },
+  { id: 'e', x: 1028, y: 140, label: 'Evidence', sub: 'queries, versions, hashes', tone: 'done' },
+];
+const at = Object.fromEntries(nodes.map((n) => [n.id, n]));
+const W = 80; // half-width of a node box
+const edges: [string, string][] = [
+  ['q', 'p'],
+  ['p', 'sql'],
+  ['p', 'py'],
+  ['p', 'st'],
+  ['sql', 'rc'],
+  ['py', 'rc'],
+  ['py', 'ad'],
+  ['st', 'ad'],
+  ['rc', 'v'],
+  ['ad', 'v'],
+  ['v', 'e'],
+];
+const half = (id: string) => (id === 'q' ? 62 : id === 'e' ? 80 : id === 'v' ? 68 : id === 'rc' || id === 'ad' ? 92 : W - 18);
+const path = ([a, b]: [string, string]) => {
+  const A = at[a], B = at[b];
+  const x1 = A.x + half(a), x2 = B.x - half(b);
+  const mx = (x1 + x2) / 2;
+  return `M${x1} ${A.y}C${mx} ${A.y} ${mx} ${B.y} ${x2} ${B.y}`;
+};
+const stage: Record<string, number> = { q: 0, p: 1, sql: 2, py: 2, st: 2, rc: 3, ad: 3, v: 4, e: 5 };
+---
+
+<div class="verify" data-reveal>
+  <div class="head">
+    <p class="eyebrow">{verification.eyebrow}</p>
+    <h3>{verification.headline}</h3>
+    <p class="lede">{verification.lede}</p>
+  </div>
+
+  <svg viewBox="0 0 1110 280" class="diagram" aria-hidden="true">
+    <defs>
+      <linearGradient id="vf-edge" x1="0" x2="1">
+        <stop offset="0" stop-color="var(--teal-dark)" />
+        <stop offset="1" stop-color="var(--teal)" />
+      </linearGradient>
+    </defs>
+    {
+      edges.map((e) => (
+        <g class="edge" style={`--s:${stage[e[0]]}`}>
+          <path d={path(e)} class="track" />
+          <path d={path(e)} class="dash" />
+          <circle r="3.5" class="packet" style={`offset-path: path('${path(e)}')`} />
+        </g>
+      ))
+    }
+    {
+      nodes.map((n) => {
+        const h = half(n.id);
+        return (
+          <g class={`node ${n.tone ?? ''}`} style={`--s:${stage[n.id]}`}>
+            <rect x={n.x - h} y={n.y - 26} width={h * 2} height="52" rx="12" />
+            <text x={n.x} y={n.sub ? n.y - 3 : n.y + 5} text-anchor="middle" class="lbl">
+              {n.label}
+            </text>
+            {n.sub && (
+              <text x={n.x} y={n.y + 14} text-anchor="middle" class="sub">
+                {n.sub}
+              </text>
+            )}
+          </g>
+        );
+      })
+    }
+  </svg>
+
+  <ol class="as-list">
+    <li><strong>Question.</strong> Asked in plain language.</li>
+    <li><strong>Plan.</strong> Lyst builds a task graph of the work.</li>
+    <li><strong>Execute.</strong> SQL on DuckDB (read-only), sandboxed Python and statistics run in parallel.</li>
+    <li><strong>Check.</strong> High-consequence results are recomputed independently, and adversarial checks look for gaps, conflicting definitions and injected instructions.</li>
+    <li><strong>Verified answer.</strong> Delivered with an evidence package: queries, dataset versions and hashes.</li>
+  </ol>
+</div>
+
+<style>
+  .verify {
+    margin-top: clamp(3.5rem, 2.5rem + 4vw, 6rem);
+    padding: clamp(1.5rem, 1rem + 2.5vw, 3rem);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background:
+      radial-gradient(ellipse 50% 70% at 100% 0%, rgb(85 184 168 / 0.1), transparent 60%),
+      var(--white);
+  }
+
+  .head {
+    max-width: 44rem;
+    margin-bottom: var(--space-6);
+  }
+
+  h3 {
+    font-size: var(--step-2);
+    letter-spacing: -0.025em;
+  }
+
+  .diagram {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  .track {
+    fill: none;
+    stroke: var(--line);
+    stroke-width: 2;
+  }
+
+  .dash {
+    fill: none;
+    stroke: url(#vf-edge);
+    stroke-width: 2;
+    stroke-dasharray: 4 7;
+    opacity: 0;
+    transition: opacity 0.5s var(--ease);
+    transition-delay: calc(var(--s) * 220ms + 200ms);
+    animation: march 1.6s linear infinite;
+  }
+
+  @keyframes march {
+    to {
+      stroke-dashoffset: -22;
+    }
+  }
+
+  .packet {
+    fill: var(--teal-dark);
+    opacity: 0;
+    offset-distance: 0%;
+  }
+
+  .verify:global(.is-visible) .dash,
+  :global(html:not(.js)) .dash {
+    opacity: 1;
+  }
+
+  .verify:global(.is-visible) .packet {
+    animation: travel 2.4s var(--ease) infinite;
+    animation-delay: calc(var(--s) * 400ms + 600ms);
+  }
+
+  @keyframes travel {
+    0% {
+      offset-distance: 0%;
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      offset-distance: 100%;
+      opacity: 0;
+    }
+  }
+
+  .node rect {
+    fill: var(--offwhite);
+    stroke: var(--line-strong);
+    stroke-width: 1;
+    transition: fill 0.5s var(--ease), stroke 0.5s var(--ease);
+    transition-delay: calc(var(--s) * 220ms);
+  }
+
+  .node {
+    opacity: 0.35;
+    transition: opacity 0.5s var(--ease);
+    transition-delay: calc(var(--s) * 220ms);
+  }
+
+  .verify:global(.is-visible) .node,
+  :global(html:not(.js)) .node {
+    opacity: 1;
+  }
+
+  .lbl {
+    font-size: 14px;
+    font-weight: 600;
+    fill: var(--ink);
+  }
+
+  .sub {
+    font-size: 11px;
+    fill: var(--muted);
+  }
+
+  .node.start rect {
+    fill: var(--graphite);
+    stroke: var(--graphite);
+  }
+
+  .node.start .lbl {
+    fill: var(--white);
+  }
+
+  .node.start .sub {
+    fill: #aeb8c2;
+  }
+
+  .node.exec rect {
+    fill: var(--white);
+  }
+
+  .node.check rect {
+    fill: var(--teal-wash);
+    stroke: #bfe0d9;
+  }
+
+  .node.done rect {
+    fill: var(--teal-dark);
+    stroke: var(--teal-dark);
+  }
+
+  .node.done .lbl {
+    fill: var(--white);
+  }
+
+  .node.done .sub {
+    fill: #cdeae4;
+  }
+
+  .as-list {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 760px) {
+    .diagram {
+      display: none;
+    }
+
+    .as-list {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+      display: grid;
+      gap: var(--space-3);
+      padding-left: 1.25rem;
+      color: var(--ink-2);
+      font-size: 0.9375rem;
+    }
+
+    .as-list li::marker {
+      color: var(--teal-dark);
+      font-weight: 600;
+    }
+  }
+</style>

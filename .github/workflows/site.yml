@@ -79,7 +79,7 @@ jobs:
           PUBLIC_LAUNCH_MODE: ${{ vars.LYST_LAUNCH_MODE || 'stealth' }}
           PUBLIC_WAITLIST_ENDPOINT: ${{ vars.LYST_WAITLIST_ENDPOINT }}
           PUBLIC_CONTACT_EMAIL: ${{ vars.LYST_CONTACT_EMAIL }}
-          PUBLIC_GITHUB_URL: ${{ vars.LYST_GITHUB_URL }}
+          PUBLIC_GITHUB_URL: ${{ vars.LYST_GITHUB_URL || format('{0}/{1}', github.server_url, github.repository) }}
         run: npm run build
       - run: npm run test:secrets -- dist
       - uses: actions/upload-pages-artifact@v3

@@ -7,7 +7,8 @@
 export type Status = 'dev' | 'planned' | 'available';
 
 export const statusLabel: Record<Status, string> = {
-  available: 'Available',
+  // "Built" = implemented and tested on main, usable in the private preview. Not yet a general release.
+  available: 'Built',
   dev: 'In development',
   planned: 'Planned',
 };
@@ -55,7 +56,7 @@ export const pillars = {
       icon: 'ShieldCheck',
       title: 'Verify',
       text: 'Lyst emphasizes traceable evidence, reproducible calculations, transparent assumptions, and reviewable results.',
-      detail: ['Cited queries', 'Reproducible runs', 'Stated assumptions'],
+      detail: ['Cited queries', 'Reproducible runs', 'Stated assumptions', 'Adversarial checks'],
     },
   ],
 };
@@ -71,43 +72,43 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Forecasting', 'Modeling', 'Business intelligence'],
-    status: 'dev',
+    items: ['SQL', 'Python', 'Statistics', 'Forecasting with intervals', 'Scenarios', 'Event impact'],
+    status: 'available',
   },
   {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Anomaly detection', 'Root-cause analysis', 'Research'],
-    status: 'dev',
+    items: ['Data discovery', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
+    status: 'available',
   },
   {
     icon: 'Blocks',
     title: 'Build',
-    text: 'Deliverables people can use on Monday.',
-    items: ['Dashboards', 'Pipelines', 'Reports', 'Applications', 'Analytical tools'],
-    status: 'dev',
+    text: 'Self-contained deliverables people can use on Monday, verified on every refresh.',
+    items: ['Interactive Dash dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Governed extracts'],
+    status: 'available',
   },
   {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work that runs on its own schedule.',
-    items: ['Recurring analysis', 'Monitoring', 'Reporting', 'Operational workflows'],
-    status: 'planned',
+    items: ['Approved monitors', 'Automatic investigation', 'Alerts', 'Scheduled dashboard refresh'],
+    status: 'available',
   },
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Work where your data already lives.',
-    items: ['Enterprise databases', 'Applications', 'APIs', 'Documents', 'Business systems'],
-    status: 'planned',
+    text: 'Databases, APIs and files today, with more sources on the way.',
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Files by URL', 'Local files and documents', 'MCP server', 'Warehouses and SaaS'],
+    status: 'dev',
   },
   {
     icon: 'Sprout',
     title: 'Evolve',
-    text: 'Get better with every validated task.',
-    items: ['Organizational knowledge', 'Reusable workflows', 'Validated skills', 'Governed capability expansion'],
-    status: 'planned',
+    text: 'Learns new methods, with an owner’s approval.',
+    items: ['Living knowledge', 'Recall by meaning', 'Lineage', 'Governed skills', 'New skills drafted, tested and approved'],
+    status: 'available',
   },
 ];
 
@@ -126,7 +127,7 @@ export const openSource = {
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
   ],
   attribution:
-    'Python is a trademark of the Python Software Foundation. DuckDB is a trademark of the DuckDB Foundation. Streamlit is a trademark of Snowflake Inc. Lyst is not affiliated with or endorsed by these organizations. Connected commercial systems remain the products of their owners and are not part of Lyst’s open-source distribution.',
+    'Python is a trademark of the Python Software Foundation. DuckDB is a trademark of the DuckDB Foundation. Streamlit is a trademark of Snowflake Inc. Plotly and Dash are trademarks of Plotly Technologies Inc. Lyst is not affiliated with or endorsed by these organizations. Connected commercial systems remain the products of their owners and are not part of Lyst’s open-source distribution.',
 };
 
 export const architecture = [
@@ -142,7 +143,7 @@ export const architecture = [
   },
   {
     layer: 'Engines',
-    items: ['DuckDB', 'Python data stack', 'Statistics'],
+    items: ['DuckDB', 'Python data stack', 'Statistics', 'Plotly Dash'],
     tone: 'ink',
   },
   {
@@ -161,14 +162,14 @@ export const enterprise = {
   eyebrow: 'Enterprise-ready thinking',
   headline: 'Built for serious analytical work.',
   items: [
-    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit, administrator-defined permissions.' },
-    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings link to the queries, data and assumptions behind them.' },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.' },
-    { icon: 'Library', title: 'Organizational context', text: 'Shared definitions and knowledge inform every task.' },
-    { icon: 'KeyRound', title: 'Role-aware access', text: 'What Lyst can see and do follows the user’s role.' },
-    { icon: 'History', title: 'Transparent task history', text: 'A complete, reviewable record of what was done and why.' },
-    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.' },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Run it where your policies require, including offline.' },
+    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, and released only to the services that need them, never to the agent.', status: 'available' as Status },
+    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
+    { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
+    { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
+    { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
+    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Validated work can be rerun with the same logic.', status: 'dev' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Docker packaging and encrypted backups; run it where your policies require.', status: 'available' as Status },
   ],
 };
 
@@ -184,8 +185,8 @@ export const workflow = {
 };
 
 export const earlyAccess = {
-  eyebrow: 'Early access',
-  body: 'Lyst is being developed for people who want to spend less time preparing analysis and more time using it. Join the early-access list for product previews, release updates, and opportunities to help shape what’s next.',
+  eyebrow: 'Stay in touch',
+  body: 'Lyst is being developed for people who want to spend less time preparing analysis and more time using it. Leave your email for product previews, release updates, and opportunities to help shape what’s next.',
   roles: [
     'Business analyst',
     'Analytics engineer',
@@ -205,15 +206,40 @@ export const earlyAccess = {
     'Something else',
   ],
   consent:
-    'I agree that Lyst may email me about early access, product previews and release updates. I can unsubscribe or ask for my data to be deleted at any time.',
-  partner: {
-    title: 'Interested in becoming a design partner?',
-    text: 'We are looking for a small number of teams with real analytical workloads to shape Lyst with us: early builds, direct access to the people building it, and influence over the roadmap.',
-  },
+    'I agree that Lyst may email me product previews and release updates. I can unsubscribe or ask for my data to be deleted at any time.',
 };
 
 export const footer = {
   description: 'Lyst is an open-source AI Analyst in development, built to turn business questions into verified insights and completed analytical work.',
   privacy:
-    'This site sets no cookies and runs no analytics or third-party scripts. If you join the early-access list, your email and the optional details you choose to share are used only to contact you about Lyst, and you can ask for them to be deleted at any time.',
+    'This site sets no cookies and runs no analytics or third-party scripts. If you sign up for updates, your email and the optional details you choose to share are used only to contact you about Lyst, and you can ask for them to be deleted at any time.',
+};
+
+/**
+ * Proof points: facts that can be checked in the public repository. Use floors
+ * ("180+") for counts that only grow, so the line stays true between updates.
+ */
+export const proof = [
+  { value: '180+', label: 'automated tests on main' },
+  { value: '5', label: 'data connectors' },
+  { value: 'Every', label: 'finding ships with its evidence' },
+  { value: 'AGPL-3.0', label: 'open source, self-hosted' },
+];
+
+export const studio = {
+  eyebrow: 'Lyst Studio',
+  headline: 'Real output, not a mockup.',
+  lede: 'Ask for “an operating margin dashboard by region, refreshed weekly” and Studio builds a standalone dashboard app from governed data. This screenshot is unedited output from the private preview, on sample data.',
+  steps: [
+    { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
+    { icon: 'Database', title: 'Governed extracts', text: 'Every number comes from governed metrics, with ratios kept as numerator and denominator.' },
+    { icon: 'ShieldCheck', title: 'Verified build', text: 'SQL is verified, a definitions README is written, and the app is render-checked.' },
+    { icon: 'CalendarClock', title: 'Approved refresh', text: 'A refresh schedule starts only after an owner approves it, with a check on every run.' },
+  ],
+};
+
+export const verification = {
+  eyebrow: 'Verification',
+  headline: 'Every answer is checked before you see it.',
+  lede: 'Lyst plans the work as a graph, runs independent steps in parallel, then recomputes high-consequence results a second way and runs adversarial checks before it calls anything verified.',
 };

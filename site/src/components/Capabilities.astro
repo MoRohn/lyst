@@ -14,6 +14,7 @@ import { stage } from '../config/site';
       <div class="legend" data-reveal>
         <p>{stage.capabilityNote}</p>
         <ul aria-label="Status legend">
+          <li><span class="status status-available">{statusLabel.available}</span></li>
           <li><span class="status status-dev">{statusLabel.dev}</span></li>
           <li><span class="status status-planned">{statusLabel.planned}</span></li>
         </ul>
