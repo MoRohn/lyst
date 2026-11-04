@@ -10,4 +10,4 @@ var/
 .env
 .env.*
 !.env.example
-secrets/
+/secrets/
