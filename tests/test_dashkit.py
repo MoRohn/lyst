@@ -134,3 +134,23 @@ def test_vendored_kit_is_self_contained(tmp_path):
                          env={"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)})
     assert run.returncode == 0, run.stderr[-1500:]
     assert run.stdout.strip() == "$1.5k lk-card"
+
+
+def test_ratio_forecast_outlook_is_a_level_never_a_sum():
+    """A rate (operating margin) over six forecast periods is where it ends up, not the six values added together."""
+    from lyst.analytics.timeseries import Forecast
+
+    idx = pd.date_range("2024-10-01", periods=24, freq="MS")
+    hist = pd.Series([0.33 + 0.01 * ((i % 3) - 1) for i in range(24)], index=idx)
+    future = pd.date_range("2026-10-01", periods=6, freq="MS")
+    fc = Forecast(history=hist, table=pd.DataFrame({"period": future, "yhat": [0.32] * 6, "lo": [0.30] * 6, "hi": [0.34] * 6}),
+                  method="ETS(A,Ad,A)", level=0.8, backtest_mape=0.06, backtest_points=6, season=12)
+    rate = I.forecast_note(fc, "Operating margin", F.pct, stock=True)
+    assert rate.title == "Operating margin heading to 32.0% by Mar 2027"
+    assert "192" not in rate.text and "of operating margin over" not in rate.text and rate.evidence["forecast"] == pytest.approx(0.32)
+    flow = I.forecast_note(fc, "Revenue", F.money, stock=False)  # a flow is summed over the horizon, by design
+    assert "over the next 6 periods" in flow.text and flow.evidence["forecast"] == pytest.approx(0.32 * 6)
+    # the generated overview page passes stock=True for percent metrics
+    from lyst import studio_dash
+
+    assert "stock=is_rate" in studio_dash.OVERVIEW_PY and 'is_rate = m["format"] == "percent"' in studio_dash.OVERVIEW_PY
