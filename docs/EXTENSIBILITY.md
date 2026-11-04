@@ -235,3 +235,22 @@ and members' access at once. Views are counted and recorded per version. Events:
 
 Gaps: dashboards (live Dash apps) are not published as snapshots; no scheduled republish; no per-viewer link
 analytics beyond counts (by design).
+
+## 11. Quality automation and shared formatting
+
+**Fault injection** (`tests/test_faults.py`): a table that fails mid-commit keeps the others and reports the error;
+a commit where every table fails loads nothing and leaves the upload staged for a retry; an export that runs out
+of disk leaves no pack and no temporary files; an import that fails part-way removes the new workspace, its file
+and its memberships, and the id can be used again; webhook transport errors are recorded and retried; a failing
+event subscriber does not stop the others; the SDK retries reads through dropped connections; a workbench output
+flood is cut at 20,000 characters; corrupt workbooks, PDFs, UTF-16 CSVs, truncated JSON, bad Parquet, unclosed HTML
+and empty Office packages end in a plain refusal, never a server error; the API contract check runs clean from the
+command line. **Compatibility**: `tests/test_api_contract.py` (breaking API changes), pack schema checks in
+`test_portability.py` (a pack from a newer Lyst is refused), SDK version warning in `test_sdk.py`.
+
+**Locale-aware formatting and accessibility** (`src/lyst/i18n.py`, `LYST_LOCALE`): numbers, currency, percentages,
+compact units and dates for en-US, en-GB, de-DE, fr-FR, es-ES, pt-BR, ja-JP and hi-IN (lakh grouping), with
+half-up rounding, a real minus sign (read as "minus"), no negative zero, and a language fallback. WCAG 2.2 contrast
+checks (`contrast`, `passes_aa` for text, large text and graphics) and plain-language descriptions of series and
+tables for screen readers (`describe_series`, `describe_table`). These are shared helpers; the interface and
+generated dashboards adopt them through the UX thread.
