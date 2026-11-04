@@ -145,6 +145,11 @@ class Lyst:
                                             connections=connections, onboarding=onboarding, semantic=semantic),
                    costs=CostService(stores, guard, settings))
 
+    def __post_init__(self) -> None:
+        from .lane import attach  # noqa: PLC0415 - the extensibility lane's services (events, webhooks, experiments ...)
+
+        attach(self)
+
     def close(self) -> None:
         self.runtime.stop()
         self.stores.close()

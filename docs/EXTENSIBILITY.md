@@ -28,6 +28,14 @@ duplicates.
 | CSV/TSV/TXT | Delimiter by consistency across lines (handles `;` with decimal commas), encoding (UTF-8, UTF-16, Windows-1252), title lines skipped, same column intelligence as workbooks; files above 20 MB load column-wise |
 | Parquet | As before |
 
+**Nothing in a file is ever run.** Workbooks are read for their saved cell values; formulas are never evaluated
+(a formula without a saved result loads empty and is flagged). Macros (VBA), embedded OLE objects, ActiveX controls
+and links to other workbooks are detected, reported in the plan (`active_content` and a warning) and ignored:
+never opened, extracted, followed or run. PDFs are read for their text layer only (their scripts never run); web
+pages lose `<script>`, `<style>` and templates before reading; XML that declares entities is refused. Tested by
+`test_macros_embedded_objects_and_formulas_are_never_run` (a macro-enabled workbook with an embedded object, an
+ActiveX control, an external link and a `WEBSERVICE` formula pointed at an outside address).
+
 Refused, with the fix in the message: legacy .xls/.doc/.ppt, password-protected Office files (Lyst never asks for
 document passwords), images (no bundled OCR), archives, damaged packages, XML that declares entities.
 

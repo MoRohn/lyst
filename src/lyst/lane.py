@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
+"""Wiring for the extensibility lane, attached to the composition root after it is built.
+
+Kept apart from ``Lyst.build`` so the lane adds services without editing the shared constructor: each service
+becomes an attribute of the ``Lyst`` instance (``lyst.events``, ``lyst.webhooks`` ...) and registers its hooks here.
+"""
+
+from __future__ import annotations
+
+
+def attach(lyst) -> None:
+    return None
