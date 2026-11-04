@@ -36,6 +36,7 @@ class Capability:
     requires_approval: bool = False
     version: int = 1
     origin: str = "core"
+    optional: bool = False  # a failure is recorded and the task continues without this step's output
 
 
 class Registry:
@@ -58,7 +59,7 @@ class Registry:
         return [
             {"name": c.name, "description": c.description, "agent": c.agent, "phase": c.phase,
              "permission": c.permission, "mutating": c.mutating, "requires_approval": c.requires_approval,
-             "version": c.version, "origin": c.origin}
+             "version": c.version, "origin": c.origin, "optional": c.optional}
             for c in sorted(self._caps.values(), key=lambda c: c.name)
         ]
 
@@ -72,10 +73,10 @@ REGISTRY = Registry()
 
 
 def capability(registry: Registry, name: str, *, agent: str, phase: str, permission: str,
-               description: str, mutating: bool = False, requires_approval: bool = False):
+               description: str, mutating: bool = False, requires_approval: bool = False, optional: bool = False):
     def wrap(fn):
         registry.register(Capability(name, description, agent, phase, permission, fn, mutating,
-                                     requires_approval))
+                                     requires_approval, optional=optional))
         return fn
 
     return wrap

@@ -112,7 +112,7 @@ def horizon_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
 
 @capability(REGISTRY, "change_points", agent="statistical_analyst", phase="investigate", permission="analyst.ask",
-            description="Where the level of a series shifted (binary segmentation with a BIC penalty).")
+            optional=True, description="Where the level of a series shifted (binary segmentation with a BIC penalty).")
 def change_points_step(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     src = ctx.outputs[args["series_key"]]
     pts = [p for p in src["points"] if p["value"] is not None]
@@ -327,7 +327,7 @@ def test_hypotheses(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------- related metrics
 
 @capability(REGISTRY, "related_metrics", agent="business_analyst", phase="investigate", permission="data.query",
-            description="Other approved metrics on the same dataset, for the same periods: do they corroborate the move?")
+            optional=True, description="Other approved metrics on the same dataset, for the same periods: do they corroborate the move?")
 def related_metrics(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     spec = _spec(ctx, args["metric"])
     cur_p, prev_p = args["current"], args["prior"]

@@ -23,7 +23,9 @@
 | Analyst | Model-written narrative with number verification | Tested (stub model) | `test_llm.py` |
 | Models | OpenRouter gateway: tiers, workload routing, admission, adaptive limits, retries, fallback, 402 handling, per-call cost | Tested against a stub OpenRouter | `test_gateway.py`, `test_llm.py::test_openrouter_end_to_end_through_the_analyst` |
 | Models | Real OpenRouter call | Not yet: needs a Lyst OpenRouter key | — |
-| Runtime | Leases, checkpoints, resume after crash | Tested | Scenario H |
+| Runtime | Leases, checkpoints, resume after crash (also mid-wave with parallel steps) | Tested | Scenario H, `test_execution.py` |
+| Runtime | DAG plans: declared dependencies, independent steps run in parallel (`LYST_TASK_PARALLELISM`), optional steps skip instead of failing, failures classified (permission, input, data, model, transient) with retries only for transient ones | Tested | `test_execution.py` |
+| Analyst | Verification intensity by consequence (low / standard / high); high adds an independent pandas recomputation of the headline value from raw rows | Tested | `test_execution.py::test_verification_intensity_follows_consequence` |
 | Runtime | Pause, resume, cancel, retry, step budget | Tested | `test_runtime.py` |
 | Runtime | Approval-gated schedules | Tested | `test_schedule_needs_approval_then_runs` |
 | Security | Roles, workspace isolation, audit of denials, redaction | Tested | Scenario G, `test_security.py` |

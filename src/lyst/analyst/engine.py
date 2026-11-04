@@ -243,8 +243,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     steps: list[dict[str, Any]] = []
     blockers: list[str] = []
 
-    def add(cap: str, key: str, **a):
-        steps.append({"capability": cap, "key": key, "args": a})
+    def add(cap: str, key: str, after: list[str] | None = None, **a):
+        steps.append({"capability": cap, "key": key, "args": a, "after": after if after is not None else ["plan"]})
 
     if u["ambiguous"]:
         for term, names in u["ambiguous"].items():
@@ -272,33 +272,40 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             prev = _prev_period(p)
             add("metric_value", "prior", metric=m, period=prev)
             ya = _year_ago(p)
+            values = ["current", "prior"]
             if ya:
                 add("metric_value", "year_ago", metric=m, period=ya)
+                values.append("year_ago")
             if u["intent"] == "breakdown" and u["by"]:
                 add("metric_breakdown", "breakdown", metric=m, period=p, by=u["by"])
             if u["intent"] == "explain":
-                add("driver_analysis", "drivers", metric=m, current=p, prior=prev)
+                add("driver_analysis", "drivers", metric=m, current=p, prior=prev, after=["current", "prior"])
                 if u["depth"] == "deep":
                     h = u.get("horizon") or {"periods": 6, "grain": "quarter"}
                     if h["grain"] in ("quarter", "month", "year"):
                         add("horizon_series", "horizon", metric=m, grain=h["grain"], periods=h["periods"])
-                        add("change_points", "changepoints", series_key="horizon")
+                        add("change_points", "changepoints", series_key="horizon", after=["horizon"])
                     add("hypothesize", "hypotheses", metric=m)
-                    add("test_hypotheses", "tests", metric=m, current=p, prior=prev)
+                    add("test_hypotheses", "tests", metric=m, current=p, prior=prev,
+                        after=values + ["drivers", "hypotheses"])
                     add("related_metrics", "related", metric=m, current=p, prior=prev)
         if u["intent"] in ("trend", "explain"):
             add("metric_series", "series", metric=m, grain="month")
-            add("anomaly_scan", "anomalies", series_key="series")
+            add("anomaly_scan", "anomalies", series_key="series", after=["series"])
         if u["intent"] == "forecast":
             add("metric_series", "series", metric=m, grain="month")
-            add("forecast_metric", "forecast", series_key="series", horizon=6)
-    steps.append({"capability": "validate", "key": "validate", "args": {}})
-    steps.append({"capability": "deliver", "key": "deliver", "args": {}})
-    steps.append({"capability": "learn", "key": "learn", "args": {}})
+            add("forecast_metric", "forecast", series_key="series", horizon=6, after=["series"])
+    everything = [st["key"] for st in steps]
+    intensity = "high" if (u.get("depth") == "deep" or re.search(r"\b(board|executive|audit|financial statement|"
+                                                                r"regulat\w*|investor)", u["question"], re.I)) else (
+        "low" if u.get("depth") == "fast" else "standard")
+    steps.append({"capability": "validate", "key": "validate", "args": {"intensity": intensity}, "after": everything})
+    steps.append({"capability": "deliver", "key": "deliver", "args": {}, "after": ["validate"]})
+    steps.append({"capability": "learn", "key": "learn", "args": {}, "after": ["deliver"]})
     for s in steps:
         cap = ctx.services.registry.get(s["capability"])
         s["agent"], s["phase"] = cap.agent, cap.phase
-    return {"steps": steps, "blockers": blockers, "depth": u.get("depth", "analytical"),
+    return {"steps": steps, "blockers": blockers, "depth": u.get("depth", "analytical"), "verification": intensity,
             "success_criteria": ["every number comes from an executed query", "all validation checks pass",
                                  "the answer follows Answer, Evidence, Implications, Actions"]
             + (["each hypothesis has a computed verdict"] if u.get("depth") == "deep" else [])}
@@ -438,7 +445,7 @@ def driver_analysis(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
 
 @capability(REGISTRY, "anomaly_scan", agent="statistical_analyst", phase="investigate", permission="data.query",
-            description="Flag periods whose value is extreme after trend and seasonality (robust z ≥ 3.5).")
+            optional=True, description="Flag periods whose value is extreme after trend and seasonality (robust z ≥ 3.5).")
 def anomaly_scan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     pts = ctx.outputs[args["series_key"]]["points"]
     if len(pts) < 6:
@@ -515,6 +522,7 @@ def quality_scan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     o = ctx.outputs
     checks: list[dict[str, Any]] = []
+    intensity = args.get("intensity", "standard")
 
     def check(name: str, passed: bool, detail: str, severity: str = "error"):
         checks.append({"name": name, "passed": bool(passed), "detail": detail, "severity": severity})
@@ -574,10 +582,58 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     cp = o.get("changepoints")
     if cp and cp.get("latest") and "current" in o:
         check("changepoint_consistent", cp["points"] >= 4, f"{cp['points']} periods scanned, {len(cp['breaks'])} break(s)", "warning")
+    if intensity == "high" and "current" in o and o["current"].get("value") is not None:
+        rec = _independent_recompute(ctx, o["current"])
+        check("independent_recompute", rec["ok"], rec["detail"])
     errors = [c for c in checks if not c["passed"] and c["severity"] == "error"]
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")
-    return {"checks": checks, "status": status}
+    return {"checks": checks, "status": status, "intensity": intensity}
+
+
+def _independent_recompute(ctx: Context, current: dict[str, Any]) -> dict[str, Any]:
+    """Pull the raw rows of the period and recompute the headline value in pandas, apart from the SQL path."""
+    spec = _spec(ctx, current["metric"])
+    p = current["period"]
+    cols = sorted(spec.columns())
+    r = _query(ctx, f'SELECT {", ".join(chr(34) + c + chr(34) for c in cols)} FROM "{spec.dataset}" '
+                    f'WHERE "{spec.time_column}" >= \'{p["start"]}\' AND "{spec.time_column}" < \'{p["end"]}\'')
+    df = r.frame()
+    from ..semantic import Filter  # noqa: PLC0415
+
+    def mask(frame: pd.DataFrame, filters: list[Filter]) -> pd.Series:
+        m = pd.Series(True, index=frame.index)
+        for f in filters:
+            col = frame[f.column]
+            if f.op == "=":
+                m &= col == f.value
+            elif f.op == "!=":
+                m &= col != f.value
+            elif f.op in ("in", "not in"):
+                vals = f.value if isinstance(f.value, list) else [f.value]
+                m &= col.isin(vals) if f.op == "in" else ~col.isin(vals)
+            else:
+                m &= {">": col > f.value, ">=": col >= f.value, "<": col < f.value, "<=": col <= f.value}[f.op]
+        return m
+
+    def measure(frame: pd.DataFrame, me) -> float | None:
+        sub = frame[mask(frame, me.filters)]
+        if me.agg == "count":
+            return float(sub[me.column].notna().sum()) if me.column else float(len(sub))
+        series = sub[me.column].dropna()
+        if series.empty:
+            return None
+        return float({"sum": series.sum(), "avg": series.mean(), "min": series.min(), "max": series.max(),
+                      "count_distinct": series.nunique()}[me.agg])
+
+    base = df[mask(df, spec.filters)]
+    if spec.kind == "ratio":
+        n, d = measure(base, spec.numerator), measure(base, spec.denominator)
+        value = (n / d) if n is not None and d else None
+    else:
+        value = measure(base, spec.measure)
+    ok = value is not None and current["value"] is not None and math.isclose(value, current["value"], rel_tol=1e-9, abs_tol=1e-12)
+    return {"ok": ok, "detail": f"pandas over {len(df)} raw rows gives {value}; SQL gave {current['value']}", "value": value}
 
 
 # ----------------------------------------------------------------- 7-8. interpret, deliver

@@ -85,6 +85,12 @@ task id, so a re-run step does not duplicate them. `tests/test_scenarios.py::tes
 proves this: the crash happens mid-plan, a second worker finishes, finished steps are not re-run, there is one
 stored analysis, and the answer equals an uninterrupted run.
 
+Plans are DAGs: each step declares `after` (the keys it needs). The runtime runs every ready step of a wave
+concurrently on a small pool (`LYST_TASK_PARALLELISM`, default 4), commits each step's checkpoint as it
+finishes, and starts the next wave. Capabilities marked `optional` (anomaly scan, change points, related
+metrics) are skipped on failure instead of failing the task. Failures are classified: permission and input
+errors fail at once, model and data errors are reported as such, transient errors retry once.
+
 Budgets: `max_steps` and `budget_seconds` per task. Step failures retry once when the error may be
 transient; permission and validation errors fail at once. Capabilities flagged `requires_approval` stop the
 task in `awaiting_approval` until an admin decides. Schedules are created disabled with an approval; once

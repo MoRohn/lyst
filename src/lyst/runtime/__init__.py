@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -38,6 +40,24 @@ FIXED_STEPS = [
     {"capability": "plan", "key": "plan"},
 ]
 TERMINAL = {"done", "failed", "cancelled"}
+FAILURE_CLASSES = ("permission", "input", "data", "model", "transient")
+
+
+def classify_failure(exc: BaseException) -> str:
+    """What kind of failure, which decides retrying and what the person is told."""
+    from ..data.sqlguard import QueryRejected  # noqa: PLC0415
+    from ..llm import LLMUnavailable  # noqa: PLC0415
+
+    if isinstance(exc, AccessDenied):
+        return "permission"
+    if isinstance(exc, QueryRejected | ValueError | KeyError | TypeError):
+        return "input"
+    if isinstance(exc, LLMUnavailable):
+        return "model"
+    name = type(exc).__module__ + "." + type(exc).__name__
+    if name.startswith("_duckdb") or name.startswith("duckdb"):
+        return "data"
+    return "transient"
 AUTONOMY = ("assist", "delegate", "autonomous", "governed")
 MAX_STEP_ATTEMPTS = 2
 
@@ -55,6 +75,7 @@ class TaskRuntime:
         self.worker_id = worker_id or f"w_{uuid.uuid4().hex[:8]}"
         self.lease_seconds = lease_seconds
         self.poll_seconds = poll_seconds
+        self.parallelism = max(1, int(os.environ.get("LYST_TASK_PARALLELISM", "4")))
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
 
@@ -294,44 +315,84 @@ class TaskRuntime:
         done = self.db.query("SELECT seq, capability, args, output, status FROM task_steps WHERE task_id = ? "
                              "ORDER BY seq", [task_id])
         finished = {r["seq"]: r for r in done if r["status"] == "done"}
-        steps = list(FIXED_STEPS)
+        skipped = {r["seq"] for r in done if r["status"] == "skipped"}
+        steps: list[dict[str, Any]] = list(FIXED_STEPS)
         if t["plan"]:
             steps += json.loads(t["plan"])["steps"]
+        for seq, row in finished.items():
+            if seq < len(steps):
+                ctx.outputs[steps[seq]["key"]] = json.loads(row["output"])
         started = time.monotonic()
-        seq = 0
-        while seq < len(steps):
-            step = steps[seq]
-            key = step["key"]
-            if seq in finished:
-                ctx.outputs[key] = json.loads(finished[seq]["output"])
-                if key == "plan" and not t["plan"]:
-                    steps += ctx.outputs["plan"]["steps"]
-                seq += 1
-                continue
-            state = self._renew(task_id)
-            if state != "running":
-                self.event(task_id, "stopped", f"Stopped before step {seq} ({state})")
-                return state
-            if seq >= t["max_steps"]:
-                return self._fail(task_id, f"step budget of {t['max_steps']} exhausted")
-            if time.monotonic() - started > t["budget_seconds"]:
-                return self._fail(task_id, f"time budget of {t['budget_seconds']}s exhausted")
+        completed: set[int] = set(finished) | skipped
+        key_done: set[str] = {steps[i]["key"] for i in completed if i < len(steps)}
+        pool = ThreadPoolExecutor(max_workers=self.parallelism, thread_name_prefix=f"task-{task_id[-6:]}")
+        try:
+            while len(completed) < len(steps):
+                state = self._renew(task_id)
+                if state != "running":
+                    self.event(task_id, "stopped", f"Stopped with {len(completed)} of {len(steps)} steps done ({state})")
+                    return state
+                if len(completed) >= t["max_steps"]:
+                    return self._fail(task_id, f"step budget of {t['max_steps']} exhausted")
+                if time.monotonic() - started > t["budget_seconds"]:
+                    return self._fail(task_id, f"time budget of {t['budget_seconds']}s exhausted")
+                ready = [i for i, st in enumerate(steps) if i not in completed and self._deps_met(i, steps, key_done)]
+                if not ready:
+                    return self._fail(task_id, "no runnable step: a dependency failed or the plan is cyclic")
+                # approval gates are checked before anything in this wave starts
+                for i in ready:
+                    gate = self._approval_gate(t, actor, task_id, i, steps[i])
+                    if gate:
+                        return gate
+                futures = {pool.submit(self._run_step, ctx, t, task_id, i, steps[i], request): i for i in ready}
+                for fut in as_completed(futures):
+                    i = futures[fut]
+                    outcome = fut.result()
+                    if outcome["status"] == "failed":
+                        return self._fail(task_id, f"{steps[i]['capability']} failed ({outcome['failure_class']}): "
+                                                   f"{outcome['error']}")
+                    completed.add(i)
+                    key_done.add(steps[i]["key"])
+                    if outcome["status"] == "done" and steps[i]["key"] == "plan":
+                        steps += outcome["output"]["steps"]
+        finally:
+            pool.shutdown(wait=True, cancel_futures=True)
+        result = ctx.outputs.get("deliver")
+        self.db.execute("UPDATE tasks SET status = 'done', result = ?, updated_at = now(), lease_owner = NULL, "
+                        "lease_until = NULL WHERE id = ?", [json.dumps(result, default=str), task_id])
+        self.event(task_id, "done", (result or {}).get("answer", "Done")[:200])
+        return "done"
+
+    @staticmethod
+    def _deps_met(i: int, steps: list[dict[str, Any]], key_done: set[str]) -> bool:
+        after = steps[i].get("after")
+        if after is None:  # no declared dependencies: run after the previous step, as before
+            return i == 0 or steps[i - 1]["key"] in key_done
+        return all(k in key_done for k in after)
+
+    def _approval_gate(self, t, actor, task_id, seq, step) -> str | None:
+        cap = self.services.registry.get(step["capability"])
+        if not (cap.requires_approval and t["autonomy"] != "autonomous"):
+            return None
+        approved = self.db.scalar("SELECT count(*) FROM approvals WHERE task_id = ? AND action = ? AND status = 'approved'",
+                                  [task_id, f"step:{seq}"])
+        if approved:
+            return None
+        pending = self.db.scalar("SELECT count(*) FROM approvals WHERE task_id = ? AND action = ? AND status = 'pending'",
+                                 [task_id, f"step:{seq}"])
+        if not pending:
+            self.request_approval(t["workspace_id"], actor.user_id, f"step:{seq}", f"Run {cap.name}: {cap.description}",
+                                  step.get("args", {}), task_id)
+        self.db.execute("UPDATE tasks SET status = 'awaiting_approval', lease_owner = NULL WHERE id = ?", [task_id])
+        self.event(task_id, "awaiting_approval", f"{cap.name} needs approval")
+        return "awaiting_approval"
+
+    def _run_step(self, ctx: Context, t, task_id: str, seq: int, step: dict[str, Any], request) -> dict[str, Any]:
+        """One step, on a pool thread: runs, retries when transient, commits its checkpoint."""
+        ctx_token = obs.task_id.set(task_id)
+        try:
             cap = self.services.registry.get(step["capability"])
-            if cap.requires_approval and t["autonomy"] != "autonomous":
-                approved = self.db.scalar(
-                    "SELECT count(*) FROM approvals WHERE task_id = ? AND action = ? AND status = 'approved'",
-                    [task_id, f"step:{seq}"])
-                if not approved:
-                    pending = self.db.scalar(
-                        "SELECT count(*) FROM approvals WHERE task_id = ? AND action = ? AND status = 'pending'",
-                        [task_id, f"step:{seq}"])
-                    if not pending:
-                        self.request_approval(t["workspace_id"], actor.user_id, f"step:{seq}",
-                                              f"Run {cap.name}: {cap.description}", step.get("args", {}), task_id)
-                    self.db.execute("UPDATE tasks SET status = 'awaiting_approval', lease_owner = NULL WHERE id = ?",
-                                    [task_id])
-                    self.event(task_id, "awaiting_approval", f"{cap.name} needs approval")
-                    return "awaiting_approval"
+            key = step["key"]
             args = dict(step.get("args") or {})
             if key == "understand":
                 args.setdefault("question", request["question"])
@@ -340,43 +401,44 @@ class TaskRuntime:
                 "INSERT OR REPLACE INTO task_steps (task_id, seq, phase, capability, agent, args, status, started_at, "
                 "idempotency_key) VALUES (?, ?, ?, ?, ?, ?, 'running', now(), ?)",
                 [task_id, seq, cap.phase, cap.name, cap.agent, json.dumps(args, default=str), f"{task_id}:{seq}"])
-            output, error = None, None
+            output, error, fclass = None, None, None
             step_start = time.perf_counter()
             for attempt in range(1, MAX_STEP_ATTEMPTS + 1):
                 try:
                     output = self.services.registry.run(cap.name, ctx, args)
                     break
-                except (AccessDenied, KeyError, ValueError) as exc:
+                except Exception as exc:  # noqa: BLE001 - classified below
+                    fclass = classify_failure(exc)
                     error = f"{type(exc).__name__}: {exc}"
-                    break  # not transient: do not retry
-                except Exception as exc:  # transient or unknown: bounded retry
-                    error = f"{type(exc).__name__}: {exc}"
-                    log.exception("step %s of %s failed (attempt %d)", seq, task_id, attempt)
+                    if fclass != "transient" or attempt == MAX_STEP_ATTEMPTS:
+                        if fclass not in ("permission", "input"):
+                            log.exception("step %s of %s failed (%s)", seq, task_id, fclass)
+                        break
+                    log.warning("step %s of %s failed transiently, retrying", seq, task_id)
             obs.STEP_SECONDS.labels(cap.name).observe(time.perf_counter() - step_start)
             if output is None:
-                log.warning("step failed", extra={"capability": cap.name, "seq": seq, "error": error})
+                if cap.optional:
+                    self.db.execute("UPDATE task_steps SET status = 'skipped', error = ?, finished_at = now() "
+                                    "WHERE task_id = ? AND seq = ?", [f"{fclass}: {error}", task_id, seq])
+                    self.event(task_id, "step_skipped", f"{cap.name} skipped ({fclass})", {"seq": seq, "error": error})
+                    return {"status": "skipped", "failure_class": fclass, "error": error}
                 self.db.execute("UPDATE task_steps SET status = 'failed', error = ?, finished_at = now() "
-                                "WHERE task_id = ? AND seq = ?", [error, task_id, seq])
-                return self._fail(task_id, f"{cap.name} failed: {error}")
+                                "WHERE task_id = ? AND seq = ?", [f"{fclass}: {error}", task_id, seq])
+                return {"status": "failed", "failure_class": fclass, "error": error}
             ctx.outputs[key] = output
             payload = json.dumps(output, default=str)
 
-            def commit(c, seq=seq, payload=payload, key=key, output=output):
+            def commit(c):
                 c.execute("UPDATE task_steps SET status = 'done', output = ?, finished_at = now() "
                           "WHERE task_id = ? AND seq = ?", [payload, task_id, seq])
                 if key == "plan":
                     c.execute("UPDATE tasks SET plan = ? WHERE id = ?", [payload, task_id])
 
             self.db.write(commit)
-            if key == "plan":
-                steps += output["steps"]
             self.event(task_id, "step_done", f"{cap.name} done", {"seq": seq})
-            seq += 1
-        result = ctx.outputs.get("deliver")
-        self.db.execute("UPDATE tasks SET status = 'done', result = ?, updated_at = now(), lease_owner = NULL, "
-                        "lease_until = NULL WHERE id = ?", [json.dumps(result, default=str), task_id])
-        self.event(task_id, "done", (result or {}).get("answer", "Done")[:200])
-        return "done"
+            return {"status": "done", "output": output}
+        finally:
+            obs.task_id.reset(ctx_token)
 
     def _fail(self, task_id: str, error: str) -> str:
         self.db.execute("UPDATE tasks SET status = 'failed', error = ?, updated_at = now(), lease_owner = NULL "
