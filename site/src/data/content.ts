@@ -56,7 +56,7 @@ export const pillars = {
       icon: 'ShieldCheck',
       title: 'Verify',
       text: 'Lyst emphasizes traceable evidence, reproducible calculations, transparent assumptions, and reviewable results.',
-      detail: ['Cited queries', 'Reproducible runs', 'Stated assumptions'],
+      detail: ['Cited queries', 'Reproducible runs', 'Stated assumptions', 'Adversarial checks'],
     },
   ],
 };
@@ -163,7 +163,7 @@ export const enterprise = {
   headline: 'Built for serious analytical work.',
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit, administrator-defined permissions.', status: 'available' as Status },
-    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package: queries, dataset versions, hashes and assumptions.', status: 'available' as Status },
+    { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
     { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on (OIDC) and member roles decide what Lyst can see and do.', status: 'available' as Status },
