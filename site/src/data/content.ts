@@ -86,7 +86,7 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'Verified derived datasets', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
+    items: ['Interactive Dash dashboards', 'Datasets built from a sentence, verified', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
     status: 'available',
   },
   {
