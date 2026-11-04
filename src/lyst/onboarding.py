@@ -204,6 +204,7 @@ class OnboardingService:
     def accept(self, actor: Principal, ws: str, pid: str, edits: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a proposal real through the governed service it belongs to. ``edits`` override payload fields
         (rename a metric, pick another column, rephrase a definition) before it is applied."""
+        self.guard.require(actor, ws, "workspace.read", pid)  # membership first; each kind's service checks its own permission
         p = self._proposal(ws, pid)
         if p["status"] != "proposed":
             raise ValueError(f"this proposal was already {p['status']}")

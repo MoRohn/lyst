@@ -147,7 +147,10 @@ def test_scenario_b_two_organizations_stay_isolated(seeded):
     with pytest.raises(AccessDenied):
         lyst.onboarding.proposals(avery, WS)
     with pytest.raises(AccessDenied):
-        lyst.onboarding.accept(acme_owner, "northwind", next(iter(nw_ids)))
+        lyst.onboarding.accept(acme_owner, "northwind", sorted(nw_ids)[0])
+    for pid in nw_ids:  # whatever the kind, a non-member is refused before anything else is checked
+        with pytest.raises(AccessDenied):
+            lyst.onboarding.accept(acme_owner, "northwind", pid)
 
 
 def test_onboarding_api(lyst):
