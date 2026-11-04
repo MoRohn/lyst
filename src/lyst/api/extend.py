@@ -10,7 +10,7 @@ from typing import Annotated, Any
 
 from fastapi import File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 MAX_UPLOAD = 200 * 1024 * 1024
@@ -62,6 +62,19 @@ class ExportIn(BaseModel):
     encrypt: bool = True
     include_history: bool = False
     include_files: bool = True
+
+
+class PublishIn(BaseModel):
+    task_id: str
+    audience: str = "members"
+    title: str | None = None
+    min_role: str = "viewer"
+    expires_days: int | None = None
+
+
+class RepublishIn(BaseModel):
+    task_id: str
+    note: str = ""
 
 
 class IngestCommit(BaseModel):
@@ -290,4 +303,47 @@ def register(app, L, User) -> None:
         if not lyst.credentials.is_installation_admin(user):
             raise AccessDenied("diagnostics are for installation administrators")
         return await run_in_threadpool(diagnostics.run, lyst, network=network)
+
+    # -- publishing -------------------------------------------------------------------------
+
+    def _page(body: str, status: int = 200) -> HTMLResponse:
+        from ..publishing import CSP  # noqa: PLC0415
+
+        return HTMLResponse(body, status_code=status, headers={"Content-Security-Policy": CSP, "X-Robots-Tag": "noindex, nofollow",
+                                           "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
+                                           "Cache-Control": "private, no-store"})
+
+    @app.get("/v1/workspaces/{ws}/publications")
+    def publications_list(request: Request, ws: str, user: User):
+        return L(request).publishing.list(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/publications", status_code=201)
+    def publications_publish(request: Request, ws: str, body: PublishIn, user: User):
+        """Publish a finished analysis to members, or by link (admins; shown once; 30 days unless set)."""
+        return L(request).publishing.publish(user, ws, body.task_id, audience=body.audience, title=body.title,
+                                             min_role=body.min_role, expires_days=body.expires_days)
+
+    @app.get("/v1/workspaces/{ws}/publications/{pid}")
+    def publications_get(request: Request, ws: str, pid: str, user: User):
+        return L(request).publishing.get(user, ws, pid)
+
+    @app.post("/v1/workspaces/{ws}/publications/{pid}/republish")
+    def publications_republish(request: Request, ws: str, pid: str, body: RepublishIn, user: User):
+        return L(request).publishing.republish(user, ws, pid, body.task_id, note=body.note)
+
+    @app.post("/v1/workspaces/{ws}/publications/{pid}/revoke")
+    def publications_revoke(request: Request, ws: str, pid: str, user: User):
+        return L(request).publishing.revoke(user, ws, pid)
+
+    @app.get("/v1/workspaces/{ws}/publications/{pid}/content")
+    def publications_content(request: Request, ws: str, pid: str, user: User, version: int | None = None):
+        return _page(L(request).publishing.content(user, ws, pid, version))
+
+    @app.get("/p/{token}", include_in_schema=False)
+    def publication_link(request: Request, token: str):
+        body = L(request).publishing.by_link(token)
+        if body is None:  # unknown, expired and withdrawn look the same from outside
+            return _page("<!doctype html><title>Not available</title><p>This link is not available. It may have expired or "
+                         "been withdrawn by the people who shared it.</p>", 404)
+        return _page(body)
 

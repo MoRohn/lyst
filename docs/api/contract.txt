@@ -134,6 +134,9 @@ GET /v1/workspaces/{ws}/onboarding/proposals | query: - | body: -
 GET /v1/workspaces/{ws}/operations | query: - | body: -
 GET /v1/workspaces/{ws}/pins | query: - | body: -
 GET /v1/workspaces/{ws}/profile | query: - | body: -
+GET /v1/workspaces/{ws}/publications | query: - | body: -
+GET /v1/workspaces/{ws}/publications/{pid} | query: - | body: -
+GET /v1/workspaces/{ws}/publications/{pid}/content | query: - | body: -
 GET /v1/workspaces/{ws}/pulse | query: - | body: -
 GET /v1/workspaces/{ws}/queries | query: - | body: -
 GET /v1/workspaces/{ws}/relations | query: - | body: -
@@ -252,6 +255,9 @@ POST /v1/workspaces/{ws}/onboarding/proposals/{pid}/accept | query: - | body: -
 POST /v1/workspaces/{ws}/onboarding/proposals/{pid}/dismiss | query: - | body: -
 POST /v1/workspaces/{ws}/ownership | query: - | body: object_id,object_kind,to_user
 POST /v1/workspaces/{ws}/policy/check | query: - | body: -
+POST /v1/workspaces/{ws}/publications | query: - | body: task_id
+POST /v1/workspaces/{ws}/publications/{pid}/republish | query: - | body: task_id
+POST /v1/workspaces/{ws}/publications/{pid}/revoke | query: - | body: -
 POST /v1/workspaces/{ws}/query | query: - | body: sql
 POST /v1/workspaces/{ws}/relations | query: - | body: from_kind,from_name,rel,to_kind,to_name
 POST /v1/workspaces/{ws}/reviews | query: - | body: action,object_id,object_kind,summary
