@@ -57,4 +57,5 @@ def main(argv: list[str] | None = None) -> None:
         settings = load_settings()
         env = {**os.environ, "LYST_HOME": str(settings.home)}
         sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app),
-                                  "--server.port", os.environ.get("LYST_UI_PORT", "8501")], env=env))
+                                  "--server.port", os.environ.get("LYST_UI_PORT", "8501")], env=env,
+                                 cwd=Path(__file__).resolve().parents[2]))
