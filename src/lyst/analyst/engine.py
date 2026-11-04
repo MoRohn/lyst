@@ -205,6 +205,12 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     gap = foundry.detect_gap(text) if intent != "skill" else None
     if gap and resolved["metrics"]:
         intent = "gap"
+    causal = bool(re.search(r"\b(cause[sd]?|causing|because of|leads? to|drives?|driven by|due to)\b", text, re.I))
+    second = None
+    if len(resolved["metrics"]) >= 2 and re.search(r"\b(correlat\w*|relationship|related|cause[sd]?|drives?|driven by)\b", text, re.I):
+        intent, second = "correlate", resolved["metrics"][1]
+    elif causal and not impact and intent not in ("gap", "skill", "sql"):
+        intent = "causal_unsupported"
     refresh = re.match(r"^\s*refresh dashboard (db_[0-9a-f]+)\s*$", text, re.I)
     if refresh:
         intent = "refresh"
@@ -219,7 +225,8 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "filters": filters, "scenarios": prescriptive.wants_scenarios(text),
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
             "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
-            "refresh_dashboard": refresh.group(1) if refresh else None,
+            "refresh_dashboard": refresh.group(1) if refresh else None, "second_metric": second,
+            "audience": ("executive" if re.search(r"\b(board|executive|ceo|cfo|leadership|briefing)\b", text, re.I) else "analyst"),
             "refresh_every": studio_mod.refresh_interval(text)}
 
 
@@ -282,7 +289,14 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
                             "Name the one you mean, or ask an admin to map the term in the glossary.")
-    if u["intent"] == "refresh":
+    if u["intent"] == "causal_unsupported":
+        blockers.append("Lyst cannot establish causation from this request. It can estimate an effect with an interrupted time "
+                        "series if you name the intervention and its start month (\"impact of X since July 2026\"), compare a "
+                        "treated group with a control group (difference-in-differences), or report the correlation between two "
+                        "approved metrics, which is not causation.")
+    elif u["intent"] == "correlate":
+        add("correlate_metrics", "correlation", metric=u["metrics"][0], other=u["second_metric"])
+    elif u["intent"] == "refresh":
         add("refresh_dashboard", "refresh", dashboard_id=u["refresh_dashboard"])
     elif u["intent"] == "dashboard":
         if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "data.ingest"):
@@ -528,6 +542,31 @@ def forecast_metric(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                    "backtest_points": f.backtest_points, "table": _frame_records(f.table)})
 
 
+@capability(REGISTRY, "correlate_metrics", agent="statistical_analyst", phase="test", permission="data.query",
+            description="Correlation between two metrics by month, raw and after removing each series' trend, with the caveat.")
+def correlate_metrics(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    a, b = _spec(ctx, args["metric"]), ctx.services.semantic.get(ctx.actor, ctx.workspace_id, args["other"])
+    ra, rb = _query(ctx, compile_metric(a, grain="month")), _query(ctx, compile_metric(b, grain="month"))
+    sa = pd.Series({str(p)[:10]: float(v) for p, v in ra.rows if v is not None})
+    sb = pd.Series({str(p)[:10]: float(v) for p, v in rb.rows if v is not None})
+    idx = sa.index.intersection(sb.index)
+    sa, sb = sa[idx], sb[idx]
+    if len(idx) < 6:
+        return {"skipped": "fewer than 6 overlapping months", "evidence": [_evidence(ra, a.name), _evidence(rb, b.name)]}
+    raw = float(np.corrcoef(sa, sb)[0, 1])
+    t = np.arange(len(idx))
+    da = sa.to_numpy() - np.polyval(np.polyfit(t, sa.to_numpy(), 1), t)
+    dbv = sb.to_numpy() - np.polyval(np.polyfit(t, sb.to_numpy(), 1), t)
+    detrended = float(np.corrcoef(da, dbv)[0, 1]) if da.std() > 0 and dbv.std() > 0 else 0.0
+    from scipy import stats as sps  # noqa: PLC0415
+
+    p_raw = float(sps.pearsonr(sa, sb).pvalue)
+    p_det = float(sps.pearsonr(da, dbv).pvalue)
+    return _clean({"a": a.name, "b": b.name, "a_title": a.title, "b_title": b.title, "months": len(idx), "raw": raw, "raw_p": p_raw,
+                   "detrended": detrended, "detrended_p": p_det,
+                   "evidence": [_evidence(ra, f"{a.name} by month"), _evidence(rb, f"{b.name} by month")]})
+
+
 @capability(REGISTRY, "design_dashboard", agent="lead_analyst", phase="plan", permission="data.read",
             description="Design a reporting dashboard: governed metrics, dimension, grain, verified SQL, refresh cadence.")
 def design_dashboard(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
@@ -563,7 +602,24 @@ def run_skill(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             description="Run one guarded, read-only query.")
 def run_sql(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     r = _query(ctx, args["sql"])
-    return _clean({"columns": r.columns, "rows": r.rows[:200], "row_count": len(r.rows),
+    warnings = []
+    import sqlglot  # noqa: PLC0415
+    from sqlglot import exp  # noqa: PLC0415
+
+    try:
+        tree = sqlglot.parse_one(args["sql"], read="duckdb")
+        joins = list(tree.find_all(exp.Join))
+    except Exception:  # noqa: BLE001
+        joins = []
+    if joins and not tree.find(exp.AggFunc) and len(r.datasets) >= 2:
+        counts = {}
+        for d in r.datasets:
+            counts[d] = ctx.services.data.query(ctx.actor, ctx.workspace_id, f'SELECT count(*) FROM "{d}"', task_id=ctx.task_id).rows[0][0]
+        biggest = max(counts.values())
+        if len(r.rows) > biggest:
+            warnings.append(f"join fan-out: the query returned {len(r.rows):,} rows but the largest table has {biggest:,}; "
+                            "a one-to-many or many-to-many join is multiplying rows, so sums over this result are inflated")
+    return _clean({"columns": r.columns, "rows": r.rows[:200], "row_count": len(r.rows), "warnings": warnings,
                    "evidence": [_evidence(r, "query")]})
 
 
@@ -619,6 +675,10 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                   f"{v['rows_in_period']} rows in {v['period']['label']}",
                   "error" if key == "current" else "warning")
     c = o.get("contextualize", {})
+    if c.get("period") and c["period"].get("anchor"):
+        age = (date.today() - date.fromisoformat(c["period"]["anchor"])).days
+        grain_days = {"month": 31, "quarter": 92, "year": 366, "ytd": 31, "custom": 31}.get(c["period"].get("grain"), 31)
+        check("source_age", age <= 2 * grain_days, f"the data ends {c['period']['anchor']}, {age} days ago", "warning")
     if c.get("period") and "current" in o:
         anchor = date.fromisoformat(c["period"]["anchor"])
         end = date.fromisoformat(c["period"]["end"])
@@ -642,6 +702,8 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             cur_sum = sum(r.get("current") or 0 for r in first["table"])
             check("recompute", math.isclose(cur_sum, cur, rel_tol=1e-9),
                   "the metric recomputed by member in Python matches the SQL value")
+    if o.get("sql", {}).get("warnings"):
+        check("join_fanout", False, o["sql"]["warnings"][0], "warning")
     for q in ("quality",):
         if q in o:
             qs = o[q]
@@ -800,6 +862,18 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if pl["blockers"]:
         answer = " ".join(pl["blockers"])
         status = "needs_input"
+    elif u["intent"] == "correlate":
+        co = o["correlation"]
+        if co.get("skipped"):
+            answer = f"Correlation could not be computed: {co['skipped']}."
+        else:
+            shared = abs(co["raw"]) >= 0.5 and abs(co["detrended"]) < 0.3
+            answer = (f"{co['a_title']} and {co['b_title']} correlate at r = {co['raw']:.2f} over {co['months']} months, but after "
+                      f"removing each series' trend the correlation is r = {co['detrended']:.2f} (p = {co['detrended_p']:.2f}). "
+                      + ("Most of the raw correlation is shared growth, not a month-to-month relationship. " if shared else "")
+                      + "Correlation is not causation; an intervention date or a control group would be needed to estimate an effect.")
+            findings = [f"Raw Pearson r = {co['raw']:.2f} (p = {co['raw_p']:.3f}); detrended r = {co['detrended']:.2f} (p = {co['detrended_p']:.3f})."]
+        status = "complete"
     elif u["intent"] == "dashboard":
         db_ = o["dashboard"]
         d = o["design"]
@@ -850,6 +924,9 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     elif u["intent"] == "sql":
         s = o["sql"]
         answer = f"The query returned {s['row_count']} rows."
+        for w in s.get("warnings", []):
+            findings.append(f"Caution: {w}.")
+            implications.append("Aggregate from the base tables, or join on the key that makes each row unique.")
         tables.append({"title": "Result", "columns": s["columns"], "rows": s["rows"]})
         status = "complete"
     elif u["intent"] == "profile":
@@ -872,6 +949,12 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     else:
         cur, prev, ya = o.get("current"), o.get("prior"), o.get("year_ago")
         parts = []
+        if cur and not (cur.get("rows_in_period") or 0):
+            rng = _dataset_range(ctx, spec)
+            answer = (f"No data for {cur['period']['label']}: {spec.dataset} covers {rng[0]} to {rng[1]}. "
+                      f"Lyst did not estimate a value.")
+            implications.append("Ask for a period inside the data's range, or load the missing period.")
+            cur = None
         if cur:
             parts.append(f"{spec.title} was {fmt(cur['value'], spec)} in {cur['period']['label']}")
             if prev and prev["value"] is not None and cur["value"] is not None:
@@ -1091,6 +1174,17 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                      for m in c.get("memory", []) if m["trust"] in ("approved", "user_validated")]
     citations = [{"document_id": p["document_id"], "title": p["title"], "passage": p["passage"], "quote": p["text"][:300]}
                  for p in c.get("passages", [])]
+    if spec:
+        defs = {}
+        pat = re.compile(rf"{re.escape(spec.title.lower())}\s+(?:is|means|equals|=|is defined as)\s+([^.]+)\.", re.I)
+        for p in c.get("passages", []):
+            m = pat.search(p["text"])
+            if m:
+                defs.setdefault(m.group(1).strip().lower(), set()).add(p["title"])
+        if len(defs) > 1:
+            assumptions.append(f"Documents disagree on what {spec.title.lower()} means ("
+                               + "; ".join(f"{', '.join(sorted(t))}: '{d}'" for d, t in defs.items())
+                               + f"). Lyst used the approved definition v{_metric_version(ctx, spec.name)}, not the documents.")
     consistency = None
     for pa in c.get("prior_answers", []):
         if pa.get("status") != "complete" or not pa.get("answer"):
@@ -1116,9 +1210,13 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         elif not consistency["agrees"]:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) answered differently on an earlier data version.")
     assumptions += context_notes
+    audience = u.get("audience", "analyst")
+    brief = answer if audience != "executive" else " ".join([answer] + implications[:2] + (actions[:1] if actions else []))
     result = {
         "status": status,
         "depth": pl.get("depth", "analytical"),
+        "audience": audience,
+        "brief": brief,
         "question": u["question"],
         "answer": answer,
         "hypotheses": o.get("tests", {}).get("verdicts", []),
@@ -1148,6 +1246,12 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
 def _shift_months(iso: str, n: int) -> str:
     return (pd.Timestamp(iso) + pd.DateOffset(months=n)).date().isoformat()
+
+
+def _dataset_range(ctx: Context, spec: MetricSpec) -> tuple[str, str]:
+    r = _query(ctx, f'SELECT min("{spec.time_column}"), max("{spec.time_column}") FROM "{spec.dataset}"')
+    lo, hi = r.rows[0]
+    return str(lo)[:10], str(hi)[:10]
 
 
 def _metric_version(ctx: Context, name: str) -> int:

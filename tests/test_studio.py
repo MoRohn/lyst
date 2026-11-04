@@ -104,3 +104,36 @@ def test_rejects_metrics_without_a_shared_dimension(seeded):
     lyst, owner = seeded
     with pytest.raises(ValueError, match="share no dimension"):
         lyst.studio.design(owner, "northwind", ["revenue", "tickets"], dimension=None, title=None, every_seconds=None)
+
+
+class Crash(BaseException):
+    pass
+
+
+def test_g_interrupted_dashboard_project_resumes_without_duplicates(seeded, monkeypatch):
+    """New scenario G: a crash right after the build step did its work must not produce a second dashboard."""
+    from lyst.runtime import TaskRuntime
+
+    lyst, owner = seeded
+    real = lyst.services.registry.run
+    state = {"crashed": False}
+
+    def crash_after_build(name, ctx, args):
+        out = real(name, ctx, args)
+        if name == "build_dashboard" and not state["crashed"]:
+            state["crashed"] = True
+            raise Crash()  # the process dies after files and rows were written, before the checkpoint commit
+        return out
+
+    monkeypatch.setattr(lyst.services.registry, "run", crash_after_build)
+    tid = lyst.runtime.submit(owner, "northwind", "Build a revenue dashboard by region, refreshed weekly")
+    with pytest.raises(Crash):
+        lyst.runtime.run_once()
+    lyst.stores.control.execute("UPDATE tasks SET lease_until = now() - INTERVAL 1 SECOND WHERE id = ?", [tid])
+    assert TaskRuntime(lyst.stores, lyst.services, worker_id="w2").run_once() == tid
+    t = lyst.runtime.get(owner, tid)
+    assert t["status"] == "done" and t["result"]["status"] == "complete"
+    assert len(lyst.studio.list(owner, "northwind")) == 1
+    assert len(lyst.runtime.schedules(owner, "northwind")) == 1  # one refresh schedule, not two
+    out = json.loads(lyst.stores.control.scalar("SELECT output FROM task_steps WHERE task_id = ? AND capability = 'build_dashboard'", [tid]))
+    assert out.get("resumed") is True

@@ -163,7 +163,13 @@ class StudioService:
 
     def build(self, actor: Principal, ws: str, design: dict[str, Any], *, task_id: str | None = None) -> dict[str, Any]:
         self.guard.require(actor, ws, "data.ingest")  # building writes files and proposes a schedule: editor and above
-        did = "db_" + uuid.uuid4().hex[:8]
+        did = "db_" + (task_id[-8:] if task_id else uuid.uuid4().hex[:8])  # one dashboard per task: a resumed step finds it
+        existing = self._db(ws).query("SELECT id, title, path, status, checks, schedule_id FROM dashboards WHERE id = ?", [did])
+        if existing:
+            e = existing[0]
+            return {"dashboard_id": e["id"], "title": e["title"], "path": e["path"], "status": e["status"],
+                    "checks": json.loads(e["checks"] or "[]"), "schedule": {"schedule_id": e["schedule_id"]} if e["schedule_id"] else None,
+                    "files": sorted(p.name for p in Path(e["path"]).iterdir()), "resumed": True}
         folder = self._dir(ws, did)
         folder.mkdir(parents=True, exist_ok=True)
         manifest = self._materialize(actor, ws, design, folder, task_id=task_id)

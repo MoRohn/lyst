@@ -21,7 +21,7 @@ uv sync --all-extras
 uv run lyst init-demo        # seeds the Northwind demo workspace and a dev token in ./var
 uv run lyst serve            # API + workers on http://127.0.0.1:8770
 uv run lyst ui               # Streamlit on http://localhost:8501 (second terminal)
-uv run pytest                # 119 tests
+uv run pytest                # 130 tests
 uv run lyst eval             # scores 19 analytical questions against independent answers
 ```
 

@@ -31,6 +31,8 @@ class EvalCase:
     driver: str | None = None
     validation: str | None = "passed"
     max_seconds: float = 10.0
+    human_baseline_minutes: float | None = None   # a declared estimate of the manual effort, not a measurement
+    supervision_minutes: float = 2.0               # time a person spends reading and checking Lyst's answer
 
 
 @dataclass
@@ -97,10 +99,20 @@ def run(lyst, actor, workspace_id: str, cases: list[EvalCase], *, label: str = "
         task = lyst.runtime.get(actor, tid)
         outputs = _outputs(lyst, tid)
         checks = score(case, task, seconds, outputs)
+        gain = None
+        if case.human_baseline_minutes:
+            gain = case.human_baseline_minutes / (seconds / 60 + case.supervision_minutes)
         rows.append({"case": case.id, "question": case.question, "task_id": tid, "seconds": round(seconds, 3),
-                     "passed": all(c.passed for c in checks), "checks": [asdict(c) for c in checks]})
+                     "passed": all(c.passed for c in checks), "checks": [asdict(c) for c in checks],
+                     "human_baseline_minutes": case.human_baseline_minutes, "supervision_minutes": case.supervision_minutes,
+                     "productivity_gain": round(gain, 1) if gain else None})
     passed = sum(r["passed"] for r in rows)
+    gains = [r["productivity_gain"] for r in rows if r["productivity_gain"] and r["passed"]]
     summary = {"run_id": run_id, "label": label, "cases": len(rows), "passed": passed,
+               "productivity": {"cases_with_baseline": len(gains),
+                                "median_gain": float(pd.Series(gains).median()) if gains else None,
+                                "note": "Effective gain = declared human baseline ÷ (agent time + declared supervision time), on "
+                                        "passing cases only. Baselines are the bank author's estimates, not measurements."},
                "pass_rate": passed / len(rows) if rows else 0.0,
                "p95_seconds": float(pd.Series([r["seconds"] for r in rows]).quantile(0.95)) if rows else 0.0,
                "model": (lyst.llm.info().name if lyst.llm.info() else None), "results": rows}
@@ -143,11 +155,11 @@ def demo_bank() -> list[EvalCase]:
     margin = lambda d: d.operating_income.sum() / d.revenue.sum()  # noqa: E731
     return [
         EvalCase("margin-why", "Why did operating margin decline last quarter?", metric="operating_margin",
-                 value=margin(q3), contains=["Q3 2026", "EMEA"], driver="EMEA"),
+                 value=margin(q3), contains=["Q3 2026", "EMEA"], driver="EMEA", human_baseline_minutes=90),
         EvalCase("margin-synonym", "Why did op margin drop last quarter?", metric="operating_margin",
                  value=margin(q3), driver="EMEA"),
         EvalCase("revenue-last-quarter", "What was our revenue last quarter?", metric="revenue",
-                 value=float(q3.revenue.sum()), contains=["Q3 2026"]),
+                 value=float(q3.revenue.sum()), contains=["Q3 2026"], human_baseline_minutes=15, supervision_minutes=1),
         EvalCase("revenue-named-quarter", "What was revenue in Q1 2026?", metric="revenue",
                  value=float(q1_2026.revenue.sum()), contains=["Q1 2026"]),
         EvalCase("revenue-year", "What was revenue in 2025?", metric="revenue", value=float(y2025.revenue.sum())),
@@ -170,9 +182,11 @@ def demo_bank() -> list[EvalCase]:
         EvalCase("deep-investigation", "Investigate our declining operating margins across the last six quarters, "
                  "isolate the strongest contributing factors, test alternative explanations, and prepare an executive "
                  "briefing.", metric="operating_margin", value=margin(q3), driver="EMEA",
-                 contains=["favours concentration", "confined to Q3 2026"], max_seconds=15),
+                 contains=["favours concentration", "confined to Q3 2026"], max_seconds=15, human_baseline_minutes=240,
+                 supervision_minutes=10),
         EvalCase("scenario-c", "Forecast next quarter's support demand, quantify uncertainty, and evaluate three "
-                 "staffing scenarios.", metric="tickets", contains=["Q4 2026", "80% interval", "shortfall risk under 5%"]),
+                 "staffing scenarios.", metric="tickets", contains=["Q4 2026", "80% interval", "shortfall risk under 5%"],
+                 human_baseline_minutes=180, supervision_minutes=10),
         EvalCase("impact-emea", "What was the impact of the supplier price increase on operating margin in EMEA since "
                  "July 2026?", metric="operating_margin", contains=["plausible causal estimate", "Filtered to region = EMEA"]),
         EvalCase("member-filter", "What was revenue in EMEA last quarter?", metric="revenue",

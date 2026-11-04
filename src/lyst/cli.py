@@ -71,6 +71,10 @@ def run_eval(label: str) -> None:
                 bad = [c["name"] for c in r["checks"] if not c["passed"]]
                 print(f"{'PASS' if r['passed'] else 'FAIL'}  {r['seconds']:>5.2f}s  {r['case']}" + (f"  ({', '.join(bad)})" if bad else ""))
             print(f"{s['passed']}/{s['cases']} passed, p95 {s['p95_seconds']:.2f}s, model {s['model'] or 'none (rules)'}")
+            pr = s["productivity"]
+            if pr["median_gain"]:
+                print(f"productivity: median gain {pr['median_gain']:.0f}x over {pr['cases_with_baseline']} cases with a declared "
+                      f"baseline ({pr['note']})")
             sys.exit(0 if s["passed"] == s["cases"] else 1)
         finally:
             lyst.close()

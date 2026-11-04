@@ -33,6 +33,10 @@
 | Runtime | Approval-gated schedules | Tested | `test_schedule_needs_approval_then_runs` |
 | Security | Roles, workspace isolation, audit of denials, redaction | Tested | Scenario G, `test_security.py` |
 | Security | External model blocked unless allowed, then redacted | Tested | `test_llm.py` |
+| Accuracy | Adversarial suite: conflicting definitions surfaced, missing data declared (no estimate), misleading correlation detrended and hedged, unsupported causal questions declined with a path, join fan-out flagged, stale sources warned, contradictory documents disclosed with the approved definition winning, prompt injection in documents and requests inert, permission restrictions audited | Tested | New scenario F, `test_adversarial.py` |
+| Accuracy | Productivity measure in evaluation runs: declared human baseline ÷ (agent time + declared supervision), passing cases only, labelled as an estimate | Built | `lyst eval` |
+| Runtime | Long-running project resumes without duplicate side effects (dashboard build keyed on the task) | Tested | New scenario G, `test_studio.py` |
+| UI | Executive audience gets a brief (answer + implications + first action) ahead of the detail | Tested | `test_adversarial.py::test_executive_audience_gets_a_brief` |
 | Memory | Layers, trust, promotion, revocation, corrections | Built, partly tested | `memory.py`; promotion path untested |
 | UI | Six-area Streamlit app with live progress, light and dark themes | Checked by hand with Playwright screenshots | `docs/images/` |
 | API | Versioned FastAPI endpoints | Tested | `test_api.py` |

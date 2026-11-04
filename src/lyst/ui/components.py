@@ -65,7 +65,7 @@ def answer(r: dict[str, Any]) -> None:
     level = conf.get("level", "")
     with st.container(border=True):
         top = st.columns([6, 2], vertical_alignment="center")
-        top[0].markdown(f"#### {r['answer']}")
+        top[0].markdown(f"#### {r['brief'] if r.get('audience') == 'executive' and r.get('brief') else r['answer']}")
         if r["status"] == "needs_input":
             top[1].badge("Needs your input", color="orange", icon=":material/help:")
         elif level == "verified":
