@@ -10,6 +10,7 @@ from .analyst.engine import REGISTRY, Services
 from .config import Settings, load_settings
 from .data import DataService
 from .deliverables import ArtifactService
+from .knowledge import KnowledgeService
 from .llm import LLMClient
 from .memory import MemoryService
 from .runtime import TaskRuntime
@@ -32,6 +33,7 @@ class Lyst:
     runtime: TaskRuntime
     skills: SkillService
     artifacts: ArtifactService
+    knowledge: KnowledgeService
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -39,14 +41,15 @@ class Lyst:
         stores = Stores(settings)
         guard = Guard(stores)
         data = DataService(stores, guard)
-        semantic = SemanticService(stores, guard)
+        knowledge = KnowledgeService(stores, guard)
+        semantic = SemanticService(stores, guard, knowledge)
         memory = MemoryService(stores, guard)
         llm = LLMClient(settings.llm, stores)
         skills = SkillService(stores, guard, data)
-        services = Services(guard, data, semantic, memory, llm, REGISTRY, skills)
+        services = Services(guard, data, semantic, memory, llm, REGISTRY, skills, knowledge)
         runtime = TaskRuntime(stores, services, **runtime_kw)
-        artifacts = ArtifactService(stores, guard, settings.home)
-        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts)
+        artifacts = ArtifactService(stores, guard, settings.home, knowledge)
+        return cls(settings, stores, guard, data, semantic, memory, llm, services, runtime, skills, artifacts, knowledge)
 
     def close(self) -> None:
         self.runtime.stop()

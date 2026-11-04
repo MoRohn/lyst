@@ -74,6 +74,23 @@ class MemberIn(BaseModel):
     role: str
 
 
+class EntityIn(BaseModel):
+    kind: str
+    name: str
+    description: str = ""
+    owner: str | None = None
+    attributes: dict[str, Any] | None = None
+
+
+class RelationIn(BaseModel):
+    from_kind: str
+    from_name: str
+    rel: str
+    to_kind: str
+    to_name: str
+    evidence: dict[str, Any] | None = None
+
+
 class Correction(BaseModel):
     content: str
     analysis_id: str | None = None
@@ -325,6 +342,48 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def promote(request: Request, ws: str, memory_id: str, user: User):
         L(request).memory.promote(user, ws, memory_id)
         return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/entities")
+    def entities(request: Request, ws: str, user: User, kind: str | None = None):
+        return L(request).knowledge.entities(user, ws, kind)
+
+    @app.post("/v1/workspaces/{ws}/entities")
+    def upsert_entity(request: Request, ws: str, body: EntityIn, user: User):
+        L(request).knowledge.upsert_entity(user, ws, body.kind, body.name, description=body.description,
+                                           owner=body.owner, attributes=body.attributes)
+        return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/relations")
+    def relations(request: Request, ws: str, user: User, kind: str | None = None, name: str | None = None):
+        return L(request).knowledge.relations(user, ws, kind, name)
+
+    @app.post("/v1/workspaces/{ws}/relations")
+    def relate(request: Request, ws: str, body: RelationIn, user: User):
+        L(request).knowledge.relate(user, ws, body.from_kind, body.from_name, body.rel, body.to_kind, body.to_name,
+                                    evidence=body.evidence, source="user")
+        return {"ok": True}
+
+    @app.get("/v1/workspaces/{ws}/lineage/{kind}/{name}")
+    def lineage(request: Request, ws: str, kind: str, name: str, user: User):
+        return L(request).knowledge.lineage(user, ws, kind, name)
+
+    @app.get("/v1/workspaces/{ws}/documents")
+    def documents(request: Request, ws: str, user: User):
+        return L(request).knowledge.documents(user, ws)
+
+    @app.post("/v1/workspaces/{ws}/documents")
+    async def add_document(request: Request, ws: str, user: User, file: Annotated[UploadFile, File()],
+                           title: Annotated[str | None, Form()] = None, min_role: Annotated[str, Form()] = "viewer",
+                           classification: Annotated[str, Form()] = "internal"):
+        content = await file.read(MAX_UPLOAD + 1)
+        if len(content) > MAX_UPLOAD:
+            raise HTTPException(413, "file too large")
+        return L(request).knowledge.add_document(user, ws, content, filename=file.filename or "document.txt", title=title,
+                                                 classification=classification, min_role=min_role)
+
+    @app.get("/v1/workspaces/{ws}/documents/search")
+    def search_documents(request: Request, ws: str, user: User, q: str, limit: int = 5):
+        return L(request).knowledge.search(user, ws, q, limit=min(limit, 20))
 
     @app.get("/v1/workspaces/{ws}/analyses")
     def analyses(request: Request, ws: str, user: User):

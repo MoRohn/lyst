@@ -301,4 +301,50 @@ WORKSPACE: list[Migration] = [
         )
         """,
     ),
+    (
+        2,
+        """
+        CREATE TABLE entities (
+            kind VARCHAR NOT NULL,
+            name VARCHAR NOT NULL,
+            description VARCHAR,
+            owner VARCHAR,
+            attributes JSON,
+            source VARCHAR NOT NULL,
+            updated_by VARCHAR NOT NULL,
+            updated_at TIMESTAMPTZ DEFAULT now(),
+            PRIMARY KEY (kind, name)
+        );
+        CREATE TABLE relations (
+            from_kind VARCHAR NOT NULL,
+            from_name VARCHAR NOT NULL,
+            rel VARCHAR NOT NULL,
+            to_kind VARCHAR NOT NULL,
+            to_name VARCHAR NOT NULL,
+            evidence JSON,
+            source VARCHAR NOT NULL,
+            created_by VARCHAR NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            PRIMARY KEY (from_kind, from_name, rel, to_kind, to_name)
+        );
+        CREATE TABLE documents (
+            id VARCHAR PRIMARY KEY,
+            title VARCHAR NOT NULL,
+            filename VARCHAR NOT NULL,
+            classification VARCHAR NOT NULL,
+            min_role VARCHAR NOT NULL,
+            passages INTEGER NOT NULL,
+            chars INTEGER NOT NULL,
+            added_by VARCHAR NOT NULL,
+            added_at TIMESTAMPTZ DEFAULT now()
+        );
+        CREATE TABLE passages (
+            document_id VARCHAR NOT NULL,
+            seq INTEGER NOT NULL,
+            text VARCHAR NOT NULL,
+            terms JSON NOT NULL,
+            PRIMARY KEY (document_id, seq)
+        )
+        """,
+    ),
 ]

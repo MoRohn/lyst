@@ -173,9 +173,10 @@ def compile_metric(
 
 
 class SemanticService:
-    def __init__(self, stores: Stores, guard: Guard) -> None:
+    def __init__(self, stores: Stores, guard: Guard, knowledge: Any = None) -> None:
         self.stores = stores
         self.guard = guard
+        self.knowledge = knowledge
 
     def define(self, actor: Principal, workspace_id: str, spec: MetricSpec, note: str = "") -> int:
         self.guard.require(actor, workspace_id, "metric.define", spec.name)
@@ -210,6 +211,8 @@ class SemanticService:
             return version
 
         version = db.write(tx)
+        if self.knowledge:
+            self.knowledge.record_metric(actor, workspace_id, spec)
         self.guard.audit(actor, workspace_id, "metric.define", spec.name, "ok", {"version": version})
         return version
 

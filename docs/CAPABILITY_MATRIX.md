@@ -35,7 +35,10 @@
 | Ops | JSON logs with request and task ids, Prometheus `/metrics`, `/health` | Tested | `test_auth.py::test_metrics_and_request_ids` |
 | Ops | Dockerfile and Compose (non-root, read-only, no capabilities) | Written, not yet run (no Docker on the dev machine) | `docker-compose.yml` |
 | Connectors | PostgreSQL, warehouses, SaaS; connector SDK | Planned (Phase 4) | — |
-| Knowledge | Documents with citations, vector search | Planned (Phase 4) | — |
+| Knowledge | Entities and relations in DuckDB, automatic lineage metric → dataset → column and analysis → artifact, lineage walks | Tested | `test_knowledge.py` |
+| Knowledge | Documents (text, Markdown, PDF) split into passages, BM25 search with role gating, citations in answers | Tested | `test_knowledge.py::test_documents_are_searched_and_cited` |
+| Knowledge | Consistency with prior answers on the same data; validated memory surfaced in answers | Tested | `test_knowledge.py` |
+| Knowledge | Vector (embedding) search | Planned | — |
 | Build | Governed skills: static check, sandboxed tests with adversarial cases, approval by another role, registration, use in plans, retire | Tested | Scenario F, `test_skills.py` |
 | Build | Evaluation harness: question bank, independent expected values, stored scored runs, `lyst eval` | Tested | `test_evals.py` (15/15 on the demo bank) |
 | Deliverables | Excel workbook and Markdown briefing from any finished analysis | Tested | `test_deliverables.py` |

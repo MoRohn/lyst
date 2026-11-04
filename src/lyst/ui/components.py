@@ -103,6 +103,11 @@ def answer(r: dict[str, Any]) -> None:
             if sup.get("assumptions"):
                 st.markdown("**Assumptions**")
                 st.markdown("\n".join(f"- {a}" for a in sup["assumptions"]))
+            if sup.get("citations"):
+                st.markdown("**Documents consulted**")
+                for ci in sup["citations"]:
+                    st.caption(f"{ci['title']} · passage {ci['passage']}")
+                    st.markdown(f"> {ci['quote']}")
             if conf.get("checks"):
                 st.markdown(f"**Checks** ({conf.get('basis', '')})")
                 st.dataframe(pd.DataFrame(conf["checks"]), hide_index=True, width="stretch",

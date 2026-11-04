@@ -146,10 +146,11 @@ def _cell(v: Any) -> str:
 
 
 class ArtifactService:
-    def __init__(self, stores: Stores, guard: Guard, home: Path) -> None:
+    def __init__(self, stores: Stores, guard: Guard, home: Path, knowledge: Any = None) -> None:
         self.stores = stores
         self.guard = guard
         self.home = home
+        self.knowledge = knowledge
 
     def build(self, actor: Principal, task: dict[str, Any], kind: str) -> dict[str, Any]:
         ws = task["workspace_id"]
@@ -174,6 +175,8 @@ class ArtifactService:
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [aid, ws, task["id"], kind, str(path), len(data), hashlib.sha256(data).hexdigest(), actor.user_id])
         self.guard.audit(actor, ws, "artifact.create", aid, "ok", {"kind": kind, "task": task["id"]})
+        if self.knowledge:
+            self.knowledge.record_artifact(actor, ws, aid, task["id"], kind)
         return {"id": aid, "kind": kind, "name": name, "mime": mime, "bytes": len(data), "path": str(path)}
 
     def get(self, actor: Principal, artifact_id: str) -> tuple[dict[str, Any], bytes]:

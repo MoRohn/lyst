@@ -41,6 +41,7 @@ class Services:
     llm: LLMClient
     registry: Registry
     skills: Any = None  # skills.SkillService
+    knowledge: Any = None  # knowledge.KnowledgeService
 
 
 # ------------------------------------------------------------------------------- helpers
@@ -220,9 +221,16 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if p:
             period = {"label": p.label, "start": p.start.isoformat(), "end": p.end.isoformat(), "grain": p.grain,
                       "note": period_note, "anchor": anchor.isoformat()}
+    passages, prior = [], []
+    if s.knowledge:
+        try:
+            passages = s.knowledge.search(ctx.actor, ctx.workspace_id, u["question"], limit=3)
+            prior = s.knowledge.prior_answers(ctx.actor, ctx.workspace_id, u["question"])
+        except Exception:  # noqa: BLE001 - knowledge is advisory; the analysis must not fail on it
+            passages, prior = [], []
     return {"metrics": metrics, "datasets": list(catalog), "memory": [
         {"id": m["id"], "content": m["content"], "trust": m["trust"], "layer": m["layer"]} for m in memory],
-        "period": period}
+        "period": period, "passages": passages, "prior_answers": prior}
 
 
 # ----------------------------------------------------------------------------- 3. plan
@@ -834,6 +842,18 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
     confidence = {"passed": "verified", "passed_with_warnings": "verified with warnings",
                   "failed": "not verified"}[v["status"]]
+    context_notes = [f"{'Approved' if m['trust'] == 'approved' else 'Validated'} {m['layer']} knowledge: {m['content']}"
+                     for m in c.get("memory", []) if m["trust"] in ("approved", "user_validated")]
+    citations = [{"document_id": p["document_id"], "title": p["title"], "passage": p["passage"], "quote": p["text"][:300]}
+                 for p in c.get("passages", [])]
+    consistency = None
+    for pa in c.get("prior_answers", []):
+        if pa.get("status") != "complete" or not pa.get("answer"):
+            continue
+        same_sources = {(x["dataset"], x["version"]) for x in pa.get("sources", [])}
+        consistency = {"analysis_id": pa["analysis_id"], "at": pa["at"], "answer": pa["answer"],
+                       "same_data": None, "agrees": pa["answer"] == answer}
+        break
     sources = []
     for m in c.get("metrics", []):
         ver = ctx.services.data.stores.workspace(ctx.workspace_id).query(
@@ -843,6 +863,14 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             vr = ver[0]
             sources.append({"dataset": vr["dataset"], "version": vr["version"], "sha256": vr["source_sha256"],
                             "rows": vr["row_count"], "loaded_at": str(vr["created_at"]), "data_through": m["max_date"]})
+    if consistency:
+        consistency["same_data"] = same_sources == {(x["dataset"], x["version"]) for x in sources}
+        if not consistency["agrees"] and consistency["same_data"]:
+            assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) on the same data answered differently: "
+                               f"\"{consistency['answer'][:160]}\". Review both before relying on either.")
+        elif not consistency["agrees"]:
+            assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) answered differently on an earlier data version.")
+    assumptions += context_notes
     result = {
         "status": status,
         "depth": pl.get("depth", "analytical"),
@@ -859,6 +887,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         "supporting": {
             "queries": evidence_queries,
             "sources": sources,
+            "citations": citations,
+            "consistency": consistency,
             "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "metric": (c["metrics"][0] if c.get("metrics") else None),
             "assumptions": assumptions,
@@ -898,6 +928,10 @@ def learn(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                                                         "implications", "actions")}),
          json.dumps(d["supporting"], default=str), ctx.actor.user_id],
     )
+    if ctx.services.knowledge:
+        metric = ((d.get("supporting") or {}).get("metric") or {}).get("spec", {}).get("name")
+        ctx.services.knowledge.record_analysis(ctx.actor, ctx.workspace_id, aid, d["question"], metric,
+                                               (d.get("supporting") or {}).get("sources", []))
     mem = None
     if d["status"] == "complete" and ctx.services.guard.can(ctx.actor, ctx.workspace_id, "memory.write"):
         mem = ctx.services.memory.remember(
