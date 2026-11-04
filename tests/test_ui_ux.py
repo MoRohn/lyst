@@ -273,3 +273,11 @@ def test_a_built_dataset_explains_how_it_is_made(seeded, ui):  # noqa: F811
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Build a dataset from data Lyst has" for b in at.button)
+
+
+def test_study_it_runs_discovery_without_crashing(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    out = lyst.onboarding.discover(owner, "northwind")
+    from lyst.ui.onboarding import _count  # noqa: PLC0415
+
+    assert _count(out.get("new_proposals")) >= 0 and _count([1, 2]) == 2 and _count(None) == 0
