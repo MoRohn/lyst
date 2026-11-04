@@ -53,14 +53,14 @@ saved work and documents, plus a "What these words mean" glossary.
 
 | Area | What you do there |
 |---|---|
-| **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card guides the first run, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
+| **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card follows the workspace's real set-up state and shows the top suggestions from your data to accept or dismiss, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
 | **Work** | What needs you (approvals), what Lyst is doing and finished, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed |
 | **Data** | Datasets with a trust chip each, their sources, dashboards, saved analyses, and guarded SQL. **Add data** uploads a file or connects a source |
 | **Brain** | What Lyst knows about the business: approved metrics and business terms with their health and lineage, documents it can cite, and what it remembers and how far to trust it |
 | **Settings** | Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, audit trail) and Advanced (skills, capabilities, evaluation runs) |
 
 <p align="center">
-  <img src="docs/images/home.png" alt="Home: the ask box, the Get started card and this month's metric tiles" width="80%">
+  <img src="docs/images/home.png" alt="Home: the ask box, and the Get started card with set-up steps and suggestions from the data to accept or dismiss" width="80%">
 </p>
 
 ### Every answer: Summary, Detail, Method, and a Brief
@@ -230,8 +230,9 @@ where they point, with Mark all read and "What to tell me about".
   official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
   business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
   resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
-  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer.
-  Available through the API; screens are on the way ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
+  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer. On
+  screen: the Get started card on Home, **Suggestions** in Data › Datasets (with **Study the data again**), and
+  the industry picker and **Business profile** in Settings › Workspace ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -316,12 +317,17 @@ where they point, with Mark all read and "What to tell me about".
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
   query's inputs, joins and grouping are explained. With a model configured, it can be designed from a sentence
   (the model sees names, types and relationships, never rows). It reruns when an input gets a new version, keeps
-  the last good version if a run fails, and carries lineage to every input.
+  the last good version if a run fails, and carries lineage to every input. On screen: Data › Datasets › **Build a
+  dataset from data Lyst has** (describe it or write the query, **Run and check**, then **Save as a dataset**), and
+  a built dataset's Overview says in words how it is made, with **Run again** and **Retire**.
 
 <table>
   <tr>
     <td width="50%"><img src="docs/images/recurring.png" alt="Work, Recurring: a daily schedule and a Monday 08:00 America/New_York schedule, both awaiting approval"><br><b>Recurring</b>: calendar schedules with their next run</td>
     <td width="50%"><img src="docs/images/usage-limits.png" alt="Settings, Usage and limits: model spend, tokens and tasks against the limits"><br><b>Usage & limits</b>: spend and work against the limits</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/images/build-dataset.png" alt="Build a dataset: a query by month and region, run and checked: rows, one row per key, revenue and COGS add up to their source" width="70%"><br><b>Build a dataset</b>: checked before it is saved</td>
   </tr>
 </table>
 
