@@ -1019,12 +1019,16 @@ def _same_figures(prior: str, template: str, final: str) -> bool | None:
 
 def unbacked_numbers(text: str, allowed: list[float]) -> list[float]:
     """Numbers in model text that match no tool-produced value (within display rounding)."""
+    from decimal import Decimal  # noqa: PLC0415
+
     bad = []
     for n in _numbers(text):
         if n in (0, 1, 2, 3, 4) or 1900 <= n <= 2100:
             continue
-        # the sign is carried by the words ("fell 3.5 points" for a change of -0.035); the magnitude must be backed
-        if not any(math.isclose(abs(n), abs(a), rel_tol=0.006, abs_tol=0.0006) for a in allowed):
+        # the sign is carried by the words ("fell 3.5 points" for a change of -0.035); the magnitude must be backed,
+        # either closely or as a rounding of a tool value at the precision the model wrote (-0.034 for -0.03435)
+        places = max(0, -Decimal(repr(abs(n))).as_tuple().exponent) if abs(n) < 1e15 else 0
+        if not any(math.isclose(abs(n), abs(a), rel_tol=0.006, abs_tol=0.0006) or round(abs(a), places) == abs(n) for a in allowed):
             bad.append(n)
     return bad
 
