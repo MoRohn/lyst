@@ -146,11 +146,38 @@ freshness, schedule and contract, and the credential's status (never the secret)
 
 Reports (PDF briefings, workbooks, decks), dashboards and saved analyses share one registry with an owner,
 versions, validation status, and the question, dataset versions and metric versions each was built from. Every
-new data load and definition change re-assesses them as **current**, **stale** (newer data), **invalidated** (a
-metric was redefined or retired) or **broken** (a dataset is gone, a contract breached, or checks failed), and the
-owner hears once. Each asset comes with a repair proposal: dashboards refresh with the previous version kept,
-reports rerun their question, saved analyses rerun and recompile, and an upstream cause says a person is needed.
-Only a verified result becomes a new version; a failed repair restores the earlier state with the reason.
+new data load and definition change re-assesses them, and the owner hears once when one stops matching the data.
+
+In Data › Dashboards and Saved analyses, a row gets a chip only when it needs attention: **Out of date** (newer
+data), **Needs rebuilding** (a definition changed), **Broken** (an upstream contract break) or **Updating**.
+**Reports from answers** lists every briefing, deck and workbook downloaded from an answer, with **Check all**.
+Opening one says why in words and offers one button: **Refresh it** for a dashboard (the previous version is
+kept) or **Rebuild it** for a report or saved analysis, which reruns the question on current data. Only a verified
+result becomes a new version; a failed repair restores the earlier state with the reason, and a cause upstream
+says a person is needed.
+
+<table>
+  <tr>
+    <td width="45%"><img src="docs/images/reports.png" alt="Reports from answers: a workbook and a PDF briefing marked Needs rebuilding"><br><b>Reports from answers</b>: health at a glance</td>
+    <td width="55%"><img src="docs/images/report-rebuild.png" alt="A report whose metric definition changed, with the reason and a Rebuild it button"><br><b>Needs rebuilding</b>: the reason and one-click repair</td>
+  </tr>
+</table>
+
+### Working as a team
+
+* **Discuss anything.** Comments, replies and `@mentions` on an investigation, analysis, report, metric or
+  dataset; **change requests** that stay open until resolved; and **decisions** recorded and listed across the
+  workspace. A private report's thread is exactly as private as the report.
+* **Assign work** with a note and a due date; the assigner hears when it is done.
+* **Reviews before shared changes.** An editor can propose a metric definition, a data contract or publishing a
+  private report; nothing applies until an admin other than the proposer approves it, and the review is kept in
+  the metric's history and the audit log.
+* **Sharing and ownership.** Reports are private, shared with named people, or visible to the workspace, and
+  ownership of reports, datasets and metrics can be handed over.
+* **Your notifications, your way.** Mentions, assignments, reviews, decisions and comments on what you own
+  arrive in one list with platform notices, and each kind can be switched off per person.
+
+These run through the API today; their screens in the answer and in Work are on the way.
 
 ## What Lyst does
 
@@ -165,6 +192,8 @@ Only a verified result becomes a new version; a failed repair restores the earli
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
 * **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
   data and definition change, with verified repair and every version kept.
+* **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
+  shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
