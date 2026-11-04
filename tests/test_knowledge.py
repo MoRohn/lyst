@@ -124,3 +124,12 @@ def test_questions_about_different_periods_are_not_reported_as_contradictions(se
     other = ask(lyst, owner, "What was revenue in Q4 2025?")["result"]
     assert other["supporting"]["consistency"] is None
     assert not any("answered differently" in a for a in other["supporting"]["assumptions"])
+
+
+def test_a_repeated_question_does_not_pile_up_duplicate_memories(seeded):
+    lyst, owner = seeded
+    for _ in range(3):
+        ask(lyst, owner, "What was revenue in Q3 2026?")
+    rows = lyst.stores.workspace("northwind").query(
+        "SELECT count(*) AS n, count(DISTINCT content) AS d FROM memory WHERE content LIKE 'Q: What was revenue in Q3 2026%'")
+    assert rows == [{"n": 1, "d": 1}]

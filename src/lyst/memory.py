@@ -35,8 +35,14 @@ class MemoryService:
         self.guard.require(actor, workspace_id, "memory.write")
         if trust == "approved" or layer == "organization":
             self.guard.require(actor, workspace_id, "memory.promote")
-        mid = "m_" + uuid.uuid4().hex[:12]
         scope = scope or (actor.user_id if layer == "user" else workspace_id)
+        # the same fact at the same layer and scope is kept once (and embedded once), not once per repeat
+        same = self.stores.workspace(workspace_id).scalar(
+            "SELECT id FROM memory WHERE layer = ? AND scope = ? AND content = ? AND trust = ? AND revoked_at IS NULL "
+            "AND (expires_at IS NULL OR expires_at > now()) LIMIT 1", [layer, scope, content, trust])
+        if same:
+            return same
+        mid = "m_" + uuid.uuid4().hex[:12]
         self.stores.workspace(workspace_id).execute(
             "INSERT INTO memory (id, layer, scope, owner, content, provenance, trust) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [mid, layer, scope, actor.user_id, content, json.dumps(provenance, default=str), trust],
