@@ -72,7 +72,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Python', 'Statistics', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
+    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
@@ -133,7 +133,7 @@ export const openSource = {
 export const architecture = [
   {
     layer: 'Your team',
-    items: ['Analyst workspace', 'Python SDK', 'MCP', 'Event stream and signed webhooks'],
+    items: ['Analyst workspace', 'Voice (in development)', 'Python SDK', 'MCP', 'Event stream and signed webhooks'],
     tone: 'ink',
   },
   {
@@ -222,7 +222,7 @@ export const footer = {
 export const proof = [
   { value: '350+', label: 'automated tests, run on every change' },
   { value: '21', label: 'real questions gate every change' },
-  { value: 'Every', label: 'finding ships with its evidence' },
+  { value: '136', label: 'specialist profiles behind one Analyst' },
   { value: 'AGPL-3.0', label: 'open source, self-hosted' },
 ];
 
