@@ -86,8 +86,8 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Deliverables people can use on Monday.',
-    items: ['Generated dashboards', 'Excel and Markdown deliverables', 'Pipelines', 'Decks and PDFs'],
-    status: 'dev',
+    items: ['Generated dashboards', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown', 'Data extracts'],
+    status: 'available',
   },
   {
     icon: 'Workflow',
@@ -99,8 +99,8 @@ export const capabilities: {
   {
     icon: 'Cable',
     title: 'Connect',
-    text: 'Work where your data already lives.',
-    items: ['Files and documents', 'Webhooks', 'Enterprise databases', 'Business systems'],
+    text: 'PostgreSQL and files today, with more sources on the way.',
+    items: ['PostgreSQL', 'Files and documents', 'MCP server', 'Webhooks', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
