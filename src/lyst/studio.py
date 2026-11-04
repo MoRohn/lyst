@@ -149,11 +149,13 @@ class StudioService:
         design = {"title": title or f"{' & '.join(sp.title for sp in specs)} by {dim}", "grain": grain, "dimension": dim,
                   "every_seconds": every_seconds, "target": target, "narrative": narrative or {}, "metrics": []}
         from .analyst.engine import _sum_target  # noqa: PLC0415
+        from .onboarding import fiscal_start  # noqa: PLC0415 - quarterly dashboards follow the fiscal calendar
         from .semantic import _cond  # noqa: PLC0415
 
+        fs = fiscal_start(self._db(ws))
         for sp in specs:
-            series_sql = compile_metric(sp, grain=grain)
-            breakdown_sql = compile_metric(sp, grain=grain, by=[dim])
+            series_sql = compile_metric(sp, grain=grain, fiscal_start=fs)
+            breakdown_sql = compile_metric(sp, grain=grain, by=[dim], fiscal_start=fs)
             r1 = self.data.query(actor, ws, series_sql)
             r2 = self.data.query(actor, ws, breakdown_sql)
             if sp.kind == "ratio":

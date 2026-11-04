@@ -202,7 +202,7 @@ as a repeated key, a month-only join as a fan-out, and reconciles summed COGS to
 Not built: Polars/Python pipelines (SQL only; the skill sandbox is the path for Python), and transformations
 scheduled on their own (they follow their inputs and can be run on demand).
 
-## PR F: source precedence (gap G6)
+## PR F: source precedence (gap G6, #54, merged)
 
 Workspace migration 13 (`source_authority`); `semantic/__init__.py`, `catalog.py`, the Analyst's assumptions;
 tests in `tests/test_precedence.py`.
@@ -216,8 +216,14 @@ tests in `tests/test_precedence.py`.
   catalog shows each dataset's authority, a secondary source is never "trusted", search ranks authoritative sources
   first among equals, and metric lineage shows the authority of its source.
 
-Fiscal calendars (G5) are resolved by the adapt thread's PR #51 from the business profile; the fiscal bucketing of
-quarterly and yearly series in `compile_metric` follows here once #51 is merged.
+## PR G: fiscal buckets (gap G5, the adapt thread's O6)
+
+#51 resolves fiscal periods from the business profile. This completes it where numbers are grouped:
+`compile_metric(..., fiscal_start=)` buckets quarters and years from the fiscal start month (calendar workspaces get
+byte-identical SQL), and the Analyst's quarterly horizons and deep investigations, metric series, monitors, Studio
+dashboards and the next-quarter forecast use it, with fiscal labels throughout (for example "Q4 FY2027").
+Tests in `tests/test_fiscal.py`: fiscal quarter starts for a February year, totals equal to calendar buckets, July
+fiscal years, every quarter label in a deep investigation fiscal, and the next fiscal quarter forecast.
 
 ## Where it surfaces (handed to the UX thread)
 
@@ -245,7 +251,7 @@ Ranked by user impact, completeness, reuse, reliability, security, dependencies,
 | G16 | Personal notifications by email or chat, and digests | 2 | open |
 | G17 | Team and organizational spaces above a workspace (shared definitions across workspaces) | 3 | open |
 | G4 | Natural-language transformations and verified derived datasets (SQL) | 2 | done (PR E); Polars/Python pipelines open |
-| G5 | Fiscal calendars | 2 | period resolution in #51 (adapt thread); fiscal buckets in `compile_metric` next here |
+| G5 | Fiscal calendars | 2 | done: period resolution #51, fiscal buckets PR G |
 | G6 | Source precedence as a rule | 2 | done (PR F) |
 | G7 | Analyst answers to lineage questions in plain words from the Home box ("where does operating margin come from?"); today the answer is the API and MCP lineage tool | 2 | open |
 | G8 | Workflow composition with branches, approval gates and event triggers; natural-language schedules | 3 | open |

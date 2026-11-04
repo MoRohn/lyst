@@ -37,3 +37,45 @@ def test_answers_use_the_profile_fiscal_calendar(seeded):
     lyst.onboarding.set_profile(owner, "northwind", {"fiscal_year_start_month": 4})
     t = ask(lyst, owner, "What was revenue last quarter?")
     assert t["status"] == "done" and "FY2027" in t["result"]["answer"], t["result"]["answer"]
+
+
+def test_fiscal_buckets_in_compiled_metrics(seeded):
+    """Quarter and year buckets follow a fiscal year that starts outside the calendar quarters (O6)."""
+    from lyst.semantic import compile_metric
+
+    lyst, owner = seeded
+    spec = lyst.semantic.get(owner, "northwind", "revenue")
+    assert compile_metric(spec, grain="quarter") == compile_metric(spec, grain="quarter", fiscal_start=1)  # calendar SQL unchanged
+    assert compile_metric(spec, grain="month", fiscal_start=2) == compile_metric(spec, grain="month")
+    q = lyst.data.query(owner, "northwind", compile_metric(spec, grain="quarter", fiscal_start=2))
+    starts = {str(r[0])[:10] for r in q.rows}
+    assert "2025-02-01" in starts and "2025-01-01" not in starts and all(s[5:7] in ("02", "05", "08", "11") for s in starts)
+    # every month lands in exactly one fiscal quarter: totals agree with the calendar buckets
+    cal = lyst.data.query(owner, "northwind", compile_metric(spec, grain="quarter"))
+    assert abs(sum(r[1] for r in q.rows) - sum(r[1] for r in cal.rows)) < 1e-6
+    y = lyst.data.query(owner, "northwind", compile_metric(spec, grain="year", fiscal_start=7))
+    assert {str(r[0])[5:10] for r in y.rows} == {"07-01"}
+    import pytest
+    with pytest.raises(ValueError):
+        compile_metric(spec, grain="quarter", fiscal_start=13)
+
+
+def test_quarterly_horizon_uses_fiscal_quarters(seeded):
+    import json
+    import re
+
+    lyst, owner = seeded
+    lyst.onboarding.set_profile(owner, "northwind", {"fiscal_year_start_month": 2})
+    t = ask(lyst, owner, "Investigate how operating margin changed over the last six quarters")
+    assert t["status"] == "done" and "FY2027" in t["result"]["answer"]
+    labels = set(re.findall(r"Q[1-4] (?:FY)?\d{4}", json.dumps(t["result"], default=str)))
+    assert labels and all("FY" in lab for lab in labels), labels  # every quarter label in the deep investigation is fiscal
+
+
+def test_next_quarter_forecast_is_the_next_fiscal_quarter(seeded):
+    lyst, owner = seeded
+    lyst.onboarding.set_profile(owner, "northwind", {"fiscal_year_start_month": 2})
+    t = ask(lyst, owner, "Forecast support tickets for next quarter")
+    assert t["status"] == "done"
+    # data runs to Sep 2026; with years from February the next fiscal quarter is Nov 2026 - Jan 2027 (Q4 FY2027)
+    assert "Q4 FY2027" in t["result"]["answer"], t["result"]["answer"]
