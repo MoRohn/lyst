@@ -44,7 +44,7 @@ export const pillars = {
       icon: 'Compass',
       title: 'Understand',
       text: 'Lyst interprets questions in the context of relevant business knowledge, data, and objectives.',
-      detail: ['Business definitions', 'Relevant datasets', 'Objective and scope'],
+      detail: ['Business definitions', 'Relevant datasets', 'Breakdowns like “by region”'],
     },
     {
       icon: 'SquareTerminal',
@@ -162,14 +162,14 @@ export const enterprise = {
   eyebrow: 'Enterprise-ready thinking',
   headline: 'Built for serious analytical work.',
   items: [
-    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, and released only to the services that need them, never to the agent.', status: 'available' as Status },
+    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Findings ship with an evidence package, and gaps, conflicting definitions and weak correlations are flagged rather than smoothed over.', status: 'available' as Status },
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Consequential steps wait for a person to approve them.', status: 'available' as Status },
     { icon: 'Library', title: 'Organizational context', text: 'Governed metrics, documents and lineage inform every answer.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, member roles, and row and column policies decide what each person can see, on every path.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'An audit log and tracing record what was done, by whom and why.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Docker packaging and encrypted backups; run it where your policies require.', status: 'available' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging and encrypted backups for the rest.', status: 'available' as Status },
   ],
 };
 
@@ -220,7 +220,7 @@ export const footer = {
  * ("180+") for counts that only grow, so the line stays true between updates.
  */
 export const proof = [
-  { value: '180+', label: 'automated tests on main' },
+  { value: '230+', label: 'automated tests, run on every change' },
   { value: '5', label: 'data connectors' },
   { value: 'Every', label: 'finding ships with its evidence' },
   { value: 'AGPL-3.0', label: 'open source, self-hosted' },
