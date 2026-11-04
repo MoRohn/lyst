@@ -81,3 +81,10 @@ what-if parser understands percentage changes ("rises 3%", "falls by 2 percent")
 (the API takes `value` and `change_abs`); OR-Tools and Pyomo were not added because SciPy's `milp` covers the
 allocation problems here; the scenario explorer and decision views are not built yet (placement agreed with the UX
 thread first).
+
+### Fix after slice 2 (reported from the website and README threads)
+
+| # | Defect | Root cause | Fix | Test |
+|---|---|---|---|---|
+| DI9 | "What if revenue falls 5% and the COGS ratio rises 2 points next quarter?" applied only the revenue change, said nothing about the COGS ratio, and the answer was marked verified | The parser read percentages only; a change it did not recognise was skipped silently, and the verdict ignored it | "Points" changes apply to ratios and percentages (2 points = +0.02); every stated change with an amount that is not applied is listed ("I couldn't apply: … , so these figures leave it out") and the answer is `unverified`, never Verified | `test_points_changes_apply_and_unapplied_changes_are_stated_never_dropped` |
+| DI10 | A what-if answer crashed the Home renderer (`KeyError: 'rows'`) | What-if evidence entries lacked `rows` and `ms` | Evidence entries carry the same keys as every other query (`purpose, sql, query_id, rows, ms, datasets`) | same |
