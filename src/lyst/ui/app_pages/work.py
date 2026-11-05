@@ -6,7 +6,7 @@ import datetime
 
 import streamlit as st
 
-from lyst.ui import anticipate, collab, decisions, kit
+from lyst.ui import anticipate, collab, decisions, kit, visuals
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
@@ -49,12 +49,12 @@ def details(tid: str) -> None:
                f"{len(t['steps'])} steps done")
     if t.get("error"):
         st.error(t["error"])
-    with st.expander("Steps", icon=":material/list:"):
-        st.caption(f"Autonomy: {t['autonomy']}")
-        for s in t["steps"]:
-            mark = {"done": "✓", "failed": "✕", "skipped": "–", "running": "…"}.get(s["status"], "·")
-            st.markdown(f"{mark} {s['capability'].replace('_', ' ')} · {s['agent'].replace('_', ' ')}"
-                        + (f" · {s['error']}" if s.get("error") else ""))
+    n_done = sum(s["status"] == "done" for s in t["steps"])
+    if t["steps"]:
+        st.html(visuals.meter(n_done / len(t["steps"]), label="Steps done", tone="good" if t["status"] == "done" else
+                              "info", text=f"{n_done} of {len(t['steps'])} steps done · autonomy: {t['autonomy']}"))
+    with st.expander("Steps", icon=":material/list:", expanded=t["status"] in ("running", "failed", "paused")):
+        st.html(visuals.steps(t["steps"]))
     c = st.columns(3)
     if t["status"] == "done" and c[0].button("Open the answer", type="primary", icon=":material/arrow_outward:"):
         open_in_analyst(tid)
@@ -115,18 +115,78 @@ def activity() -> None:
         return
     groups = {"All": None, "Running": {"queued", "running", "paused", "awaiting_approval"}, "Done": {"done"},
               "Stopped": {"failed", "cancelled"}, "Decisions": "decisions"}
-    pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
+    top = st.columns([4, 1.3], vertical_alignment="center")
+    with top[0]:
+        pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
+    top[1].segmented_control("Layout", ["List", "Board"], default="List", key="act_layout",
+                             label_visibility="collapsed", width="stretch")
     if pick == "Decisions":
         decisions.activity_rows()
         return
-    shown = [t for t in tasks if groups[pick] is None or t["status"] in groups[pick]][:40]
+    shown = [t for t in tasks if groups[pick] is None or t["status"] in groups[pick]][:60]
+    layout = st.session_state.get("act_layout", "List")
+    if layout == "Board":
+        board(shown)
+        return
+    last = None
     for i, t in enumerate(shown):
+        day = _day(t["created_at"])
+        if day != last:
+            kit.label(day)
+            last = day
         text, color, _ = task_state(t["status"], t.get("outcome"))
         kind = {"scheduled": "Scheduled", "workflow": "Workflow"}.get(t["kind"], "")
+        nxt = shown[i + 1] if i + 1 < len(shown) else None
         if kit.row(t["title"], " · ".join(x for x in (kind, kit.when(t["created_at"])) if x),
                    status=(text, TONE.get(color, "info")), actions=[("Details", "d")], key=f"t{t['id']}",
-                   divider=i < len(shown) - 1):
+                   divider=bool(nxt) and _day(nxt["created_at"]) == day):
             details(t["id"])
+
+
+def _day(ts: str) -> str:
+    """Today, Yesterday, or the date: the timeline's day headings."""
+    try:
+        d = datetime.datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone().date()
+    except ValueError:
+        return "Earlier"
+    today = datetime.datetime.now().astimezone().date()
+    return "Today" if d == today else ("Yesterday" if (today - d).days == 1 else d.strftime("%-d %B"))
+
+
+LANES = (("In progress", {"queued", "running", "paused", "awaiting_approval"}), ("Needs you", None),
+         ("Done", {"done"}), ("Stopped", {"failed", "cancelled"}))
+
+
+def board(tasks: list[dict]) -> None:
+    """The same tasks as a board: what is moving, what waits on someone, what finished, what stopped. A running
+    card shows its real step progress from the engine; nothing moves on its own."""
+    def lane(t: dict) -> str:
+        if t.get("outcome") in ("needs_input", "unverified") or t["status"] == "awaiting_approval":
+            return "Needs you"
+        return next((n for n, st_ in LANES if st_ and t["status"] in st_), "Done")
+
+    cols = st.columns(len(LANES), gap="small")
+    for col, (name, _) in zip(cols, LANES, strict=True):
+        items = [t for t in tasks if lane(t) == name]
+        with col:
+            st.html(f'<div class="lyst-col-head"><span class="lyst-card-kicker">{name}</span>'
+                    f'<span class="lyst-card-meta lyst-num">{len(items)}</span></div>')
+            for t in items[:12]:
+                with kit.card(f"b_{t['id']}"):
+                    text, color, _ = task_state(t["status"], t.get("outcome"))
+                    st.html(f'<div class="lyst-card-title" style="font-size:.92rem">{kit._esc(t["title"])}</div>'
+                            f'<div class="lyst-card-meta">{kit._esc(text)} · {kit._esc(kit.when(t["created_at"]))}</div>')
+                    if t["status"] in ("running", "paused"):
+                        full = kit.guarded(lambda x=t: api.get(f"/v1/tasks/{x['id']}")) or {}
+                        sts = full.get("steps") or []
+                        if sts:
+                            n = sum(x["status"] == "done" for x in sts)
+                            st.html(visuals.meter(n / len(sts), label="Steps done", tone="info",
+                                                  text=f"{n} of {len(sts)} steps"))
+                    if st.button("Details", key=f"bd_{t['id']}", type="tertiary"):
+                        details(t["id"])
+            if not items:
+                st.caption("Nothing here.")
 
 
 @st.fragment
@@ -215,8 +275,23 @@ def recurring() -> None:
 try:
     waiting = st.session_state.get("waiting", 0)
     kit.header("Work", "What Lyst is doing, what it finished, and what runs on its own.")
-    mine = [t for t in api.get(f"/v1/workspaces/{ws}/tasks") if t.get("outcome") in ("needs_input", "unverified")]
+    every_task = api.get(f"/v1/workspaces/{ws}/tasks")
+    mine = [t for t in every_task if t.get("outcome") in ("needs_input", "unverified")]
     waiting += len(mine)  # the sidebar count already includes approvals, findings, assignments and reviews
+    week_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=7)
+
+    def _recent(t: dict) -> bool:
+        try:
+            return datetime.datetime.fromisoformat(str(t["created_at"]).replace("Z", "+00:00")) >= week_ago
+        except ValueError:
+            return False
+
+    st.html(visuals.stats([
+        ("In progress", f"{sum(t['status'] in ('queued', 'running', 'paused', 'awaiting_approval') for t in every_task)}", None),
+        ("Needs you", f"{waiting}", None),
+        ("Finished this week", f"{sum(t['status'] == 'done' and _recent(t) for t in every_task)}", None),
+        ("Stopped this week", f"{sum(t['status'] in ('failed', 'cancelled') and _recent(t) for t in every_task)}", None),
+    ]))
     view = kit.sections(["Needs you", "Activity", "Recurring"], key="view", counts={"Needs you": waiting},
                         default="Needs you" if waiting else "Activity")
     {"Needs you": needs_you, "Activity": activity, "Recurring": recurring}[view]()

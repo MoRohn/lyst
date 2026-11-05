@@ -79,11 +79,98 @@ div.st-key-sql_text textarea {font-family: var(--lyst-font-code, ui-monospace, S
 div[class*="st-key-sqlr_"] button {min-height: 0; padding: .1rem 0; justify-content: flex-start; text-align: left;
                                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--lyst-size-xs);
                                    color: var(--lyst-text-muted);}
+/* ---------------------------------------------------------------- Lyst material
+   Layered surfaces: a faint canvas, raised white (or graphite) surfaces with a soft short shadow, and a translucent
+   material for the sidebar, header and sheets. Motion is short and stops under prefers-reduced-motion. */
+@keyframes lyst-enter {from {opacity: 0; transform: translateY(6px);} to {opacity: 1; transform: none;}}
+@keyframes lyst-sheet {from {opacity: 0; transform: translateY(18px) scale(.985);} to {opacity: 1; transform: none;}}
+.block-container {animation: lyst-enter var(--lyst-motion-slow) var(--lyst-motion-ease);}
+[data-testid="stHeader"] {background: transparent;}
+[data-testid="stSidebar"] {background: var(--lyst-material) !important; backdrop-filter: saturate(180%) blur(24px);
+                           border-right: 1px solid var(--lyst-edge) !important;}
+[data-testid="stSidebar"] > div {background: transparent !important;}
+[data-testid="stSidebarNavLink"] {border-radius: var(--lyst-radius-md); padding: .38rem .6rem; margin: 1px 0;
+  transition: background var(--lyst-motion-fast) var(--lyst-motion-ease), box-shadow var(--lyst-motion-fast);}
+[data-testid="stSidebarNavLink"][aria-current="page"] {background: var(--lyst-raised) !important;
+  box-shadow: var(--lyst-shadow-1);}
+[data-testid="stSidebarNavLink"][aria-current="page"] [data-testid="stIconMaterial"] {color: var(--lyst-accent) !important;}
+[data-testid="stSidebarNavLink"][aria-current="page"] span {font-weight: var(--lyst-weight-strong);}
+/* cards (kit.card): raised, soft edge, a gentle lift when they hold an action */
+div[class*="st-key-lyst_card"] {background: var(--lyst-raised); border: 1px solid var(--lyst-edge);
+  border-radius: var(--lyst-radius-lg); box-shadow: var(--lyst-shadow-1); padding: 1rem 1.1rem .7rem 1.1rem;
+  transition: box-shadow var(--lyst-motion-base) var(--lyst-motion-ease), transform var(--lyst-motion-base) var(--lyst-motion-ease);}
+div[class*="st-key-lyst_card"]:hover {box-shadow: var(--lyst-shadow-2); transform: translateY(-1px);}
+div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
+/* every other bordered container (marked by _SURFACES) and expander reads as the same surface */
+[data-lyst-surface="1"] {background: var(--lyst-raised); border-color: var(--lyst-edge) !important;
+  border-radius: var(--lyst-radius-lg) !important; box-shadow: var(--lyst-shadow-1);}
+[data-testid="stExpander"] details {background: var(--lyst-raised); border-color: var(--lyst-edge) !important;
+  border-radius: var(--lyst-radius-md) !important; box-shadow: var(--lyst-shadow-1);}
+[data-testid="stExpander"] summary {border-radius: var(--lyst-radius-md);}
+/* sheets: dialogs rise from below with depth; popovers and toasts float on the material */
+[data-testid="stDialog"] [role="dialog"] {border-radius: var(--lyst-radius-xl) !important; box-shadow: var(--lyst-shadow-3); background: var(--lyst-raised) !important;
+  border: 1px solid var(--lyst-edge); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
+[data-testid="stPopoverBody"] {border-radius: var(--lyst-radius-lg) !important; box-shadow: var(--lyst-shadow-3) !important;
+  border: 1px solid var(--lyst-edge) !important;}
+[data-testid="stToast"] {background: var(--lyst-material) !important; backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-2); border-radius: var(--lyst-radius-lg) !important;}
+/* controls: a tactile press, quick hover, no jumps */
+button {transition: background-color var(--lyst-motion-fast) var(--lyst-motion-ease), box-shadow var(--lyst-motion-fast),
+        transform var(--lyst-motion-fast) var(--lyst-motion-ease), color var(--lyst-motion-fast);}
+button:active:not(:disabled) {transform: scale(.975);}
+button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-primaryFormSubmit"] {box-shadow: var(--lyst-shadow-1);
+  font-weight: var(--lyst-weight-medium);}
+button[data-testid="stBaseButton-secondary"] {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);
+  border-color: var(--lyst-edge) !important;}
+/* segmented control: an inset track with a raised thumb, like a native segmented control */
+[data-testid="stButtonGroup"] [role="radiogroup"] {background: var(--lyst-surface); border-radius: var(--lyst-radius-md);
+  padding: 2px; gap: 2px;}
+button[data-variant="segmented_control"] {border: none !important; border-radius: 8px !important; background: transparent;
+  min-height: 1.9rem;}
+button[data-variant="segmented_control"][aria-checked="true"] {background: var(--lyst-raised) !important;
+  box-shadow: var(--lyst-shadow-1);}
+/* inputs: a soft field with an accent glow on focus */
+[data-testid="stTextInputRootElement"], [data-testid="stTextArea"] textarea, [data-baseweb="select"] > div {
+  border-radius: var(--lyst-radius-md) !important;}
+[data-testid="stTextInputRootElement"]:focus-within, [data-testid="stTextArea"] [data-baseweb="textarea"]:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lyst-accent) 22%, transparent);}
+/* tables and charts sit on the same raised surface */
+[data-testid="stDataFrame"] {border-radius: var(--lyst-radius-md); overflow: hidden; box-shadow: var(--lyst-shadow-1);}
+/* settings panes: a list on the left, the current pane a raised pill */
+div[class*="st-key-lyst_pane_"] button {justify-content: flex-start; padding: .45rem .7rem; border-radius: var(--lyst-radius-md);
+  min-height: 0;}
+div[class*="st-key-lyst_pane_"] button > div, div[class*="st-key-lyst_recent_"] button > div,
+div[class*="st-key-sqlr_"] button > div {justify-content: flex-start; width: 100%;}
+div[class*="st-key-lyst_pane_on_"] button {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);
+  font-weight: var(--lyst-weight-strong);}
+div[class*="st-key-lyst_pane_on_"] button [data-testid="stIconMaterial"] {color: var(--lyst-accent);}
+/* sidebar: recent work as quiet one-line links */
+div[class*="st-key-lyst_recent_"] button {min-height: 0; padding: .22rem .6rem; justify-content: flex-start;
+  text-align: left; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); border-radius: var(--lyst-radius-md);}
+div[class*="st-key-lyst_recent_"] button:hover {background: var(--lyst-raised); color: var(--lyst-text);}
+div[class*="st-key-lyst_recent_"] button p {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
 /* quiet chrome */
 [data-testid="stToolbar"] {opacity: .55;}
 footer {visibility: hidden;}
 </style>
 """
+
+
+# Streamlit gives a bordered container no attribute of its own, so one small observer marks them (a 1px border on a
+# vertical block) as Lyst surfaces; CSS then raises them like kit.card. Without JavaScript they keep the hairline.
+_SURFACES = """<script>
+(() => {
+  if (window.__lystSurfaces) return; window.__lystSurfaces = true;
+  const mark = () => document.querySelectorAll('[data-testid="stVerticalBlock"]:not([data-lyst-surface]), [data-testid="stForm"]:not([data-lyst-surface])').forEach(e => {
+    const cs = getComputedStyle(e);
+    e.setAttribute('data-lyst-surface', cs.borderTopWidth === '1px' && cs.borderTopStyle === 'solid' ? '1' : '0');
+  });
+  let queued = false;
+  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mark(); }); } })
+    .observe(document.body, {childList: true, subtree: true});
+  mark();
+})();
+</script>"""
 
 
 def style() -> None:
@@ -95,6 +182,12 @@ def style() -> None:
     except Exception:  # noqa: BLE001 - outside a browser session
         mode = "light"
     st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS, 1))
+    st.html(_SURFACES, unsafe_allow_javascript=True)
+
+
+def card(key: str, *, height: int | str = "content") -> Any:
+    """A raised surface for one thing (a dataset, a metric, a finding): returns the container to write into."""
+    return st.container(key=f"lyst_card_{key}", height=height, border=False)
 
 
 def header(title: str, subtitle: str | None = None, *, action: str | None = None, icon: str | None = None,
@@ -106,6 +199,37 @@ def header(title: str, subtitle: str | None = None, *, action: str | None = None
     if action:
         return cols[1].button(action, type="primary", icon=icon, key=key or f"hdr_{title}", width="stretch")
     return False
+
+
+PANE_ICONS = {"Models": ":material/neurology:", "Connections": ":material/key:", "Workspace": ":material/apartment:",
+              "Voice": ":material/graphic_eq:", "Advanced": ":material/tune:"}
+
+
+def panes(names: Sequence[str], *, key: str, icons: dict[str, str] | None = None) -> tuple[str, Any]:
+    """Settings-style navigation: a list of panes on the left, the chosen pane's content on the right. The choice
+    lives in the URL (?view=), like sections, so links and reloads land on it. Returns (pane, content column)."""
+    icons = icons or PANE_ICONS
+    asked = (st.query_params.get(key) or "").lower()
+    pick = next((n for n in names if n.lower() == asked), names[0])
+    nav, body = st.columns([1, 3.4], gap="large")
+    with nav:
+        for n in names:
+            on = n == pick
+            if st.button(n, key=f"lyst_pane_{'on_' if on else ''}{n.lower().replace(' ', '_')}", type="tertiary",
+                         icon=icons.get(n), width="stretch") and not on:
+                st.query_params[key] = n.lower()
+                st.rerun()
+    if st.query_params.get(key) != pick.lower():
+        st.query_params[key] = pick.lower()
+    return pick, body
+
+
+def group(title: str, key: str, note: str | None = None) -> Any:
+    """A titled, raised group of related settings, like an inset group on a native settings screen."""
+    label(title)
+    if note:
+        st.caption(note)
+    return card(f"grp_{key}")
 
 
 def label(text: str) -> None:
@@ -185,6 +309,7 @@ def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":mater
         st.error(str(e), icon=":material/error:")
         return None
     st.session_state.pop("_waiting", None)  # something changed: recount what waits on this person
+    st.session_state.pop("_recent", None)
     if ok:
         st.toast(ok, icon=icon)
     return out

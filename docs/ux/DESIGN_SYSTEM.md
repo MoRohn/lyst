@@ -25,6 +25,39 @@ stylesheet contains no raw colours (a test enforces it). Contrast is tested: eve
 Selectors target only `data-testid`, ARIA attributes (`aria-checked`), `st-key-<key>` classes and Prism token
 classes, never Streamlit's generated `st-emotion-cache-*` classes.
 
+## Lyst material
+
+The visual language, inspired by the craft of native apps without imitating them:
+
+* **Canvas and surfaces.** A faintly cool canvas (`#f6f7f9` light, `#0b0c0f` dark) with raised surfaces on it
+  (`--lyst-raised`: white / graphite), a soft edge (`--lyst-edge`) and three short shadows (`--lyst-shadow-1..3`; dark
+  mode uses a light inner edge instead of heavy shadow). Cards (`kit.card`), every bordered container and form, and
+  expanders are raised. Streamlit gives bordered containers no attribute, so one small observer in `kit.style()`
+  marks them `data-lyst-surface`; without JavaScript they keep their hairline.
+* **Material.** The sidebar and toasts are translucent (`--lyst-material` + backdrop blur); dialogs are sheets with a
+  20px radius, the deepest shadow and a rise-in.
+* **Type.** The system UI face (SF Pro on Apple devices, Segoe UI Variable on Windows), a 2rem large title at
+  -0.022em, tabular figures for data.
+* **Controls.** Segmented controls are an inset track with a raised thumb; buttons press (scale .975) and secondary
+  buttons sit raised; inputs glow with the accent on focus; the current page in the sidebar is a raised pill with an
+  accent icon.
+* **Motion.** Pages rise in over 320 ms, sheets over 320 ms, controls over 120 ms; all 0 ms under
+  `prefers-reduced-motion`. Motion never stands in for progress: status comes from the engine.
+* **Sidebar.** Search (⌘K) and workspace first, then **Recent**: the latest four questions with their real status
+  icon (running, waiting for approval, failed), one click back to each.
+
+## The pages in the new language
+
+* **Home canvas.** An answer opens as a canvas: the answer on the left, its **evidence rail** beside it (checks passed,
+  the data and version it came from, the expertise applied with each rule's outcome, assumptions, the method's size).
+  **Focus** hides the rail. Home's tiles are `visuals.metric_tile` cards (value, a change coloured by whether it is
+  good for that measure, a sparkline with alt text) instead of `st.metric`'s Vega chart.
+* **Work command center.** A strip of what is in progress, waiting on you, and finished or stopped this week.
+  Activity shows as a day-grouped list or a **board** (In progress, Needs you, Done, Stopped), where a running card
+  shows its real step progress. Task details show a progress meter and a step timeline (`visuals.steps`).
+* **Settings.** A native two-pane screen (`kit.panes`): panes listed on the left, the chosen pane on the right,
+  kept in `?view=`. Workspace settings sit in titled, raised groups (`kit.group`).
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.
