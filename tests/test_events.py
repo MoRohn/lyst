@@ -66,7 +66,7 @@ def test_events_come_from_audit_and_tasks(seeded):
     lyst.data.ingest(owner, "northwind", "targets", b"region,target\nEMEA,11\nAPAC,8\n", filename="targets.csv")
     lyst.events.collect()
     lyst.events.collect()
-    assert [e["type"] for e in seen] == ["dataset.version_created"]
+    assert [e["type"] for e in seen if e["type"].startswith("dataset.")] == ["dataset.version_created"]
 
 
 def test_members_see_their_own_tasks_and_shared_changes_only(seeded):

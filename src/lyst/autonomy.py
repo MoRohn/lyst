@@ -487,21 +487,42 @@ class AutonomyService:
         if not ws or ev["type"].startswith("event."):
             return
         db = self._db(ws)
-        for r in db.query("SELECT r.id, r.current_version, r.owner, v.spec FROM event_rules r JOIN event_rule_versions v "
-                          "ON v.rule_id = r.id AND v.version = r.current_version WHERE r.status = 'active'"):
-            s = RuleSpec.model_validate_json(r["spec"])
+        for r, s in self._active(ws):
             if not matches(ev["type"], s.on):
                 continue
             key = f"{r['id']}:v{r['current_version']}:{ev['id']}"
             if db.scalar("SELECT count(*) FROM activities WHERE dedupe_key = ?", [key]):
                 continue  # this event was already handled by this rule version (a redelivery)
             d = self._decide(ws, s, ev, rule_id=r["id"])
-            db.execute("INSERT INTO rule_evaluations (rule_id, rule_version, event_id, event_seq, decision, why) "
-                       "VALUES (?, ?, ?, ?, ?, ?)", [r["id"], r["current_version"], ev["id"], ev["seq"], d["decision"], d["why"][:500]])
-            if d["decision"] in ("ignored", "no_match", "outside_calendar", "suppressed", "capped", "chain_limit"):
-                continue  # recorded as an evaluation (with why); no activity, so a repeat or a loop costs nothing
-            db.execute("UPDATE event_rules SET hits = hits + 1, last_matched_at = now() WHERE id = ?", [r["id"]])
-            self._open(ws, r, s, ev, d, key)
+            if d["decision"] == "no_match":
+                continue  # a non-match is the common case and not worth a record; a dry run shows them
+            row = [r["id"], r["current_version"], ev["id"], ev["seq"], d["decision"], d["why"][:500]]
+            acting = d["decision"] not in ("ignored", "outside_calendar", "suppressed", "capped", "chain_limit")
+
+            def note(c, row=row, acting=acting, rid=r["id"]):
+                c.execute("INSERT INTO rule_evaluations (rule_id, rule_version, event_id, event_seq, decision, why) "
+                          "VALUES (?, ?, ?, ?, ?, ?)", row)
+                if acting:
+                    c.execute("UPDATE event_rules SET hits = hits + 1, last_matched_at = now() WHERE id = ?", [rid])
+
+            db.write(note)
+            if acting:  # held-back matches open no activity, so a repeat or a loop costs nothing
+                self._open(ws, r, s, ev, d, key)
+
+    def _active(self, ws: str) -> list[tuple[dict[str, Any], RuleSpec]]:
+        """The workspace's active rules, parsed once and reused until any rule changes (a cheap fingerprint read)."""
+        db = self._db(ws)
+        stamp = db.query("SELECT count(*) AS n, max(updated_at) AS at, sum(current_version) AS v FROM event_rules")[0]
+        key = (stamp["n"], str(stamp["at"]), stamp["v"])
+        cache = self.__dict__.setdefault("_rule_cache", {})
+        hit = cache.get(ws)
+        if hit and hit[0] == key:
+            return hit[1]
+        rows = db.query("SELECT r.id, r.current_version, r.owner, v.spec FROM event_rule_versions v JOIN event_rules r "
+                        "ON v.rule_id = r.id AND v.version = r.current_version WHERE r.status = 'active'")
+        parsed = [(r, RuleSpec.model_validate_json(r["spec"])) for r in rows]
+        cache[ws] = (key, parsed)
+        return parsed
 
     def _open(self, ws: str, r: dict[str, Any], s: RuleSpec, ev: dict[str, Any], d: dict[str, Any], key: str) -> str | None:
         aid = "act_" + uuid.uuid4().hex[:12]
