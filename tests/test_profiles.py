@@ -40,7 +40,8 @@ def test_diagnostics_report(seeded):
     assert by["encryption"]["status"] == "ok" and by["schema"]["status"] == "ok" and by["credential_audit"]["status"] == "ok"
     assert by["python"]["area"] == "start" and by["data_folder"]["detail"] == "writable"  # from `lyst start --check`
     assert "database" not in by and "already_running" not in by
-    assert by["backup"]["status"] == "warn" and by["backup"]["fix"]
+    assert by["backup"]["status"] == "warn" and "Settings › Advanced › Back up now" in by["backup"]["fix"]
+    assert "lyst backup" in by["backup"]["fix"] and "Secrets & Connections" not in json.dumps(report)
     assert by["model"]["status"] == "warn"  # no OpenRouter key in tests
     text = json.dumps(report)
     assert "ab" * 32 not in text and str(lyst.settings.home) not in text  # no key, no local paths
