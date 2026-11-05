@@ -540,10 +540,13 @@ class EventService:
         rows, top = list(batch), max(b[3] for b in batch)
         batch.clear()
 
+        records = [b for b in rows if b[4] is not None]  # skipped redeliveries only move the cursor
+
         def tx(x):
-            x.executemany("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
-                          "last_error, next_attempt_at, duration_ms, updated_at) VALUES (?, ?, ?, ?, 'done', ?, NULL, NULL, ?, now())",
-                          [b for b in rows if b[4] is not None])
+            if records:
+                x.executemany("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
+                              "last_error, next_attempt_at, duration_ms, updated_at) VALUES (?, ?, ?, ?, 'done', ?, NULL, NULL, "
+                              "?, now())", records)
             x.execute("UPDATE event_consumers SET position = greatest(position, ?), updated_at = now() WHERE name = ?",
                       [top, c.name])
 
