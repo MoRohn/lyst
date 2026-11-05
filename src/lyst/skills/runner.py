@@ -21,15 +21,56 @@ ALLOWED_MODULES = {"math", "statistics", "numpy", "pandas", "scipy", "scipy.stat
                    "itertools", "functools", "collections", "datetime", "re", "json"}
 
 
-def _limit_resources(cpu_seconds: int) -> None:
+# Library entry points that read files or fetch URLs. They are replaced in the child before the skill
+# runs, so an allow-listed module cannot be used to do what the removed `open` would have done.
+_IO_ENTRY_POINTS = {
+    "pandas": ("read_csv", "read_table", "read_fwf", "read_json", "read_html", "read_xml", "read_excel",
+               "read_parquet", "read_feather", "read_orc", "read_pickle", "read_hdf", "read_sas", "read_spss",
+               "read_stata", "read_sql", "read_sql_query", "read_sql_table", "read_clipboard", "read_gbq"),
+    "numpy": ("load", "loadtxt", "genfromtxt", "fromfile", "memmap", "fromregex", "save", "savez",
+              "savez_compressed", "savetxt"),
+}
+_FORBIDDEN_FROM = frozenset({"os", "sys", "io", "subprocess", "socket", "pickle", "ctypeslib", "f2py",
+                             "testing", "system", "popen"})
+
+
+def _limit_resources(cpu_seconds: int) -> str | None:
+    """Apply the caps; returns why they could not all be applied, or None when they were."""
     try:
         import resource
 
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
         resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
         resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
-    except (ImportError, ValueError, OSError):
-        pass
+    except (ImportError, ValueError, OSError) as exc:
+        return f"{type(exc).__name__}: {exc}"
+    return None
+
+
+def _refused(what: str):
+    def refuse(*_a, **_k):
+        raise PermissionError(f"{what} is not allowed in a skill")
+    return refuse
+
+
+def _close_io() -> None:
+    """Take file and network access away from the libraries a skill may import."""
+    import socket
+
+    for mod_name, names in _IO_ENTRY_POINTS.items():
+        mod = sys.modules.get(mod_name)
+        for name in names:
+            if mod is not None and hasattr(mod, name):
+                setattr(mod, name, _refused(f"{mod_name}.{name}"))
+    for name in ("create_connection", "getaddrinfo", "gethostbyname", "socketpair", "fromfd"):
+        setattr(socket, name, _refused(f"socket.{name}"))
+    socket.socket.connect = _refused("network access")  # type: ignore[method-assign]
+    socket.socket.connect_ex = _refused("network access")  # type: ignore[method-assign]
+    socket.socket.bind = _refused("network access")  # type: ignore[method-assign]
+    import io
+
+    builtins.open = _refused("open")  # type: ignore[assignment]
+    io.open = _refused("open")  # type: ignore[assignment]
 
 
 def _approx(a, b, tol: float) -> bool:
@@ -47,25 +88,45 @@ def _approx(a, b, tol: float) -> bool:
 
 
 def main() -> None:
-    job = json.loads(sys.stdin.read())
-    _limit_resources(int(job.get("cpu_seconds", 5)))
+    report: dict = {"cases": [], "error": None, "limits": None}
+    try:
+        job = json.loads(sys.stdin.read())
+        if not isinstance(job, dict) or not isinstance(job.get("source"), str) \
+                or not isinstance(job.get("cases"), list):
+            raise ValueError("a job needs a source string and a list of cases")
+        cpu_seconds = int(job.get("cpu_seconds", 5))
+    except (ValueError, TypeError) as exc:
+        report["error"] = f"job: {type(exc).__name__}: {exc}"
+        print(json.dumps(report))
+        return
+    # None means every cap is in place; otherwise the reason, so the parent can see an uncapped run.
+    report["limits"] = _limit_resources(cpu_seconds)
+    if report["limits"]:
+        print(f"skill sandbox: resource limits not applied: {report['limits']}", file=sys.stderr)
     import numpy as np  # noqa: F401 - loaded before the hook so pandas' own imports work
     import pandas as pd
 
     real_import = builtins.__import__
+    roots = {m.split(".")[0] for m in ALLOWED_MODULES}
+    namespace: dict = {}
 
     def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
-        caller = (globals or {}).get("__name__", "")
-        if caller == "skill" and name.split(".")[0] not in {m.split(".")[0] for m in ALLOWED_MODULES}:
-            raise ImportError(f"module {name} is not allowed in a skill")
+        # Keyed on the identity of the skill's own globals, which the skill cannot forge (it can rebind
+        # __name__ but not swap the dict its code runs in).
+        if globals is namespace:
+            if level or name.split(".")[0] not in roots:
+                raise ImportError(f"module {name} is not allowed in a skill")
+            for item in fromlist or ():
+                if item.startswith("_") or item.startswith("read_") or item in _FORBIDDEN_FROM:
+                    raise ImportError(f"importing {item} from {name} is not allowed in a skill")
         return real_import(name, globals, locals, fromlist, level)
 
     safe_builtins = {k: v for k, v in vars(builtins).items()
                      if k not in {"open", "exec", "eval", "compile", "input", "breakpoint", "help", "exit", "quit",
                                   "memoryview", "globals", "locals", "vars", "__loader__", "__spec__"}}
     safe_builtins["__import__"] = guarded_import
-    namespace = {"__name__": "skill", "__builtins__": safe_builtins}
-    report = {"cases": [], "error": None}
+    namespace.update({"__name__": "skill", "__builtins__": safe_builtins})
+    _close_io()
     try:
         exec(compile(job["source"], "<skill>", "exec"), namespace)  # noqa: S102 - the point of the sandbox
         fn = namespace.get("run")
@@ -76,13 +137,20 @@ def main() -> None:
         print(json.dumps(report))
         return
     for case in job["cases"]:
+        if not isinstance(case, dict):
+            report["cases"].append({"name": "", "kind": "invalid", "passed": False,
+                                    "error": "a case must be an object"})
+            continue
         df = pd.DataFrame(case.get("rows", []), columns=case.get("columns"))
         entry = {"name": case.get("name", ""), "kind": case.get("kind", "representative")}
         try:
             out = fn(df, **case.get("params", {}))
             out = json.loads(json.dumps(out, default=float))
             entry["output"] = out
-            if "expect" in case:
+            if case.get("expect_error"):
+                entry["passed"] = False  # the case exists to prove the skill refuses this input
+                entry["error"] = "expected an error, but the skill returned a result"
+            elif "expect" in case:
                 entry["passed"] = _approx(out, case["expect"], float(case.get("tolerance", 1e-9)))
             else:
                 entry["passed"] = isinstance(out, dict)  # adversarial: must return a result, not crash
