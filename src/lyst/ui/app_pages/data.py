@@ -315,8 +315,13 @@ def health(d: dict) -> tuple[str, str] | None:
 
 @st.dialog("Dataset", width="large")
 def dataset_detail(d: dict) -> None:
+    from lyst.ui import actions  # noqa: PLC0415
+
     name = d["name"]
-    st.markdown(f"**{d['title']}**")
+    top = st.columns([4, 1.2], vertical_alignment="center")
+    top[0].markdown(f"**{d['title']}**")
+    with top[1]:  # what Lyst can do with this dataset: ask, run, approve, go to (already open here, so not Open)
+        actions.menu("dataset", name, page="data", label="More", exclude=("dataset.open",))
     fresh = d.get("freshness") or {}
     st.caption(" · ".join(x for x in (d.get("description"), f"{d.get('rows', d.get('row_count', 0)):,} rows",
                                       f"data through {fresh['latest']}" if fresh.get("latest") else None,

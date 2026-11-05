@@ -570,6 +570,10 @@ def test_data_is_a_workspace_with_a_library_and_three_layouts(ui):  # noqa: F811
     at.text_input(key="ds_find").set_value("ledger").run()  # the rail's search narrows the library and the canvas
     keys = {b.key for b in at.button}
     assert "lib_bad_ds_pnl_ledger" in keys and "lib_ok_ds_pnl" not in keys
+    next(b for b in at.button if b.key == "lib_bad_ds_pnl_ledger").click().run()  # the dataset opens with its actions
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(g.key == "dsv_pnl_ledger" for g in at.get("button_group"))
+    assert "More" in {lb for root in at._tree.children.values() for lb in _popovers(root)}
 
 
 def test_health_lists_problems_first_with_what_to_do(seeded, ui):  # noqa: F811
