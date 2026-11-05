@@ -156,6 +156,10 @@ class Lyst:
                    costs=CostService(stores, guard, settings),
                    specs=SpecService(stores, guard, semantic=semantic, runtime=runtime, artifacts=artifacts, assets=assets))
         lyst_ref["app"] = app
+        from .ambient import AmbientService  # noqa: PLC0415
+
+        app.ambient = AmbientService(app)
+        runtime.on_finish.append(app.ambient.on_finish)
         return app
 
     def __post_init__(self) -> None:

@@ -142,3 +142,20 @@ Recovery cases already covered elsewhere: worker crash and engine restart (`test
 `test_operations.py`), model service failure and expired credentials (`test_gateway.py`, `test_provider_key_failures.py`),
 corrupted backup and restore over a running engine (`test_backup_integrity.py`). Not simulated here: network outage of
 external connectors beyond the connector retry tests, and an interrupted deployment (needs a deployment target).
+
+## Slice 6: the embedded autonomy layer (backend)
+
+From Rohn's UI/UX reinvention prompt, the backend half; the interface is the UX thread's. Module `src/lyst/ambient.py`
+on the existing runtime, asset registry, follow-up resolver, scenarios, decisions and workflows; no new execution
+framework, artifact store or migration. Contract agreed with the UX thread.
+
+| # | Limitation | Implemented solution | Tests | Verified result |
+|---|---|---|---|---|
+| AM1 | Each page would have had to work out its own "what can I do here" | Typed `Context` (page home/work/data/brain/settings/artifact, object kind and id, objective) and `GET /v1/workspaces/{ws}/objects/{kind}/{id}/actions` → `[{id, label, kind: navigate\|ask\|run\|approve, needs_approval, reason}]` for datasets, metrics, tasks, assets, workflows, scenario models and decision records, derived from the services that exist and filtered by role, governance and state; stable ids (`dataset.profile`, `task.retry`) | `test_actions_follow_role_object_and_state` | A viewer is not offered the contract draft; retry only for failed tasks |
+| AM2 | A menu must never be the only check | `POST …/actions/{id}` derives the list again for this person and refuses (403, audited `action.refused`) anything not in it, then runs through the existing service | `test_execution_is_checked_again_on_the_server` | Both refusals audited |
+| AM3 | No single, honest task state | `lifecycle` on every task (get and list): Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed, Needs Attention, from task status, the running step's phase and the supervisor's stall event; `GET /v1/tasks/{id}/lifecycle` gives every transition with the event that caused it | `test_lifecycle_states_come_from_recorded_state`, `test_timeline_ties_each_state_to_an_event` | A finished analysis: Preparing → Investigating → Verifying → Completed |
+| AM4 | Work started outside Home did not land anywhere in particular | Tasks started by an action record `initiated_from` (page, object, action, objective), appear in Work like any task, and a verified result is saved as a Markdown briefing in the asset registry (`runtime.on_finish`) | `test_work_started_from_a_dataset…` | Briefing artifact and asset present; drill-downs keep both `derived_from` and `initiated_from` |
+| AM5 | Anticipative maintenance had to be found in the inbox | A changed dataset's actions include "Repair N affected" and each stale asset offers "Repair", both `approve` actions; the existing scan raises the notice and proposal; nothing is repaired until a person takes the action, and the repair is verified | `test_schema_change_offers_a_repair_that_waits_for_a_person` | Asset stays stale until the action; current afterwards |
+
+Remaining risks: the action catalogue covers the object kinds above; documents and knowledge entities are offered
+through search and lineage rather than their own menus yet.
