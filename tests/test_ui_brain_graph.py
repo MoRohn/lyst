@@ -59,3 +59,10 @@ def test_the_canvas_palette_keeps_status_colours_for_health():
         status = {p["colors"][k] for k in ("good", "warn", "bad", "info")}
         assert not status & set(p["kinds"].values())  # a kind is never painted in a health colour
         assert p["kinds"]["metric"] == p["colors"]["accent"] and p["kinds"]["dataset"] == p["colors"]["neutral"]
+
+
+def test_a_link_to_a_metric_still_opens_its_definition(ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    _brain(at, metric="revenue")
+    assert at.query_params.get("view") in ("definitions", ["definitions"])

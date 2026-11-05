@@ -5,6 +5,8 @@ the morning brief, the weekly review, and the Brain graph."""
 
 from __future__ import annotations
 
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -207,10 +209,12 @@ def test_graph_runs_over_http_with_the_worker_tick(seeded):
         assert r.status_code == 200, r.text
         rid = r.json()["id"]
         assert c.post(f"/v1/workspaces/northwind/graph-runs/{rid}/go", headers=h).status_code == 200
-        lyst.runtime.drain()
-        lyst.graphs.tick()
-        lyst.runtime.drain()
-        lyst.graphs.tick()
+        lyst.graphs.tick()  # the worker tick finds the running graph by itself
+        deadline = time.monotonic() + 30  # background workers may hold the task or the tick: wait for the outcome
+        while lyst.graphs._run("northwind", rid)["status"] == "running" and time.monotonic() < deadline:
+            lyst.runtime.drain()
+            lyst.graphs.advance("northwind", rid)
+            time.sleep(0.05)
         got = c.get(f"/v1/workspaces/northwind/graph-runs/{rid}", headers=h).json()
         assert got["status"] == "done", got["branches"]
         files = c.get(f"/v1/workspaces/northwind/graph-runs/{rid}/files", headers=h).json()

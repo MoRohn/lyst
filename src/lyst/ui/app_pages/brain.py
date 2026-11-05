@@ -329,6 +329,9 @@ def memory() -> None:
 try:
     kit.header("Brain", "What Lyst knows about this business, where it came from, and how much to trust it.")
     # one entry per section; Specializations (the Analyst catalog) is added here as its own section
+    if st.query_params.get("metric") and st.query_params.get("view") in (None, "graph"):
+        st.query_params["view"] = "definitions"  # a link to a metric opens its definition, wherever Brain was
+        st.session_state.pop("sec_view", None)
     SECTIONS = {"Graph": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory,
                 "Specializations": specialists.catalog}
     SECTIONS[kit.sections(list(SECTIONS), key="view")]()
