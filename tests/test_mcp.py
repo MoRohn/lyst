@@ -79,7 +79,6 @@ def test_mcp_hardening_annotations_audit_truncation_and_files(seeded, monkeypatc
         big = _result(_call(c, tok, "tools/call", {"name": "query", "arguments": {
             "workspace": "northwind", "sql": "SELECT * FROM pnl", "max_rows": 500}}))
         assert big["truncated"] is True and len(big["rows"]) < big["total_rows"]
-        start = _result(_call(c, tok, "tools/call", {"name": "events", "arguments": {"workspace": "northwind", "after": -1}}))
         csv = base64.b64encode(b"store,sales\nLeeds,10\nYork,12\n").decode()
         plan = _result(_call(c, tok, "tools/call", {"name": "ingest_file", "arguments": {
             "workspace": "northwind", "filename": "stores.csv", "content_base64": csv}}))
@@ -90,8 +89,7 @@ def test_mcp_hardening_annotations_audit_truncation_and_files(seeded, monkeypatc
         bad = _call(c, tok, "tools/call", {"name": "ingest_file", "arguments": {
             "workspace": "northwind", "filename": "x.csv", "content_base64": "%%%"}})
         assert bad["result"]["isError"] is True
-        ev = _result(_call(c, tok, "tools/call", {"name": "events", "arguments": {
-            "workspace": "northwind", "after": start["next"], "types": ["dataset.*"]}}))
+        ev = _result(_call(c, tok, "tools/call", {"name": "events", "arguments": {"workspace": "northwind", "types": ["dataset.*"]}}))
         assert any(e["subject"]["id"] == "stores" for e in ev["events"])
     actions = {r["action"]: r["outcome"] for r in lyst.stores.control.query(
         "SELECT action, outcome FROM audit_log WHERE action LIKE 'mcp.%'")}
