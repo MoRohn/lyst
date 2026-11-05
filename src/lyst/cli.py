@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""lyst start | init | init-demo | serve | ui | token | backup | restore | rotate-master-key | prune | eval"""
+"""lyst start [--check] | status | stop | init | init-demo | serve | ui | token | backup | restore | rotate-master-key | prune | eval"""
 
 from __future__ import annotations
 
@@ -167,18 +167,20 @@ def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = Tru
     return new_key.hex()
 
 
-def _wait_http(url: str, seconds: float) -> dict | None:
+def _wait_http(url: str, seconds: float, proc: subprocess.Popen | None = None) -> dict | None:
+    """Wait for `url` to answer; give up early if `proc` (the process that should be serving it) exits."""
     import time
-    import urllib.request
+
+    from .launch import http_ok
 
     deadline = time.time() + seconds
     while time.time() < deadline:
-        try:
-            with urllib.request.urlopen(url, timeout=2) as r:  # noqa: S310 - loopback
-                body = r.read()
-                return json.loads(body) if body.strip().startswith(b"{") else {}
-        except Exception:  # noqa: BLE001 - not up yet
-            time.sleep(0.4)
+        body = http_ok(url)
+        if body is not None:
+            return body
+        if proc is not None and proc.poll() is not None:
+            return None
+        time.sleep(0.4)
     return None
 
 
@@ -192,57 +194,145 @@ def ui_address(env: dict[str, str]) -> tuple[str, bool]:
     return address, address in ("localhost", "127.0.0.1", "::1")
 
 
-def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -> dict:
-    """One terminal: encryption, the demo if asked, the engine, the interface, and the browser at http://lyst.localhost:8501.
-    Ctrl-C stops everything."""
-    import signal
+def _port(var: str, default: int, avoid: set[int]) -> tuple[int, str]:
+    """The port to use and a note if it moved. A port the person set explicitly is kept, and a busy one is an error."""
+    from .launch import pick_port, port_free
+
+    if os.environ.get(var):
+        port = int(os.environ[var])
+        if not port_free(port):
+            raise SystemExit(f"Port {port} ({var}) is in use by another program. Pick a free one, or unset {var} "
+                             "and Lyst will choose one.")
+        return port, ""
+    port = pick_port(default, avoid=avoid)
+    if port is None:
+        raise SystemExit(f"No free port found near {default}; set {var} to one that is free.")
+    return port, "" if port == default else f"port {default} was busy, so it uses {port}"
+
+
+def _already_running(home: Path, *, open_browser: bool) -> bool:
+    """Handle an existing Lyst on this LYST_HOME before starting another. True means: nothing more to do."""
     import webbrowser
 
+    from .launch import clear_record, inspect
+
+    state = inspect(home)
+    if state.status == "running":
+        rec = state.record
+        print(f"Lyst is already running at {rec.url}  (started {_ago(rec.started_at)}, PID {rec.launcher}).", file=sys.stderr)
+        print(("Opening it. " if open_browser else "") + "`lyst stop` stops it.", file=sys.stderr)
+        if open_browser:
+            webbrowser.open(rec.url)
+        return True
+    if state.status == "starting":
+        print(f"{state.detail} It will be at {state.record.url} in a moment; `lyst status` shows when.", file=sys.stderr)
+        return True
+    if state.status == "stale":
+        clear_record(home)
+        print("Cleared a leftover record from a Lyst that is no longer running.", file=sys.stderr)
+        return False
+    if state.status == "unhealthy":
+        raise SystemExit(f"{state.detail}\nRun `lyst stop` to stop what is left of it, then `lyst start` again.")
+    if state.status == "locked":
+        raise SystemExit(state.detail)
+    return False
+
+
+def _ago(ts: float) -> str:
+    import time
+
+    mins = int((time.time() - ts) // 60)
+    if mins < 1:
+        return "just now"
+    if mins < 60:
+        return f"{mins} min ago"
+    return f"{mins // 60} h {mins % 60} min ago" if mins < 24 * 60 else time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+
+
+def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -> dict:
+    """One terminal: encryption, the demo if asked, the engine, the interface, and the browser at http://lyst.localhost:8501.
+    Safe to run again: an already-running Lyst is reused, busy default ports move, and Ctrl-C stops everything."""
+    import signal
+    import time
+    import webbrowser
+
+    from .launch import RunRecord, clear_record, write_record
     from .secrets import masterkey
 
     settings = load_settings()
+    if _already_running(settings.home, open_browser=open_browser):
+        return {}
     if masterkey.resolve() is None and masterkey.keyring_available():
         _ensure_master_key()
     if demo:
         init_demo()
-    api_port = os.environ.get("LYST_PORT", "8770")
-    ui_port = os.environ.get("LYST_UI_PORT", "8501")
-    env = {**os.environ, "LYST_HOME": str(settings.home), "LYST_API_URL": f"http://127.0.0.1:{api_port}",
+    api_port, api_note = _port("LYST_PORT", 8770, set())
+    ui_port, ui_note = _port("LYST_UI_PORT", 8501, {api_port})
+    url = f"http://{UI_HOST}:{ui_port}"
+    env = {**os.environ, "LYST_HOME": str(settings.home), "LYST_PORT": str(api_port), "LYST_UI_PORT": str(ui_port),
+           "LYST_API_URL": f"http://127.0.0.1:{api_port}",
            "STREAMLIT_SERVER_HEADLESS": "true", "STREAMLIT_BROWSER_GATHER_USAGE_STATS": "false"}
     root = Path(__file__).resolve().parents[2]
+    rec = RunRecord(launcher=os.getpid(), api_port=api_port, ui_port=ui_port, url=url, home=str(settings.home),
+                    started_at=time.time())
     procs: list[subprocess.Popen] = []
+    stop = {"now": False}
+
+    def _stop(*_):
+        stop["now"] = True
+
+    # Ctrl-C reaches only this process (the children run in their own session) and is turned into an orderly stop,
+    # also while the engine and interface are still coming up.
+    old = {sig: signal.signal(sig, _stop) for sig in (signal.SIGINT, signal.SIGTERM)} if hold else {}
+    write_record(settings.home, rec)
+    print(f"Starting Lyst (data in {settings.home})...", file=sys.stderr)
     try:
-        procs.append(subprocess.Popen([sys.executable, "-c", "from lyst.cli import main; main(['serve'])"], env=env, cwd=root))
-        health = _wait_http(f"http://127.0.0.1:{api_port}/health", 60)
+        procs.append(subprocess.Popen([sys.executable, "-c", "from lyst.cli import main; main(['serve'])"], env=env, cwd=root,
+                                      start_new_session=hold))
+        rec.children["engine"] = procs[-1].pid
+        write_record(settings.home, rec)
+        health = _wait_http(f"http://127.0.0.1:{api_port}/health", 90, procs[-1])
+        if stop["now"]:
+            return {}
         if health is None:
-            raise SystemExit("the engine did not come up; see the lines above")
+            raise SystemExit("The engine did not come up; the lines above say why. `lyst start --check` checks the usual causes.")
         app = Path(__file__).parent / "ui" / "app.py"
-        procs.append(subprocess.Popen([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", ui_port, "--server.headless", "true",
-                                       "--browser.serverAddress", UI_HOST, "--server.address", "localhost"],
-                                      env={**env, "LYST_UI_LOCAL": "1"}, cwd=root))
-        if _wait_http(f"http://127.0.0.1:{ui_port}/_stcore/health", 60) is None:
-            raise SystemExit("the interface did not come up; see the lines above")
-        url = f"http://{UI_HOST}:{ui_port}"
-        print(f"\nLyst is running at {url}  (engine on http://127.0.0.1:{api_port}). Ctrl-C stops it.", file=sys.stderr)
+        procs.append(subprocess.Popen([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", str(ui_port),
+                                       "--server.headless", "true", "--browser.serverAddress", UI_HOST,
+                                       "--server.address", "localhost"],
+                                      env={**env, "LYST_UI_LOCAL": "1"}, cwd=root, start_new_session=hold))
+        rec.children["interface"] = procs[-1].pid
+        write_record(settings.home, rec)
+        if _wait_http(f"http://127.0.0.1:{ui_port}/_stcore/health", 90, procs[-1]) is None:
+            if stop["now"]:
+                return {}
+            raise SystemExit("The interface did not come up; the lines above say why. `lyst start --check` checks the usual causes.")
+        lines = [f"\nLyst is running at {url}",
+                 f"  Engine     http://127.0.0.1:{api_port}" + (f"  ({api_note})" if api_note else ""),
+                 f"  Interface  {url}" + (f"  ({ui_note})" if ui_note else ""),
+                 f"  Data       {settings.home}"]
+        if demo:
+            lines.append("  Demo       the Northwind workspace is ready; try \"Why did operating margin decline last quarter?\"")
         if health.get("setup_required"):
-            print("First run: the page asks you to initialise encryption; keep the recovery key it shows once.", file=sys.stderr)
+            lines.append("  First run  the page asks you to initialise encryption; keep the recovery key it shows once.")
+        lines.append("Ctrl-C stops it. From another terminal: `lyst status`, `lyst stop`.\n")
+        print("\n".join(lines), file=sys.stderr)
         if open_browser:
             webbrowser.open(url)
-        info = {"url": url, "api": f"http://127.0.0.1:{api_port}", "setup_required": bool(health.get("setup_required")), "pids": [p.pid for p in procs]}
+        info = {"url": url, "api": f"http://127.0.0.1:{api_port}", "setup_required": bool(health.get("setup_required")),
+                "pids": [p.pid for p in procs]}
         if not hold:
             return info
-        stop = {"now": False}
-
-        def _stop(*_):
-            stop["now"] = True
-
-        signal.signal(signal.SIGINT, _stop)
-        signal.signal(signal.SIGTERM, _stop)
         while not stop["now"] and all(p.poll() is None for p in procs):
-            signal.pause() if hasattr(signal, "pause") else __import__("time").sleep(0.5)
+            signal.pause() if hasattr(signal, "pause") else time.sleep(0.5)
+        if not stop["now"]:
+            gone = "engine" if procs[0].poll() is not None else "interface"
+            print(f"The {gone} stopped unexpectedly (the lines above say why); stopping the rest.", file=sys.stderr)
         return info
     finally:
         if hold:
+            if procs:
+                print("Stopping Lyst...", file=sys.stderr)
             for p in procs:
                 if p.poll() is None:
                     p.terminate()
@@ -251,6 +341,68 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
                     p.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     p.kill()
+                    p.wait()
+            clear_record(settings.home, launcher=rec.launcher)
+            for sig, handler in old.items():
+                signal.signal(sig, handler)
+            if procs:
+                print("Lyst stopped.", file=sys.stderr)
+
+
+def status_cmd(as_json: bool) -> int:
+    from .launch import inspect
+
+    settings = load_settings()
+    state = inspect(settings.home)
+    if as_json:
+        print(json.dumps(state.as_dict()))
+    elif state.status == "running":
+        rec = state.record
+        print(f"Lyst is running at {rec.url}\n  Engine     http://127.0.0.1:{rec.api_port}\n  Data       {rec.home}\n"
+              f"  Started    {_ago(rec.started_at)}\n  PIDs       {rec.launcher} (lyst start), "
+              + ", ".join(f"{pid} ({name})" for name, pid in rec.children.items()))
+    elif state.status == "stale":
+        print(f"Lyst isn't running. {state.detail} `lyst start` clears it.")
+    elif state.status == "unhealthy":
+        print(f"{state.detail}\n`lyst stop` stops what is left of it.")
+    else:
+        print(state.detail)
+    return 0 if state.status in ("running", "starting") else 1
+
+
+def stop_cmd() -> int:
+    from .launch import inspect
+    from .launch import stop as stop_recorded
+
+    settings = load_settings()
+    state = inspect(settings.home)
+    if state.status == "locked":
+        print(f"Lyst has no record of starting anything here, so it won't stop it. {state.detail}", file=sys.stderr)
+        return 1
+    if state.status in ("stopped", "stale"):
+        stop_recorded(settings.home)   # clears a leftover record; signals nothing
+        print("Lyst isn't running.")
+        return 0
+    print(f"Stopping Lyst (PID {state.record.launcher})...")
+    stop_recorded(settings.home, say=print)
+    print("Lyst stopped.")
+    return 0
+
+
+def start_checks(as_json: bool) -> int:
+    """`lyst start --check`: the preflight alone. It opens no database, so it also works while another process holds one."""
+    from .launch import preflight
+
+    settings = load_settings()
+    checks = preflight(settings.home, api_port=int(os.environ.get("LYST_PORT", "8770")),
+                       ui_port=int(os.environ.get("LYST_UI_PORT", "8501")))
+    if as_json:
+        print(json.dumps([c.__dict__ for c in checks]))
+    else:
+        for c in checks:
+            print(f"  {'ok ' if c.ok else 'FIX'}  {c.name:<16} {c.detail}" + (f"\n       {'':<16} {c.fix}" if not c.ok and c.fix else ""))
+        print("Everything looks ready." if all(c.ok for c in checks) else "Fix the items marked FIX, then `lyst start`.")
+    return 0 if all(c.ok for c in checks) else 1
 
 
 def backup(dest: Path) -> None:
@@ -422,6 +574,11 @@ def main(argv: list[str] | None = None) -> None:
     st = sub.add_parser("start", help="one terminal: encryption, the engine, the interface and the browser at http://lyst.localhost:8501")
     st.add_argument("--demo", action="store_true", help="also seed the Northwind demo workspace on first run")
     st.add_argument("--no-browser", action="store_true")
+    st.add_argument("--check", action="store_true", help="only run the start checks (Python, data folder, key, database, ports)")
+    st.add_argument("--json", action="store_true", help="with --check: the checks as JSON")
+    stt = sub.add_parser("status", help="is Lyst running here, where, and under which PIDs")
+    stt.add_argument("--json", action="store_true")
+    sub.add_parser("stop", help="stop the Lyst that `lyst start` launched here (only the PIDs it recorded)")
     sub.add_parser("init-demo", help="create the demo workspace and a development token")
     sub.add_parser("serve", help="run the API and workers")
     sub.add_parser("ui", help="run the Streamlit interface")
@@ -453,11 +610,26 @@ def main(argv: list[str] | None = None) -> None:
         _dispatch(args)
     except MasterKeyMissing as exc:
         sys.exit(f"{exc}\nRun `lyst init` on this machine (or open the interface here) to initialise encryption first.")
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as exc:  # a DuckDB lock held by another process: one plain line instead of a traceback
+        from .launch import lock_holder_from_error, lock_message
+
+        holder = lock_holder_from_error(str(exc))
+        if holder is None:
+            raise
+        sys.exit(lock_message(load_settings().home / "control.duckdb", holder))
 
 
 def _dispatch(args) -> None:
-    if args.cmd == "start":
+    if args.cmd == "start" and args.check:
+        sys.exit(start_checks(args.json))
+    elif args.cmd == "start":
         start(demo=args.demo, open_browser=not args.no_browser)
+    elif args.cmd == "status":
+        sys.exit(status_cmd(args.json))
+    elif args.cmd == "stop":
+        sys.exit(stop_cmd())
     elif args.cmd == "init-demo":
         init_demo()
     elif args.cmd == "serve":
