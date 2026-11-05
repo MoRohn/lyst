@@ -195,23 +195,65 @@ activity completes with the verified briefing artifact, and the task's events co
 bounded retry of a transient failure and none for an input error; scenario G at the rule layer; scenario L (rules
 feeding each other stop at the chain limit); a suggestion run through the API, and cross-workspace denial.
 
+## Anticipative events (phase 6)
+
+* A monitor finding is staged as `metric.deviated` in the same transaction as the finding (kind, period, direction,
+  z, value, baseline, and the investigation task if the monitor started one). The `metric_deviation` template
+  investigates a validated shift or forecast deviation that has no investigation yet.
+* Each new anticipation emits `anticipation.found` (admins only). A rule reacting to it can never start medium- or
+  high-risk work by itself: the activity becomes a suggestion for a person. Whether anticipations were useful is
+  still learned by anticipation itself (`anticipate/learning.py`).
+
+## The activity UI (phases 4 and 5)
+
+`src/lyst/ui/activity.py` is one kit every page uses, reading only the API:
+
+* `presence(kind, id)`: one quiet chip when an object has open activity (working, needs approval, suggestion,
+  problem); nothing otherwise. One cached workspace read however many objects a page shows.
+* `panel` and `card`: what Lyst is doing about an object: the plain-words explanation, the recorded stages, the
+  flow (event → rule → decision → work → check → result), an outcome preview (dependents, the report it kept), and
+  the actions that apply (do it, approve, reject, try again, dismiss, open the result).
+* `live()`: a fragment on every page (in the app shell) that reads the event cursor every 6 s. The cursor only
+  moves forward, a repeated or older event is dropped, and only approvals, finished or failed activities and the
+  person's own tasks raise a toast; everything else just drops the cached lists so the page re-reads the
+  authoritative state. A new tab or a reload starts from now and shows current state.
+* Where it appears: Work > Activity > Automatic (open activities first, then finished); a dataset's detail
+  (presence next to its title, its activity at the top of the overview); a metric's detail in Brain; Settings >
+  Workspace > Event rules (templates to add as drafts, dry run, turn on or off); in Analyst, a task Lyst started
+  says so in one line with a Why button. Rule and activity approvals also appear, named in words, in Work > Needs you.
+
+The Streamlit UI does not hold the SSE stream (Streamlit renders on the server); it uses the cursor API.
+
+## Benchmark
+
+`LYST_ENCRYPT=0 uv run python scripts/bench_events.py` (cloud container, 2 000 emissions from 8 threads, every
+dedupe key sent twice, 6 active rules): about 95 emissions/s (p50 34 ms, p95 173 ms), exactly 1 000 events stored
+(duplicates suppressed under contention), and about 25 rule deliveries/s through the rules consumer, with 4 500
+recorded evaluations and 300 activities. Correct under contention, modest in throughput: each event costs several
+single-writer DuckDB transactions. Enough for an analyst team's workspace; not for a high-volume integration feed
+(see the risks).
+
 ## Risks and open work (prioritized)
 
-1. **No UI yet** (phases 4 and 5). Rules, activities, approvals and the flow are reachable through the API; the
-   shared activity components and their place on each page come next.
-8. **Anticipation is not yet a rule source** (phase 6): its findings are not events rules can act on.
-9. **Activity execution runs in the dispatcher.** `impact_review` and `notify` are quick; long work is always a
-   task. A metric-deviation signal currently has to arrive as an event (an integration or a monitor finding); monitors
-   do not yet emit one.
-2. **Single process.** Dispatch, the outbox collector and DuckDB's single writer assume one Lyst process. Running two
+1. **Throughput.** About 25 rule deliveries/s (benchmark above). Batching inbox writes per dispatch round and
+   evaluating rules for a batch of events per transaction are the next steps if a feed needs more.
+2. **Scenario E is logic-only.** The failing-connection rule is verified by dry run; connection syncs are audited
+   events, but a failing real connector was not exercised end to end here. Scenario I (worker killed mid-run) relies
+   on the runtime's existing lease and orphan recovery (`test_runtime_integrity.py`); there is no new crash test for
+   the dispatcher (a crash re-delivers at most one event per consumer, which the inbox or activity key absorbs).
+3. **Activity execution runs in the dispatcher.** `impact_review` and `notify` are quick; long work is always a
+   task.
+4. **Visual regression.** UI behaviour is covered by AppTest (`tests/test_ui_activity.py`); screenshots were
+   inspected by hand in light and dark, not compared automatically.
+5. **Single process.** Dispatch, the outbox collector and DuckDB's single writer assume one Lyst process. Running two
    API processes against the same home is not supported; a second process would collect and dispatch twice (the
    inbox would still prevent double handling, but not double collection races on the outbox stamp). A broker is not
    justified until Lyst runs as more than one process.
-3. **Handler timeouts are not enforced.** Handlers run in the worker thread; a slow one delays others. Durations are
+6. **Handler timeouts are not enforced.** Handlers run in the worker thread; a slow one delays others. Durations are
    recorded in `event_inbox.duration_ms`. Handlers should queue work (tasks) rather than do it.
-4. **Outbox sweep cost** grows with the number of workspaces (one small query each, every 30 s).
-5. **Per-subject ordering on retry.** A retried event can be handled after a newer one for the same subject (see above).
-6. **Sensitivity is derived for dataset subjects only.** Other subjects default to `internal`.
-7. **Retention.** Events are pruned after `LYST_RETENTION_DAYS_EVENTS` (90 days) with their inbox rows; published
+7. **Outbox sweep cost** grows with the number of workspaces (one small query each, every 30 s).
+8. **Per-subject ordering on retry.** A retried event can be handled after a newer one for the same subject (see above).
+9. **Sensitivity is derived for dataset subjects only.** Other subjects default to `internal`.
+10. **Retention.** Events are pruned after `LYST_RETENTION_DAYS_EVENTS` (90 days) with their inbox rows; published
    outbox rows after 7 days, which also bounds how long a staged dedupe key is remembered in the outbox (the stream
    remembers it for the event retention period).
