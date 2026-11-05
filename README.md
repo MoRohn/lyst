@@ -280,12 +280,19 @@ where they point, with Mark all read and "What to tell me about".
   136 specialization profiles in 11 domains (data and BI, statistics, AI and ML, software, cloud, security,
   finance and operations, marketing, media, science and industry, and more), backed by a shared library of 34
   method families and 36 verification rules. A router picks the disciplines with its reasons, never grants a
-  permission a person lacks, and reports methods Lyst does not have yet. Maturity is computed and stated honestly:
-  101 profiles are Equipped, 35 Defined, and none is yet claimed Operational. Typed and spoken questions go
-  through the same entry point and pick the same expertise. When a question is routed to specialists, their
-  discipline's checks apply and can only tighten verification; the answer reports each as passed, failed or not
-  applicable, and says which cannot yet be run automatically. Brain › **Specializations** lists all 136 with their
-  maturity and what each still lacks, and example questions can be asked in one click
+  permission a person lacks, and reports methods Lyst does not have yet. Maturity is earned, not declared: 8 of
+  136 specializations are Operational on representative tasks with known answers, re-verified by the test suite;
+  98 are Equipped and 30 Defined. An audit of every role's example requests, including the many declined for lack
+  of demo data, is published in [docs/SPECIALIZATIONS_AUDIT.md](docs/SPECIALIZATIONS_AUDIT.md). Typed and spoken
+  questions go through the same entry point and pick the same expertise. When a question is routed to specialists,
+  their discipline's checks apply and can only tighten verification; the answer reports each as passed, failed or
+  not applicable, and says which cannot yet be run automatically. Lyst also checks that an answer addresses the
+  question it was asked: a specialist request that a governed metric cannot answer is flagged instead of being
+  answered with the nearest number. Seven specialist methods run on datasets a request names (customer
+  segmentation, outcome prediction with logistic regression, process mining with paths, bottlenecks and rework,
+  distances between locations, two-source reconciliation, network and graph structure, and event-log burst
+  detection), all through the same access checks. Brain › **Specializations** lists all 136 with their maturity
+  and what each still lacks, and example questions can be asked in one click
   ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
 * **A workbench for your own Python and SQL.** Analysts run their own Python on governed data in an
   operating-system sandbox, on data already filtered by their column and row permissions. The code cannot read
@@ -371,7 +378,9 @@ where they point, with Mark all read and "What to tell me about".
   and reports, members and history travel in one file encrypted with a passphrase; any tampering or truncation is
   caught before anything is read. Credentials never travel, and data your policy keeps inside the workspace cannot
   be exported this way either. Importing always creates a new workspace, checks every part first, and arrives with
-  its schedules paused, so a copy never runs the same work twice. Through the API today.
+  its schedules paused, so a copy never runs the same work twice. In Settings › Workspace › **Move or copy this
+  workspace**, you seal the workspace into a passphrase-protected pack and download it; on another installation an
+  admin checks the pack and brings it in as a new workspace, with schedules paused unless they choose otherwise.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
@@ -574,7 +583,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
