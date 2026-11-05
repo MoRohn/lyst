@@ -596,3 +596,24 @@ def test_health_lists_problems_first_with_what_to_do(seeded, ui):  # noqa: F811
     bad = [c for c in d["checks"] if c["status"] != "ok" and c.get("fix")]
     if bad:
         assert "What to do:" in body and bad[0]["fix"].split(".")[0] in body
+
+
+def test_a_finished_answer_can_be_published_and_found_in_work(seeded, ui):  # noqa: F811
+    lyst, owner = seeded  # the same instance the ui fixture serves
+    t = next(x for x in lyst.runtime.list(owner, "northwind") if x["status"] == "done" and "decline" in x["title"])
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.session_state["task_id"] = t["id"]
+    at.query_params["task"] = t["id"]
+    at.run()
+    at.button_group(key=f"sh_{t['id']}").set_value("Publish").run()
+    assert not at.exception, [e.value for e in at.exception]
+    next(b for b in at.button if b.key == f"pub_go_{t['id']}").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert lyst.publishing.list(owner, "northwind")  # a real publication now exists
+    at.switch_page("app_pages/work.py")
+    at.query_params["view"] = "activity"
+    at.run()
+    at.button_group(key="act_filter").set_value("Published").run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(b.label == "Revoke" for b in at.button) and any(b.label == "View" for b in at.button)

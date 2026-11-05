@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, collab, decisions, governance, kit, onboarding, scenarios, voice
+from lyst.ui import anticipate, collab, decisions, governance, kit, onboarding, publish, scenarios, voice
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -308,10 +308,13 @@ def act_bar(task: str, t: dict, r: dict) -> None:
                                    key=f"dl_{kind}_{task}", type="tertiary", on_click="ignore", width="stretch")
     with cols[3].popover("Share", icon=":material/group:", width="stretch"):
         st.caption("Hand this answer to a colleague, or ask someone to check it before it is relied on.")
-        how = st.segmented_control("Share how", ["Assign", "Ask for a review"], default="Assign", key=f"sh_{task}",
+        opts = ["Assign", "Ask for a review"] + (["Publish"] if done and editor else [])
+        how = st.segmented_control("Share how", opts, default="Assign", key=f"sh_{task}",
                                    label_visibility="collapsed") or "Assign"
         if how == "Assign":
             collab.assign("task", task, key=task)
+        elif how == "Publish":
+            publish.form(task, t["title"], key=task)
         else:
             collab.request_review("task", task, f"Check: {t['title']}", key=task)
     if cols[4].button("Discuss", type="tertiary", icon=":material/forum:", key=f"disc_{task}", width="stretch"):
