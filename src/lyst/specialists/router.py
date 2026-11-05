@@ -59,7 +59,7 @@ TASK_RULES: list[tuple[str, re.Pattern]] = [(k, re.compile(p, re.I)) for k, p in
     ("sql_authoring", r"\b(sql|query|queries)\b"),
     ("statistical_testing", r"\b(significan\w*|hypothes\w*|p-?value|statistical\w*|confidence interval|t-?test|correlat\w*)\b"),
     ("experiment_analysis", r"\b(a/?b test\w*|experiment\w*|variant\w*|control group|holdout|split test)\b"),
-    ("causal_estimation", r"\b(causal\w*|effect of|impact of|incremental\w*|counterfactual|did .{0,40} (work|cause))\b"),
+    ("causal_estimation", r"\b(causal\w*|effect of|impact of|incremental\w*|counterfactual|did .{0,40} (work|cause)|beyond (normal|baseline|expected)|uplift)\b"),
     ("optimization", r"\b(optimi[sz]\w*|best (allocation|split|mix)|maximi[sz]e|minimi[sz]e|allocate)\b"),
     ("simulation", r"\b(simulat\w*|monte carlo|what if|scenario\w*|range of outcomes)\b"),
     ("segmentation", r"\b(segment\w*|cohorts?|cluster\w*|personas?|tiers?)\b"),
@@ -69,12 +69,12 @@ TASK_RULES: list[tuple[str, re.Pattern]] = [(k, re.compile(p, re.I)) for k, p in
     ("capacity_planning", r"\b(capacity|headroom|run out|staffing|how many (agents|people|servers|nodes))\b"),
     ("risk_assessment", r"\b(risks?|exposure|vulnerab\w*|threats?|controls?)\b"),
     ("security_investigation", r"\b(security|suspicious|malicious|breach\w*|intrusion|telemetry|threat\w*|forensic\w*|fraud\w*)\b"),
-    ("compliance_review", r"\b(complian\w*|regulat\w*|audit\w*|policy|policies|gdpr|soc 2|wcag|sox)\b"),
+    ("compliance_review", r"\b(complian\w*|regulat\w*|audit\w*|policy|policies|gdpr|soc 2|wcag|sox|definitions? .{0,30}conflict\w*|conflicting definitions?)\b"),
     ("code_analysis", r"\b(code|codebase|repository|repo|tests? fail\w*|technical debt|architecture risks?|pull requests?)\b"),
     ("performance_analysis", r"\b(latency|throughput|slow(er)? (quer(y|ies)|requests?|pages?|responses?|endpoints?|jobs?|builds?)|performance|utili[sz]ation|bottleneck\w*|reliab\w*)\b"),
     ("model_evaluation", r"\b(evaluat\w* (the |our |a )?(model|agent|llm|classifier|workflow)|benchmark\w*|accuracy|precision|recall|model performance|tool selection)\b"),
     ("document_extraction", r"\b(extract\w*|pdf|contracts?|invoices?|documents?)\b"),
-    ("text_analytics", r"\b(themes?|comments|feedback|tickets? text|sentiment|topics?|mentions)\b"),
+    ("text_analytics", r"\b(themes?|comments|feedback|tickets? text|sentiment|topics?|mentions|complain\w*|what (do|are) (people|customers|users) say\w*)\b"),
     ("geospatial_analysis", r"\b(map|maps|geospatial|location\w*|distance|km|miles|latitude|region map)\b"),
     ("process_analysis", r"\b(process\w*|workflow\w*|cycle time|bottleneck\w*|handoffs?|funnel)\b"),
     ("research_synthesis", r"\b(research|brief(ing)?|summari[sz]e (what|the)|what do (our|the) (documents|reports) say|compare (vendors|tools|options))\b"),
@@ -131,9 +131,16 @@ def domain_affinity(q: list[str]) -> dict[str, float]:
 
 
 def _stem(t: str) -> str:
-    for suf in ("ations", "ation", "ings", "ing", "ies", "ed", "es", "s"):
+    """A light, deterministic stemmer: enough that "warehouses", "warehouse" and "logins", "login" meet."""
+    if len(t) > 5 and t.endswith("ies"):
+        return t[:-3] + "y"
+    for suf in ("ations", "ation", "ings", "ing", "ed"):
         if len(t) > len(suf) + 3 and t.endswith(suf):
-            return t[: -len(suf)] + ("y" if suf == "ies" else "")
+            return t[: -len(suf)]
+    if len(t) > 4 and t.endswith(("sses", "xes", "ches", "shes")):
+        return t[:-2]
+    if len(t) > 3 and t.endswith("s") and not t.endswith("ss"):
+        return t[:-1]
     return t
 
 

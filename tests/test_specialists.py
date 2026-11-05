@@ -64,7 +64,8 @@ def test_library_references_resolve_and_status_is_honest():
     assert not [k for k, v in av.items() if v["unresolved"]]
     for c in library.LIBRARY.values():
         assert (c.status == "missing") == (not c.implemented_by), c.id
-    assert av["code_analysis"]["status"] == "missing" and av["geospatial_analysis"]["status"] == "missing"
+    assert av["code_analysis"]["status"] == "missing" and av["web_research"]["status"] == "missing"
+    assert av["geospatial_analysis"]["status"] == "partial"  # point distances only
 
 
 def test_library_downgrades_an_entry_whose_implementation_is_gone(monkeypatch):
@@ -106,16 +107,19 @@ def test_build_profile_rejects_unknown_fields():
 
 def test_maturity_is_computed_not_claimed():
     cat = load()
-    assert evidence() == {}  # no profile has recorded operational evidence yet
     levels = {pid: assess(p)["level"] for pid, p in cat.profiles.items()}
-    assert max(levels.values()) <= 2
-    assert levels["data_analyst"] == 2
-    assert levels["soc_analyst"] == 1  # needs log analysis, which Lyst lacks
-    assert levels["geospatial_analyst"] == 1
+    assert max(levels.values()) <= 3  # nothing is Validated or Production qualified
+    ev = evidence()
+    for pid, lvl in levels.items():
+        if lvl == 3:
+            assert pid in ev  # Level 3 only with recorded representative tasks
+    assert levels["data_analyst"] == 3 and levels["soc_analyst"] == 1  # soc needs fuller log analysis
+    # recorded evidence does not lift a profile whose required capabilities are only partly there
     m = assess(cat.get("geospatial_analyst"))
-    assert m["missing"] == ["geospatial_analysis"] and "does not have yet" in m["next_step"]
+    assert "geospatial_analyst" in ev and m["level"] == 1 and m["partial"] == ["geospatial_analysis"]
+    assert "covers only in part" in m["next_step"]
     ov = browse.overview()
-    assert ov["levels"]["Operational"] == 0 and ov["levels"]["Production qualified"] == 0
+    assert ov["levels"]["Validated"] == 0 and ov["levels"]["Production qualified"] == 0
 
 
 def test_routing_benchmark_meets_its_floor():
@@ -161,11 +165,11 @@ def test_role_selection_never_grants_permissions():
 
 
 def test_unsupported_capability_is_reported_honestly():
-    d = route("Which stores are more than 50 km from a warehouse? Map the distances", can=lambda perm: True)
-    assert any(u["task_class"] == "geospatial_analysis" for u in d.unsupported)
+    d = route("Analyze this repository for architecture risks and technical debt in the code", can=lambda perm: True)
+    assert any(u["task_class"] == "code_analysis" for u in d.unsupported)
     a = asm.assemble(d, "x")
     assert a["capabilities"]["missing"] and any("Capability Foundry" in u["next_step"] for u in a["unsupported"])
-    assert any("spatial" in lim.lower() or "geometry" in lim.lower() for lim in a["limitations"])
+    assert any("repository" in lim.lower() for lim in a["limitations"])
 
 
 def test_general_requests_assemble_nothing():
@@ -303,3 +307,32 @@ def test_catalog_search_ranks_by_meaning_not_a_shared_word(q, first, absent):
     ids = [r["id"] for r in browse.search(q)]
     assert ids[0] == first, ids[:4]
     assert not (absent & set(ids[:3])), ids[:4]
+
+
+def test_an_answer_to_a_different_question_is_not_verified(seeded):
+    lyst, owner = seeded
+    out = lyst.analyst_core.handle(owner, AnalystRequest(workspace_id="northwind", text="Is our demand model drifting?"))
+    lyst.runtime.drain()
+    t = lyst.runtime.get(owner, out.task_id)
+    assert t["outcome"] == "unverified", t["result"]["answer"]
+    assert t["result"]["answer"].startswith("Not verified: the request asks to")
+    fits = [c for c in t["result"]["confidence"]["checks"] if c["name"] == "fits_request"]
+    assert fits and not fits[0]["passed"]
+    ok = lyst.analyst_core.handle(owner, AnalystRequest(workspace_id="northwind", text="Why did revenue fall last quarter?"))
+    lyst.runtime.drain()
+    assert lyst.runtime.get(owner, ok.task_id)["outcome"] == "complete"
+    plain = lyst.runtime.submit(owner, "northwind", "Is our demand model drifting?")  # not routed: unchanged behaviour
+    lyst.runtime.drain()
+    assert not [c for c in lyst.runtime.get(owner, plain)["result"]["confidence"]["checks"] if c["name"] == "fits_request"]
+
+
+def test_audit_runs_examples_end_to_end(seeded):
+    from lyst.specialists import audit
+
+    lyst, owner = seeded
+    rep = audit.run(lyst, owner, "northwind", ids=["data_analyst", "forecasting_analyst", "soc_analyst"])
+    assert rep["summary"]["examples"] == 6 and rep["summary"]["routing_self"] == 6
+    by = {(r["id"], r["outcome"]) for r in rep["rows"]}
+    assert ("forecasting_analyst", "answered") in by
+    assert all(r["outcome"] == "declined" for r in rep["rows"] if r["id"] == "soc_analyst")  # no security data in the demo
+    assert "| Profile |" in audit.markdown(rep)

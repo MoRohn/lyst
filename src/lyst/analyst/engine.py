@@ -242,6 +242,15 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             scenario_model = s.scenarios.match(ctx.actor, ctx.workspace_id, text)
             if scenario_model:
                 intent = "what_if"
+    specialist = None
+    if ctx.request.get("expertise") and not resolved["metrics"] and intent not in ("sql", "skill", "refresh", "sync", "profile"):
+        # a routed request that no governed metric covers: a specialist method on a dataset it names may (methods.py)
+        from ..specialists import methods as specialist_methods  # noqa: PLC0415
+
+        specialist = specialist_methods.choose(text, ctx.request["expertise"].get("task_classes") or [],
+                                               s.data.catalog(ctx.actor, ctx.workspace_id))
+        if specialist:
+            intent = "method"
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
@@ -255,7 +264,8 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "sync": {"connection_id": sync.group(1), "source_table": sync.group(2), "cursor_column": sync.group(3),
                      "dataset": sync.group(4)} if sync else None,
             "audience": ("executive" if re.search(r"\b(board|executive|ceo|cfo|leadership|briefing)\b", text, re.I) else "analyst"),
-            "refresh_every": studio_mod.refresh_interval(text), "scenario_model": scenario_model}
+            "refresh_every": studio_mod.refresh_interval(text), "scenario_model": scenario_model,
+            "specialist_method": specialist}
 
 
 def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
@@ -359,7 +369,9 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
                             "Name the one you mean, or ask an admin to map the term in the glossary.")
-    if u["intent"] == "causal_unsupported":
+    if u["intent"] == "method":
+        add("run_method", "method", **{k: u["specialist_method"][k] for k in ("method", "datasets", "params")})
+    elif u["intent"] == "causal_unsupported":
         blockers.append("Lyst cannot establish causation from this request. It can estimate an effect with an interrupted time "
                         "series if you name the intervention and its start month (\"impact of X since July 2026\"), compare a "
                         "treated group with a control group (difference-in-differences), or report the correlation between two "
@@ -960,6 +972,14 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if intensity == "high" and "current" in o and o["current"].get("value") is not None:
         rec = _independent_recompute(ctx, o["current"])
         check("independent_recompute", rec["ok"], rec["detail"])
+    if "method" in o:
+        check("method_ran", "error" not in o["method"], o["method"].get("error") or f"{o['method']['title']} ran on "
+              + ", ".join(o["method"]["datasets"]))
+    und = o.get("understand") or {}
+    fitted = expertise_rules.fit(ctx.request.get("expertise"), und.get("intent"),
+                                 set((und.get("specialist_method") or {}).get("task_classes") or []) or None)
+    if fitted is not None:  # routed requests only: an answer to a different question is never presented as verified
+        check("fits_request", fitted[0], fitted[1])
     errors = [c for c in checks if not c["passed"] and c["severity"] == "error"]
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")
@@ -1179,6 +1199,19 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if pl["blockers"]:
         answer = " ".join(pl["blockers"])
         status = "needs_input"
+    elif u["intent"] == "method":
+        mo = o["method"]
+        if mo.get("error"):
+            answer = (f"Lyst could not run {u['specialist_method']['title']} on {', '.join(mo['datasets'])}: {mo['error']}.")
+            status = "needs_input"
+        else:
+            mout = mo["output"]
+            answer, findings = mout["summary"], list(mout.get("findings") or [])
+            tables += mout.get("tables") or []
+            assumptions += mout.get("assumptions") or []
+            assumptions.append(f"Computed by Lyst's {mo['title']} method on {', '.join(mo['datasets'])}, using columns "
+                               + ", ".join(f"{k} = {v}" for k, v in mo["params"].items() if v not in (None, [], "")) + ".")
+            status = "complete" if v["status"] != "failed" else "unverified"
     elif u["intent"] == "correlate":
         co = o["correlation"]
         if co.get("skipped"):
@@ -1713,3 +1746,6 @@ def _workflow_learn(ctx: Context, d: dict[str, Any]) -> dict[str, Any] | None:
     if sup.get("workflow") is not None:
         sup["workflow"]["compiled"] = out
     return out
+
+
+from ..specialists import methods as _specialist_methods  # noqa: E402, F401 - registers run_method with the registry
