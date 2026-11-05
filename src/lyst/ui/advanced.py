@@ -114,3 +114,6 @@ def skills() -> None:
             st.dataframe(pd.DataFrame(runs), hide_index=True, width="stretch")
         else:
             st.caption("None recorded here. `lyst eval` scores Lyst against independently computed answers.")
+    from lyst.ui import anticipate  # noqa: PLC0415  (working-ahead quality and the methods Lyst could add)
+
+    anticipate.quality_block()
