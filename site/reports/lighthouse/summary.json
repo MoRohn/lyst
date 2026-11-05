@@ -5,12 +5,32 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 974,
+      "LCP_ms": 959,
       "CLS": 0,
       "TBT_ms": 0,
-      "FCP_ms": 974
+      "FCP_ms": 959
     },
     "runs": [
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 1801,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 978
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 959,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 959
+      },
       {
         "performance": 100,
         "accessibility": 100,
@@ -20,26 +40,6 @@
         "CLS": 0,
         "TBT_ms": 0,
         "FCP_ms": 976
-      },
-      {
-        "performance": 100,
-        "accessibility": 100,
-        "best-practices": 100,
-        "seo": 100,
-        "LCP_ms": 974,
-        "CLS": 0,
-        "TBT_ms": 0,
-        "FCP_ms": 974
-      },
-      {
-        "performance": 100,
-        "accessibility": 100,
-        "best-practices": 100,
-        "seo": 100,
-        "LCP_ms": 974,
-        "CLS": 0,
-        "TBT_ms": 0,
-        "FCP_ms": 974
       }
     ]
   },
@@ -49,7 +49,7 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 260,
+      "LCP_ms": 441,
       "CLS": 0,
       "TBT_ms": 0,
       "FCP_ms": 260
@@ -70,7 +70,7 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 260,
+        "LCP_ms": 441,
         "CLS": 0,
         "TBT_ms": 0,
         "FCP_ms": 260
@@ -80,14 +80,14 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 260,
+        "LCP_ms": 258,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 260
+        "FCP_ms": 258
       }
     ]
   },
   "url": "http://localhost:4399/",
   "lighthouse": "13.6.0",
-  "date": "2026-11-05T11:48:00.406Z"
+  "date": "2026-11-05T21:03:14.761Z"
 }
