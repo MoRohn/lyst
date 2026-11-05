@@ -132,6 +132,35 @@ def delta(text: str, good: bool | None) -> str:
     return f'<span class="lyst-delta lyst-num" style="color:var(--lyst-{tone})">{escape(arrow + text)}</span>'
 
 
+def metric_tile(p: dict[str, Any], *, note: str = "vs prior month") -> str:
+    """A KPI tile from a pulse entry: the measure, its period, the value large, the change coloured by whether it is
+    good for this measure, and its recent history. An observation, so it says which period it observed."""
+    return (f'<div class="lyst-card-title">{escape(str(p["title"]))}</div>'
+            f'<div class="lyst-tile-value lyst-num">{escape(str(p["value_text"]))}</div>'
+            + delta(f'{p.get("change_text", "")} {note}', p.get("good"))
+            + spark(p.get("history") or [], label=f'{p["title"]} over the last {len(p.get("history") or [])} '
+                    f'{p.get("grain", "period")}s, latest {p["value_text"]}', height=48))
+
+
+STEP_MARK = {"done": ("✓", "good"), "failed": ("✕", "bad"), "skipped": ("–", "neutral"), "running": ("●", "info"),
+             "queued": ("○", "neutral"), "pending": ("○", "neutral")}
+
+
+def steps(items: Sequence[dict], *, label: str = "Steps") -> str:
+    """A task's steps as a vertical timeline, each with the engine's own status (never an estimate)."""
+    rows = []
+    for st_ in items:
+        mark, tone = STEP_MARK.get(st_.get("status", ""), ("·", "neutral"))
+        title = str(st_.get("capability", "step")).replace("_", " ").capitalize()
+        who = str(st_.get("agent", "")).replace("_", " ")
+        err = f'<div class="lyst-step-err">{escape(str(st_["error"]))}</div>' if st_.get("error") else ""
+        rows.append(f'<li class="lyst-step"><span class="lyst-step-dot" style="color:var(--lyst-{tone});'
+                    f'border-color:var(--lyst-{tone})">{mark}</span><div><div class="lyst-step-title">{escape(title)}</div>'
+                    f'<div class="lyst-card-meta">{escape(who)} · {escape(str(st_.get("status", "")))}</div>{err}</div></li>')
+    done = sum(1 for x in items if x.get("status") == "done")
+    return (f'<ol class="lyst-steps" aria-label="{escape(label)}: {done} of {len(items)} done">' + "".join(rows) + "</ol>")
+
+
 CSS = """
 .lyst-spark {display: block;}
 .lyst-viz-empty {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm);}
@@ -166,7 +195,27 @@ CSS = """
 .lyst-stat-value {font-size: var(--lyst-size-lg); font-weight: var(--lyst-weight-strong); line-height: 1.2;}
 .lyst-stat-label {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted);}
 .lyst-stat-note {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted);}
+.lyst-tile-value {font-size: 2rem; font-weight: var(--lyst-weight-strong); letter-spacing: -0.02em; line-height: 1.1;
+                  margin: .15rem 0 .1rem 0;}
 .lyst-delta {font-size: var(--lyst-size-sm); font-weight: var(--lyst-weight-medium);}
+/* the evidence rail beside an answer: quiet sections separated by space, not boxes */
+.lyst-rail {display: grid; gap: 1rem; padding: .2rem 0 .2rem 1rem; border-left: 1px solid var(--lyst-border);}
+.lyst-rail-section {display: grid; gap: .35rem;}
+.lyst-rail-item {padding: .1rem 0;}
+@media (max-width: 640px) {.lyst-rail {border-left: none; padding-left: 0; border-top: 1px solid var(--lyst-border);
+                           padding-top: .8rem;}}
+/* a task's steps: a quiet vertical timeline */
+.lyst-steps {list-style: none; margin: 0; padding: 0; position: relative;}
+.lyst-steps::before {content: ""; position: absolute; left: .7rem; top: .6rem; bottom: .6rem; width: 1px;
+                     background: var(--lyst-border);}
+.lyst-step {display: grid; grid-template-columns: 1.4rem 1fr; gap: .6rem; padding: .3rem 0; position: relative;
+             margin: 0 !important;}
+.lyst-step-dot {width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 1.5px solid; background: var(--lyst-raised);
+                display: grid; place-items: center; font-size: .72rem; font-weight: 700; z-index: 1;}
+.lyst-step-title {font-weight: var(--lyst-weight-medium); font-size: var(--lyst-size-sm);}
+.lyst-step-err {color: var(--lyst-bad); font-size: var(--lyst-size-sm);}
+/* Work board: columns of compact task cards */
+.lyst-col-head {display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .3rem;}
 /* cards: a title row, a headline, a visual, a quiet footer */
 .lyst-card-kicker {font-size: var(--lyst-size-xs); text-transform: uppercase; letter-spacing: var(--lyst-tracking-label);
                    color: var(--lyst-text-muted); font-weight: 600;}

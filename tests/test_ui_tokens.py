@@ -112,3 +112,41 @@ def test_a_breakdown_answer_gets_a_bar_chart_in_summary():
     assert c["type"] == "bar" and c["x"] == ["EMEA", "APAC"] and c["format"] == "currency"
     assert breakdown_chart({**r, "charts": [{"type": "line"}]}) is None  # its own chart wins
     assert breakdown_chart({"tables": [{"columns": ["a", "b", "c"], "rows": [[1, 2, 3]]}]}) is None
+
+
+def test_material_tokens_and_surfaces():
+    for mode in ("light", "dark"):
+        c = tokens.colors(mode)
+        for k in ("raised", "material", "edge", "shadow-1", "shadow-3"):
+            assert c[k]
+        assert tokens.contrast(c["text-muted"], c["raised"]) >= 4.5
+    kit = (UI / "kit.py").read_text()
+    assert "data-lyst-surface" in kit and "prefers-reduced-motion" in tokens.css()
+
+
+def test_evidence_rail_shows_checks_data_and_expertise_without_claiming_more():
+    from streamlit.testing.v1 import AppTest  # noqa: PLC0415
+
+    def app():
+        from lyst.ui.components import evidence_rail  # noqa: PLC0415
+
+        evidence_rail({"confidence": {"checks": [{"name": "a", "passed": True}, {"name": "b", "passed": False}]},
+                       "supporting": {"sources": [{"dataset": "pnl", "version": 1, "rows": 396}],
+                                      "expertise": {"disciplines": [{"name": "FP&A"}], "note": "Rules from FP&A",
+                                                    "rules": [{"id": "r1", "status": "passed"},
+                                                              {"id": "r2", "status": "not_automated"}]},
+                                      "assumptions": ["Periods are anchored"], "queries": [{"sql": "SELECT 1"}]}})
+
+    at = AppTest.from_function(app)
+    at.run(timeout=30)
+    assert not at.exception
+    html = " ".join(str(e.proto) for e in at.get("html"))
+    assert "1 of 2 passed" in html and "pnl" in html and "FP&amp;A" in html and "not automated 1" in html
+
+
+def test_metric_tile_says_good_or_bad_by_the_measure():
+    from lyst.ui import visuals  # noqa: PLC0415
+
+    t = visuals.metric_tile({"title": "COGS ratio", "value_text": "45.7%", "change_text": "+0.1 pts", "good": False,
+                             "history": [1, 2, 3], "grain": "month"})
+    assert "45.7%" in t and "--lyst-bad" in t and "alt=" in t

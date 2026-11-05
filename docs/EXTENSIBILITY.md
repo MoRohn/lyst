@@ -159,3 +159,31 @@ changed_inputs, environment}`. `.../runs/{id}/save {name}` stores a table result
 Gaps: task-level reproduction will build on the adapt thread's `evidence.reproduce` (re-run recorded queries)
 once it merges, adding result digests (its gap E2) and the environment diff; Docker/Kubernetes images for the
 sandbox are not provided (no Docker on this host).
+
+## 8. Workspace export, import and migration (`src/lyst/portability.py`)
+
+`POST /v1/workspaces/{ws}/exports {passphrase, include_history, include_files}` (admins) writes a **workspace pack**:
+every table of the workspace database (datasets and versions, definitions, contracts, knowledge, memory, assets,
+collaboration, onboarding, classification and policy tables: whole-database export, so tables other lanes add
+are carried without a code change), the control rows scoped to the workspace (settings, members by email,
+schedules, connections, quotas, webhooks without secrets; with history: tasks, steps, task events, model calls,
+approvals, eval runs, connection events, event and audit history as a record), and the files Lyst wrote for it
+(deliverables, dashboards). The manifest lists every part with rows and SHA-256, the schema versions, sequence
+positions and the writer's environment. Download within 24 hours from `.../exports/{id}/download`.
+
+Sealing: scrypt (n=2^15) derives an AES-256-GCM key; the pack is encrypted in 4 MB authenticated chunks bound to
+their position and to the last-chunk flag, so a wrong passphrase, a flipped bit, truncation or appended data are
+all refused before anything is read. Unencrypted packs need an owner and `encrypt: false`. Credentials and webhook
+secrets never leave; the export first runs every `export_checks` hook and, when installed, the governance
+service's export policy (`governance.evaluate(..., purpose="export")`), so data that may not leave does not.
+
+`POST /v1/imports/inspect` (installation administrators) runs every check and changes nothing: intact, schema
+compatibility (a pack from a newer Lyst is refused; an older one is upgraded by the import), members found here,
+environment differences. `POST /v1/imports {file, passphrase, workspace_id, name, activate, add_members}` always
+creates a new workspace, never overwrites; a failure part-way removes it again. Members are mapped by email; the
+importer is owner. Schedules and monitors arrive paused unless `activate=true` (a migration rather than a copy);
+tasks caught mid-run arrive failed; sequence-numbered ids continue after the imported ones; connections need
+their credentials connected again; webhooks arrive paused with a new secret.
+
+Gaps: no incremental (delta) export; packs are built in the engine process (a multi-GB workspace takes minutes);
+cross-installation user creation is not automatic (unknown emails are reported, not invented).

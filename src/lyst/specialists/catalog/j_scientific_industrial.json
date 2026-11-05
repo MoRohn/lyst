@@ -734,7 +734,10 @@
     "engineering simulation",
     "finite element",
     "stress",
-    "test rig"
+    "test rig",
+    "safety margin",
+    "design margin",
+    "safety factor"
    ],
    "provenance.revisions": [
     "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 118)"

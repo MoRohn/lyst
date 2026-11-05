@@ -31,6 +31,7 @@ from ..llm import LLMClient, LLMUnavailable
 from ..memory import MemoryService
 from ..security import Guard, untrusted
 from ..semantic import Measure, MetricSpec, SemanticService, _cond, _q, compile_metric, value_expr
+from ..specialists import applied as expertise_rules
 from . import foundry, periods, prescriptive, reasoning
 from .registry import REGISTRY, Context, Registry, capability
 
@@ -215,6 +216,10 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     gap = foundry.detect_gap(text) if intent != "skill" else None
     if gap and resolved["metrics"]:
         intent = "gap"
+        # reuse before drafting: an approved, compatible skill that does this already runs instead of a new draft
+        found = s.skills.discover(ctx.actor, ctx.workspace_id, text, s.registry).get("reuse") if s.skills else None
+        if found:
+            skill, intent, gap = {"name": found}, "skill", None
     causal = bool(re.search(r"\b(cause[sd]?|causing|because of|leads? to|drives?|driven by|due to)\b", text, re.I))
     second = None
     if len(resolved["metrics"]) >= 2 and re.search(r"\b(correlat\w*|relationship|related|cause[sd]?|drives?|driven by)\b", text, re.I):
@@ -440,6 +445,7 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     intensity = "high" if (u.get("depth") == "deep" or re.search(r"\b(board|executive|audit|financial statement|"
                                                                 r"regulat\w*|investor)", u["question"], re.I)) else (
         "low" if u.get("depth") == "fast" else "standard")
+    intensity = expertise_rules.intensity(intensity, ctx.request.get("expertise"))  # assembled expertise only tightens
     steps.append({"capability": "validate", "key": "validate", "args": {"intensity": intensity}, "after": everything})
     steps.append({"capability": "deliver", "key": "deliver", "args": {}, "after": ["validate"]})
     steps.append({"capability": "learn", "key": "learn", "args": {}, "after": ["deliver"]})
@@ -467,6 +473,9 @@ def _compiled_plan(ctx: Context, u: dict[str, Any], c: dict[str, Any]) -> dict[s
     for st_ in steps:
         cap = ctx.services.registry.get(st_["capability"])
         st_["agent"], st_["phase"] = cap.agent, cap.phase
+        if st_["capability"] == "validate":  # assembled expertise tightens a compiled workflow's checks too
+            st_["args"] = {**(st_.get("args") or {}), "intensity": expertise_rules.intensity(
+                (st_.get("args") or {}).get("intensity", "standard"), ctx.request.get("expertise"))}
     d = wf["definition"]
     return {"steps": steps, "blockers": [], "depth": d.get("depth"), "verification": d["validation"]["intensity"],
             "strategy": "compiled", "workflow": ref, "success_criteria": d.get("success_criteria", [])}
@@ -954,7 +963,10 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     errors = [c for c in checks if not c["passed"] and c["severity"] == "error"]
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")
-    return {"checks": checks, "status": status, "intensity": intensity}
+    out = {"checks": checks, "status": status, "intensity": intensity}
+    if ctx.request.get("expertise"):  # the rules the assembled disciplines require, against the checks that ran
+        out["expertise_rules"] = expertise_rules.evaluate(ctx.request["expertise"], checks)
+    return out
 
 
 _TO_DATE = re.compile(r"\b(this|current) (quarter|month|year)\b|\b(ytd|year to date|so far|to date)\b", re.I)
@@ -1599,6 +1611,9 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         elif consistency["agrees"] is False:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) answered differently on an earlier data version.")
     assumptions += context_notes
+    expertise = expertise_rules.disclosure(ctx.request.get("expertise"), v.get("expertise_rules") or [])
+    if expertise and expertise["note"]:
+        assumptions.append(expertise["note"])
     audience = u.get("audience", "analyst")
     brief = answer if audience != "executive" else " ".join([answer] + implications[:2] + (actions[:1] if actions else []))
     result = {
@@ -1626,6 +1641,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "assumptions": assumptions,
             "plan": [{"capability": s["capability"], "agent": s["agent"]} for s in pl["steps"]],
             "narrative_by": narrative_by,
+            "expertise": expertise,
             "narrative_key": narrative_key,
             "workflow": {"used": u.get("workflow"), "strategy": pl.get("strategy", "planned"), "compiled": None},
             "reproduce": "Re-run each query in Supporting work against the dataset versions listed; the metric "

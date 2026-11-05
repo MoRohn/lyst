@@ -11,22 +11,25 @@ toolbarMode = "minimal"
 gatherUsageStats = false
 
 [theme]
-font = "sans-serif"
-codeFont = "monospace"
-baseRadius = "small"
+# The system UI face first (SF Pro on Apple devices, Segoe UI Variable on Windows), so Lyst reads like a native app.
+font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
+codeFont = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace"
+baseRadius = "10px"
+buttonRadius = "9px"
 showWidgetBorder = true
 showSidebarBorder = true
 baseFontSize = 15
-headingFontWeights = [600, 600, 600, 500, 500, 500]
+headingFontWeights = [700, 650, 600, 600, 500, 500]
 
 # One accent: Lyst's brand teal, at a shade that keeps white button text at WCAG AA (6.4:1 light, 5.1:1 dark).
 [theme.light]
 primaryColor = "#0B6B64"
 linkColor = "#0B6B64"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f5f6f8"
-textColor = "#16181d"
-borderColor = "#e3e5ea"
+# A faintly cool canvas with white surfaces raised on it (cards, sheets, the sidebar's material).
+backgroundColor = "#f6f7f9"
+secondaryBackgroundColor = "#eceef2"
+textColor = "#14161a"
+borderColor = "#dfe2e8"
 chartCategoricalColors = ["#0B6B64", "#5b6577", "#d9822b", "#8a63d2", "#d64550", "#12A79B"]
 # Status text (badges, :green[...]) at 4.5:1 or better on its own tinted background; Streamlit's defaults are 4.3:1.
 greenTextColor = "#166f30"
@@ -38,8 +41,8 @@ grayTextColor = "#4b5263"
 [theme.dark]
 primaryColor = "#0E7C73"
 linkColor = "#5CC9B6"
-backgroundColor = "#0f1115"
-secondaryBackgroundColor = "#171a20"
-textColor = "#e6e8ec"
-borderColor = "#262a33"
+backgroundColor = "#0b0c0f"
+secondaryBackgroundColor = "#1a1d23"
+textColor = "#ebedf1"
+borderColor = "#2a2e37"
 chartCategoricalColors = ["#2BB5A6", "#8b95a7", "#f0a35a", "#a98ae6", "#ec6b74", "#7FD4C2"]

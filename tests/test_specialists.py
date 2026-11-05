@@ -249,3 +249,57 @@ def test_api_catalog_and_entry_point(seeded):
         assert c.get(f"/v1/tasks/{tid}/expertise", headers=hv).json()["expertise"]["roles"]
         bad = c.post("/v1/workspaces/northwind/analyst/requests", headers=h, json={"workspace_id": "other", "text": "x"})
         assert bad.status_code == 400
+
+
+def test_assembled_expertise_tightens_verification_and_is_disclosed(seeded):
+    lyst, owner = seeded
+    q = "Why did operating margin decline last quarter?"
+    plain = lyst.runtime.submit(owner, "northwind", q)
+    routed = lyst.analyst_core.handle(owner, AnalystRequest(workspace_id="northwind", text=q)).task_id
+    lyst.runtime.drain()
+    a, b = lyst.runtime.get(owner, plain), lyst.runtime.get(owner, routed)
+    assert a["status"] == b["status"] == "done"
+    assert "expertise" not in (a["request"] or {}) and a["result"]["supporting"].get("expertise") is None
+    plan_b = b["plan"]["steps"]
+    assert next(s for s in plan_b if s["capability"] == "validate")["args"]["intensity"] == "high"
+    ex = b["result"]["supporting"]["expertise"]
+    assert ex["disciplines"] and ex["primary"] == b["request"]["expertise"]["primary"]
+    statuses = {r["id"]: r["status"] for r in ex["rules"]}
+    assert statuses["numbers_backed"] == "enforced"
+    assert statuses.get("independent_recompute") == "passed"
+    assert all(s in ("passed", "failed", "enforced", "not_applicable", "not_automated") for s in statuses.values())
+    if ex["not_automated"]:
+        assert ex["note"] in b["result"]["supporting"]["assumptions"]
+    assert b["result"]["answer"] == a["result"]["answer"]  # same computation, same answer; only checks and disclosure differ
+
+
+def test_expertise_rules_evaluation_is_exact():
+    from lyst.specialists import applied
+
+    ex = {"verification": {"automated": [{"id": "bridge_closes"}, {"id": "numbers_backed"}, {"id": "single_currency"}],
+                           "not_yet_automated": [{"id": "two_source_reconciliation"}]}, "roles": [{"name": "X"}], "primary": "x"}
+    checks = [{"name": "bridge_closes:region", "passed": False, "detail": "members sum to 9; metric changed 10", "severity": "error"}]
+    rows = {r["id"]: r for r in applied.evaluate(ex, checks)}
+    assert rows["bridge_closes"]["status"] == "failed" and "sum to 9" in rows["bridge_closes"]["detail"]
+    assert rows["single_currency"]["status"] == "not_applicable"
+    assert rows["numbers_backed"]["status"] == "enforced"
+    assert rows["two_source_reconciliation"]["status"] == "not_automated"
+    d = applied.disclosure(ex, list(rows.values()))
+    assert d["failed"] == ["Bridge closes"] and "two-source reconciliation" in d["note"]
+    assert not any(ch.isdigit() for ch in d["note"])  # the note can never trip the unbacked-number check
+    assert applied.intensity("standard", {"verification": {"automated": [{"id": "independent_recompute"}]}}) == "high"
+    assert applied.intensity("standard", None) == "standard" and applied.intensity("high", {"general": True}) == "high"
+
+
+@pytest.mark.parametrize("q,first,absent", [
+    ("operating margin", "financial_data_analyst", {"engineering_simulation_analyst"}),
+    ("gross margin", "financial_data_analyst", {"engineering_simulation_analyst"}),
+    ("safety margin", "engineering_simulation_analyst", set()),
+    ("revenue forecast", "forecasting_analyst", set()),
+    ("cloud cost", "cloud_finops_analyst", set()),
+    ("finops", "cloud_finops_analyst", set()),
+])
+def test_catalog_search_ranks_by_meaning_not_a_shared_word(q, first, absent):
+    ids = [r["id"] for r in browse.search(q)]
+    assert ids[0] == first, ids[:4]
+    assert not (absent & set(ids[:3])), ids[:4]

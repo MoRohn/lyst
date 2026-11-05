@@ -198,6 +198,66 @@ def caveats(r: dict[str, Any]) -> list[str]:
     return out
 
 
+RULE_TONE = {"passed": "good", "enforced": "good", "failed": "bad", "not_automated": "warn", "not_applicable": "neutral"}
+
+
+def evidence_rail(r: dict[str, Any]) -> None:
+    """What stands behind the answer, beside it: the checks, the data it came from, the expertise applied and the
+    assumptions made. Everything here is the engine's record for this result; nothing is inferred by the UI."""
+    from html import escape  # noqa: PLC0415
+
+    from lyst.ui import visuals  # noqa: PLC0415
+
+    conf = r.get("confidence") or {}
+    sup = r.get("supporting") or {}
+    checks = conf.get("checks") or []
+    parts: list[str] = []
+
+    def section(title: str, body: str) -> None:
+        parts.append(f'<div class="lyst-rail-section"><div class="lyst-card-kicker">{escape(title)}</div>{body}</div>')
+
+    if checks:
+        ok = sum(1 for c in checks if c.get("passed"))
+        tone = "good" if ok == len(checks) else ("warn" if ok else "bad")
+        section("Checks", visuals.meter(ok / len(checks), label="Checks passed", tone=tone, text=f"{ok} of {len(checks)} passed"))
+    srcs = sup.get("sources") or []
+    if srcs:
+        rows = "".join(
+            f'<div class="lyst-rail-item"><b>{escape(str(s.get("dataset", "")))}</b> '
+            + escape(_join(f"v{s['version']}" if s.get("version") else None,
+                           f"{s['rows']:,} rows" if isinstance(s.get("rows"), int) else None,
+                           f"through {s['data_through']}" if s.get("data_through") else None)) + "</div>"
+            for s in srcs[:4])
+        section("Data", f'<div class="lyst-card-meta">{rows}</div>')
+    ex = sup.get("expertise") or {}
+    if ex:
+        disc = ex.get("disciplines") or []
+        names = ", ".join(str(d.get("name", d.get("id", ""))) if isinstance(d, dict) else str(d) for d in disc[:4])
+        rules = ex.get("rules") or []
+        counts: dict[str, int] = {}
+        for rule in rules:
+            counts[rule.get("status", "")] = counts.get(rule.get("status", ""), 0) + 1
+        body = f'<div class="lyst-card-meta">{escape(names or str(ex.get("primary") or ""))}</div>'
+        if rules:
+            body += visuals.stacked([(f"{k.replace('_', ' ')} {v}", v, RULE_TONE.get(k, "neutral"))
+                                     for k, v in counts.items() if v],
+                                    label="Expertise rules for this answer", height=6)
+        if ex.get("note"):
+            body += f'<div class="lyst-card-meta">{escape(str(ex["note"]))}</div>'
+        section("Expertise applied", body)
+    assumptions = sup.get("assumptions") or []
+    if assumptions:
+        section(f"Assumptions · {len(assumptions)}", '<div class="lyst-card-meta">'
+                + "<br>".join(escape(str(a)) for a in assumptions[:3]) + ("<br>…" if len(assumptions) > 3 else "")
+                + "</div>")
+    q = sup.get("queries") or []
+    if q or sup.get("plan"):
+        section("Method", f'<div class="lyst-card-meta">{len(sup.get("plan") or [])} steps · {len(q)} governed '
+                          f'quer{"y" if len(q) == 1 else "ies"}. Open “Show the method” for each.</div>')
+    if parts:
+        st.html('<div class="lyst-rail">' + "".join(parts) + "</div>")
+
+
 def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
     """One result, three depths, no re-run: Summary (answer, evidence, what it means, what to do), Detail (adds
     tables, hypotheses, assumptions and sources), Method (adds plan, checks and every query). Brief opens the
@@ -207,15 +267,20 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
     sup = r.get("supporting", {}) or {}
     with st.container(border=True):
         head = st.empty()
-        bar = st.columns([3, 0.9, 2], vertical_alignment="center")
+        bar = st.columns([3, 0.9, 0.9, 2], vertical_alignment="center")
         default = _default_view(r)
-        view = bar[2].segmented_control("Depth", VIEWS, default=default, key=f"view_{key}",
+        view = bar[3].segmented_control("Depth", VIEWS, default=default, key=f"view_{key}",
                                         label_visibility="collapsed", width="stretch") or default
         st.session_state["view_pref"] = view  # the depth a person picks carries to their next answers
         exec_ = view == "Summary" and r.get("audience") == "executive"  # an executive asked: lead with the brief
         if bar[1].button("Brief", icon=":material/summarize:", type="tertiary", key=f"brief_{key}", width="stretch",
                          help="The two-line version, with what to do and a PDF to forward"):
             brief(r, pdf, key)
+        fk = f"focus_{key}"
+        bar[2].button("Evidence" if st.session_state.get(fk) else "Focus", type="tertiary", key=f"focusbtn_{key}",
+                      icon=":material/view_sidebar:" if st.session_state.get(fk) else ":material/fullscreen:",
+                      width="stretch", help="Show or hide the evidence beside the answer",
+                      on_click=lambda: st.session_state.update({fk: not st.session_state.get(fk)}))
         head.markdown("#### " + md(r["brief"] if exec_ and r.get("brief") else r["answer"]))
         if r["status"] == "needs_input":
             bar[0].badge("Needs your input", color="orange", icon=":material/help:")
@@ -223,46 +288,53 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
             bar[0].badge("Verified", color="green", icon=":material/verified:")
         elif level:
             bar[0].badge(level.capitalize(), color="orange", icon=":material/warning:")
-        if tl := trust_line(r):
-            st.caption(md(tl))
-        wf = sup.get("workflow") or {}
-        if wf.get("used"):
-            st.caption(f":material/bolt: Reused the checked analysis “{md(wf['used']['title'])}”, verified "
-                       f"{wf['used']['verified_runs']}× before, so this took one pass instead of being worked out again.")
-        elif (wf.get("compiled") or {}).get("created"):
-            st.caption(":material/library_add_check: Saved as a repeatable analysis: rerun it for any period, or have "
-                       "it repeat on its own (Repeat it, below).")
-        cav = caveats(r)
-        if cav:
-            st.warning(bullets(cav), icon=":material/info:")
-        if not exec_ and r.get("evidence"):
-            st.markdown("**Evidence**")
-            st.markdown(bullets(r["evidence"]))
-        for c in (r.get("charts", [])[:1] if exec_ else r.get("charts", [])):
-            chart(c)
-        if view == "Summary" and (bc := breakdown_chart(r)):
-            chart(bc)
-        cols = st.columns(2)
-        if r.get("implications"):
-            with cols[0]:
-                st.markdown("**What it means**")
-                st.markdown(bullets(r["implications"]))
-        if r.get("actions"):
-            with cols[1]:
-                st.markdown("**What to do**")
-                st.markdown(bullets(r["actions"]))
-        if view in ("Detail", "Method"):
-            for t in r.get("tables", []):
-                table(t)
-            if r.get("hypotheses"):
-                with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:", expanded=True):
-                    icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
-                    for h in r["hypotheses"]:
-                        st.markdown(f"{icons.get(h.get('verdict'), '·')} **{str(h.get('id', '')).replace('_', ' ').capitalize()}**"
-                                    f" · {h.get('verdict', '')} · {md(h.get('detail', ''))}")
-            if sup.get("assumptions"):
-                st.markdown("**Assumptions**")
-                st.markdown(bullets(sup["assumptions"]))
+        focus = bool(st.session_state.get(f"focus_{key}"))
+        # the canvas: the answer on the left, its evidence beside it; Focus gives the answer the whole width
+        main, rail = (st.container(), None) if focus else st.columns([2.35, 1], gap="large")
+        with main:
+            if tl := trust_line(r):
+                st.caption(md(tl))
+            wf = sup.get("workflow") or {}
+            if wf.get("used"):
+                st.caption(f":material/bolt: Reused the checked analysis “{md(wf['used']['title'])}”, verified "
+                           f"{wf['used']['verified_runs']}× before, so this took one pass instead of being worked out again.")
+            elif (wf.get("compiled") or {}).get("created"):
+                st.caption(":material/library_add_check: Saved as a repeatable analysis: rerun it for any period, or have "
+                           "it repeat on its own (Repeat it, below).")
+            cav = caveats(r)
+            if cav:
+                st.warning(bullets(cav), icon=":material/info:")
+            if not exec_ and r.get("evidence"):
+                st.markdown("**Evidence**")
+                st.markdown(bullets(r["evidence"]))
+            for c in (r.get("charts", [])[:1] if exec_ else r.get("charts", [])):
+                chart(c)
+            if view == "Summary" and (bc := breakdown_chart(r)):
+                chart(bc)
+            cols = st.columns(2)
+            if r.get("implications"):
+                with cols[0]:
+                    st.markdown("**What it means**")
+                    st.markdown(bullets(r["implications"]))
+            if r.get("actions"):
+                with cols[1]:
+                    st.markdown("**What to do**")
+                    st.markdown(bullets(r["actions"]))
+            if view in ("Detail", "Method"):
+                for t in r.get("tables", []):
+                    table(t)
+                if r.get("hypotheses"):
+                    with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:", expanded=True):
+                        icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
+                        for h in r["hypotheses"]:
+                            st.markdown(f"{icons.get(h.get('verdict'), '·')} **{str(h.get('id', '')).replace('_', ' ').capitalize()}**"
+                                        f" · {h.get('verdict', '')} · {md(h.get('detail', ''))}")
+                if sup.get("assumptions"):
+                    st.markdown("**Assumptions**")
+                    st.markdown(bullets(sup["assumptions"]))
+        if rail is not None:
+            with rail:
+                evidence_rail(r)
         with st.expander("Show the method, checks and queries", icon=":material/fact_check:",
                          expanded=view == "Method"):
             if sup.get("sources"):

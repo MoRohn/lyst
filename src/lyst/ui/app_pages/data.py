@@ -19,6 +19,7 @@ from lyst.ui import (
     scenarios,
     transforms,
     visuals,
+    workbench,
 )
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
@@ -293,7 +294,7 @@ def column_profiles(name: str, ins: dict) -> None:
                                       compact=True)
             if c.get("issues"):
                 body += f'<div class="lyst-card-meta" style="color:var(--lyst-warn)">{kit._esc("; ".join(c["issues"]))}</div>'
-            with slot.container(border=True):
+            with slot, kit.card(f"col_{name}_{c['name']}"):
                 st.html(body)
 
 
@@ -411,7 +412,7 @@ def datasets(catalog: list[dict]) -> None:
     for start in range(0, len(full), 2):
         cols = st.columns(2)
         for col, c in zip(cols, full[start:start + 2], strict=False):
-            with col.container(border=True):
+            with col, kit.card(f"ds_{c['name']}"):
                 hit = dataset_card(c, by.get(c["name"]) or [])
             if hit or st.query_params.get("dataset") == c["name"]:
                 st.query_params.pop("dataset", None)
@@ -721,7 +722,7 @@ def sql_editor(catalog: list[dict]) -> None:
 
 
 # The workbench's tabs: SQL today; Python joins it here when the engine offers a sandbox.
-WORKBENCH = {"SQL": sql_editor}
+WORKBENCH = {"SQL": sql_editor} | ({"Python": workbench.editor} if workbench.available().get("available") else {})
 
 
 def sql(catalog: list[dict]) -> None:

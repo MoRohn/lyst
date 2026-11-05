@@ -15,6 +15,10 @@ Voice control (page) ──► Audio gateway ──► speech engine: browser | 
 
 ## Rules
 
+* **Voice and text pick the same expertise.** A spoken question goes through the Universal Analyst Core
+  (`analyst_core.handle` with `channel="voice"`), the same entry point as a typed one, so specialization routing,
+  permissions and the task record are identical. The recogniser's confidence is passed along: below 0.6 nothing
+  starts, the reply says what was heard, and the turn carries `confirm_transcript` for the page to offer "Ask this".
 * **Speech is never authorisation or authentication.** A voice session belongs to the person whose signed-in
   session opened it (administrators cannot speak into or read someone else's). Anything that would approve, delete,
   send, publish, export, schedule, grant or change something is answered with "confirm it on screen" and audited
@@ -43,6 +47,7 @@ Voice control (page) ──► Audio gateway ──► speech engine: browser | 
 | Part | Status |
 |---|---|
 | Voice coordinator (intents, permission path, action refusal, read-back, cancel, status, repeat) | Implemented & Verified (tests/test_voice.py) |
+| Questions through the Analyst Core (same routing as text, low-confidence hold) | Implemented & Verified |
 | Audio gateway (engine order, capacity, circuit breaker, fallback, external gate) | Implemented & Verified |
 | Sessions, turns, preferences, settings, retention, redaction | Implemented & Verified |
 | HTTP API and duplex websocket with one-time ticket (test engine) | Implemented & Verified |
@@ -103,7 +108,7 @@ What the published server allows, and how Lyst uses it:
 | GET | `/v1/workspaces/{ws}/voice/engines` | every engine's state, support label, capacity and health |
 | POST | `/v1/workspaces/{ws}/voice/sessions` | start a session (`{mode?}`) |
 | GET | `/v1/workspaces/{ws}/voice/sessions/{sid}` | the session and its transcript |
-| POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/turns` | one utterance: `{text}` from the device, or `{audio_b64, mime}` |
+| POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/turns` | one utterance: `{text, confidence?}` from the device, or `{audio_b64, mime}` |
 | GET | `/v1/workspaces/{ws}/voice/sessions/{sid}/answer/{task_id}` | read-back when the task is done (`ready`, `speak_text`) |
 | POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/speak` | speech for `{task_id}` or `{text}`; `engine: "browser"` means the page speaks `text` |
 | POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/stream-ticket` | one-time 60 s ticket for the duplex websocket |

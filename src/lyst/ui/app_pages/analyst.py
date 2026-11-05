@@ -151,14 +151,14 @@ def pulse() -> None:
     if not tiles:
         return
     kit.label(f"This month at a glance · {tiles[0]['period']}")
+    from lyst.ui import visuals  # noqa: PLC0415
+
     cols = st.columns(3)
     for i, t in enumerate(tiles):
-        with cols[i % 3].container(border=True):
-            st.metric(t["title"], t["value_text"], t["change_text"] + " vs prior month",
-                      delta_color="off" if t["good"] is None else ("normal" if t["good"] == (t["change"] > 0) else "inverse"),
-                      chart_data=t["history"], chart_type="line", border=False)
-            if st.button("Why?", key=f"pulse_{t['metric']}", type="tertiary", icon=":material/arrow_outward:",
-                         width="stretch"):
+        with cols[i % 3], kit.card(f"pulse_{t['metric']}"):
+            st.html(visuals.metric_tile(t))
+            if st.button("Why did it change?", key=f"pulse_{t['metric']}", type="tertiary",
+                         icon=":material/arrow_outward:"):
                 submit(f"Why did {kit.lower(t['title'])} change last month?")
                 st.rerun()
 

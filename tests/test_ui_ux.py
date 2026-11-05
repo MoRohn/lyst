@@ -333,7 +333,7 @@ def test_what_if_and_decisions_are_reachable_where_people_work(seeded, ui):  # n
     at.switch_page("app_pages/work.py")
     at.query_params["view"] = "activity"
     at.run()
-    at.get("button_group")[-1].set_value("Decisions").run()
+    next(g for g in at.get("button_group") if g.key == "act_filter").set_value("Decisions").run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Compare options" for b in at.button)
 
@@ -446,3 +446,25 @@ def test_settings_advanced_reports_how_working_ahead_went(seeded, ui):  # noqa: 
     assert not at.exception, [e.value for e in at.exception]
     body = _texts(at)
     assert "prepared before it was needed" in body and "runs fixed before they failed" in body
+def test_specializations_and_python_have_their_place(seeded, ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/brain.py")
+    at.query_params["view"] = "specializations"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "describe the work on Home" in body and "Data Analyst" in body
+    rows = [b for b in at.button if b.label == "Open"]
+    rows[0].click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(b.label == "Ask this" for b in at.button)  # example requests become real questions
+    from lyst.ui import workbench  # noqa: PLC0415
+
+    env = workbench.available()
+    at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "sql"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    if env.get("available"):
+        assert any(t.label == "Python" for t in at.tabs)

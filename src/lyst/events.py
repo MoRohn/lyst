@@ -68,6 +68,8 @@ CATALOG: dict[str, tuple[str, str]] = {
     "experiment.run": ("experiment.ran", "experiment"),
     "experiment.decide": ("experiment.decided", "experiment"),
     "workbench.python": ("workbench.ran", "workbench_run"),
+    "workspace.export": ("workspace.exported", "workspace"),
+    "workspace.import": ("workspace.imported", "workspace"),
     # operations (quotas, scenarios, decision records)
     "quota.set": ("quota.set", "workspace"),
     "scenario.define": ("scenario.defined", "scenario"),
