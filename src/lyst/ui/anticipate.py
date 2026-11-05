@@ -18,8 +18,8 @@ VERDICT = {"ready": ("Ready", "ok"), "blocked": ("Blocked", "bad"), "warn": ("Ch
            "warning": ("Check first", "warn"), "stale": ("Out of date", "warn")}
 ACTION = {"run_now": "Run now", "dismiss": "Dismiss", "snooze": "Later", "watch": "Watch it", "schedule": "Repeat it",
           "renew": "Renew", "open_source": "Open source", "open_dataset": "Open dataset", "test_connection": "Test it",
-          "propose_fix": "Propose a fix"}
-PRIMARY = ("run_now", "renew", "open_source", "open_dataset", "test_connection", "propose_fix", "watch", "schedule", "snooze")
+          "propose_fix": "Propose a fix", "request_registration": "Ask to add it"}
+PRIMARY = ("run_now", "request_registration", "renew", "open_source", "open_dataset", "test_connection", "propose_fix", "watch", "schedule", "snooze")
 NEXT = "next_best_action"  # shown under the answer it came from, not in Work
 LEVELS = {"off": "Off", "suggest": "Suggest", "prepare": "Prepare", "investigate": "Investigate", "automate": "Automate"}
 LEVEL_TEXT = {"off": "Lyst only does what it is asked.",
@@ -49,6 +49,8 @@ def _wants_person(a: dict) -> bool:
         return a.get("verdict") == "verified"
     if a.get("kind") == "health_foresight":
         return a.get("verdict") == "risk"
+    if a.get("kind") == "capability_gap":
+        return a.get("status") == "surfaced"
     return a.get("status") == "surfaced" or a.get("verdict") not in (None, "ready")
 
 
@@ -139,7 +141,7 @@ def health_by_subject() -> dict[tuple[str, str], dict]:
 
 def coming_up() -> None:
     """Work › Recurring: what Lyst sees coming and has checked or prepared."""
-    found = [a for a in items() if a.get("kind") != NEXT and not _wants_person(a)]
+    found = [a for a in items() if a.get("kind") not in (NEXT, "capability_gap") and not _wants_person(a)]
     if not found:
         return
     kit.label(f"Coming up · {len(found)}")
@@ -198,3 +200,39 @@ def level_control() -> None:
             return (f"{v.get('count', 0)} {kind.replace('_', ' ')}{'d' if kind == 'prepare' else ''}"
                     + (f" of {limit} a day" if limit else "") + (f", {v['refused']} refused" if v.get("refused") else ""))
         st.caption("Today: " + "; ".join(one(k, v) for k, v in use.items()) + ".")
+
+
+def _pct(v) -> str:
+    return "not enough yet" if v is None else f"{v * 100:.0f}%"
+
+
+def quality_block() -> None:
+    """Settings › Advanced: how well working ahead has served this workspace, from what actually happened."""
+    api, ws = _ctx()
+    try:
+        q = api.get(f"/v1/workspaces/{ws}/anticipation/quality", days=30)
+    except APIError:
+        return
+    rel, tim, acc = q.get("relevance") or {}, q.get("timeliness") or {}, q.get("accuracy") or {}
+    eff, att, gov = q.get("efficiency") or {}, q.get("attention") or {}, q.get("governance") or {}
+    kit.label(f"Working ahead, last {q.get('window_days', 30)} days")
+    rows = [
+        ("Useful", f"{_pct(rel.get('useful_rate'))} of what people judged ({rel.get('judged', 0)} judged)"),
+        ("On time", f"{_pct(tim.get('prepared_before_needed'))} prepared before it was needed"
+         + (f", {tim['median_lead_hours']:.0f} h ahead in the middle" if tim.get("median_lead_hours") is not None else "")),
+        ("Early warnings", f"{acc.get('confirmed', 0)} of {acc.get('early_warnings', 0)} confirmed; "
+         f"false alarms {_pct(acc.get('false_positive_rate'))}"),
+        ("Saved", f"{eff.get('runs_blocked_before_they_failed', 0)} runs fixed before they failed; "
+         f"{eff.get('queries', 0)} queries and {eff.get('model_calls', 0)} model calls spent"),
+        ("Interruptions", f"{att.get('pushed', 0)} brought to people ({att.get('pushes_per_active_day', 0):.1f} a day); "
+         f"{att.get('held', 0)} held for quiet hours or daily limits"),
+        ("Governance", f"{gov.get('accepted_without_audit', 0)} accepted without an audit record; "
+         f"{gov.get('tasks_run_as_someone_else', 0)} run as someone else; {gov.get('denied_attempts', 0)} refused"),
+    ]
+    for i, (label, text) in enumerate(rows):
+        kit.row(label, text, key=f"aq{i}", divider=i < len(rows) - 1)
+    st.caption(md(f"From {q.get('basis') or 'recorded events'}."))
+    gaps = [a for a in items() if a.get("kind") == "capability_gap"]
+    if gaps:
+        kit.label(f"Methods Lyst could add · {len(gaps)}")
+        rows(gaps, key="cg")

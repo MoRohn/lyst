@@ -436,6 +436,16 @@ def test_connections_proposed_from_an_api_description_wait_under_sources(seeded,
     assert "Procurement purchase_orders" in body and "/purchase-orders" in body
 
 
+
+def test_settings_advanced_reports_how_working_ahead_went(seeded, ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "advanced"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "prepared before it was needed" in body and "runs fixed before they failed" in body
 def test_specializations_and_python_have_their_place(seeded, ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
