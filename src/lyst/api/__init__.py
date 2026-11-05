@@ -1687,6 +1687,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     harness_routes(app, L, User)
 
+    # -- events lane: the event stream (SSE with replay), an event's chain and processing, integration events --------
+    from .events import routes as event_routes  # noqa: PLC0415
+
+    event_routes(app, L, User)
+
     return app
 
 

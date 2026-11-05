@@ -49,7 +49,7 @@ def test_events_come_from_audit_and_tasks(seeded):
     page = lyst.events.list(owner, "northwind", after=first)
     by_type = {e["type"]: e for e in page["events"]}
     v = by_type["dataset.version_created"]
-    assert v["subject"] == {"kind": "dataset", "id": "targets"} and v["data"]["rows"] == 2 and v["schema"] == 1
+    assert v["subject"] == {"kind": "dataset", "id": "targets"} and v["data"]["rows"] == 2 and v["schema"] == 2
     assert by_type["task.created"]["subject"]["id"] == t["id"]
     done = by_type["task.completed"]
     assert done["id"] == f"t:{t['id']}:done" and done["data"]["created_by"] == owner.user_id

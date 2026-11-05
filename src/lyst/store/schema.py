@@ -1545,3 +1545,70 @@ CONTROL.append((
     CREATE INDEX harness_failures_job ON harness_failures (workspace_id, job_key, signature)
     """,
 ))
+
+# Events lane (110-119). The canonical envelope (correlation, causation, depth, sensitivity, dedupe key, related
+# objects, type version) on the platform event stream, and durable consumers: a cursor per consumer and an inbox
+# recording how each event was processed (done, retry with its next attempt, dead), so delivery is at least once and
+# a redelivered event is never handled twice.
+CONTROL.append((
+    110,
+    """
+    ALTER TABLE platform_events ADD COLUMN type_version INTEGER DEFAULT 1;
+    ALTER TABLE platform_events ADD COLUMN correlation_id VARCHAR;
+    ALTER TABLE platform_events ADD COLUMN causation_id VARCHAR;
+    ALTER TABLE platform_events ADD COLUMN depth INTEGER DEFAULT 0;
+    ALTER TABLE platform_events ADD COLUMN sensitivity VARCHAR DEFAULT 'internal';
+    ALTER TABLE platform_events ADD COLUMN dedupe_key VARCHAR;
+    ALTER TABLE platform_events ADD COLUMN related JSON;
+    CREATE INDEX platform_events_by_correlation ON platform_events (workspace_id, correlation_id);
+    CREATE INDEX platform_events_by_dedupe ON platform_events (workspace_id, dedupe_key);
+    CREATE TABLE event_consumers (
+        name VARCHAR PRIMARY KEY,
+        position BIGINT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE event_inbox (
+        consumer VARCHAR NOT NULL,
+        event_id VARCHAR NOT NULL,
+        workspace_id VARCHAR,
+        seq BIGINT NOT NULL,
+        status VARCHAR NOT NULL,
+        attempts INTEGER NOT NULL,
+        last_error VARCHAR,
+        next_attempt_at TIMESTAMPTZ,
+        duration_ms INTEGER,
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (consumer, event_id)
+    );
+    CREATE INDEX event_inbox_due ON event_inbox (consumer, status, next_attempt_at)
+    """,
+))
+# The transactional outbox: a service stages an event in the same workspace transaction as the change it describes;
+# the collector publishes it to the control stream and stamps published_at.
+WORKSPACE.append((
+    110,
+    """
+    CREATE SEQUENCE event_outbox_seq;
+    CREATE TABLE event_outbox (
+        n BIGINT DEFAULT nextval('event_outbox_seq'),
+        id VARCHAR PRIMARY KEY,
+        type VARCHAR NOT NULL,
+        type_version INTEGER NOT NULL DEFAULT 1,
+        occurred_at TIMESTAMPTZ DEFAULT now(),
+        actor VARCHAR,
+        subject_kind VARCHAR NOT NULL,
+        subject_id VARCHAR NOT NULL,
+        data JSON NOT NULL,
+        source VARCHAR NOT NULL,
+        correlation_id VARCHAR,
+        causation_id VARCHAR,
+        depth INTEGER NOT NULL DEFAULT 0,
+        sensitivity VARCHAR NOT NULL DEFAULT 'internal',
+        dedupe_key VARCHAR,
+        related JSON,
+        published_at TIMESTAMPTZ
+    );
+    CREATE INDEX event_outbox_pending ON event_outbox (published_at, n);
+    CREATE INDEX event_outbox_dedupe ON event_outbox (dedupe_key)
+    """,
+))

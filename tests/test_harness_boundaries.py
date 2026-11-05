@@ -58,6 +58,8 @@ def test_migration_versions_are_unique_and_lanes_stay_in_range():
     for v, sql in schema.CONTROL + schema.WORKSPACE:
         if "harness_rules" in sql or "task_receipts" in sql:
             assert 100 <= v <= 109
+        if "event_outbox" in sql or "event_inbox" in sql:
+            assert 110 <= v <= 119
 
 
 def test_the_run_loop_ends_tasks_only_through_fail_and_finish():
