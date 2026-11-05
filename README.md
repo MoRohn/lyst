@@ -46,7 +46,8 @@ Lyst is running at http://lyst.localhost:8501
 Ctrl-C stops it. From another terminal: `lyst status`, `lyst stop`.
 ```
 
-From any terminal in the checkout:
+`uv sync` installs Lyst into the project's `.venv`, so run commands through `uv run` from the checkout (a bare
+`lyst` is "command not found" unless you first `source .venv/bin/activate`). From any terminal in the checkout:
 
 ```bash
 uv run lyst status          # is Lyst running here, at which address, under which PIDs (--json for scripts)
