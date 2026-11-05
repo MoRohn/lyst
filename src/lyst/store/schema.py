@@ -1612,3 +1612,71 @@ WORKSPACE.append((
     CREATE INDEX event_outbox_dedupe ON event_outbox (dedupe_key)
     """,
 ))
+# Event rules (typed, versioned event-condition-action) and the activities they open, each with its lifecycle stages;
+# rule_evaluations records every decision a rule made and why (kept 30 days).
+WORKSPACE.append((
+    111,
+    """
+    CREATE TABLE event_rules (
+        id VARCHAR PRIMARY KEY,
+        name VARCHAR NOT NULL,
+        current_version INTEGER NOT NULL,
+        status VARCHAR NOT NULL,
+        owner VARCHAR NOT NULL,
+        approval_id VARCHAR,
+        hits INTEGER NOT NULL DEFAULT 0,
+        last_matched_at TIMESTAMPTZ,
+        activated_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE event_rule_versions (
+        rule_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        spec JSON NOT NULL,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (rule_id, version)
+    );
+    CREATE SEQUENCE rule_evaluation_seq;
+    CREATE TABLE rule_evaluations (
+        id BIGINT DEFAULT nextval('rule_evaluation_seq') PRIMARY KEY,
+        rule_id VARCHAR NOT NULL,
+        rule_version INTEGER NOT NULL,
+        event_id VARCHAR NOT NULL,
+        event_seq BIGINT,
+        decision VARCHAR NOT NULL,
+        why VARCHAR,
+        evaluated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE activities (
+        id VARCHAR PRIMARY KEY,
+        rule_id VARCHAR NOT NULL,
+        rule_version INTEGER NOT NULL,
+        event_id VARCHAR NOT NULL,
+        event_seq BIGINT,
+        correlation_id VARCHAR,
+        depth INTEGER NOT NULL DEFAULT 0,
+        subject_kind VARCHAR NOT NULL,
+        subject_id VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        action VARCHAR NOT NULL,
+        autonomy VARCHAR NOT NULL,
+        risk VARCHAR NOT NULL,
+        priority INTEGER NOT NULL,
+        explanation VARCHAR NOT NULL,
+        stages JSON NOT NULL,
+        owner VARCHAR NOT NULL,
+        sensitivity VARCHAR NOT NULL DEFAULT 'internal',
+        task_id VARCHAR,
+        approval_id VARCHAR,
+        outcome JSON,
+        dedupe_key VARCHAR UNIQUE NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX activities_by_subject ON activities (subject_kind, subject_id, created_at);
+    CREATE INDEX activities_by_task ON activities (task_id);
+    CREATE INDEX rule_evaluations_by_rule ON rule_evaluations (rule_id, id)
+    """,
+))

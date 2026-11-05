@@ -31,6 +31,7 @@ GET /v1/installation | query: - | body: -
 GET /v1/installation/continuity | query: - | body: -
 GET /v1/me | query: - | body: -
 GET /v1/operations | query: - | body: -
+GET /v1/rule-templates | query: - | body: -
 GET /v1/specializations | query: - | body: -
 GET /v1/specializations/domains | query: - | body: -
 GET /v1/specializations/library | query: - | body: -
@@ -46,6 +47,8 @@ GET /v1/tasks/{task_id}/lifecycle | query: - | body: -
 GET /v1/tasks/{task_id}/receipts | query: - | body: -
 GET /v1/tasks/{task_id}/state | query: - | body: -
 GET /v1/tasks/{task_id}/trace | query: - | body: -
+GET /v1/workspaces/{ws}/activities | query: - | body: -
+GET /v1/workspaces/{ws}/activities/{aid} | query: - | body: -
 GET /v1/workspaces/{ws}/analyses | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/quality | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/settings | query: - | body: -
@@ -150,6 +153,8 @@ GET /v1/workspaces/{ws}/pulse | query: - | body: -
 GET /v1/workspaces/{ws}/queries | query: - | body: -
 GET /v1/workspaces/{ws}/relations | query: - | body: -
 GET /v1/workspaces/{ws}/reviews | query: - | body: -
+GET /v1/workspaces/{ws}/rules | query: - | body: -
+GET /v1/workspaces/{ws}/rules/{rid}/evaluations | query: - | body: -
 GET /v1/workspaces/{ws}/scenario-models | query: - | body: -
 GET /v1/workspaces/{ws}/scenario-models/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/scenario-models/{name}/scenarios | query: - | body: -
@@ -200,6 +205,8 @@ POST /v1/models/catalog/refresh | query: - | body: -
 POST /v1/tasks/{task_id}/artifacts/{kind} | query: - | body: -
 POST /v1/tasks/{task_id}/follow-up | query: - | body: text
 POST /v1/tasks/{task_id}/{action} | query: - | body: -
+POST /v1/workspaces/{ws}/activities/{aid}/dismiss | query: - | body: -
+POST /v1/workspaces/{ws}/activities/{aid}/run | query: - | body: -
 POST /v1/workspaces/{ws}/analyst/requests | query: - | body: text,workspace_id
 POST /v1/workspaces/{ws}/anticipations/refresh | query: - | body: -
 POST /v1/workspaces/{ws}/anticipations/{aid}/act | query: - | body: action
@@ -274,6 +281,10 @@ POST /v1/workspaces/{ws}/query | query: - | body: sql
 POST /v1/workspaces/{ws}/relations | query: - | body: from_kind,from_name,rel,to_kind,to_name
 POST /v1/workspaces/{ws}/reviews | query: - | body: action,object_id,object_kind,summary
 POST /v1/workspaces/{ws}/reviews/{review_id}/decide | query: - | body: approve
+POST /v1/workspaces/{ws}/rules | query: - | body: spec
+POST /v1/workspaces/{ws}/rules/simulate | query: - | body: spec
+POST /v1/workspaces/{ws}/rules/{rid}/activate | query: - | body: -
+POST /v1/workspaces/{ws}/rules/{rid}/deactivate | query: - | body: -
 POST /v1/workspaces/{ws}/scenario-models | query: - | body: name,spec
 POST /v1/workspaces/{ws}/scenario-models/{name}/analyze | query: - | body: -
 POST /v1/workspaces/{ws}/scenario-models/{name}/evaluate | query: - | body: -
@@ -322,4 +333,5 @@ PUT /v1/workspaces/{ws}/notification-preferences | query: - | body: -
 PUT /v1/workspaces/{ws}/pins/{kind}/{ref_id} | query: - | body: -
 PUT /v1/workspaces/{ws}/profile | query: - | body: -
 PUT /v1/workspaces/{ws}/quotas | query: - | body: -
+PUT /v1/workspaces/{ws}/rules/{rid} | query: - | body: spec
 PUT /v1/workspaces/{ws}/voice/preferences | query: - | body: -

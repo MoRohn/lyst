@@ -114,10 +114,95 @@ isolation and confidential filtering (K); SSE replay after reconnection with `La
 workspace's stream, integration events with dedupe and admin-only posting (J); a forward-only cursor (H at the
 transport); and the envelope schema document.
 
+## Rules and activities (phase 2)
+
+Code: `src/lyst/autonomy.py`; routes in `src/lyst/api/events.py`; workspace migration 111. The rule engine is two
+durable consumers on the event stream: `autonomy.rules` evaluates every active rule of the event's workspace, and
+`autonomy.follow` verifies and delivers when a task an activity started ends.
+
+### A rule
+
+```json
+{"name": "Investigate a revenue deviation", "on": ["external.finance.kpi"], "autonomy": "investigate",
+ "when": {"all": [{"field": "subject.id", "op": "eq", "value": "revenue"},
+                  {"field": "data.value", "op": "pct_change_gte", "value": 15, "other": "data.baseline"}]},
+ "correlate": null, "suppress_seconds": 3600, "max_per_day": 20, "calendar": null, "priority": 6,
+ "action": {"kind": "investigate", "question": "What was {subject.id} last quarter?"}}
+```
+
+* `when` is a tree of comparisons over named envelope fields (`type`, `source`, `sensitivity`, `actor`, `depth`,
+  `subject.kind`, `subject.id`, `data.<key>`) with `eq ne gt gte lt lte in not_in contains exists missing
+  pct_change_gte`, combined with `all`, `any`, `not`: at most 20 comparisons, 4 levels. There is no expression
+  language and no user code; an unknown field is a validation error.
+* `correlate` requires at least `min_count` events of a type within `within_seconds` (optionally on the same subject).
+* `suppress_seconds` keeps a rule from acting on the same subject again within the window; `max_per_day` caps it;
+  `calendar` limits it to weekdays and hours in a time zone.
+* Placeholders in a question or summary are limited to `{subject.id}`, `{subject.kind}`, `{type}`, `{data.<key>}`.
+* Every save is a new version (`event_rule_versions`), and a new version of an active rule returns it to draft.
+
+`GET /v1/rule-templates` lists six starting rules (a failed data contract, a schema change, a broken artifact, a
+recoverable task failure, a metric definition change, a failing connection). They are offered as drafts; none is
+active until an admin turns it on.
+
+### Governance
+
+| Action | Risk | Runs without a person from | Owner needs |
+| --- | --- | --- | --- |
+| `notify` (inbox notice) | low | `prepare` | `workspace.read` |
+| `impact_review` (dependents and repair proposals, from the catalog) | low | `prepare` | `data.read` |
+| `investigate` (a read-only analysis task) | low | `investigate` | `task.create` |
+| `retry_task` (one bounded retry of a recoverable failure) | medium | `automate` | `task.control` |
+| `propose` (an asset repair or an investigation) | high | never: always an approval | `task.control` |
+
+* The autonomy level (`observe`, `suggest`, `prepare`, `investigate`, `automate`) is a ceiling. Below an action's
+  level the activity is a **suggestion** a person runs from Work (`POST .../activities/{id}/run`).
+* A rule whose action is medium or high risk, or that runs at `automate`, needs a `rule.activate` approval before it
+  is active; an approval for an older version does not activate a newer one.
+* At execution the rule owner's permission is checked again, and an event about confidential data is acted on only
+  for an owner who is an admin. A permission lost since activation blocks the activity (`blocked`), it does not run.
+* `retry_task` retries only failures classified `transient`, `model` or `timeout`; the task contract's retry cap
+  (`LYST_TASK_MAX_RETRIES`) still applies, and the template suppresses a second retry of the same task for a day.
+
+### An activity
+
+One per (rule, version, event): a redelivered event, or a replayed stream after the inbox was lost, never opens a
+second one (`dedupe_key`). Stages follow **Detect → Interpret → Qualify → Plan → Authorize → Execute → Verify →
+Deliver → Monitor**, each with a status and a detail drawn from records: the event, the condition's explanation, the
+qualification decision, the plan, the permission or approval, the task or notice, the task's verification (every
+error-severity check passed), the artifact kept, and the follow-up. Statuses: `observed`, `suggested`, `planned`,
+`awaiting_approval`, `running`, `completed`, `needs_attention`, `failed`, `blocked`, `cancelled`.
+
+`GET /v1/workspaces/{ws}/activities/{id}` returns the activity, its trigger event and its **flow** (trigger → rule →
+decision → task → verification → artifact), all from stored records. Each status change is an `activity.changed`
+event in the trigger's chain, so the stream (and the UI) sees it.
+
+Suppressed, capped and chain-limited matches open no activity; they are kept in `rule_evaluations` with the reason
+(`GET .../rules/{id}/evaluations`), 30 days.
+
+### Dry run
+
+`POST /v1/workspaces/{ws}/rules/simulate` evaluates a rule spec over the workspace's recent events, or over events
+given in the request, and returns each decision with its reason and the counts. Nothing is run or recorded.
+
+### Verified (phase 2)
+
+`tests/test_autonomy.py` (10 tests): the rule representation refuses unknown fields, engine records and over-deep
+trees, and explains a percentage deviation; a dry run of the failing-connection rule (scenario E logic) with
+correlation and suppression; scenario A (a schema change opens an impact review listing the metrics computed from
+the dataset, in the event's chain); scenarios B and C (a deviation beyond tolerance starts an investigation, the
+activity completes with the verified briefing artifact, and the task's events continue the chain); scenarios D and F
+(a stale report's repair waits for approval, then runs and keeps the previous version; a rejected one never runs);
+bounded retry of a transient failure and none for an input error; scenario G at the rule layer; scenario L (rules
+feeding each other stop at the chain limit); a suggestion run through the API, and cross-workspace denial.
+
 ## Risks and open work (prioritized)
 
-1. **Rules and activities are not built yet** (phases 2 and 3). Nothing yet decides what an event should cause; the
-   engine only makes events durable, ordered, traceable and safely consumable.
+1. **No UI yet** (phases 4 and 5). Rules, activities, approvals and the flow are reachable through the API; the
+   shared activity components and their place on each page come next.
+8. **Anticipation is not yet a rule source** (phase 6): its findings are not events rules can act on.
+9. **Activity execution runs in the dispatcher.** `impact_review` and `notify` are quick; long work is always a
+   task. A metric-deviation signal currently has to arrive as an event (an integration or a monitor finding); monitors
+   do not yet emit one.
 2. **Single process.** Dispatch, the outbox collector and DuckDB's single writer assume one Lyst process. Running two
    API processes against the same home is not supported; a second process would collect and dispatch twice (the
    inbox would still prevent double handling, but not double collection races on the outbox stamp). A broker is not

@@ -63,3 +63,10 @@ def attach(lyst) -> None:
 
     lyst.harness = HarnessService(lyst.stores, lyst.guard, lyst.runtime, memory=lyst.memory)
     lyst.runtime.harness = lyst.harness  # applies a harness.update approval when a person decides it
+    from .autonomy import AutonomyService  # noqa: PLC0415 - events lane
+
+    lyst.autonomy = AutonomyService(lyst)
+    lyst.autonomy.attach()  # durable consumers: rule evaluation, and verify/deliver when an activity's task ends
+    lyst.runtime.autonomy = lyst.autonomy
+    _events.EMITTED.update({"activity.opened": "a rule matched an event and opened an activity",
+                            "activity.changed": "an activity moved to another lifecycle state"})
