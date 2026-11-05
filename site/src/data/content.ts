@@ -100,7 +100,7 @@ export const capabilities: {
     icon: 'Cable',
     title: 'Connect',
     text: 'Databases, APIs and any file, shown before anything loads. Every connection reports its health, warns before credentials expire and tests a fix for schema changes.',
-    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'APIs drafted from OpenAPI', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
+    items: ['PostgreSQL', 'SQLite', 'REST APIs', 'Add from an API description', 'Spreadsheets, PDFs and Word', 'Files by URL', 'MCP server', 'Warehouses and SaaS'],
     status: 'dev',
   },
   {
@@ -122,7 +122,7 @@ export const openSource = {
     { icon: 'Database', title: 'DuckDB-powered', text: 'Fast, in-process SQL on local and remote data.' },
     { icon: 'Server', title: 'Self-hostable', text: 'Deploy on a laptop, a server or your cloud.' },
     { icon: 'Cpu', title: 'Model choice, with real costs', text: 'Economy, Balanced or Frontier levels with measured routing and automatic fallback, or a local model. Cost per call is shown.' },
-    { icon: 'Eye', title: 'Transparent execution', text: 'Every query and calculation can be inspected.' },
+    { icon: 'Accessibility', title: 'Accessible by default', text: 'One design system, light and dark, with every screen checked for WCAG 2.2 AA.' },
     { icon: 'Puzzle', title: 'Extensible integrations', text: 'A Python SDK, MCP, an event stream and signed webhooks, plus connectors and skills as plain code.' },
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
   ],
@@ -133,7 +133,7 @@ export const openSource = {
 export const architecture = [
   {
     layer: 'Your team',
-    items: ['Analyst workspace', 'Voice (in development)', 'Python SDK', 'MCP', 'Event stream and signed webhooks'],
+    items: ['Analyst workspace', 'Voice', 'Python SDK', 'MCP', 'Event stream and signed webhooks'],
     tone: 'ink',
   },
   {
@@ -177,7 +177,7 @@ export const workflow = {
   eyebrow: 'How Lyst works',
   headline: 'A better way to get analytical work done.',
   steps: [
-    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Ask a question, or hand over a vague project. It becomes a living spec whose requirements count as met only with evidence.' },
+    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Type or speak a question, or hand over a vague project. It becomes a living spec whose requirements count as met only with evidence.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with this month at a glance, a verified answer, a what-if, a dataset’s trust check, a connected source, an analysis that knows it is out of date, work waiting on a teammate, and a dashboard Studio built from one sentence, “an operating margin dashboard by region, refreshed weekly.”',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home, a verified answer, the What if explorer, data that checks itself, analyses that know when they are out of date, team work, the ⌘K palette, and a dashboard Studio built from one sentence.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
