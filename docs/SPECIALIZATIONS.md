@@ -97,6 +97,45 @@ exactly as before (tested):
   automated, the answer's assumptions say so in plain words ("This kind of analysis also calls for checks Lyst does
   not run automatically yet: ..."). The note contains no digits, so it can never trip the unbacked-number check.
 
+## Slice 3: real methods, earned evidence, an honest audit
+
+**Audit** (`specialists/audit.py`, `scripts/audit_specializations.py --write` → `docs/SPECIALIZATIONS_AUDIT.md`,
+`docs/quality/specializations-audit.json`). Every profile's example requests are routed and then run to the end. On
+the demo workspace before this slice: 268 of 272 routed to their own profile, only 9 produced a verified answer, 257
+were declined (no metric or data for the discipline), and several were "answered" with an unrelated metric.
+
+**Fit check** (`applied.fit`, check `fits_request` in `validate`). A routed request whose specific task classes the
+executed plan does not address is no longer presented as verified: "Is our demand model drifting?" used to return
+a support-ticket total as a complete answer; it now reads "Not verified: the request asks to find observations that
+depart from expected behaviour ...". Unrouted tasks are unchanged.
+
+**Specialist methods** (`analytics/methods.py`, `specialists/methods.py`, capability `run_method`). Seven standard
+methods: k-means segmentation (silhouette-chosen k), logistic classification with a time-ordered holdout, process
+mining (variants, handoff waits, rework, cycle times), great-circle distances, two-source reconciliation, graph
+components and degree, event-log bursts against each entity's own baseline. A routed request that no governed
+metric covers runs one when (a) the request asks for it in words and (b) it names the dataset: every distinctive
+word of the dataset's name must appear ("login events" names `login_events`, "events" does not). An earlier draft
+that also used an unnamed dataset whose columns happened to fit produced confident answers on the wrong data in the
+audit (graph statistics for a vulnerability question); that path was removed. Every read goes through
+`DataService.query`: SQL guard, row and column policies, governance access checks (tested with a restricted
+dataset), audit. `run_method` is in the capability registry, so skill discovery lists it.
+
+**Samples and evidence** (`specialists/samples.py`, `representative.py`, `scripts/evidence_specializations.py --write`
+→ `evidence.json`). Synthetic datasets with planted answers (a slow approval step, one account's login burst, two
+stores far from any warehouse, three ledger breaks, two supplier groups, three customer segments, churn driven by
+support tickets). Thirteen representative scenarios check the *content* of the answer, not only that it finished.
+All thirteen pass; the test suite re-runs them and fails if one breaks or if `evidence.json` disagrees.
+
+Maturity now: **8 Operational** (data, BI, data quality, statistical, financial data, financial systems, process
+mining, CRM; computed live), 98 Equipped, 30 Defined. Five disciplines have passing evidence but stay at Level 1
+because a capability they require is only partial: forecasting and predictive analytics (model evaluation covers
+forecasts and Lyst's own answers only; classification is binary logistic only), cybersecurity and network (tabular
+logs only), geospatial (points only). A computed level never ignores that.
+
+Audit after this slice: see `docs/SPECIALIZATIONS_AUDIT.md`. Most example requests are still declined, correctly:
+they ask about data the demo workspace does not have (CI runs, cloud bills, scanner exports). The honest next step
+per discipline is data, not more profile text.
+
 ## Known limitations
 
 - **Routing accuracy is measured on the author's own cases.** 58 of 58 labelled cases route correctly. The 10
@@ -105,14 +144,16 @@ exactly as before (tested):
 - The assembly changes verification and disclosure, not the computation: the plan's capabilities are still chosen
   by the existing engine, so a specialized request gets the same figures as a plain one, checked harder and
   reported more honestly (slice 2, below). Choosing different methods per discipline is later work.
-- No profile is Operational: no per-profile representative tasks have been executed and recorded.
+- Only 13 disciplines have representative tasks; the rest have none recorded yet.
+- The engine's metric matching sometimes maps a word to a governed metric loosely (for example "peak demand" to
+  support tickets); the fit check catches some of these, not all.
 - Custom workspace profiles, the Foundry hook for gaps, anticipation links and the UI surfaces are later slices.
 
 ## Backlog (in order)
 
 1. Done in slice 2, except the brief reaching the narrative step and per-discipline method choice.
-2. Operational evidence: representative scenarios per equipped profile on the demo data, recorded in
-   `evidence.json` by a script, so Level 3 is earned per profile.
+2. Operational evidence: started in slice 3 (13 disciplines). Next: scenarios for the remaining equipped profiles,
+   each with sample data that has a known answer.
 3. Workspace custom profiles (workspace migration 70), admin-only, versioned, validated against the same schema and
    reference checks, never able to add permissions.
 4. Foundry hook: an `unsupported` task class becomes a drafted, tested, approval-gated capability proposal.

@@ -96,3 +96,43 @@ def disclosure(expertise: dict[str, Any] | None, rules: list[dict[str, Any]]) ->
             "not_automated": unchecked,
             "note": note,
             "limitations": list(expertise.get("limitations") or [])[:4]}
+
+
+# What each engine intent actually answers, in task classes. Used to catch an answer to a different question: a
+# routed request whose specific task classes the executed plan does not address is not presented as verified.
+INTENT_COVERS: dict[str, set[str]] = {
+    "value": {"descriptive_reporting", "cost_analysis"},
+    "breakdown": {"descriptive_reporting", "segmentation", "cost_analysis", "attribution"},
+    "explain": {"variance_explanation", "root_cause", "cost_analysis", "descriptive_reporting", "recommendation"},
+    "trend": {"trend_analysis", "anomaly_detection", "descriptive_reporting"},
+    "forecast": {"forecasting", "capacity_planning", "trend_analysis"},
+    "profile": {"data_profiling", "data_quality", "data_modeling"},
+    "correlate": {"statistical_testing", "variance_explanation"},
+    "impact": {"causal_estimation", "experiment_analysis", "statistical_testing"},
+    "what_if": {"simulation", "recommendation", "optimization", "capacity_planning"},
+    "dashboard": {"dashboard_design", "descriptive_reporting"},
+}
+# requests in these intents are explicit instructions (SQL, a named skill, a refresh) or already explain themselves
+FIT_EXEMPT = {"sql", "skill", "gap", "refresh", "sync", "causal_unsupported"}
+GENERIC = {"descriptive_reporting", "cost_analysis", "risk_assessment"}
+
+
+def fit(expertise: dict[str, Any] | None, intent: str | None, covers: set[str] | None = None) -> tuple[bool, str] | None:
+    """Does the executed plan address what the routed request asks for? None when there is nothing to judge.
+    ``covers`` overrides the intent's task classes (a specialist method states its own)."""
+    if not expertise or expertise.get("general") or not intent or intent in FIT_EXEMPT:
+        return None
+    if covers is None and intent not in INTENT_COVERS:
+        return None
+    asked = [tc for tc in expertise.get("task_classes") or [] if tc not in GENERIC]
+    if not asked:
+        return None
+    covered = [tc for tc in asked if tc in (covers if covers is not None else INTENT_COVERS[intent])]
+    if covered:
+        return True, "the answer addresses " + ", ".join(tc.replace("_", " ") for tc in covered)
+    from .schema import TASK_CLASSES  # noqa: PLC0415
+
+    need = "; ".join(TASK_CLASSES[tc].rstrip(".").lower() for tc in asked[:2])
+    ran = "a governed metric" if covers is None else "a different method"
+    return False, (f"the request asks to {need}, and the only analysis Lyst could run on this workspace's data reports "
+                   f"{ran} instead, so this answer does not address the question")

@@ -1,1 +1,119 @@
-{}
+{
+ "business_intelligence_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Build a dashboard for weekly revenue by region"
+   ]
+  }
+ },
+ "crm_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Segment our customers into groups"
+   ]
+  }
+ },
+ "cybersecurity_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Analyze the login events for suspicious patterns"
+   ]
+  }
+ },
+ "data_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What is our revenue by region last quarter?"
+   ]
+  }
+ },
+ "data_quality_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Profile the pnl dataset for data quality"
+   ]
+  }
+ },
+ "financial_data_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did operating margin decline last quarter?"
+   ]
+  }
+ },
+ "financial_systems_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Reconcile ledger erp against ledger bank"
+   ]
+  }
+ },
+ "forecasting_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Forecast revenue for the next two quarters"
+   ]
+  }
+ },
+ "geospatial_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which stores are more than 300 km from a warehouse?"
+   ]
+  }
+ },
+ "network_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which suppliers are connected in the supplier links network?"
+   ]
+  }
+ },
+ "predictive_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which customers are likely to churn?"
+   ]
+  }
+ },
+ "process_mining_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Where does our order process get stuck? Use the order events."
+   ]
+  }
+ },
+ "statistical_analyst": {
+  "operational": {
+   "recorded": "2026-11-04",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Is the correlation between revenue and support tickets significant?"
+   ]
+  }
+ }
+}
