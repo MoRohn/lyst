@@ -51,12 +51,14 @@ IDLE_SESSION_SECONDS = 30 * 60
 
 
 class VoiceService:
-    def __init__(self, stores: Stores, guard: Guard, *, runtime, llm=None, governance=None, gateway: AudioGateway | None = None) -> None:
+    def __init__(self, stores: Stores, guard: Guard, *, runtime, llm=None, governance=None, gateway: AudioGateway | None = None,
+                 core=None) -> None:
         self.stores = stores
         self.guard = guard
         self.runtime = runtime
         self.llm = llm
         self.governance = governance
+        self.core = core or (lambda: None)  # the Universal Analyst Core, when the specializations lane is installed
         if gateway is None:
             engines = [BrowserEngine(), PersonaPlexEngine(os.environ.get("LYST_PERSONAPLEX_URL") or None),
                        OpenRouterTranscriber(llm, model=os.environ.get("LYST_VOICE_STT_MODEL") or None),
@@ -198,7 +200,7 @@ class VoiceService:
 
     # -- a turn --------------------------------------------------------------------------------------------------
     def turn(self, actor: Principal, ws: str, sid: str, *, text: str | None = None, audio: bytes | None = None,
-             mime: str = "audio/wav") -> dict[str, Any]:
+             mime: str = "audio/wav", confidence: float | None = None) -> dict[str, Any]:
         """One utterance: audio (transcribed through the engine order) or text the person's device already
         recognised. Returns what Lyst understood, what it did, and what to say back."""
         s = self._own(actor, ws, sid)
@@ -219,6 +221,7 @@ class VoiceService:
             except EngineError as exc:
                 raise ValueError(str(exc)) from exc
             heard, source = tr.text, f"audio:{tr.engine}"
+            confidence = tr.confidence if tr.confidence is not None else confidence
         elif text is not None:
             heard, source = text, "device_text"
         else:
@@ -228,11 +231,7 @@ class VoiceService:
         out: dict[str, Any] = {"session_id": sid, "understood": intent.text, "intent": intent.kind, "engines": attempts}
         task_id = None
         if intent.kind == "question":
-            # the same call as a typed question: task.create permission, data policy, budgets, admission
-            turn_key = "vq_" + uuid.uuid4().hex[:12]
-            task_id = self.runtime.submit(actor, ws, intent.text, idempotency_key=f"voice:{sid}:{turn_key}")
-            reply = REPLIES["question"]
-            out["task_id"] = task_id
+            task_id, reply = self._ask(actor, ws, sid, intent.text, confidence, out)
         elif intent.kind == "stop_speaking":
             # stops Lyst talking (the page stops playback); the analysis keeps running
             reply = REPLIES["stop_speaking_running"] if self._running_task(actor, ws, s) else REPLIES["stop_speaking"]
@@ -268,6 +267,29 @@ class VoiceService:
         out["reply"] = {"text": reply, "speak": bool(reply) and self._speaks(actor, ws, cfg)}
         self.guard.audit(actor, ws, "voice.turn", sid, "ok", {"intent": intent.kind, "source": source.split(":")[0]})
         return out
+
+    def _ask(self, actor: Principal, ws: str, sid: str, text: str, confidence: float | None, out: dict[str, Any]) -> tuple[str | None, str]:
+        """A spoken question goes where a typed one goes: the Analyst Core (same expertise routing as text, same
+        permission checks, and nothing starts on a low-confidence transcript), or the runtime directly when the
+        specializations lane is not installed."""
+        key = f"voice:{sid}:vq_{uuid.uuid4().hex[:12]}"
+        core = self.core()
+        if core is None:
+            task_id = self.runtime.submit(actor, ws, text, idempotency_key=key)
+            out["task_id"] = task_id
+            return task_id, REPLIES["question"]
+        from ..specialists.core import AnalystRequest  # noqa: PLC0415
+
+        resp = core.handle(actor, AnalystRequest(workspace_id=ws, text=text, channel="voice", idempotency_key=key,
+                                                 transcript_confidence=confidence))
+        out["analyst"] = {"request_id": resp.request_id, "status": resp.status, "message": resp.message,
+                          "limitations": resp.limitations}
+        if resp.status == "needs_confirmation":
+            # nothing started: the page shows what was heard and the person asks it (typed or tapped) if it is right
+            out["confirm_transcript"] = {"text": text, "confidence": confidence}
+            return None, resp.message
+        out["task_id"] = resp.task_id
+        return resp.task_id, f"{REPLIES['question']} {resp.message}"
 
     def _speaks(self, actor: Principal, ws: str, cfg: dict[str, Any]) -> bool:
         pref = self.preferences(actor, ws)["speak_results"]

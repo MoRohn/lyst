@@ -12,6 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from lyst.api import create_app
 from lyst.security import AccessDenied
+from lyst.specialists.core import AnalystRequest
 from lyst.voice.coordinator import classify, speak_numbers, speakable
 from lyst.voice.engines import (
     GROUNDED_PERSONA,
@@ -103,7 +104,7 @@ def test_spoken_question_runs_as_the_person_and_reads_back_the_verified_answer(v
     viewer = _member(lyst, owner, "vi@n.test", "viewer")
     s = lyst.voice.start(viewer, WS)
     out = lyst.voice.turn(viewer, WS, s["id"], audio=b"FAKE: What was revenue last month?", mime="audio/wav")
-    assert out["intent"] == "question" and out["reply"]["text"] == "Checking that now."
+    assert out["intent"] == "question" and out["reply"]["text"].startswith("Checking that now. Lyst will")
     assert out["engines"][-1] == {"engine": "fake", "outcome": "ok", "ms": out["engines"][-1]["ms"]}
     task = lyst.stores.control.query("SELECT created_by, request FROM tasks WHERE id = ?", [out["task_id"]])[0]
     assert task["created_by"] == viewer.user_id  # the person's own identity, not a voice or system principal
@@ -120,6 +121,28 @@ def test_spoken_question_runs_as_the_person_and_reads_back_the_verified_answer(v
     turns = lyst.voice.session(viewer, WS, s["id"])["turns"]
     assert [t["role"] for t in turns] == ["person", "lyst", "person", "lyst"]
     assert not any(t["has_audio"] for t in turns)
+
+
+def test_voice_questions_go_through_the_analyst_core_like_typed_ones(voiced):
+    lyst, owner = voiced
+    s = lyst.voice.start(owner, WS)
+    q = "Why did operating margin decline last quarter?"
+    out = lyst.voice.turn(owner, WS, s["id"], text=q, confidence=0.93)
+    typed = lyst.analyst_core.handle(owner, AnalystRequest(workspace_id=WS, text=q, submit=False))
+    assert out["analyst"]["status"] == "queued" and out["task_id"]
+    req = lyst.runtime.get(owner, out["task_id"])["request"]
+    assert req["channel"] == "voice"
+    voiced_roles = [r["id"] for r in req["expertise"]["roles"]]
+    assert voiced_roles == [r["id"] for r in typed.expertise["roles"]]  # voice and text select the same expertise
+    # a shaky transcript starts nothing; the page shows what was heard
+    shaky = lyst.voice.turn(owner, WS, s["id"], text="why did margin decline", confidence=0.3)
+    assert shaky["analyst"]["status"] == "needs_confirmation" and "task_id" not in shaky
+    assert shaky["confirm_transcript"]["text"] == "why did margin decline" and "Nothing has started" in shaky["reply"]["text"]
+    assert lyst.stores.control.scalar("SELECT count(*) FROM tasks") == 1
+    lyst.voice.core = lambda: None  # without the specializations lane, questions go to the runtime directly
+    plain = lyst.voice.turn(owner, WS, s["id"], text="what was revenue last month")
+    assert plain["reply"]["text"] == "Checking that now." and "analyst" not in plain
+    lyst.runtime.drain()
 
 
 def test_speech_never_approves_or_changes_anything(voiced):
@@ -354,6 +377,11 @@ def test_voice_over_http_and_duplex_stream(voiced):
                    json={"audio_b64": base64.b64encode(b"FAKE: what was revenue last month").decode()}).json()
         assert t["intent"] == "question" and t["task_id"]
         assert c.post(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/turns", headers=h, json={"audio_b64": "%%%"}).status_code == 400
+        low = c.post(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/turns", headers=h,
+                     json={"text": "what was revenue", "confidence": 0.2}).json()
+        assert low["analyst"]["status"] == "needs_confirmation"
+        assert c.post(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/turns", headers=h,
+                      json={"text": "x", "confidence": 2}).status_code == 400
         lyst.runtime.drain()
         a = c.get(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/answer/{t['task_id']}", headers=h).json()
         assert a["ready"] and "Revenue" in a["speak_text"]
