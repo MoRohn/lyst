@@ -158,14 +158,19 @@ what it means and what to do. **Detail** adds tables, hypotheses, assumptions an
 plan, every check and every query. **Brief** opens the two-line version with one chart, what to do and the PDF
 briefing, ready to forward; executive requests lead with it. Limitations stay visible at every depth.
 
-Under each answer you can act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved
-analysis on a schedule, **Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, **Share** assigns
-it to a colleague or asks for a review, **Discuss** opens its thread, and **How this ran** shows each step, query
-and model call with its timing. Four questions sit under every answer: **How was this figured? · Where is it from?
-· What could change it? · Can it be repeated?** Each opens the engine's own explanation from its records, and the
-last reruns the recorded queries under your current permissions.
-Below them, **Next steps** offers up to three follow-ups grounded in what the answer found, each with Run now (or
-Watch it), Later and Why.
+<p align="center">
+  <img src="docs/images/more-menu.png" alt="An answer's More menu: Ask Lyst (by region, by product line, compare to last year, what drove it, make a dashboard) and Do (repeat every Monday, needs approval; save a briefing)" width="70%">
+</p>
+
+**More**, beside Brief and Focus, lists what Lyst can do with this answer right now: break it down, compare it,
+explain it, make a dashboard, repeat it (marked as needing approval) or save a briefing. Under each answer you can
+act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved analysis on a schedule,
+**Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, **Share** assigns it to a colleague or
+asks for a review, **Discuss** opens its thread, and **How this ran** shows each step, query and model call with
+its timing. Four questions sit under every answer: **How was this figured? · Where is it from? · What could change
+it? · Can it be repeated?** Each opens the engine's own explanation from its records, and the last reruns the
+recorded queries under your current permissions. Below them, **Next steps** offers up to three follow-ups grounded
+in what the answer found, each with Run now (or Watch it), Later and Why.
 
 <p align="center">
   <img src="docs/images/next-steps.png" alt="Under an answer: the act bar, the four questions about the answer, What if and Compare options, and three Next steps with Run now, Later and Why" width="80%">
@@ -463,6 +468,16 @@ where they point, with Mark all read and "What to tell me about".
   network exposure, the sandbox, the model, stalled work, and the profile's own promises) and gives the fix for
   each, with no key, token, path or data in its report. An air-gapped Compose stack is in `deploy/offline/`
   (written, not yet run).
+* **Knows what can be done with each thing, and by whom.** Every dataset, metric, answer, report, workflow,
+  scenario model and decision record knows the actions available on it right now for the person looking, filtered
+  by role, data policy and its state, and anything that changes something asks a person first. The server
+  re-checks every action when it runs and refuses, and audits, anything not offered. Every task reports one
+  status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
+  tied to the event that caused it. Work started from any page lands in Work and records where it began, and its
+  verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
+  and each repair is verified. On screen, **More** sits beside Brief and Focus on every answer, and on metric
+  definitions, Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
+  approval marked; Work's list and board show each task's lifecycle state and what it is doing now.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
