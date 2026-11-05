@@ -24,6 +24,7 @@ from ..app import Lyst
 from ..connectors import ConnectorError, manifests
 from ..contracts import ContractSpec
 from ..data.sqlguard import QueryRejected
+from ..followups import FollowUps
 from ..operations import QuotaExceeded
 from ..secrets import MasterKeyMissing, ReauthRequired, SecretUnavailable
 from ..secrets import providers as credential_providers
@@ -124,6 +125,11 @@ class AllocateIn(BaseModel):
 
 class FrameIn(BaseModel):
     question: str
+
+
+class FollowUpIn(BaseModel):
+    text: str
+    timezone: str | None = None  # for "schedule this every Monday at 8"
 
 
 class QuotasIn(BaseModel):
@@ -1104,6 +1110,18 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.get("/v1/tasks/{task_id}/trace")
     def task_trace(request: Request, task_id: str, user: User):
         return L(request).runtime.trace(user, task_id)
+
+    @app.post("/v1/tasks/{task_id}/follow-up", status_code=202)
+    def follow_up(request: Request, task_id: str, body: FollowUpIn, user: User):
+        """Apply a follow-up ("break that down by region", "compare it to last year", "make this a dashboard",
+        "schedule this every Monday") to an earlier answer; the new task records what it came from and what changed."""
+        lyst = L(request)
+        return FollowUps(lyst.runtime, lyst.semantic).apply(user, task_id, body.text, timezone=body.timezone)
+
+    @app.get("/v1/workspaces/{ws}/skills/discover")
+    def discover_skills(request: Request, ws: str, q: str, user: User):
+        lyst = L(request)
+        return lyst.skills.discover(user, ws, q, lyst.services.registry)
 
     @app.post("/v1/tasks/{task_id}/{action}")
     def control(request: Request, task_id: str, action: str, user: User):

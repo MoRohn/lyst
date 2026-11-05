@@ -218,6 +218,16 @@ class SkillService:
                     best = (len(phrase), s)
         return best[1] if best else None
 
+    def discover(self, actor: Principal, ws: str, objective: str, registry=None, *, limit: int = 5) -> dict[str, Any]:
+        """Approved skills (and built-in capabilities) ranked by what they do, with compatibility, permission, health
+        and use checks; ``reuse`` names the skill to run instead of drafting a new one (see skills.discovery)."""
+        self.guard.require(actor, ws, "workspace.read")
+        from .discovery import discover  # noqa: PLC0415
+
+        if registry is None:
+            from ..analyst.registry import REGISTRY as registry  # noqa: PLC0415, N811
+        return discover(self, registry, actor, ws, objective, limit=limit)
+
     def execute(self, actor: Principal, ws: str, name: str, *, task_id: str | None = None,
                 params: dict[str, Any] | None = None) -> dict[str, Any]:
         rows = self._db(ws).query("SELECT version, source, permissions FROM skills WHERE name = ? AND status = 'approved'",
