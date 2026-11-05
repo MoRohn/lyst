@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import advanced, anticipate, governance, integrations, kit, onboarding, voice
+from lyst.ui import advanced, anticipate, governance, integrations, kit, onboarding, packs, voice
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -486,7 +486,9 @@ def workspace_section() -> None:
             usage_and_limits()
         with kit.card("grp_webhooks"):
             integrations.webhooks_section()
-    # workspace packs (UX #94) join here as their own group
+    if admin:
+        with kit.group("Move or copy this workspace", "packs"):
+            packs.section()
     try:
         people = api.get(f"/v1/workspaces/{ws}/members")
     except APIError as e:

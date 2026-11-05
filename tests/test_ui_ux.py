@@ -468,3 +468,19 @@ def test_specializations_and_python_have_their_place(seeded, ui):  # noqa: F811
     assert not at.exception, [e.value for e in at.exception]
     if env.get("available"):
         assert any(t.label == "Python" for t in at.tabs)
+
+
+def test_admins_can_pack_the_workspace_with_a_confirmed_passphrase(seeded, ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "workspace"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    make = next(b for b in at.button if b.label == "Make a pack")
+    assert make.disabled  # nothing until the passphrase is long enough and typed twice
+    at.text_input(key="pk_p1").set_value("correct horse battery").run()
+    at.text_input(key="pk_p2").set_value("correct horse battery").run()
+    next(b for b in at.button if b.label == "Make a pack").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(b.label == "Download" for b in at.get("download_button"))
