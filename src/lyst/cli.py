@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -73,7 +74,28 @@ def issue_token(email: str, name: str | None, hours: int | None, owner_of: str |
         lyst.close()
 
 
-def init_cmd(recovery: bool, quiet: bool) -> None:
+def _write_secret(path: str | Path, text: str) -> Path:
+    """Write a secret to a new file only its owner can read (refuses to overwrite)."""
+    path = Path(path).expanduser()
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(text + "\n")
+    return path
+
+
+def _show_key(key_hex: str, out: str | None, label: str) -> None:
+    """Hand a master key to the operator: into ``out`` (0600) when given, else on an interactive terminal only, so it
+    never lands in a log or a pipe by accident."""
+    if out:
+        print(f"{label} written to {_write_secret(out, key_hex)} (readable only by you); keep it offline.", file=sys.stderr)
+    elif sys.stdout.isatty():
+        print(f"{label}, shown once; keep it offline (Lyst never stores it):", file=sys.stderr)
+        print(key_hex)
+    else:
+        raise SystemExit(f"Not shown: standard output is not a terminal. Rerun with --out FILE to save the {label.lower()}.")
+
+
+def init_cmd(recovery: bool, quiet: bool, out: str | None = None) -> None:
     """Initialise encryption on this machine: generate the master key into the OS credential store (the browser's
     setup page does the same). ``--recovery`` restores a saved key instead; ``--show`` prints the recovery copy."""
     import getpass
@@ -89,6 +111,9 @@ def init_cmd(recovery: bool, quiet: bool) -> None:
         mk = masterkey.store_into_keyring(value)
         print(f"Stored the master key in the {masterkey.keyring_available()} credential store (service 'lyst').")
         return
+    if not quiet and not out and not sys.stdout.isatty():
+        sys.exit("Standard output is not a terminal, so the recovery copy could not be shown safely. Rerun with "
+                 "--out FILE (written readable only by you) or --quiet.")
     if masterkey.keyring_available() is None:
         sys.exit("This machine has no usable OS credential store. For an unattended deployment mount the key at "
                  "$LYST_SECRETS_DIR/LYST_MASTER_KEY, serve it from OpenBao (LYST_OPENBAO_URL) or inject LYST_MASTER_KEY.")
@@ -97,11 +122,11 @@ def init_cmd(recovery: bool, quiet: bool) -> None:
     if quiet:
         print("Recovery copy not shown (--quiet): export it from the credential store and keep it offline.", file=sys.stderr)
     else:
-        print("Recovery copy, shown once; keep it offline (Lyst never stores it):", file=sys.stderr)
-        print(mk.key.hex())
+        _show_key(mk.key.hex(), out, "Recovery copy")
 
 
-def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = True, yes: bool = False) -> str:
+def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = True, yes: bool = False,
+                      out: str | None = None) -> str:
     """Root-key rotation with the engine stopped. Every database is copied under keys derived from the new master
     key and every secret's data key is re-wrapped in the copy; only when all of that succeeded are the files
     swapped and the anchor updated. A failure anywhere before the swap leaves the installation untouched."""
@@ -117,6 +142,10 @@ def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = Tru
         sys.exit("No master key is available; nothing to rotate.")
     if settings.master_key_source not in ("keyring", "env", "file", "dev-keyfile") and update_anchor and not yes:
         sys.exit(f"The master key comes from {settings.master_key_source}; rotate it there and rerun with --yes to re-key the files.")
+    needs_display = update_anchor and settings.master_key_source != "keyring"
+    if needs_display and not out and not sys.stdout.isatty():
+        sys.exit("The new key has to be placed at the anchor by hand, and standard output is not a terminal. Rerun with "
+                 "--out FILE (written readable only by you). Nothing was changed.")
     new_key = new_key or rnd.token_bytes(32)
     staging = settings.home / "backups" / ".rekey"
     if staging.exists():
@@ -134,7 +163,7 @@ def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = Tru
         finally:
             ctl.close()
     # swap: old files stay beside the new ones as *.pre-rotation until the operator removes them
-    swapped = []
+    swapped: list[tuple[Path, Path | None]] = []
     try:
         for live, copy in pairs:
             keep = live.with_name(live.name + ".pre-rotation")
@@ -143,28 +172,48 @@ def rotate_master_key(*, new_key: bytes | None = None, update_anchor: bool = Tru
             wal = live.with_name(live.name + ".wal")
             if wal.exists():
                 wal.unlink()
-            if live.exists():
+            moved_aside = live.exists()
+            if moved_aside:
                 live.rename(keep)
-            swapped.append((live, keep))
-            shutil.move(copy, live)
-        if update_anchor and settings.master_key_source == "keyring":
-            from .secrets import masterkey
-
-            masterkey.store_into_keyring(new_key.hex())
-    except Exception:
-        for live, keep in swapped:  # put the old files back
-            if live.exists():
-                live.unlink()
-            if keep.exists():
-                keep.rename(live)
-        raise
-    finally:
+            try:
+                shutil.move(copy, live)
+            except BaseException:
+                swapped.append((live, keep if moved_aside else None))
+                raise
+            swapped.append((live, keep if moved_aside else None))  # recorded once the new file is in place
+    except BaseException:
+        problems = []
+        for live, keep in swapped:  # put every old file back; one failure does not stop the rest
+            try:
+                live.unlink(missing_ok=True)
+                if keep is not None and keep.exists():
+                    keep.rename(live)
+            except OSError as exc:
+                problems.append(f"{live}: {exc}")
         shutil.rmtree(staging, ignore_errors=True)
+        if problems:
+            print("Could not put back: " + "; ".join(problems) + ". The previous files are the *.pre-rotation copies "
+                  "next to them; rename them back by hand before starting Lyst.", file=sys.stderr)
+        raise
+    shutil.rmtree(staging, ignore_errors=True)
+    # The files are swapped. The anchor update is a separate step: if it fails, the files are NOT rolled back (the
+    # new key is the one that opens them now), and the operator gets the key and the way out instead.
     if update_anchor and settings.master_key_source == "keyring":
+        from .secrets import masterkey
+
+        try:
+            masterkey.store_into_keyring(new_key.hex())
+        except Exception as exc:
+            print(f"The files are re-keyed, but storing the new key in the credential store failed ({exc}). Save the new "
+                  "key now and run `lyst init --recovery` with it; or rename the *.pre-rotation files back to keep the old key.",
+                  file=sys.stderr)
+            _show_key(new_key.hex(), out, "New master key")
+            raise SystemExit(1) from exc
         print("Rotated the master key; the credential store holds the new one. Previous database files are kept as *.pre-rotation.")
     elif update_anchor:
-        print(f"Rotated the files. Place this new key at the anchor ({settings.master_key_source}) before the next start:", file=sys.stderr)
-        print(new_key.hex())
+        print(f"Rotated the files. Place the new key at the anchor ({settings.master_key_source}) before the next start.",
+              file=sys.stderr)
+        _show_key(new_key.hex(), out, "New master key")
     return new_key.hex()
 
 
@@ -195,12 +244,24 @@ def ui_address(env: dict[str, str]) -> tuple[str, bool]:
     return address, address in ("localhost", "127.0.0.1", "::1")
 
 
+def _env_port(var: str, default: int) -> int:
+    """A port from the environment, or a clear exit when it is not a number between 1 and 65535."""
+    raw = os.environ.get(var) or str(default)
+    try:
+        port = int(raw)
+    except ValueError:
+        raise SystemExit(f"{var}={raw!r} is not a port number; set it to a number between 1 and 65535, or unset it.") from None
+    if not 1 <= port <= 65535:
+        raise SystemExit(f"{var}={port} is out of range; set it to a number between 1 and 65535, or unset it.")
+    return port
+
+
 def _port(var: str, default: int, avoid: set[int]) -> tuple[int, str]:
     """The port to use and a note if it moved. A port the person set explicitly is kept, and a busy one is an error."""
     from .launch import pick_port, port_free
 
     if os.environ.get(var):
-        port = int(os.environ[var])
+        port = _env_port(var, default)
         if not port_free(port):
             raise SystemExit(f"Port {port} ({var}) is in use by another program. Pick a free one, or unset {var} "
                              "and Lyst will choose one.")
@@ -328,7 +389,7 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
         if not hold:
             return info
         while not stop["now"] and all(p.poll() is None for p in procs):
-            signal.pause() if hasattr(signal, "pause") else time.sleep(0.5)
+            time.sleep(0.5)  # polled, not signal.pause(): a child's exit (SIGCHLD) would never wake a pause
         if not stop["now"]:
             gone = "engine" if procs[0].poll() is not None else "interface"
             print(f"The {gone} stopped unexpectedly (the lines above say why); stopping the rest.", file=sys.stderr)
@@ -398,8 +459,7 @@ def start_checks(as_json: bool) -> int:
     from .launch import preflight
 
     settings = load_settings()
-    checks = preflight(settings.home, api_port=int(os.environ.get("LYST_PORT", "8770")),
-                       ui_port=int(os.environ.get("LYST_UI_PORT", "8501")))
+    checks = preflight(settings.home, api_port=_env_port("LYST_PORT", 8770), ui_port=_env_port("LYST_UI_PORT", 8501))
     if as_json:
         print(json.dumps([c.__dict__ for c in checks]))
     else:
@@ -416,11 +476,16 @@ def backup(dest: Path) -> None:
 
     from .app import Lyst
 
-    try:
-        lyst = Lyst.build()
-    except duckdb.IOException as exc:
-        if "lock" not in str(exc).lower():
-            raise
+    if _engine_running():
+        lyst = None
+    else:
+        try:
+            lyst = Lyst.build()
+        except duckdb.IOException as exc:
+            if "lock" not in str(exc).lower():  # fallback for an engine this home has no run record of
+                raise
+            lyst = None
+    if lyst is None:
         m = _backup_through_engine(dest)
         print(f"The engine is running, so it took the backup: {len(m['files'])} database(s) copied to {dest} at "
               f"{m['taken_at']}. {m['note']}")
@@ -432,11 +497,35 @@ def backup(dest: Path) -> None:
         lyst.close()
 
 
+def _engine_running() -> bool:
+    """Whether the run record says an engine is up on this LYST_HOME (the stable signal; DuckDB's lock-error wording
+    is only a fallback)."""
+    from .launch import inspect
+
+    try:
+        return inspect(load_settings().home).status in ("running", "starting", "unhealthy")
+    except Exception:  # noqa: BLE001 - no record, unreadable record: fall back to the lock probe
+        return False
+
+
+_RESTORABLE = re.compile(r"^(control\.duckdb|workspaces/[a-z][a-z0-9_]{1,40}\.duckdb)$")
+
+
+def _file_sha256(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _backup_through_engine(dest: Path) -> dict:
     import httpx
 
     settings = load_settings()
-    url = os.environ.get("LYST_API_URL", f"http://127.0.0.1:{os.environ.get('LYST_PORT', '8770')}")
+    url = os.environ.get("LYST_API_URL", f"http://127.0.0.1:{_env_port('LYST_PORT', 8770)}")
     token = os.environ.get("LYST_TOKEN") or ((settings.home / "dev-token").read_text().strip()
                                              if (settings.home / "dev-token").exists() else None)
     if not token:
@@ -462,13 +551,20 @@ def restore(src: Path, yes: bool) -> None:
     if settings.setup_required:
         sys.exit("No master key is available: restore needs the key the backup was taken with (lyst init --recovery).")
     manifest = json.loads((src / "manifest.json").read_text())
-    import hashlib
+    # Every entry must be one of the database paths a backup writes, relative to the backup and to LYST_HOME, so a
+    # crafted manifest cannot point the restore at a file outside either.
+    for rel in manifest["files"]:
+        if not isinstance(rel, str) or not _RESTORABLE.match(rel):
+            sys.exit(f"The backup's manifest lists {rel!r}, which is not a Lyst database path; nothing was restored.")
+    if _engine_running():
+        sys.exit("A Lyst engine is running on this data folder; stop it (Ctrl-C on `lyst start` or `lyst stop`) and run "
+                 "the restore again. Nothing was restored.")
 
     # B1: the manifest's checksums are checked before anything is opened or copied; a flipped byte, a truncated
     # file or a swapped file stops the restore while the installation is untouched
     for rel, digest in manifest["files"].items():
         path = src / rel
-        if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+        if not path.exists() or _file_sha256(path) != digest:
             sys.exit(f"{rel} does not match the checksum in the backup's manifest (damaged or altered); nothing was restored.")
     # B2: never replace files an engine has open. DuckDB holds a lock on an open database file; probing it here
     # fails while `lyst serve` (or any other process, or this one) has it attached.
@@ -508,13 +604,46 @@ def restore(src: Path, yes: bool) -> None:
         answer = input(f"{settings.home} already holds a Lyst installation. Replace it? [y/N] ")
         if answer.strip().lower() != "y":
             sys.exit("Restore cancelled.")
-    for rel in manifest["files"]:
-        target = settings.home / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        for suffix in ("", ".wal"):
-            if (target.parent / (target.name + suffix)).exists():
-                (target.parent / (target.name + suffix)).unlink()
-        shutil.copy2(src / rel, target)
+    # Copy every file next to its target first; only when all copies exist are the live files moved aside and the
+    # copies swapped in. Any failure puts the originals back, so a restore is all or nothing.
+    incoming: list[tuple[Path, Path]] = []
+    try:
+        for rel in manifest["files"]:
+            target = settings.home / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            tmp = target.with_name(f".{target.name}.restoring")
+            shutil.copy2(src / rel, tmp)
+            incoming.append((target, tmp))
+    except BaseException:
+        for _, tmp in incoming:
+            tmp.unlink(missing_ok=True)
+        raise
+    moved: list[tuple[Path, list[tuple[Path, Path]]]] = []
+    try:
+        for target, tmp in incoming:
+            aside = []
+            for suffix in ("", ".wal"):
+                f = target.parent / (target.name + suffix)
+                if f.exists():
+                    a = f.with_name(f.name + ".pre-restore")
+                    os.replace(f, a)
+                    aside.append((f, a))
+            moved.append((target, aside))
+            os.replace(tmp, target)
+    except BaseException:
+        for target, aside in moved:
+            try:
+                target.unlink(missing_ok=True)
+                for f, a in aside:
+                    os.replace(a, f)
+            except OSError as exc:
+                print(f"Could not put back {target}: {exc}; the original is at {target}.pre-restore.", file=sys.stderr)
+        for _, tmp in incoming:
+            tmp.unlink(missing_ok=True)
+        raise
+    for _, aside in moved:
+        for _, a in aside:
+            a.unlink(missing_ok=True)
     for folder in ("artifacts", "dashboards"):
         if (src / folder).exists():
             shutil.copytree(src / folder, settings.home / folder, dirs_exist_ok=True)
@@ -594,8 +723,10 @@ def main(argv: list[str] | None = None) -> None:
     ini = sub.add_parser("init", help="initialise encryption: generate the master key into the OS credential store")
     ini.add_argument("--recovery", action="store_true", help="restore a saved master key instead of generating one")
     ini.add_argument("--quiet", action="store_true", help="do not print the recovery copy")
+    ini.add_argument("--out", default=None, help="write the recovery copy to this new file (mode 0600) instead of the terminal")
     rk = sub.add_parser("rotate-master-key", help="re-key every database and re-wrap every secret under a new master key (engine stopped)")
     rk.add_argument("--yes", action="store_true")
+    rk.add_argument("--out", default=None, help="write the new key to this new file (mode 0600) when it must be placed by hand")
     bk = sub.add_parser("backup", help="consistent, encrypted backup of every database plus artifacts and dashboards")
     bk.add_argument("dest")
     rs = sub.add_parser("restore", help="restore a backup into LYST_HOME (engine must be stopped)")
@@ -643,7 +774,7 @@ def _engine_or_local(path: str, method: str = "GET", **kw):
     import httpx
 
     settings = load_settings()
-    url = os.environ.get("LYST_API_URL", f"http://127.0.0.1:{os.environ.get('LYST_PORT', '8770')}")
+    url = os.environ.get("LYST_API_URL", f"http://127.0.0.1:{_env_port('LYST_PORT', 8770)}")
     token = os.environ.get("LYST_TOKEN") or ((settings.home / "dev-token").read_text().strip()
                                              if (settings.home / "dev-token").exists() else None)
     try:
@@ -754,9 +885,9 @@ def _dispatch(args) -> None:
     elif args.cmd == "token":
         issue_token(args.email, args.name, args.hours, args.owner_of)
     elif args.cmd == "init":
-        init_cmd(args.recovery, args.quiet)
+        init_cmd(args.recovery, args.quiet, args.out)
     elif args.cmd == "rotate-master-key":
-        rotate_master_key(yes=args.yes)
+        rotate_master_key(yes=args.yes, out=args.out)
     elif args.cmd == "backup":
         backup(Path(args.dest))
     elif args.cmd == "restore":

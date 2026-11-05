@@ -304,3 +304,24 @@ def test_stale_status_names_the_uv_command_under_uv_run(tmp_path):
     home.mkdir()
     _record(home, _dead_pid())
     assert "`uv run lyst start`" in _cli(home, "status", UV_RUN_RECURSION_DEPTH="1").stdout
+
+
+@pytest.mark.parametrize("value", ["http", "99999", "0"])
+def test_a_bad_port_variable_exits_with_a_clear_message(monkeypatch, value):
+    monkeypatch.setenv("LYST_PORT", value)
+    with pytest.raises(SystemExit, match="LYST_PORT"):
+        _port("LYST_PORT", 8770, set())
+
+
+def test_the_master_key_is_never_written_to_a_pipe(monkeypatch, tmp_path, capsys):
+    from lyst import cli
+
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: False, raising=False)
+    with pytest.raises(SystemExit, match="--out"):
+        cli._show_key("ab" * 32, None, "Recovery copy")
+    assert "ab" * 32 not in capsys.readouterr().out
+    path = tmp_path / "key.txt"
+    cli._show_key("ab" * 32, str(path), "Recovery copy")
+    assert path.read_text().strip() == "ab" * 32 and (path.stat().st_mode & 0o777) == 0o600
+    with pytest.raises(FileExistsError):
+        cli._show_key("cd" * 32, str(path), "Recovery copy")  # never overwrites a saved key

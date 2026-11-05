@@ -166,3 +166,47 @@ def test_the_engine_takes_an_online_backup_for_installation_administrators_only(
         assert ok.status_code == 200, ok.text
         body = ok.json()
         assert body["path"].startswith(str(lyst.settings.home / "backups")) and "control.duckdb" in body["files"]
+
+
+def test_restore_refuses_manifest_paths_outside_the_database_layout(seeded, tmp_path, monkeypatch):
+    import json
+
+    lyst, _ = seeded
+    dest = tmp_path / "bk"
+    lyst.stores.backup(dest)
+    m = json.loads((dest / "manifest.json").read_text())
+    m["files"]["../../escape.duckdb"] = "0" * 64
+    (dest / "manifest.json").write_text(json.dumps(m))
+    from lyst.cli import restore
+
+    monkeypatch.setenv("LYST_HOME", str(tmp_path / "home5"))
+    with pytest.raises(SystemExit, match="not a Lyst database path"):
+        restore(dest, yes=True)
+
+
+def test_a_restore_that_fails_part_way_puts_every_original_back(seeded, tmp_path, monkeypatch):
+    lyst, _ = seeded
+    dest = tmp_path / "bk"
+    lyst.stores.backup(dest)
+    from lyst import cli
+
+    home = tmp_path / "home6"
+    (home / "workspaces").mkdir(parents=True)
+    (home / "control.duckdb").write_bytes(b"original control")
+    monkeypatch.setenv("LYST_HOME", str(home))
+    real_replace = cli.os.replace
+    calls = {"n": 0}
+
+    def flaky(a, b):
+        calls["n"] += 1
+        if str(b).endswith("northwind.duckdb"):
+            raise OSError("disk full")
+        return real_replace(a, b)
+
+    monkeypatch.setattr(cli.os, "replace", flaky)
+    monkeypatch.setattr(cli, "_file_sha256", lambda p: __import__("json").loads(
+        (dest / "manifest.json").read_text())["files"][str(p.relative_to(dest))])
+    with pytest.raises(OSError, match="disk full"):
+        cli.restore(dest, yes=True)
+    assert (home / "control.duckdb").read_bytes() == b"original control"
+    assert not list(home.rglob("*.restoring")) and not list(home.rglob("*.pre-restore"))
