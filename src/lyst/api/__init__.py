@@ -691,15 +691,38 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def installation_backup(request: Request, user: User):
         """B3: an online backup taken by the engine that owns the files (DuckDB lets no other process open them while
         it runs). Installation administrators only; written under <home>/backups, never to a caller-chosen path."""
-        from datetime import UTC, datetime  # noqa: PLC0415
 
         lyst = L(request)
         if not lyst.credentials.is_installation_admin(user):
             raise AccessDenied("backups are taken by installation administrators")
-        dest = lyst.settings.home / "backups" / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-        m = lyst.stores.backup(dest)
-        lyst.guard.audit(user, None, "installation.backup", str(dest), "ok", {"files": len(m["files"])})
-        return {"path": str(dest), **m}
+        from .. import continuity  # noqa: PLC0415
+
+        # atomic: written to a partial folder and renamed only when complete (a full disk leaves no half backup)
+        return continuity.take(lyst, actor=user)
+
+    @app.get("/v1/installation/continuity")
+    def installation_continuity(request: Request, user: User):
+        """Backups, the last restore drill, and recovery objectives as measured (installation administrators)."""
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("continuity is for installation administrators")
+        from .. import continuity  # noqa: PLC0415
+
+        return continuity.report(lyst)
+
+    @app.post("/v1/installation/backups/{name}/drill")
+    def installation_drill(request: Request, name: str, user: User):
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("restore drills are run by installation administrators")
+        from .. import continuity  # noqa: PLC0415
+
+        if not continuity.STAMP.match(name):
+            raise HTTPException(404, "unknown backup")
+        path = lyst.settings.home / "backups" / name
+        if not (path / "manifest.json").exists():
+            raise HTTPException(404, "unknown backup")
+        return continuity.drill(lyst.settings, path)
 
     @app.patch("/v1/installation")
     def installation_patch(request: Request, body: InstallationPatch, user: User):
@@ -1117,6 +1140,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         "schedule this every Monday") to an earlier answer; the new task records what it came from and what changed."""
         lyst = L(request)
         return FollowUps(lyst.runtime, lyst.semantic).apply(user, task_id, body.text, timezone=body.timezone)
+
+    @app.get("/v1/workspaces/{ws}/memory/review")
+    def memory_review(request: Request, ws: str, user: User):
+        """Memories that may no longer apply (newer data, a changed definition, or age), with the reason (admins)."""
+        return L(request).memory.review(user, ws)
 
     @app.get("/v1/workspaces/{ws}/skills/discover")
     def discover_skills(request: Request, ws: str, q: str, user: User):

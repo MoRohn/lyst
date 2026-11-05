@@ -11,14 +11,21 @@ untrusted content never becomes canonical knowledge by itself.
 from __future__ import annotations
 
 import json
+import os
 import re
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from .security import Guard, Principal
 from .store import Stores
 
 LAYERS = ("task", "user", "team", "organization", "procedural", "episodic")
+
+
+def stale_days() -> int:
+    """Unapproved memory older than this is flagged as possibly out of date (approved knowledge is not aged)."""
+    return int(os.environ.get("LYST_MEMORY_STALE_DAYS", "365"))
 TRUST = ("observed", "user_validated", "approved")
 
 
@@ -100,12 +107,66 @@ class MemoryService:
             sim = sims.get(r["id"], 0.0)
             if overlap or sim >= 0.75:
                 scored.append((rank[r["trust"]], overlap + 3 * sim, r))
-        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        for r in rows:
+            r["provenance"] = json.loads(r["provenance"]) if isinstance(r["provenance"], str) else r["provenance"]
+        checked = self.applicability(workspace_id, [s[2] for s in scored])
+        # entries that still apply first; within that, trust and relevance as before
+        scored.sort(key=lambda x: (checked[x[2]["id"]]["applicable"], x[0], x[1]), reverse=True)
         out = []
         for _, _, r in scored[:limit]:
-            r["provenance"] = json.loads(r["provenance"])
-            out.append(r)
+            out.append({**r, **checked[r["id"]]})
         return out
+
+    def applicability(self, workspace_id: str, rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """Whether each memory still applies: not when the data it was learned from has a newer version, or the
+        metric definition it used has changed, or (unless approved) it is older than ``LYST_MEMORY_STALE_DAYS``.
+        History is not permanently valid; this says when a past conclusion may no longer hold, and why."""
+        db = self.stores.workspace(workspace_id)
+        current = {r["name"]: r["current_version"] for r in db.query("SELECT name, current_version FROM datasets")}
+        metric_now = {r["name"]: r["current_version"] for r in db.query("SELECT name, current_version FROM metrics")}
+        out: dict[str, dict[str, Any]] = {}
+        now = datetime.now(UTC)
+        for r in rows:
+            prov = r["provenance"] if isinstance(r["provenance"], dict) else json.loads(r["provenance"] or "{}")
+            sources, metric = list(prov.get("sources") or []), prov.get("metric")
+            if prov.get("analysis_id"):
+                a = db.query("SELECT evidence FROM analyses WHERE id = ?", [prov["analysis_id"]])
+                if a:
+                    ev = json.loads(a[0]["evidence"])
+                    sources += ev.get("sources", [])
+                    m = (ev.get("metric") or {}).get("spec", {}).get("name")
+                    if m and ev.get("metric_version"):
+                        metric = {"name": m, "version": ev["metric_version"]}
+            reasons = []
+            seen = set()
+            for src in sources:
+                ds, ver = src.get("dataset"), src.get("version")
+                if not ds or (ds, ver) in seen:
+                    continue
+                seen.add((ds, ver))
+                if ds not in current:
+                    reasons.append(f"it was learned from {ds}, which no longer exists")
+                elif ver is not None and current[ds] != ver:
+                    reasons.append(f"it was learned from {ds} v{ver}; the data is now v{current[ds]}")
+            if metric and metric.get("name") in metric_now and metric.get("version") and metric_now[metric["name"]] != metric["version"]:
+                reasons.append(f"the definition of {metric['name']} changed (v{metric['version']} → v{metric_now[metric['name']]})")
+            created = r.get("created_at") or r.get("occurred_at")
+            if r.get("trust") != "approved" and created is not None:
+                age = (now - (created if created.tzinfo else created.replace(tzinfo=UTC))).days
+                if age > stale_days():
+                    reasons.append(f"it is {age} days old")
+            out[r["id"]] = {"applicable": not reasons, "stale_reason": "; ".join(reasons) or None}
+        return out
+
+    def review(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
+        """Memories that may no longer apply, with the reason, for an admin to revoke or re-confirm."""
+        self.guard.require(actor, workspace_id, "memory.promote")
+        rows = self.stores.workspace(workspace_id).query(
+            "SELECT id, layer, scope, owner, content, provenance, trust, created_at FROM memory WHERE revoked_at IS NULL "
+            "AND (expires_at IS NULL OR expires_at > now()) ORDER BY created_at DESC")
+        checked = self.applicability(workspace_id, rows)
+        return [{**{k: v for k, v in r.items() if k != "provenance"}, **checked[r["id"]]}
+                for r in rows if not checked[r["id"]]["applicable"]]
 
     def list(self, actor: Principal, workspace_id: str, layer: str | None = None) -> list[dict[str, Any]]:
         self.guard.require(actor, workspace_id, "workspace.read")
