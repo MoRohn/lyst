@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 from urllib.parse import urlencode
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -224,6 +224,10 @@ class InstallationPatch(BaseModel):
     add_admin: str | None = None                    # a user id
 
 
+class LoginCodeIn(BaseModel):
+    code: str
+
+
 class SetupIn(BaseModel):
     recovery_key: str | None = None   # paste a saved master key to recover an installation; empty generates a new one
 
@@ -416,6 +420,7 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     async def lifespan(app: FastAPI):
         app.state.lyst, app.state.oidc, app.state.setup_reason, app.state.mcp_task = None, None, None, None
         app.state.setup_lock = asyncio.Lock()
+        app.state.login_codes = {}  # one-time sign-in code -> (session token, expiry); one engine process
         try:
             await _bring_up(app)
         except MasterKeyMissing as exc:
@@ -483,6 +488,21 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
                     log.error("request failed", extra={"route": route, "status": status})
             if not abandoned:
                 obs.request_id.reset(token)
+
+    from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: PLC0415
+
+    _ERROR_CODES = {400: "invalid", 401: "unauthorized", 403: "forbidden", 404: "not_found", 409: "conflict",
+                    413: "too_large", 429: "quota_exceeded", 503: "unavailable"}
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(_: Request, exc: StarletteHTTPException):
+        # one envelope for every error a handler raises: {"error": code, "detail": message}, like the domain errors
+        d = exc.detail
+        if isinstance(d, dict) and "error" in d:
+            body = {"error": str(d["error"]), "detail": str(d.get("detail", ""))}
+        else:
+            body = {"error": _ERROR_CODES.get(exc.status_code, f"http_{exc.status_code}"), "detail": str(d)}
+        return JSONResponse(body, status_code=exc.status_code, headers=getattr(exc, "headers", None))
 
     @app.exception_handler(AccessDenied)
     async def _denied(_: Request, exc: AccessDenied):
@@ -558,7 +578,7 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
             raise AccessDenied("initialise encryption from the machine that runs the engine (loopback only)")
         async with request.app.state.setup_lock:  # two clicks at once: the second sees the first's result
             if request.app.state.lyst is not None:
-                raise ValueError("Lyst is already initialised")
+                raise HTTPException(409, {"error": "already_initialised", "detail": "Lyst is already initialised"})
             fresh = not body.recovery_key
             mk = masterkey.provision_into_keyring() if fresh else masterkey.store_into_keyring(body.recovery_key)
             try:
@@ -566,17 +586,32 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
             except Exception as exc:
                 masterkey.remove_from_keyring()
                 await _tear_down(request.app)
-                sealed_elsewhere = (not fresh) or "encryption key" in str(exc).lower()
-                raise ValueError("the existing databases were sealed with a different master key; restore its recovery copy instead"
-                                 if sealed_elsewhere else f"initialisation failed: {exc}") from exc
+                text = str(exc).lower()
+                # judged from what failed, not from whether a key was pasted: a disk or dependency error during a
+                # recovery is reported as itself
+                sealed_elsewhere = any(k in text for k in ("encryption key", "decrypt", "wrong key", "authentication tag"))
+                raise ValueError("the existing databases were sealed with a different master key; restore its recovery copy "
+                                 f"instead ({type(exc).__name__}: {exc})"
+                                 if sealed_elsewhere else f"initialisation failed: {type(exc).__name__}: {exc}") from exc
         return {"initialised": True, "source": mk.source, "recovery_key": mk.key.hex() if fresh else None}
 
     @app.get("/metrics")
     def prometheus_metrics(request: Request):
-        lyst = L(request)
-        obs.QUEUE_DEPTH.set(lyst.stores.control.scalar("SELECT count(*) FROM tasks WHERE status = 'queued'") or 0)
-        if lyst.llm.gateway:
-            obs.INFLIGHT.set(lyst.llm.gateway.admission.counts.total)
+        """Prometheus text, also in setup mode (engine gauges are refreshed only once the engine is up). With
+        LYST_METRICS_TOKEN set, a scrape must send it as a bearer token."""
+        import hmac  # noqa: PLC0415
+
+        expected = os.environ.get("LYST_METRICS_TOKEN")
+        if expected:
+            auth = request.headers.get("authorization", "")
+            given = auth[7:] if auth.lower().startswith("bearer ") else ""
+            if not hmac.compare_digest(given.encode(), expected.encode()):
+                raise HTTPException(401, {"error": "unauthorized", "detail": "a metrics token is required"})
+        lyst = request.app.state.lyst
+        if lyst is not None:
+            obs.QUEUE_DEPTH.set(lyst.stores.control.scalar("SELECT count(*) FROM tasks WHERE status = 'queued'") or 0)
+            if lyst.llm.gateway:
+                obs.INFLIGHT.set(lyst.llm.gateway.admission.counts.total)
         return Response(generate_latest(obs.REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
     # -- sign-in ----------------------------------------------------------------------------
@@ -603,8 +638,26 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
             return PlainTextResponse(f"Sign-in failed: {exc}", status_code=403)
         user = lyst.guard.user_from_oidc(claims["sub"], claims["email"].lower(), claims.get("name") or "")
         token = lyst.guard.issue_token(user, "oidc", hours=o.settings.session_hours)
-        return RedirectResponse(return_to + ("&" if "?" in return_to else "?") + urlencode({"token": token}),
+        # The session token never travels in a URL (history, proxy logs, Referer). The redirect carries a one-time
+        # code that expires in a minute; the interface exchanges it for the token over POST /auth/exchange.
+        import secrets as _secrets  # noqa: PLC0415
+
+        codes = request.app.state.login_codes
+        now = time.monotonic()
+        for k in [k for k, (_, exp) in codes.items() if exp < now]:
+            codes.pop(k, None)
+        code = _secrets.token_urlsafe(32)
+        codes[code] = (token, now + 60)
+        return RedirectResponse(return_to + ("&" if "?" in return_to else "?") + urlencode({"login_code": code}),
                                 status_code=302)
+
+    @app.post("/auth/exchange")
+    def auth_exchange(request: Request, body: LoginCodeIn):
+        """Trade a one-time sign-in code for the session token. Each code works once, within a minute."""
+        token, expires = request.app.state.login_codes.pop(body.code, (None, 0.0))
+        if token is None or expires < time.monotonic():
+            raise HTTPException(401, {"error": "unauthorized", "detail": "this sign-in code is invalid or already used"})
+        return {"token": token}
 
     @app.post("/auth/logout")
     def auth_logout(request: Request, user: User):
@@ -738,6 +791,8 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     def installation_patch(request: Request, body: InstallationPatch, user: User):
         lyst = L(request)
         c = lyst.credentials
+        if not c.is_installation_admin(user):  # at the boundary too, like every sibling installation route
+            raise AccessDenied("installation settings are managed by installation administrators")
         if body.settings:
             for k, v in body.settings.items():
                 if k not in ("LYST_LLM_TIER", "LYST_LLM_MODEL", "LYST_LLM_MAX_TIER", "LYST_EMBED_MODEL"):
@@ -793,8 +848,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
                 "query_id": r.query_id, "datasets": r.datasets}
 
     @app.get("/v1/workspaces/{ws}/queries")
-    def queries(request: Request, ws: str, user: User):
-        return L(request).data.history(user, ws)
+    def queries(request: Request, ws: str, user: User, limit: Annotated[int, Query(ge=1, le=500)] = 50,
+                before_id: int | None = None):
+        return L(request).data.history(user, ws, limit, before_id=before_id)
 
     # -- connections ------------------------------------------------------------------------
 
@@ -856,7 +912,7 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).connections.health(user, ws, cid)[0]
 
     @app.get("/v1/workspaces/{ws}/connections/{cid}/events")
-    def connection_events(request: Request, ws: str, cid: str, user: User, limit: int = 50):
+    def connection_events(request: Request, ws: str, cid: str, user: User, limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).connections.events(user, ws, cid, limit=min(max(limit, 1), 500))
 
     @app.get("/v1/workspaces/{ws}/connections/{cid}/tables")
@@ -936,7 +992,7 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).catalog.relationships(user, ws)
 
     @app.get("/v1/workspaces/{ws}/catalog/search")
-    def catalog_search(request: Request, ws: str, q: str, user: User, limit: int = 20):
+    def catalog_search(request: Request, ws: str, q: str, user: User, limit: Annotated[int, Query(ge=1, le=200)] = 20):
         return L(request).catalog.search(user, ws, q, limit=min(max(limit, 1), 100))
 
     @app.get("/v1/workspaces/{ws}/datasets/{name}/insights")
@@ -1048,8 +1104,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).collab.resolve(user, ws, comment_id, note=body.note)
 
     @app.get("/v1/workspaces/{ws}/decisions")
-    def decisions(request: Request, ws: str, user: User, object_kind: str | None = None, object_id: str | None = None):
-        return L(request).collab.decisions(user, ws, object_kind=object_kind, object_id=object_id)
+    def decisions(request: Request, ws: str, user: User, object_kind: str | None = None, object_id: str | None = None,
+                  limit: Annotated[int, Query(ge=1, le=1000)] = 200):
+        return L(request).collab.decisions(user, ws, object_kind=object_kind, object_id=object_id, limit=limit)
 
     @app.get("/v1/workspaces/{ws}/assignments")
     def assignments(request: Request, ws: str, user: User, mine: bool = False, status: str | None = None):
@@ -1064,8 +1121,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).collab.complete(user, ws, assignment_id, note=body.note)
 
     @app.get("/v1/workspaces/{ws}/reviews")
-    def reviews(request: Request, ws: str, user: User, status: str | None = None, for_me: bool = False):
-        return L(request).collab.reviews(user, ws, status=status, for_me=for_me)
+    def reviews(request: Request, ws: str, user: User, status: str | None = None, for_me: bool = False,
+                limit: Annotated[int, Query(ge=1, le=1000)] = 200):
+        return L(request).collab.reviews(user, ws, status=status, for_me=for_me, limit=limit)
 
     @app.post("/v1/workspaces/{ws}/reviews")
     def propose(request: Request, ws: str, body: ProposeIn, user: User):
@@ -1419,8 +1477,8 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).knowledge.reindex(user, ws)
 
     @app.get("/v1/workspaces/{ws}/documents/search")
-    def search_documents(request: Request, ws: str, user: User, q: str, limit: int = 5):
-        return L(request).knowledge.search(user, ws, q, limit=min(limit, 20))
+    def search_documents(request: Request, ws: str, user: User, q: str, limit: Annotated[int, Query(ge=1, le=20)] = 5):
+        return L(request).knowledge.search(user, ws, q, limit=limit)
 
     @app.get("/v1/workspaces/{ws}/analyses")
     def analyses(request: Request, ws: str, user: User):
@@ -1517,12 +1575,12 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     # -- settings ---------------------------------------------------------------------------
 
     @app.get("/v1/workspaces/{ws}/audit")
-    def audit(request: Request, ws: str, user: User, limit: int = 200):
+    def audit(request: Request, ws: str, user: User, limit: Annotated[int, Query(ge=1, le=1000)] = 200):
         lyst = L(request)
         lyst.guard.require(user, ws, "audit.read")
         return lyst.stores.control.query(
             "SELECT occurred_at, actor, action, target, outcome, detail FROM audit_log WHERE workspace_id = ? "
-            "ORDER BY id DESC LIMIT ?", [ws, min(limit, 1000)])
+            "ORDER BY id DESC LIMIT ?", [ws, limit])
 
     @app.get("/v1/workspaces/{ws}/settings")
     def settings(request: Request, ws: str, user: User):

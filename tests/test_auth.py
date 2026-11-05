@@ -83,7 +83,11 @@ def test_oidc_sign_in_creates_user_and_session_token(seeded, monkeypatch):
         assert r.status_code == 302
         loc = urlparse(r.headers["location"])
         assert loc.netloc == "ui.test"
-        token = parse_qs(loc.query)["token"][0]
+        q = parse_qs(loc.query)
+        assert "token" not in q  # the session token never travels in a URL
+        token = c.post("/auth/exchange", json={"code": q["login_code"][0]}).json()["token"]
+        replay = c.post("/auth/exchange", json={"code": q["login_code"][0]})
+        assert replay.status_code == 401 and replay.json()["error"] == "unauthorized"  # one use only
         assert idp.token_requests[0]["code_verifier"]  # PKCE verifier was sent
         me = c.get("/v1/me", headers={"Authorization": f"Bearer {token}"}).json()
         assert me["email"] == "dana@northwind.test" and me["workspaces"] == []  # no membership from signing in
@@ -153,3 +157,32 @@ def test_metrics_and_request_ids(seeded):
         body = c.get("/metrics").text
         assert 'lyst_http_requests_total{method="GET",route="/v1/workspaces/{ws}/datasets",status="200"} 2.0' in body
         assert "lyst_tasks_queued" in body and "lyst_workers" in body
+        # errors share one envelope, whether a handler raised HTTPException or a domain error
+        nf = c.get("/auth/login")
+        assert nf.status_code == 404 and set(nf.json()) == {"error", "detail"} and nf.json()["error"] == "not_found"
+        # with a metrics token configured, a scrape must present it
+        import os
+        os.environ["LYST_METRICS_TOKEN"] = "scrape-secret"
+        try:
+            assert c.get("/metrics").status_code == 401
+            assert c.get("/metrics", headers={"Authorization": "Bearer scrape-secret"}).status_code == 200
+        finally:
+            del os.environ["LYST_METRICS_TOKEN"]
+
+
+def test_metrics_are_served_in_setup_mode(tmp_path, monkeypatch):
+    monkeypatch.setenv("LYST_HOME", str(tmp_path / "home"))
+    app = create_app(start_workers=False)
+    app.state.lyst = None
+    with TestClient(app) as c:
+        c.app.state.lyst = None
+        assert c.get("/metrics").status_code == 200
+
+
+def test_installation_patch_is_refused_at_the_boundary_for_non_admins(seeded):
+    lyst, owner = seeded
+    viewer = lyst.guard.create_user("viewer@northwind.test", "Vi")
+    h = {"Authorization": f"Bearer {lyst.guard.issue_token(viewer)}"}
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        r = c.patch("/v1/installation", json={"add_admin": viewer.user_id}, headers=h)
+        assert r.status_code == 403 and r.json()["error"] == "forbidden"

@@ -6,9 +6,9 @@ workspace's autonomy level and budgets. Registered from api/__init__.py in one b
 # no `from __future__ import annotations`: FastAPI resolves the User dependency from the real annotation
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from pydantic import BaseModel
 
 
@@ -59,10 +59,11 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return L(request).anticipation.set_attention(user, ws, body.model_dump(exclude_unset=True))
 
     @app.get("/v1/workspaces/{ws}/anticipations")
-    def anticipations(request: Request, ws: str, user: User, status: str = "open", kind: str | None = None, limit: int = 50,
+    def anticipations(request: Request, ws: str, user: User, status: str = "open", kind: str | None = None,
+                      limit: Annotated[int, Query(ge=1, le=200)] = 50,
                       subject: str | None = None):
         """The activity center; ``subject`` narrows it to one object (a task id for the next steps under an answer)."""
-        return L(request).anticipation.list(user, ws, status=status, kind=kind, limit=min(limit, 200), subject_id=subject)
+        return L(request).anticipation.list(user, ws, status=status, kind=kind, limit=limit, subject_id=subject)
 
     @app.post("/v1/workspaces/{ws}/anticipations/refresh")
     def anticipations_refresh(request: Request, ws: str, user: User) -> dict[str, Any]:

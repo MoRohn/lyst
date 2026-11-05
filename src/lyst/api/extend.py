@@ -115,7 +115,7 @@ def register(app, L, User) -> None:
         return await run_in_threadpool(svc.inspect, user, ws, content, filename=name, classification=classification)
 
     @app.get("/v1/workspaces/{ws}/ingest")
-    def ingest_jobs(request: Request, ws: str, user: User, limit: int = 50):
+    def ingest_jobs(request: Request, ws: str, user: User, limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).ingest.list(user, ws, limit)
 
     @app.get("/v1/workspaces/{ws}/ingest/{jid}")
@@ -147,12 +147,14 @@ def register(app, L, User) -> None:
 
     @app.get("/v1/workspaces/{ws}/events")
     async def workspace_events(request: Request, ws: str, user: User, after: int = 0,
-                               types: Annotated[list[str] | None, Query()] = None, limit: int = 100, wait: float = 0):
+                               types: Annotated[list[str] | None, Query()] = None,
+                               limit: Annotated[int, Query(ge=1, le=500)] = 100,
+                               wait: Annotated[float, Query(ge=0, le=25)] = 0):
         """Events after the ``after`` cursor that this member may see; ``wait`` (seconds, at most 25) long-polls.
         Returns ``{"events": [...], "next": cursor}``; pass ``next`` back as ``after``."""
         pats = [p for t in (types or []) for p in t.split(",") if p]
         return await run_in_threadpool(L(request).events.list, user, ws, after=after, types=pats or None,
-                                       limit=min(limit, 500), wait=wait)
+                                       limit=limit, wait=wait)
 
     @app.get("/v1/workspaces/{ws}/webhooks")
     def webhooks_list(request: Request, ws: str, user: User):
@@ -176,7 +178,8 @@ def register(app, L, User) -> None:
         return L(request).webhooks.ping(user, ws, sid)
 
     @app.get("/v1/workspaces/{ws}/webhooks/{sid}/deliveries")
-    def webhooks_deliveries(request: Request, ws: str, sid: str, user: User, status: str | None = None, limit: int = 50):
+    def webhooks_deliveries(request: Request, ws: str, sid: str, user: User, status: str | None = None,
+                            limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).webhooks.deliveries(user, ws, sid, status=status, limit=limit)
 
     @app.post("/v1/workspaces/{ws}/webhook-deliveries/{did}/redeliver")
@@ -240,7 +243,7 @@ def register(app, L, User) -> None:
         return await run_in_threadpool(L(request).workbench.python, user, ws, body.code, inputs=body.inputs, timeout=body.timeout)
 
     @app.get("/v1/workspaces/{ws}/workbench/runs")
-    def workbench_runs(request: Request, ws: str, user: User, limit: int = 50):
+    def workbench_runs(request: Request, ws: str, user: User, limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).workbench.list(user, ws, limit)
 
     @app.get("/v1/workspaces/{ws}/workbench/runs/{rid}")

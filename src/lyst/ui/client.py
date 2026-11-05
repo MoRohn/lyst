@@ -51,11 +51,16 @@ def _client() -> tuple[str | None, bool]:
 def _token() -> str | None:
     if t := st.session_state.get("token"):
         return t
-    if t := st.query_params.get("token"):
-        # arriving from /auth/callback: keep the token in this session and drop it from the URL
-        st.session_state["token"] = t
-        del st.query_params["token"]
-        return t
+    if code := st.query_params.get("login_code"):
+        # arriving from /auth/callback: the URL carries a one-time code, never the token; trade it over POST
+        del st.query_params["login_code"]
+        try:
+            r = _http(os.environ.get("LYST_API_URL", "http://127.0.0.1:8770")).post("/auth/exchange", json={"code": code})
+            if r.status_code == 200:
+                st.session_state["token"] = r.json()["token"]
+                return st.session_state["token"]
+        except (httpx.HTTPError, ValueError, KeyError):
+            pass
     ip, proxied = _client()
     if not shared_identity_allowed(ip, dict(os.environ), proxied=proxied):
         return None  # sign in (OIDC) or paste a personal token
