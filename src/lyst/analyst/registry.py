@@ -44,8 +44,15 @@ class Registry:
         self._caps: dict[str, Capability] = {}
 
     def register(self, cap: Capability) -> Capability:
-        if cap.name in self._caps and self._caps[cap.name].version >= cap.version:
-            raise ValueError(f"capability {cap.name} v{self._caps[cap.name].version} is already registered")
+        old = self._caps.get(cap.name)
+        if old is not None and old.version >= cap.version:
+            raise ValueError(f"capability {cap.name} v{old.version} is already registered")
+        if old is not None and old.origin == "core" and (
+                cap.origin != "core" or (cap.permission, cap.mutating, cap.requires_approval)
+                != (old.permission, old.mutating, old.requires_approval)):
+            # a newer version may not take over a core capability's name or loosen what it is allowed to do
+            raise ValueError(f"capability {cap.name} is a core capability; a replacement must be core and keep its "
+                             "permission, mutating and requires_approval")
         self._caps[cap.name] = cap
         return cap
 

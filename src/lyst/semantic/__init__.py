@@ -197,6 +197,19 @@ def compile_metric(
     return sql
 
 
+def _metric_phrases(m: MetricSpec) -> set[str]:
+    return {m.name.replace("_", " "), m.title.lower(), *[s.lower() for s in m.synonyms]}
+
+
+def _phrase_index(metrics: list[MetricSpec]) -> dict[str, set[str]]:
+    """Every phrase that names a metric (its name, title and synonyms) mapped to the metrics it names."""
+    phrases: dict[str, set[str]] = {}
+    for m in metrics:
+        for p in _metric_phrases(m):
+            phrases.setdefault(p.strip(), set()).add(m.name)
+    return phrases
+
+
 class SemanticService:
     def __init__(self, stores: Stores, guard: Guard, knowledge: Any = None) -> None:
         self.stores = stores
@@ -263,10 +276,13 @@ class SemanticService:
         return [MetricSpec.model_validate_json(r["spec"]) for r in rows]
 
     def get(self, actor: Principal, workspace_id: str, name: str) -> MetricSpec:
-        for m in self.metrics(actor, workspace_id):
-            if m.name == name:
-                return m
-        raise KeyError(name)
+        self.guard.require(actor, workspace_id, "metric.read")
+        rows = self.stores.workspace(workspace_id).query(
+            "SELECT v.spec FROM metrics m JOIN metric_versions v ON v.name = m.name "
+            "AND v.version = m.current_version WHERE m.status = 'approved' AND m.name = ?", [name])
+        if not rows:
+            raise KeyError(name)
+        return MetricSpec.model_validate_json(rows[0]["spec"])
 
     def set_term(self, actor: Principal, workspace_id: str, term: str, definition: str,
                  maps_to_metric: str | None = None, source: str | None = None) -> None:
@@ -418,10 +434,7 @@ class SemanticService:
                 issues.append({"severity": "low", "kind": "secondary_source_definition", "items": [m.name],
                                "text": f"{m.name} reads {m.dataset}, which is marked as a secondary source",
                                "fix": "define it on the authoritative source if one exists"})
-        phrases: dict[str, set[str]] = {}
-        for m in metrics:
-            for p in {m.name.replace("_", " "), m.title.lower(), *[s.lower() for s in m.synonyms]}:
-                phrases.setdefault(p.strip(), set()).add(m.name)
+        phrases = _phrase_index(metrics)
         specs_all = {m.name: m for m in metrics}
         for phrase, names in sorted(phrases.items()):
             if len(names) > 1 and not self._prefer(workspace_id, names, specs_all):
@@ -474,10 +487,7 @@ class SemanticService:
         Longer phrases win over their substrings ("operating margin" beats "margin")."""
         lowered = " " + re.sub(r"[^a-z0-9%]+", " ", text.lower()) + " "
         metrics = self.metrics(actor, workspace_id)
-        phrases: dict[str, set[str]] = {}
-        for m in metrics:
-            for p in {m.name.replace("_", " "), m.title.lower(), *[s.lower() for s in m.synonyms]}:
-                phrases.setdefault(p.strip(), set()).add(m.name)
+        phrases = _phrase_index(metrics)
         approved = {m.name for m in metrics}
         retired = self.deprecated(actor, workspace_id)
         successor = {r["name"]: r["replaced_by"] for r in retired if r["replaced_by"] in approved}

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 from dataclasses import asdict, dataclass, field
 
 import numpy as np
@@ -110,8 +111,12 @@ def _as_datetime(s: pd.Series) -> pd.Series | None:
     return parsed if parsed.notna().mean() >= 0.9 * s.notna().mean() else None
 
 
-def column_role(name: str, s: pd.Series, rows: int) -> str:
-    """Classify a column. The order matters: constants, flags, dates, ids, then numbers vs text."""
+_UNPARSED = object()
+
+
+def column_role(name: str, s: pd.Series, rows: int, parsed: Any = _UNPARSED) -> str:
+    """Classify a column. The order matters: constants, flags, dates, ids, then numbers vs text. ``parsed`` is the
+    column's ``_as_datetime`` result when the caller already has it, so a date column is parsed once."""
     nn = s.dropna()
     n_unique = nn.nunique()
     if n_unique <= 1:
@@ -119,7 +124,7 @@ def column_role(name: str, s: pd.Series, rows: int) -> str:
     if pd.api.types.is_bool_dtype(s) or n_unique == 2 and set(map(str, nn.unique())) <= {
             "0", "1", "Yes", "No", "yes", "no", "Y", "N", "True", "False", "true", "false"}:
         return "flag"
-    if _as_datetime(s) is not None:
+    if (_as_datetime(s) if parsed is _UNPARSED else parsed) is not None:
         return "datetime"
     uniq_share = n_unique / max(1, len(nn))
     if _ID_NAME.search(name) and (uniq_share > 0.2 or not pd.api.types.is_float_dtype(s)):
@@ -163,20 +168,44 @@ def _issues(name: str, s: pd.Series, role: str) -> list[str]:
             folded = stripped.str.lower().str.replace(r"\s+", " ", regex=True)
             if folded.nunique() < stripped.nunique():
                 out.append("case/spacing variants of the same value")
-        sample = stripped.head(500)
+    if role in ("dimension", "id", "text") or pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s):
+        # personal data is reported even when sparse: a few e-mail addresses in a notes column still count
+        sample = s.dropna().astype(str).str.strip().head(5000)
         for kind, rx in _PII.items():
-            if len(sample) and sample.str.match(rx).mean() > 0.5:
-                out.append(f"looks like {kind} (PII)")
+            if len(sample):
+                hits = sample.str.match(rx)
+                if hits.sum() >= 3 or (len(sample) < 30 and hits.any()) or hits.mean() > 0.05:
+                    out.append(f"looks like {kind} (PII)")
+    return out
+
+
+def _dedupe_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Repeated column labels (common in CSV uploads) become name, name_2, ...; profiling needs one Series per label."""
+    if not df.columns.duplicated().any():
+        return df
+    used: set[str] = set()
+    labels = []
+    for c in map(str, df.columns):
+        label, n = c, 1
+        while label in used:
+            n += 1
+            label = f"{c}_{n}"
+        used.add(label)
+        labels.append(label)
+    out = df.copy()
+    out.columns = labels
     return out
 
 
 def profile(df: pd.DataFrame, *, max_corr: int = 12) -> Profile:
+    df = _dedupe_columns(df)
     rows = len(df)
     cols: list[ColumnProfile] = []
     parsed_dates: dict[str, pd.Series] = {}
     for name in df.columns:
         s = df[name]
-        role = column_role(str(name), s, rows)
+        dt = _as_datetime(s)  # parsed once, used for the role and the date stats
+        role = column_role(str(name), s, rows, dt)
         nn = s.dropna()
         cp = ColumnProfile(name=str(name), dtype=str(s.dtype), role=role, count=int(nn.size),
                            nulls=float(s.isna().mean()) if rows else 0.0, unique=int(nn.nunique()),
@@ -187,7 +216,7 @@ def profile(df: pd.DataFrame, *, max_corr: int = 12) -> Profile:
                         "median": float(x.median()), "sum": float(x.sum()),
                         "zeros": float((x == 0).mean()), "skew": float(x.skew()) if len(x) > 2 else 0.0}
         elif role == "datetime":
-            d = _as_datetime(s)
+            d = dt
             parsed_dates[cp.name] = d
             cp.stats = {"min": str(d.min().date()), "max": str(d.max().date()),
                         "days": int((d.max() - d.min()).days)}
@@ -208,14 +237,14 @@ def profile(df: pd.DataFrame, *, max_corr: int = 12) -> Profile:
                     corr.append((a, b, round(float(r), 3)))
         corr.sort(key=lambda t: -abs(t[2]))
 
-    dims = [c.name for c in cols if c.role == "dimension" and 2 <= c.unique <= 60]
+    uniques = {c.name: c.unique for c in cols if c.role == "dimension" and 2 <= c.unique <= 60}
     hier = []
-    for parent in dims:
-        for child in dims:
-            if parent == child:
+    for parent, p_u in uniques.items():
+        for child, c_u in uniques.items():
+            # the cardinality test uses counts already computed; only surviving pairs pay for a groupby
+            if parent == child or c_u <= p_u:
                 continue
-            p_u, c_u = df[parent].nunique(), df[child].nunique()
-            if c_u > p_u and df.groupby(child, observed=True)[parent].nunique().max() == 1:
+            if df.groupby(child, observed=True)[parent].nunique().max() == 1:
                 hier.append((parent, child))
 
     dup = int(df.duplicated().sum()) if rows else 0
