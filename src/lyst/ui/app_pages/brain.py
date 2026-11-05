@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from lyst.semantic import MetricSpec, value_expr
-from lyst.ui import kit, visuals
+from lyst.ui import kit, specialists, visuals
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -279,7 +279,8 @@ def memory() -> None:
 try:
     kit.header("Brain", "What Lyst knows about this business, where it came from, and how much to trust it.")
     # one entry per section; Specializations (the Analyst catalog) is added here as its own section
-    SECTIONS = {"Definitions": definitions, "Documents": documents, "Memory": memory}
+    SECTIONS = {"Definitions": definitions, "Documents": documents, "Memory": memory,
+                "Specializations": specialists.catalog}
     SECTIONS[kit.sections(list(SECTIONS), key="view")]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

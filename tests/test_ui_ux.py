@@ -434,3 +434,27 @@ def test_connections_proposed_from_an_api_description_wait_under_sources(seeded,
     assert not at.exception, [e.value for e in at.exception]
     body = _texts(at)
     assert "Procurement purchase_orders" in body and "/purchase-orders" in body
+
+
+def test_specializations_and_python_have_their_place(seeded, ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/brain.py")
+    at.query_params["view"] = "specializations"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "describe the work on Home" in body and "Data Analyst" in body
+    rows = [b for b in at.button if b.label == "Open"]
+    rows[0].click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(b.label == "Ask this" for b in at.button)  # example requests become real questions
+    from lyst.ui import workbench  # noqa: PLC0415
+
+    env = workbench.available()
+    at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "sql"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    if env.get("available"):
+        assert any(t.label == "Python" for t in at.tabs)

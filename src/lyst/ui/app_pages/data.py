@@ -19,6 +19,7 @@ from lyst.ui import (
     scenarios,
     transforms,
     visuals,
+    workbench,
 )
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
@@ -721,7 +722,7 @@ def sql_editor(catalog: list[dict]) -> None:
 
 
 # The workbench's tabs: SQL today; Python joins it here when the engine offers a sandbox.
-WORKBENCH = {"SQL": sql_editor}
+WORKBENCH = {"SQL": sql_editor} | ({"Python": workbench.editor} if workbench.available().get("available") else {})
 
 
 def sql(catalog: list[dict]) -> None:
