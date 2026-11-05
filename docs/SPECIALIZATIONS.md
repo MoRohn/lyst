@@ -82,21 +82,35 @@ Edit the domain file in `catalog/`. Role keys are short names (`desc`, `resp`, `
 rules, limitations, permissions and technical concepts add to the domain defaults; other fields replace them. Run
 `uv run pytest tests/test_specialists.py`; the benchmark floor catches routing regressions.
 
-## Known limitations of this slice
+## Slice 2: the run uses the assembly (`specialists/applied.py`)
+
+Tasks routed through the core carry `request.expertise`. Three engine touch points read it; tasks without it run
+exactly as before (tested):
+
+- **Plan**: `validate` runs at high intensity (independent recompute in Python) when any assembled discipline
+  requires an independent recompute or deep planning. This also applies to compiled workflows. Expertise can only
+  tighten verification, never relax it.
+- **Validate**: `expertise_rules` lists every rule the disciplines require with a status: `passed` / `failed` (from
+  the checks that ran, with their detail), `enforced` (held by the SQL guard, delivery or contextualize on every
+  task), `not_applicable` (the answer did not involve it), or `not_automated`.
+- **Deliver**: `supporting.expertise` names the disciplines and the rule results; when a required rule is not
+  automated, the answer's assumptions say so in plain words ("This kind of analysis also calls for checks Lyst does
+  not run automatically yet: ..."). The note contains no digits, so it can never trip the unbacked-number check.
+
+## Known limitations
 
 - **Routing accuracy is measured on the author's own cases.** 58 of 58 labelled cases route correctly. The 10
   paraphrases first scored 5 of 10; the misses were fixed by adding vocabulary, so that set is no longer unseen. An
   independent set written by someone else is the next honest measurement.
-- The engine does not yet *use* the assembly inside Plan and Verify: the expertise is recorded on the task, but the
-  plan, the validation checks and the answer are the same as without it. Wiring verification rules into `validate`
-  and the brief into the answer is slice 2.
+- The assembly changes verification and disclosure, not the computation: the plan's capabilities are still chosen
+  by the existing engine, so a specialized request gets the same figures as a plain one, checked harder and
+  reported more honestly (slice 2, below). Choosing different methods per discipline is later work.
 - No profile is Operational: no per-profile representative tasks have been executed and recorded.
 - Custom workspace profiles, the Foundry hook for gaps, anticipation links and the UI surfaces are later slices.
 
 ## Backlog (in order)
 
-1. Engine integration: the assembly's verification rules drive extra checks in `validate`; declared-but-unautomated
-   rules are disclosed in the answer; the brief reaches the narrative step.
+1. Done in slice 2, except the brief reaching the narrative step and per-discipline method choice.
 2. Operational evidence: representative scenarios per equipped profile on the demo data, recorded in
    `evidence.json` by a script, so Level 3 is earned per profile.
 3. Workspace custom profiles (workspace migration 70), admin-only, versioned, validated against the same schema and
