@@ -140,7 +140,8 @@ button[data-variant="segmented_control"][aria-checked="true"] {background: var(-
 div[class*="st-key-lyst_pane_"] button {justify-content: flex-start; padding: .45rem .7rem; border-radius: var(--lyst-radius-md);
   min-height: 0;}
 div[class*="st-key-lyst_pane_"] button > div, div[class*="st-key-lyst_recent_"] button > div,
-div[class*="st-key-sqlr_"] button > div {justify-content: flex-start; width: 100%;}
+div[class*="st-key-sqlr_"] button > div, div[class*="st-key-act_"] button > div {justify-content: flex-start; width: 100%;}
+div[class*="st-key-act_"] button {justify-content: flex-start; min-height: 0; padding: .35rem .5rem;}
 div[class*="st-key-lyst_pane_on_"] button {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);
   font-weight: var(--lyst-weight-strong);}
 div[class*="st-key-lyst_pane_on_"] button [data-testid="stIconMaterial"] {color: var(--lyst-accent);}

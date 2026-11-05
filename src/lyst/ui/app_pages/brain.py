@@ -85,8 +85,13 @@ def metric_detail(m: dict, terms: list[dict]) -> None:
                 if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/metrics/{m['name']}/deprecate", {"replaced_by": rep}),
                                "Retired"):
                     st.rerun()
-    if st.button(f"Ask about {kit.lower(m['title'])}", type="primary", icon=":material/arrow_outward:"):
+    c = st.columns([2, 1.2], vertical_alignment="center")
+    if c[0].button(f"Ask about {kit.lower(m['title'])}", type="primary", icon=":material/arrow_outward:"):
         ask(f"What was {kit.lower(m['title'])} last quarter?")
+    with c[1]:
+        from lyst.ui import actions  # noqa: PLC0415
+
+        actions.menu("metric", m["name"], page="brain", label="More", exclude=("metric.lineage",))
 
 
 def tidy(metrics: list[dict]) -> None:

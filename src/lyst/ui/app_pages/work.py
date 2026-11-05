@@ -53,8 +53,16 @@ def details(tid: str) -> None:
     if t["steps"]:
         st.html(visuals.meter(n_done / len(t["steps"]), label="Steps done", tone="good" if t["status"] == "done" else
                               "info", text=f"{n_done} of {len(t['steps'])} steps done · autonomy: {t['autonomy']}"))
+    from lyst.ui import actions  # noqa: PLC0415
+
+    if (t.get("lifecycle") or {}).get("detail"):
+        st.caption(f"{t['lifecycle']['state']}: {t['lifecycle']['detail']}")
     with st.expander("Steps", icon=":material/list:", expanded=t["status"] in ("running", "failed", "paused")):
         st.html(visuals.steps(t["steps"]))
+    with st.expander("How it progressed", icon=":material/timeline:"):
+        actions.timeline(tid)
+    actions.menu("task", tid, page="work", label="More", exclude=("task.open", "task.pause", "task.resume",
+                                                                    "task.retry", "task.cancel"))
     c = st.columns(3)
     if t["status"] == "done" and c[0].button("Open the answer", type="primary", icon=":material/arrow_outward:"):
         open_in_analyst(tid)
@@ -135,6 +143,8 @@ def activity() -> None:
             kit.label(day)
             last = day
         text, color, _ = task_state(t["status"], t.get("outcome"))
+        if (t.get("lifecycle") or {}).get("state") and t["status"] not in ("done", "cancelled"):
+            text, color = t["lifecycle"]["state"], "blue" if t["status"] in ("queued", "running") else color
         kind = {"scheduled": "Scheduled", "workflow": "Workflow"}.get(t["kind"], "")
         nxt = shown[i + 1] if i + 1 < len(shown) else None
         if kit.row(t["title"], " · ".join(x for x in (kind, kit.when(t["created_at"])) if x),
@@ -174,8 +184,12 @@ def board(tasks: list[dict]) -> None:
             for t in items[:12]:
                 with kit.card(f"b_{t['id']}"):
                     text, color, _ = task_state(t["status"], t.get("outcome"))
+                    lc = t.get("lifecycle") or {}
+                    now = lc.get("detail") if lc.get("state") not in (None, "Completed") else None
                     st.html(f'<div class="lyst-card-title" style="font-size:.92rem">{kit._esc(t["title"])}</div>'
-                            f'<div class="lyst-card-meta">{kit._esc(text)} · {kit._esc(kit.when(t["created_at"]))}</div>')
+                            f'<div class="lyst-card-meta">{kit._esc(lc.get("state") or text)} · '
+                            f'{kit._esc(kit.when(t["created_at"]))}</div>'
+                            + (f'<div class="lyst-card-meta">{kit._esc(now)}</div>' if now else ""))
                     if t["status"] in ("running", "paused"):
                         full = kit.guarded(lambda x=t: api.get(f"/v1/tasks/{x['id']}")) or {}
                         sts = full.get("steps") or []

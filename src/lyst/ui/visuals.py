@@ -146,7 +146,7 @@ STEP_MARK = {"done": ("✓", "good"), "failed": ("✕", "bad"), "skipped": ("–
              "queued": ("○", "neutral"), "pending": ("○", "neutral")}
 
 
-def steps(items: Sequence[dict], *, label: str = "Steps") -> str:
+def steps(items: Sequence[dict], *, label: str = "Steps", status_text: bool = True) -> str:
     """A task's steps as a vertical timeline, each with the engine's own status (never an estimate)."""
     rows = []
     for st_ in items:
@@ -156,7 +156,8 @@ def steps(items: Sequence[dict], *, label: str = "Steps") -> str:
         err = f'<div class="lyst-step-err">{escape(str(st_["error"]))}</div>' if st_.get("error") else ""
         rows.append(f'<li class="lyst-step"><span class="lyst-step-dot" style="color:var(--lyst-{tone});'
                     f'border-color:var(--lyst-{tone})">{mark}</span><div><div class="lyst-step-title">{escape(title)}</div>'
-                    f'<div class="lyst-card-meta">{escape(who)} · {escape(str(st_.get("status", "")))}</div>{err}</div></li>')
+                    f'<div class="lyst-card-meta">{escape(who)}'
+                    + (f' · {escape(str(st_.get("status", "")))}' if status_text else "") + f'</div>{err}</div></li>')
     done = sum(1 for x in items if x.get("status") == "done")
     return (f'<ol class="lyst-steps" aria-label="{escape(label)}: {done} of {len(items)} done">' + "".join(rows) + "</ol>")
 

@@ -280,9 +280,9 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
     sup = r.get("supporting", {}) or {}
     with st.container(border=True):
         head = st.empty()
-        bar = st.columns([3, 0.9, 0.9, 2], vertical_alignment="center")
+        bar = st.columns([2.4, 0.9, 0.9, 1, 2], vertical_alignment="center")
         default = _default_view(r)
-        view = bar[3].segmented_control("Depth", VIEWS, default=default, key=f"view_{key}",
+        view = bar[4].segmented_control("Depth", VIEWS, default=default, key=f"view_{key}",
                                         label_visibility="collapsed", width="stretch") or default
         st.session_state["view_pref"] = view  # the depth a person picks carries to their next answers
         exec_ = view == "Summary" and r.get("audience") == "executive"  # an executive asked: lead with the brief
@@ -294,6 +294,11 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
                       icon=":material/view_sidebar:" if st.session_state.get(fk) else ":material/fullscreen:",
                       width="stretch", help="Show or hide the evidence beside the answer",
                       on_click=lambda: st.session_state.update({fk: not st.session_state.get(fk)}))
+        if key.removeprefix("av_").startswith("t_"):  # what Lyst can do next with this answer, from the engine
+            from lyst.ui import actions  # noqa: PLC0415
+
+            with bar[3]:
+                actions.menu("task", key.removeprefix("av_"), page="home", label="More", exclude=("task.open",))
         head.markdown("#### " + md(r["brief"] if exec_ and r.get("brief") else r["answer"]))
         if r["status"] == "needs_input":
             bar[0].badge("Needs your input", color="orange", icon=":material/help:")
