@@ -56,7 +56,7 @@ export const pillars = {
       icon: 'ShieldCheck',
       title: 'Verify',
       text: 'Lyst emphasizes traceable evidence, reproducible calculations, transparent assumptions, and reviewable results.',
-      detail: ['Cited queries', 'Reproducible runs', 'Imperfect data flagged', 'Adversarial checks'],
+      detail: ['Cited queries', 'Reproducible runs', 'Checks of the specialty applied', 'Adversarial checks'],
     },
   ],
 };
@@ -79,7 +79,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Authoritative sources, reconciled', 'Change detection', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -169,7 +169,7 @@ export const enterprise = {
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Docker packaging, plus encrypted backups that run while Lyst is up and are checked before any restore.', status: 'available' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Encrypted backups checked before any restore, and whole workspaces that move in one sealed file.', status: 'available' as Status },
   ],
 };
 
@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home, a verified answer, the What if explorer, data that checks itself, analyses that know when they are out of date, team work, the ⌘K palette, and a dashboard Studio built from one sentence.',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home, an answer with its evidence rail, the What if explorer, data that checks itself, analyses that know when they are out of date, team work, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
