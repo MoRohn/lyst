@@ -1481,3 +1481,67 @@ CONTROL.append((
     )
     """,
 ))
+
+# Harness lane (migrations 100-109): a frozen contract per task (goal, inputs, output, constraints, done_when), one
+# immutable change receipt per run, every classified failure, and the harness rules proposed from repeated failures.
+# A rule is proposed, then active only once a person approves it, and retired by a person (docs/HARNESS.md).
+CONTROL.append((
+    100,
+    """
+    CREATE TABLE task_contracts (
+        task_id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        job_key VARCHAR NOT NULL,
+        contract JSON NOT NULL,
+        sha256 VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE task_receipts (
+        task_id VARCHAR NOT NULL,
+        run INTEGER NOT NULL,
+        workspace_id VARCHAR NOT NULL,
+        state VARCHAR NOT NULL,
+        contract_met BOOLEAN,
+        receipt JSON NOT NULL,
+        sha256 VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (task_id, run)
+    );
+    CREATE TABLE harness_failures (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        task_id VARCHAR NOT NULL,
+        run INTEGER NOT NULL,
+        job_key VARCHAR NOT NULL,
+        failure_class VARCHAR NOT NULL,
+        fix_kind VARCHAR,
+        capability VARCHAR,
+        signature VARCHAR NOT NULL,
+        evidence VARCHAR,
+        rule_id VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE harness_rules (
+        id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        job_key VARCHAR NOT NULL,
+        capability VARCHAR,
+        signature VARCHAR NOT NULL,
+        text VARCHAR NOT NULL,
+        spec JSON NOT NULL,
+        status VARCHAR NOT NULL,
+        source_failures JSON NOT NULL,
+        approval_id VARCHAR,
+        memory_id VARCHAR,
+        hits INTEGER NOT NULL DEFAULT 0,
+        proposed_by VARCHAR,
+        decided_by VARCHAR,
+        retired_by VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        decided_at TIMESTAMPTZ,
+        retired_at TIMESTAMPTZ
+    );
+    CREATE INDEX harness_failures_job ON harness_failures (workspace_id, job_key, signature)
+    """,
+))

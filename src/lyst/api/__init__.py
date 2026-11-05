@@ -1682,6 +1682,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .graphs import routes as graph_routes  # noqa: PLC0415
 
     graph_routes(app, L, User)
+    # -- harness lane: task contracts, change receipts, durable state; failures, harness rules, the checklist ---------
+    from .harness import routes as harness_routes  # noqa: PLC0415
+
+    harness_routes(app, L, User)
 
     return app
 

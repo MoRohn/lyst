@@ -38,10 +38,13 @@ GET /v1/specializations/overview | query: - | body: -
 GET /v1/specializations/{sid} | query: - | body: -
 GET /v1/tasks/{task_id} | query: - | body: -
 GET /v1/tasks/{task_id}/artifacts | query: - | body: -
+GET /v1/tasks/{task_id}/contract | query: - | body: -
 GET /v1/tasks/{task_id}/evidence | query: - | body: -
 GET /v1/tasks/{task_id}/expertise | query: - | body: -
 GET /v1/tasks/{task_id}/explain | query: - | body: -
 GET /v1/tasks/{task_id}/lifecycle | query: - | body: -
+GET /v1/tasks/{task_id}/receipts | query: - | body: -
+GET /v1/tasks/{task_id}/state | query: - | body: -
 GET /v1/tasks/{task_id}/trace | query: - | body: -
 GET /v1/workspaces/{ws}/analyses | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/quality | query: - | body: -
@@ -109,6 +112,9 @@ GET /v1/workspaces/{ws}/graph-runs/{run_id}/files | query: - | body: -
 GET /v1/workspaces/{ws}/graph/brief | query: - | body: -
 GET /v1/workspaces/{ws}/graph/harness | query: - | body: -
 GET /v1/workspaces/{ws}/graph/review | query: - | body: -
+GET /v1/workspaces/{ws}/harness | query: - | body: -
+GET /v1/workspaces/{ws}/harness/failures | query: - | body: -
+GET /v1/workspaces/{ws}/harness/rules | query: - | body: -
 GET /v1/workspaces/{ws}/inbox | query: - | body: -
 GET /v1/workspaces/{ws}/ingest | query: - | body: -
 GET /v1/workspaces/{ws}/ingest/{jid} | query: - | body: -
@@ -237,6 +243,7 @@ POST /v1/workspaces/{ws}/graph-runs/{run_id}/cancel | query: - | body: -
 POST /v1/workspaces/{ws}/graph-runs/{run_id}/go | query: - | body: -
 POST /v1/workspaces/{ws}/graph-runs/{run_id}/rerun | query: - | body: -
 POST /v1/workspaces/{ws}/graph/rules/{rule_id}/retire | query: - | body: -
+POST /v1/workspaces/{ws}/harness/rules/{rule_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/ingest | query: - | body: file
 POST /v1/workspaces/{ws}/ingest/{jid}/commit | query: - | body: -
 POST /v1/workspaces/{ws}/members | query: - | body: email,role
@@ -305,6 +312,7 @@ PUT /v1/workspaces/{ws}/attention | query: - | body: -
 PUT /v1/workspaces/{ws}/data-policy | query: - | body: -
 PUT /v1/workspaces/{ws}/datasets/{name}/authority | query: - | body: -
 PUT /v1/workspaces/{ws}/datasets/{name}/classification | query: - | body: level,reason
+PUT /v1/workspaces/{ws}/harness/rules/{rule_id} | query: - | body: text
 PUT /v1/workspaces/{ws}/notification-preferences | query: - | body: -
 PUT /v1/workspaces/{ws}/pins/{kind}/{ref_id} | query: - | body: -
 PUT /v1/workspaces/{ws}/profile | query: - | body: -

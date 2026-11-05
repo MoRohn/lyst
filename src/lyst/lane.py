@@ -55,3 +55,7 @@ def attach(lyst) -> None:
     lyst.graphs = GraphService(lyst.stores, lyst.guard, lyst.runtime, knowledge=lyst.knowledge, semantic=lyst.semantic,
                                data=lyst.data, memory=lyst.memory)
     lyst.runtime.periodic.append(lyst.graphs.tick)  # Builder → Checker → Router, every running graph
+    from .harness import HarnessService  # noqa: PLC0415 - harness lane
+
+    lyst.harness = HarnessService(lyst.stores, lyst.guard, lyst.runtime, memory=lyst.memory)
+    lyst.runtime.harness = lyst.harness  # applies a harness.update approval when a person decides it
