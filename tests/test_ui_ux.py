@@ -95,7 +95,7 @@ def test_home_guides_a_first_run(ui):  # noqa: F811
     at.run()
     body = _texts(at)
     assert "Get started" in body and "Let Lyst study the data" in body  # driven by the onboarding status
-    assert "at a glance" in body  # the business pulse above the suggestions
+    assert "Lyst can answer about" in body  # what to ask, from the workspace's own approved measures
 
 
 def test_brain_shows_the_health_of_definitions(ui):  # noqa: F811

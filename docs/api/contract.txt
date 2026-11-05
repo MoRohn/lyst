@@ -6,6 +6,7 @@ DELETE /v1/workspaces/{ws}/datasets/{name}/row-policies | query: column,principa
 DELETE /v1/workspaces/{ws}/exports/{eid} | query: - | body: -
 DELETE /v1/workspaces/{ws}/ingest/{jid} | query: - | body: -
 DELETE /v1/workspaces/{ws}/members/{user_id} | query: - | body: -
+DELETE /v1/workspaces/{ws}/pins/{kind}/{ref_id} | query: - | body: -
 DELETE /v1/workspaces/{ws}/webhooks/{sid} | query: - | body: -
 GET /auth/callback | query: code,state | body: -
 GET /auth/login | query: - | body: -
@@ -119,6 +120,7 @@ GET /v1/workspaces/{ws}/objects/{kind}/{oid}/comments | query: - | body: -
 GET /v1/workspaces/{ws}/onboarding | query: - | body: -
 GET /v1/workspaces/{ws}/onboarding/proposals | query: - | body: -
 GET /v1/workspaces/{ws}/operations | query: - | body: -
+GET /v1/workspaces/{ws}/pins | query: - | body: -
 GET /v1/workspaces/{ws}/profile | query: - | body: -
 GET /v1/workspaces/{ws}/pulse | query: - | body: -
 GET /v1/workspaces/{ws}/queries | query: - | body: -
@@ -132,6 +134,7 @@ GET /v1/workspaces/{ws}/schedules | query: - | body: -
 GET /v1/workspaces/{ws}/semantic/audit | query: - | body: -
 GET /v1/workspaces/{ws}/settings | query: - | body: -
 GET /v1/workspaces/{ws}/skills | query: - | body: -
+GET /v1/workspaces/{ws}/skills/discover | query: q | body: -
 GET /v1/workspaces/{ws}/skills/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/source-authority | query: - | body: -
 GET /v1/workspaces/{ws}/specializations/{sid} | query: - | body: -
@@ -170,6 +173,7 @@ POST /v1/imports/inspect | query: - | body: file
 POST /v1/installation/backup | query: - | body: -
 POST /v1/models/catalog/refresh | query: - | body: -
 POST /v1/tasks/{task_id}/artifacts/{kind} | query: - | body: -
+POST /v1/tasks/{task_id}/follow-up | query: - | body: text
 POST /v1/tasks/{task_id}/{action} | query: - | body: -
 POST /v1/workspaces/{ws}/analyst/requests | query: - | body: text,workspace_id
 POST /v1/workspaces/{ws}/anticipations/refresh | query: - | body: -
@@ -275,6 +279,7 @@ PUT /v1/workspaces/{ws}/data-policy | query: - | body: -
 PUT /v1/workspaces/{ws}/datasets/{name}/authority | query: - | body: -
 PUT /v1/workspaces/{ws}/datasets/{name}/classification | query: - | body: level,reason
 PUT /v1/workspaces/{ws}/notification-preferences | query: - | body: -
+PUT /v1/workspaces/{ws}/pins/{kind}/{ref_id} | query: - | body: -
 PUT /v1/workspaces/{ws}/profile | query: - | body: -
 PUT /v1/workspaces/{ws}/quotas | query: - | body: -
 PUT /v1/workspaces/{ws}/voice/preferences | query: - | body: -

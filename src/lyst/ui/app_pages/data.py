@@ -630,10 +630,16 @@ def connections() -> None:
 
 
 def dashboards_view() -> None:
+    """The studio's gallery: every dashboard and report as a preview to open in the viewer; the maintenance lists
+    (health, rebuild, retire) one step away."""
+    from lyst.ui import artifacts  # noqa: PLC0415
+
     if editor and st.button("New dashboard", icon=":material/dashboard_customize:", type="tertiary"):
         reports.new_dashboard()
-    reports.dashboards()
-    reports.saved_reports()
+    artifacts.gallery(key="studio", kinds=("dashboard", "report", "briefing", "presentation", "workbook"))
+    with st.expander("Manage dashboards and reports", icon=":material/build:"):
+        reports.dashboards()
+        reports.saved_reports()
 
 
 def _set_sql(text: str) -> None:

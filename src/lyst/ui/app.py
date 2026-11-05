@@ -64,6 +64,9 @@ def make_pages(waiting: int = 0) -> list:
         st.Page(here / "data.py", title="Data", icon=":material/database:"),
         st.Page(here / "brain.py", title="Brain", icon=":material/psychology:"),
         st.Page(here / "settings.py", title="Settings", icon=":material/settings:"),
+        # the artifact viewer: reached from wherever an artifact is shown, never a navigation area of its own
+        st.Page(here / "artifact.py", title="Artifact", icon=":material/open_in_full:", url_path="artifact",
+                visibility="hidden"),
     ]
 
 
@@ -230,7 +233,33 @@ RECENT_ICON = {"queued": ":material/schedule:", "running": ":material/progress_a
                "awaiting_approval": ":material/approval:", "failed": ":material/error:",
                "paused": ":material/pause:"}
 
+def _pins(ws: str) -> list[dict]:
+    hit = st.session_state.get("_pins")
+    if hit and hit[0] == ws:
+        return hit[1]
+    try:
+        pins = api.get(f"/v1/workspaces/{ws}/pins")[:6]
+    except APIError:
+        pins = []
+    st.session_state["_pins"] = (ws, pins)
+    return pins
+
+
+PIN_PAGE = {"dataset": ("app_pages/data.py", "dataset"), "metric": ("app_pages/brain.py", "metric")}
+
 with st.sidebar:
+    if pins := _pins(st.session_state.workspace):
+        kit.label("Pinned")
+        from lyst.ui import artifacts as _art  # noqa: PLC0415
+
+        for p in pins:
+            if st.button(p.get("title") or p["id"], key=f"lyst_recent_pin_{p['kind']}_{p['id']}".replace(":", "_"),
+                         type="tertiary", width="stretch", icon=_art.KINDS.get(p["kind"], ("", ":material/keep:"))[1]
+                         if p["kind"] in _art.KINDS else ":material/keep:"):
+                if p["kind"] in PIN_PAGE:
+                    page, qk = PIN_PAGE[p["kind"]]
+                    st.switch_page(page, query_params={qk: p["id"]})
+                _art.open_artifact({"kind": p["kind"], "id": p["id"]})
     if recent := _recent(st.session_state.workspace):
         kit.label("Recent")
         for t in recent:

@@ -58,6 +58,31 @@ The visual language, inspired by the craft of native apps without imitating them
 * **Settings.** A native two-pane screen (`kit.panes`): panes listed on the left, the chosen pane on the right,
   kept in `?view=`. Workspace settings sit in titled, raised groups (`kit.group`).
 
+## Artifacts
+
+Pages are workspaces; what Lyst makes are **artifacts** people find, open, refine and come back to
+(`src/lyst/ui/artifacts.py`). Nothing about an artifact lives in Streamlit session state:
+
+* **Model.** `catalog()` lists analyses (finished tasks and their results) and the asset registry (dashboards, saved
+  analyses, PDF and Markdown briefings, slides, workbooks: ids, versions, lineage, validation and health). A chart
+  inside an analysis is an artifact too, addressed `<task id>:<n>`.
+* **Previews.** `thumbnail()` draws each tile from the artifact's own content: an analysis or chart from its numbers
+  (line or bars), a file from its kind (dashboard layout, deck, page, grid, flow). SVG images, so they render in one pass.
+* **Viewer.** The hidden `artifact` page (`?kind=&id=`, not a navigation area) opens any artifact with room to work:
+  Back returns to the exact page and section it was opened from, Pin keeps it in the sidebar, Versions lists its
+  versions, an Evidence column shows what it is built on, and **Refine it** sends a follow-up ("break that down by
+  region", "compare it to last year", "make this a dashboard") that runs as a new analysis recording its parent; if
+  the engine cannot apply a refinement it says which ones it can. `VIEWERS` maps each kind to its own viewer: a
+  chart large with its table; a dashboard's own published series, interactive, with a period range; a saved
+  analysis as its steps and a run for any period; a Markdown briefing as a document; a PDF page by page; slides as
+  slides; a workbook sheet by sheet. Analyses open in the conversation on Home, where they can be continued.
+* **Where they appear.** Home's **Your work** shelf (replacing the KPI tiles: Home is a workspace, not a dashboard),
+  **Made in this answer** under each answer (each chart as a tile; one chart stays in the finding), Data › Dashboards
+  as the studio gallery (search, filter by kind; the maintenance lists one step away), the ⌘K palette, and the
+  sidebar's **Pinned**.
+* **Pins.** Per person and workspace in the workspace database (`ui_pins`, migration 80; `GET/PUT/DELETE
+  /v1/workspaces/{ws}/pins/{kind}/{id}`), so they survive reloads, browsers and sessions and never cross workspaces.
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.

@@ -1616,6 +1616,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .voice import routes as voice_routes  # noqa: PLC0415
 
     voice_routes(app, L, User)
+    # -- UI lane: each person's pins --------------------------------------------------------------------------------
+    from .ui import routes as ui_routes  # noqa: PLC0415
+
+    ui_routes(app, L, User)
 
     return app
 

@@ -42,3 +42,6 @@ def attach(lyst) -> None:
                               core=lambda: getattr(lyst, "analyst_core", None))
     lyst.runtime.periodic.append(lyst.voice.prune_all)  # transcript and audio retention, idle sessions closed
     _events.CATALOG.update({"voice.settings": ("voice.settings_changed", "workspace")})
+    from .pins import PinService  # noqa: PLC0415 - UI lane
+
+    lyst.pins = PinService(lyst.stores, lyst.guard)
