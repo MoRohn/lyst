@@ -71,7 +71,7 @@ export const stage =
         primaryCta: 'Learn more',
         status: 'In development',
         capabilityNote:
-          'Lyst is in active development. “Built” means implemented and tested in the private preview; nothing is generally released yet. Behind the one Analyst sit 136 specialist profiles, from FP&A to fraud detection: 101 are equipped with the methods they need and 35 are defined so far.',
+          'Lyst is in active development. “Built” means implemented and tested in the private preview; nothing is generally released yet. Behind the one Analyst sit 136 specialist profiles, from FP&A to fraud detection. 8 are proven operational on tasks with known answers, 98 are equipped with the methods they need and 30 are defined so far.',
         enterpriseNote:
           'Items marked Built are implemented and tested in the private preview. The rest are architectural design goals. None of this is a certification.',
         accessHeadline: 'Want to learn more?',
