@@ -187,3 +187,30 @@ their credentials connected again; webhooks arrive paused with a new secret.
 
 Gaps: no incremental (delta) export; packs are built in the engine process (a multi-GB workspace takes minutes);
 cross-installation user creation is not automatic (unknown emails are reported, not invented).
+
+## 9. Deployment profiles and diagnostics (`src/lyst/profiles.py`, `diagnostics.py`)
+
+`LYST_PROFILE` = `local` (default) | `offline` | `server` | `portable` fills the defaults that kind of installation
+needs, never overriding a variable that is set. `offline` makes a local OpenAI-compatible model the only model,
+turns off the model-catalog refresh and telemetry export, and keeps webhooks on private addresses (enforced in
+`webhooks.check_target`). `server` binds all interfaces and expects OIDC and TLS at the proxy. `portable` is a
+self-contained data folder that moves as a workspace pack; the master key stays in each machine's own store.
+
+`lyst doctor [--json] [--no-network]` (and `GET /v1/diagnostics` for installation administrators) starts from the same
+preflight as `lyst start --check` (Python, data folder, key, ports; reused from `lyst.launch`, not repeated), then checks
+the numeric packages, disk space and write access, encryption and the key source, schema migrations on every
+workspace, database and WAL sizes, backup age, the credential audit chain, network exposure without an identity
+provider, the Python sandbox, the model (a local server is probed at `/models`; OpenRouter needs a key), stalled
+tasks, dead webhook deliveries, event-collector lag, and the profile's own promises (an offline installation
+pointing at OpenRouter, or with internet connectors or the catalog refresh on, fails). Each check carries its fix.
+The report holds no key, token, local path or data, so it can be shared for support. The CLI asks the running
+engine first and opens the installation itself only when none is running.
+
+`lyst export <ws> <file> [--history]` and `lyst import <file> [--as <id>] [--activate] [--check]` move workspaces
+(passphrase from `LYST_PACK_PASSPHRASE` or a prompt). Verified live on this Mac: a demo engine on a scratch home
+exported Northwind (48 tables, 0.1 MB sealed), `--check` passed, the import created `nw_live`, and the same
+query returned identical rows from both.
+
+`deploy/offline/docker-compose.yml` is an air-gapped stack (engine, interface, Ollama on an `internal: true`
+network, only the interface published on loopback). It is written to Compose's schema but was not run: there is
+no Docker on the development Mac.

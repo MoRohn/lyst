@@ -278,3 +278,16 @@ def register(app, L, User) -> None:
         return await run_in_threadpool(L(request).portability.import_pack, user, content, passphrase=passphrase,
                                        workspace_id=workspace_id, name=name, activate=activate, add_members=add_members)
 
+    # -- diagnostics ------------------------------------------------------------------------
+
+    @app.get("/v1/diagnostics")
+    async def diagnostics_report(request: Request, user: User, network: bool = True):
+        """Health and profile checks with the fix for each (installation administrators)."""
+        from .. import diagnostics  # noqa: PLC0415
+        from ..security import AccessDenied  # noqa: PLC0415
+
+        lyst = L(request)
+        if not lyst.credentials.is_installation_admin(user):
+            raise AccessDenied("diagnostics are for installation administrators")
+        return await run_in_threadpool(diagnostics.run, lyst, network=network)
+
