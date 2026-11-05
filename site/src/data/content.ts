@@ -162,7 +162,7 @@ export const enterprise = {
   eyebrow: 'Enterprise-ready thinking',
   headline: 'Built for serious analytical work.',
   items: [
-    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
+    { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Every object knows what can be done with it and by whom, the server re-checks each action, and anything that changes something asks a person first. Credentials stay encrypted and out of every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Any figure traces to its step, query, definition version, dataset version and source, and can be reproduced.', status: 'available' as Status },
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
@@ -179,7 +179,7 @@ export const workflow = {
   steps: [
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Type or speak a question, or hand over a vague project. It becomes a living spec whose requirements count as met only with evidence.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
-    { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze, and verify each step.' },
+    { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze and verify each step, under one honest status from Preparing to Completed or Needs attention.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
   ],
 };
