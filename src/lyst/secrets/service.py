@@ -28,6 +28,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import threading
 import time
 import uuid
@@ -43,6 +44,10 @@ SCOPES = ("installation", "workspace", "user")
 DEFAULT_POLICY = {"openrouter": {"workspace_override": False, "user_credentials": False},
                   "custom": {"workspace_override": True, "user_credentials": True}}
 REAUTH_SECONDS = 15 * 60
+
+
+class CredentialConflict(RuntimeError):
+    """Two replacements of one credential raced; the later one changed nothing and can be retried (HTTP 409)."""
 
 
 class ReauthRequired(AccessDenied):
@@ -132,7 +137,7 @@ class CredentialService:
             if required and not fields.get(fname):
                 raise ValueError(f"{flabel} is required")
         secret = (secret or "").strip()
-        if not secret and p.secret_label.endswith("(optional)"):
+        if not secret and p.secret_optional:
             secret = ""
         elif len(secret) < 8:
             raise ValueError("the secret is too short to be real")
@@ -146,14 +151,27 @@ class CredentialService:
         self.redactor.register(secret)
 
         def tx(c):
+            superseded = [r[0] for r in c.execute(
+                "SELECT secret_ref FROM credentials WHERE scope_kind = ? AND coalesce(scope_id, '') = ? AND provider = ? AND name = ? "
+                "AND status = 'active'", [scope_kind, scope_id or "", provider, name]).fetchall()]
             c.execute("UPDATE credentials SET status = 'replaced', replaced_at = now() WHERE scope_kind = ? AND coalesce(scope_id, '') = ? "
                       "AND provider = ? AND name = ? AND status = 'active'", [scope_kind, scope_id or "", provider, name])
             c.execute("INSERT INTO credentials (id, scope_kind, scope_id, provider, name, secret_ref, backend, key_version, fields, owner_id, "
                       "status, version, fingerprint, last_test) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)",
                       [cid, scope_kind, scope_id, provider, name, stored.ref, stored.backend, stored.key_version, json.dumps(fields), actor.user_id,
                        fingerprint(secret), json.dumps({**test, "at": _now()}, default=str)])
+            return superseded
 
-        self.stores.control.write(tx)
+        try:
+            superseded = self.stores.control.write(tx)
+        except BaseException:
+            self.backend.delete(ref)  # nothing points at the new blob: never leave it behind
+            raise
+        for old in superseded or []:  # a replaced credential keeps its metadata, never its secret
+            try:
+                self.backend.delete(old)
+            except Exception:  # noqa: BLE001 - the new credential is live; a stale blob is cleaned up by revoke
+                log.warning("could not delete a superseded secret blob")
         self._event(actor, "credential.connect", cid, scope_kind, scope_id, "ok", {"provider": provider, "name": name, "test": test["outcome"]})
         return {"id": cid, "provider": provider, "name": name, "scope_kind": scope_kind, "scope_id": scope_id, "test": test}
 
@@ -185,7 +203,7 @@ class CredentialService:
             # concurrent replacements: the version must still be what we read, or this write loses
             row = cur.execute("SELECT version FROM credentials WHERE id = ?", [credential_id]).fetchall()[0]
             if int(row[0]) != int(c["version"]):
-                raise RuntimeError("the credential was replaced concurrently; retry")
+                raise CredentialConflict("the credential was replaced concurrently; retry")
             cur.execute("UPDATE credentials SET secret_ref = ?, backend = ?, key_version = ?, fields = ?, version = ?, fingerprint = ?, "
                         "last_test = ?, replaced_at = now(), status = 'active' WHERE id = ?",
                         [stored.ref, stored.backend, stored.key_version, json.dumps(merged), new_version, fingerprint(secret),
@@ -193,7 +211,7 @@ class CredentialService:
 
         try:
             self.stores.control.write(tx)
-        except RuntimeError:
+        except BaseException:  # any failure, not only the version conflict: the new blob must not outlive it
             self.backend.delete(new_ref)
             raise
         self.backend.delete(old_ref)
@@ -344,7 +362,7 @@ class CredentialService:
             self._event(Principal("system", "system@lyst.local", kind="system"), "credential.access", c["id"], c["scope_kind"], c["scope_id"],
                         "failed", {"purpose": purpose, "consumer": consumer, "reason": str(exc)})
             raise
-        key = (c["id"], f"{consumer}:{purpose}")
+        key = (c["id"], f"{consumer}:{purpose}:{workspace or ''}")
         now = time.time()
         with self._lock:
             due = self._decisions.get(key, 0) < now - 3600
@@ -375,7 +393,10 @@ class CredentialService:
         return tok["access_token"]
 
     def on_membership_change(self, workspace: str, user_id: str) -> None:
-        """A user who lost a workspace keeps no cached grant there; their personal credentials stay theirs."""
+        """A user who lost a workspace keeps no cached grant there; their personal credentials stay theirs.
+
+        The cache only throttles the hourly access-decision audit line; dropping a workspace's entries makes the next
+        use there record a fresh decision."""
         with self._lock:
             self._decisions = {k: v for k, v in self._decisions.items() if not k[1].endswith(f":{workspace}")}
 
@@ -499,16 +520,26 @@ class CredentialService:
 
         self.stores.control.write(tx)
 
-    def verify_audit_chain(self) -> dict[str, Any]:
-        rows = self.stores.control.query("SELECT * FROM credential_events ORDER BY seq")
-        prev = "genesis"
-        for r in rows:
-            expected = hashlib.sha256(f"{prev}|{r['seq']}|{r['occurred_at']}|{r['actor']}|{r['action']}|{r['credential_id']}|{r['scope_kind']}|"
-                                      f"{r['scope_id']}|{r['outcome']}|{r['detail']}".encode()).hexdigest()
-            if r["prev_hash"] != prev or r["hash"] != expected:
-                return {"ok": False, "broken_at": r["seq"], "events": len(rows)}
-            prev = r["hash"]
-        return {"ok": True, "events": len(rows), "head": prev}
+    def verify_audit_chain(self, *, batch: int = 5000) -> dict[str, Any]:
+        """Re-hash the chain in bounded batches (keyset on seq), carrying the previous hash across them."""
+        prev, last_seq, count = "genesis", None, 0
+        while True:
+            rows = self.stores.control.query(
+                "SELECT seq, occurred_at, actor, action, credential_id, scope_kind, scope_id, outcome, detail, prev_hash, hash "
+                "FROM credential_events" + (" WHERE seq > ?" if last_seq is not None else "") + " ORDER BY seq LIMIT ?",
+                ([last_seq] if last_seq is not None else []) + [batch])
+            if not rows:
+                break
+            for r in rows:
+                count += 1
+                expected = hashlib.sha256(f"{prev}|{r['seq']}|{r['occurred_at']}|{r['actor']}|{r['action']}|{r['credential_id']}|"
+                                          f"{r['scope_kind']}|{r['scope_id']}|{r['outcome']}|{r['detail']}".encode()).hexdigest()
+                if r["prev_hash"] != prev or r["hash"] != expected:
+                    total = self.stores.control.scalar("SELECT count(*) FROM credential_events") or 0
+                    return {"ok": False, "broken_at": r["seq"], "events": int(total)}
+                prev = r["hash"]
+            last_seq = rows[-1]["seq"]
+        return {"ok": True, "events": count, "head": prev}
 
     def events(self, actor: Principal, *, scope_kind: str, scope_id: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
         self._require_admin(actor, scope_kind, scope_id, sensitive=False)
@@ -522,24 +553,33 @@ class CredentialService:
 class Redactor(logging.Filter):
     """Masks every plaintext the broker has released from log records and from audit details."""
 
+    MAX_VALUES = 4096  # the most recently released plaintexts; an old one leaves only after thousands of newer ones
+
     def __init__(self) -> None:
         super().__init__()
-        self._values: set[str] = set()
+        self._values: dict[str, None] = {}  # insertion-ordered: the oldest is evicted first
+        self._pattern: re.Pattern[str] | None = None
         self._lock = threading.Lock()
 
     def register(self, value: str) -> None:
         if value and len(value) >= 6:
             with self._lock:
-                self._values.add(value)
+                if value in self._values:
+                    self._values[value] = self._values.pop(value)  # most recent again
+                    return
+                self._values[value] = None
+                while len(self._values) > self.MAX_VALUES:
+                    self._values.pop(next(iter(self._values)))
+                self._pattern = None
 
     def scrub(self, obj: Any) -> Any:
         if isinstance(obj, str):
             with self._lock:
-                vals = list(self._values)
-            for v in vals:
-                if v in obj:
-                    obj = obj.replace(v, "[secret]")
-            return obj
+                if self._pattern is None and self._values:
+                    # one alternation, longest first, rebuilt only when the set changes
+                    self._pattern = re.compile("|".join(re.escape(v) for v in sorted(self._values, key=len, reverse=True)))
+                pattern = self._pattern
+            return pattern.sub("[secret]", obj) if pattern is not None else obj
         if isinstance(obj, dict):
             return {k: self.scrub(v) for k, v in obj.items()}
         if isinstance(obj, list | tuple):
@@ -571,4 +611,4 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-__all__ = ["CredentialService", "Lease", "ReauthRequired", "Redactor", "SCOPES"]
+__all__ = ["CredentialConflict", "CredentialService", "Lease", "ReauthRequired", "Redactor", "SCOPES"]

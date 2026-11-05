@@ -26,7 +26,7 @@ from ..contracts import ContractSpec
 from ..data.sqlguard import QueryRejected
 from ..followups import FollowUps
 from ..operations import QuotaExceeded
-from ..secrets import MasterKeyMissing, ReauthRequired, SecretUnavailable
+from ..secrets import CredentialConflict, MasterKeyMissing, ReauthRequired, SecretUnavailable
 from ..secrets import providers as credential_providers
 from ..security import AccessDenied, Principal
 from ..security.oidc import OIDC, OIDCError, OIDCSettings, oidc_settings_from_credentials
@@ -491,6 +491,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.exception_handler(ReauthRequired)
     async def _reauth(_: Request, exc: ReauthRequired):
         return JSONResponse({"error": "reauth_required", "detail": str(exc)}, status_code=401)
+
+    @app.exception_handler(CredentialConflict)
+    async def _conflict(_: Request, exc: CredentialConflict):
+        return JSONResponse({"error": "conflict", "detail": str(exc)}, status_code=409)
 
     @app.exception_handler(MasterKeyMissing)
     async def _master_key(_: Request, exc: MasterKeyMissing):
