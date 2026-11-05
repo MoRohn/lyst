@@ -34,6 +34,21 @@ def normalise_name(text: str) -> str:
     return name[:63]
 
 
+def unique_names(names: list[str]) -> list[str]:
+    """Normalised column names with collisions made distinct: "Total Sales" and "total-sales" both normalise to
+    total_sales, so the second becomes total_sales_2 rather than two columns with one name."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for n in (normalise_name(c) for c in names):
+        name, i = n, 2
+        while name in seen:
+            suffix = f"_{i}"
+            name, i = n[:63 - len(suffix)] + suffix, i + 1
+        seen.add(name)
+        out.append(name)
+    return out
+
+
 @dataclass
 class QueryResult:
     columns: list[str]
@@ -108,13 +123,13 @@ class DataService:
 
         ``table`` may also be a ``pyarrow.dataset.Dataset`` with normalised column names (a connector sync spooled to
         disk); DuckDB scans it lazily, so the rows are never all in memory at once. Its ``sha`` must be given."""
+        name = normalise_name(name)  # authorised under the name it is written as
         self.guard.require(actor, workspace_id, "data.ingest", name)
-        name = normalise_name(name)
         if not _NAME.match(name):
             raise ValueError("invalid dataset name")
         if isinstance(table, pa.Table):
-            table = table.rename_columns([normalise_name(c) for c in table.column_names])
-        elif sha is None or any(normalise_name(c) != c for c in table.schema.names):
+            table = table.rename_columns(unique_names(table.column_names))
+        elif sha is None or unique_names(table.schema.names) != table.schema.names:
             raise ValueError("a spooled dataset needs its sha256 and normalised column names")
         if sha is None:
             import io as _io  # noqa: PLC0415
@@ -144,13 +159,11 @@ class DataService:
                 c.execute(f'CREATE TABLE data."{physical}" AS SELECT * FROM _incoming')
             c.unregister("_incoming")
             rows = c.execute(f'SELECT count(*) FROM data."{physical}"').fetchall()[0][0]
-            frame = c.execute(f'SELECT * FROM data."{physical}" LIMIT 200000').df()
-            prof_json = json.loads(json.dumps(profile_frame(frame).to_dict(), default=str)) if len(frame) else {}
             schema = [{"name": r[0], "type": str(r[1]).lower()} for r in c.execute(f'DESCRIBE data."{physical}"').fetchall()]
             c.execute(
                 "INSERT INTO dataset_versions (dataset, version, physical_table, source, source_sha256, "
                 "row_count, schema, profile, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [name, version, physical, source, sha, rows, json.dumps(schema), json.dumps(prof_json, default=str), actor.user_id],
+                [name, version, physical, source, sha, rows, json.dumps(schema), "{}", actor.user_id],
             )
             if current:
                 c.execute("UPDATE datasets SET current_version = ?, updated_at = now() WHERE name = ?", [version, name])
@@ -170,9 +183,20 @@ class DataService:
                                       sensitivity=level if level in ("public", "internal", "confidential", "restricted") else "internal",
                                       data={"version": version, "previous_version": current[0], "rows": rows,
                                             "previous_rows": prev_rows, **{k: v[:20] for k, v in drift.items()}})
-            return {"dataset": name, "version": version, "unchanged": False, "rows": rows}
+            return {"dataset": name, "version": version, "unchanged": False, "rows": rows, "physical": physical}
 
         result = db.write(tx)
+        physical = result.pop("physical", None)
+        if physical:
+            # profiled after the commit, from a read connection: the single writer is not held while pandas works
+            try:
+                with db.read() as cur:
+                    frame = cur.execute(f'SELECT * FROM data."{physical}" LIMIT 200000').df()
+                if len(frame):
+                    db.execute("UPDATE dataset_versions SET profile = ? WHERE dataset = ? AND version = ?",
+                               [json.dumps(profile_frame(frame).to_dict(), default=str), name, result["version"]])
+            except Exception:  # noqa: BLE001 - the version is committed; a profile is descriptive
+                logging.getLogger("lyst.data").exception("profiling %s v%s failed", name, result["version"])
         self.guard.audit(actor, workspace_id, "data.ingest", name, "ok", {"version": result["version"], "rows": result["rows"],
                                                                          "source": source})
         for hook in self.after_ingest:
@@ -218,7 +242,15 @@ class DataService:
         )
         if not row:
             raise KeyError(name)
-        return json.loads(row[0]["profile"] or "{}")
+        prof = json.loads(row[0]["profile"] or "{}")
+        hidden = self.policy_for(actor, workspace_id).restricted_columns.get(name, set())
+        if hidden and prof:
+            # the same column policy that masks a query masks the profile's samples, top values and statistics
+            prof["columns"] = [c for c in prof.get("columns", []) if c.get("name") not in hidden]
+            prof["correlations"] = [c for c in prof.get("correlations", []) if not _mentions(list(c[:2]), hidden)]
+            prof["hierarchies"] = [h for h in prof.get("hierarchies", []) if not _mentions(h, hidden)]
+            prof["suggest"] = {k: v for k, v in (prof.get("suggest") or {}).items() if not _mentions(v, hidden)}
+        return prof
 
     def policy_for(self, actor: Principal, workspace_id: str) -> GuardPolicy:
         db = self.stores.workspace(workspace_id)
@@ -231,15 +263,18 @@ class DataService:
         }
         role = self.guard.role(actor, workspace_id) or "viewer"
         restricted: dict[str, set[str]] = {}
-        for p in db.query("SELECT dataset, column_name, min_role FROM column_policies"):
-            if RANK[role] < RANK[p["min_role"]]:
-                restricted.setdefault(p["dataset"], set()).add(p["column_name"])
+        above = [r for r, rank in RANK.items() if rank > RANK[role]]  # only the policies this caller is below
+        for p in db.query("SELECT dataset, column_name FROM column_policies WHERE min_role IN "
+                          f"({', '.join('?' for _ in above) or 'NULL'})", above):
+            restricted.setdefault(p["dataset"], set()).add(p["column_name"])
         # row policies: a policy naming the user wins over one naming their role; the system principal is never restricted
         rows: dict[str, dict[str, list]] = {}
         if actor.kind != "system":
             by_role: dict[tuple[str, str], list] = {}
             by_user: dict[tuple[str, str], list] = {}
-            for p in db.query("SELECT dataset, column_name, principal_kind, principal, allowed_values FROM row_policies"):
+            for p in db.query("SELECT dataset, column_name, principal_kind, principal, allowed_values FROM row_policies "
+                              "WHERE (principal_kind = 'user' AND principal = ?) OR (principal_kind = 'role' AND principal = ?)",
+                              [actor.user_id, role]):
                 key = (p["dataset"], p["column_name"])
                 if p["principal_kind"] == "user" and p["principal"] == actor.user_id:
                     by_user[key] = json.loads(p["allowed_values"])
@@ -260,8 +295,13 @@ class DataService:
         if principal_kind == "role" and principal not in RANK:
             raise ValueError(f"unknown role {principal}")
         db = self.stores.workspace(workspace_id)
-        if not db.scalar("SELECT count(*) FROM datasets WHERE name = ?", [dataset]):
+        schema = db.query("SELECT v.schema FROM datasets d JOIN dataset_versions v ON v.dataset = d.name "
+                          "AND v.version = d.current_version WHERE d.name = ?", [dataset])
+        if not schema:
             raise KeyError(dataset)
+        column = normalise_name(column)  # the name ingestion gave the column, so the filter applies to it
+        if column not in {c["name"] for c in json.loads(schema[0]["schema"])}:
+            raise ValueError(f"{dataset} has no column {column}")
         db.execute("INSERT OR REPLACE INTO row_policies (dataset, column_name, principal_kind, principal, allowed_values, created_by) "
                    "VALUES (?, ?, ?, ?, ?, ?)", [dataset, column, principal_kind, principal, json.dumps(list(allowed_values)), actor.user_id])
         self.guard.audit(actor, workspace_id, "policy.rows", dataset, "ok",
@@ -279,12 +319,24 @@ class DataService:
 
     def delete_row_policy(self, actor: Principal, workspace_id: str, dataset: str, column: str, *, principal_kind: str, principal: str) -> bool:
         self.guard.require(actor, workspace_id, "workspace.admin", dataset)
+        if principal_kind not in ("user", "role"):
+            raise ValueError("principal_kind must be user or role")
         db = self.stores.workspace(workspace_id)
-        n = db.scalar("SELECT count(*) FROM row_policies WHERE dataset = ? AND column_name = ? AND principal_kind = ? AND principal = ?",
-                      [dataset, column, principal_kind, principal])
-        db.execute("DELETE FROM row_policies WHERE dataset = ? AND column_name = ? AND principal_kind = ? AND principal = ?",
-                   [dataset, column, principal_kind, principal])
-        self.guard.audit(actor, workspace_id, "policy.rows.delete", dataset, "ok", {"column": column, principal_kind: principal})
+        # a policy stored before names were normalised is still addressable by the name it was given
+        names = sorted({column, normalise_name(column)})
+        marks = ", ".join("?" for _ in names)
+        args = [dataset, *names, principal_kind, principal]
+
+        def tx(c):
+            n = c.execute(f"SELECT count(*) FROM row_policies WHERE dataset = ? AND column_name IN ({marks}) AND principal_kind = ? "
+                          "AND principal = ?", args).fetchone()[0]
+            c.execute(f"DELETE FROM row_policies WHERE dataset = ? AND column_name IN ({marks}) AND principal_kind = ? AND principal = ?",
+                      args)
+            return n
+
+        n = db.write(tx)
+        self.guard.audit(actor, workspace_id, "policy.rows.delete", dataset, "ok" if n else "not_found",
+                         {"column": column, principal_kind: principal})
         return bool(n)
 
     # -- queries ----------------------------------------------------------------------------
@@ -306,6 +358,8 @@ class DataService:
                 check(actor, workspace_id, guarded.datasets)
             except Exception as exc:
                 self._history(db, actor, task_id, sql, None, 0, "rejected", str(exc)[:500], guarded.datasets)
+                self.guard.audit(actor, workspace_id, "data.query", None, "rejected",
+                                 {"reason": str(exc)[:300], "datasets": sorted(guarded.datasets)})
                 raise
         start = time.perf_counter()
         try:
@@ -316,6 +370,8 @@ class DataService:
         except Exception as exc:
             ms = int((time.perf_counter() - start) * 1000)
             self._history(db, actor, task_id, sql, None, ms, "error", str(exc)[:500], guarded.datasets)
+            logging.getLogger("lyst.data").warning("query failed in %s after %d ms: %s", workspace_id, ms,
+                                                   type(exc).__name__)
             raise
         ms = int((time.perf_counter() - start) * 1000)
         qid = self._history(db, actor, task_id, sql, len(rows), ms, "ok", None, guarded.datasets)
@@ -335,13 +391,32 @@ class DataService:
 
         return db.write(tx)
 
-    def history(self, actor: Principal, workspace_id: str, limit: int = 50) -> list[dict[str, Any]]:
+    def history(self, actor: Principal, workspace_id: str, limit: int = 50, *, before_id: int | None = None) -> list[dict[str, Any]]:
+        """Recent queries, newest first. Members see their own; workspace admins and owners see everyone's."""
         self.guard.require(actor, workspace_id, "data.read")
+        everyone = RANK.get(self.guard.role(actor, workspace_id) or "viewer", 0) >= RANK["admin"] or actor.kind == "system"
+        where, params = [], []
+        if not everyone:
+            where.append("actor = ?")
+            params.append(actor.user_id)
+        if before_id is not None:
+            where.append("id < ?")
+            params.append(int(before_id))
         return self.stores.workspace(workspace_id).query(
             "SELECT id, occurred_at, actor, task_id, sql, rows, ms, outcome, error FROM query_history "
-            "ORDER BY id DESC LIMIT ?",
-            [limit],
+            + (f"WHERE {' AND '.join(where)} " if where else "") + "ORDER BY id DESC LIMIT ?",
+            [*params, max(1, min(int(limit), 500))],
         )
+
+
+def _mentions(value: Any, names: set[str]) -> bool:
+    if isinstance(value, str):
+        return value in names
+    if isinstance(value, list | tuple):
+        return any(_mentions(v, names) for v in value)
+    if isinstance(value, dict):
+        return any(_mentions(v, names) for v in value.values())
+    return False
 
 
 def _read_table(content: bytes, filename: str) -> pa.Table:
@@ -354,4 +429,4 @@ def _read_table(content: bytes, filename: str) -> pa.Table:
     raise ValueError("supported formats: CSV, TSV, Parquet")
 
 
-__all__ = ["DataService", "QueryRejected", "QueryResult", "normalise_name"]
+__all__ = ["DataService", "QueryRejected", "QueryResult", "normalise_name", "unique_names"]

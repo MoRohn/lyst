@@ -586,7 +586,7 @@ class _Spool:
         import pyarrow.compute as pc  # noqa: PLC0415
         import pyarrow.parquet as pq  # noqa: PLC0415
 
-        from ..data import normalise_name  # noqa: PLC0415
+        from ..data import unique_names  # noqa: PLC0415
 
         for name in self.files:  # a retried read starts again from nothing
             os.unlink(name)
@@ -598,7 +598,7 @@ class _Spool:
                 mx = pc.max(batch[cursor_column]).as_py()
                 if mx is not None and (self.max_cursor is None or _later(mx, self.max_cursor)):
                     self.max_cursor = mx
-            batch = batch.rename_columns([normalise_name(c) for c in batch.column_names])
+            batch = batch.rename_columns(unique_names(batch.column_names))
             path = os.path.join(self._dir.name, f"{len(self.files):06d}.parquet")
             pq.write_table(batch, path)
             self.files.append(path)

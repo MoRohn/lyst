@@ -268,3 +268,31 @@ def test_an_empty_model_reply_never_replaces_the_computed_answer(seeded):
     # still covers a reply that has text but no words
     by = r["supporting"]["narrative_by"]
     assert r["answer"].startswith("Operating margin was 32.5%") and by.startswith("template (") and ("empty reply" in by or "no wording" in by), by
+
+
+def test_colliding_headers_policies_on_normalised_names_and_private_query_history(seeded):
+    lyst, owner = seeded
+    r = lyst.data.ingest(owner, "northwind", "Mixed Names", b"Total Sales,total-sales,Region\n1,2,EMEA\n", filename="m.csv")
+    assert r["dataset"] == "mixed_names"
+    cols = [c["name"] for c in next(d for d in lyst.data.catalog(owner, "northwind") if d["name"] == "mixed_names")["schema"]]
+    assert cols == ["total_sales", "total_sales_2", "region"]
+    viewer = lyst.guard.create_user("hist@northwind.test", "H")
+    lyst.guard.add_member(owner, "northwind", viewer.user_id, "viewer")
+    # a policy given as "Region" applies to the ingested column "region"; an unknown column is refused
+    assert lyst.data.set_row_policy(owner, "northwind", "mixed_names", "Region", principal_kind="user", principal=viewer.user_id,
+                                    allowed_values=["APAC"])["column"] == "region"
+    assert lyst.data.query(viewer, "northwind", "select count(*) from mixed_names").rows == [[0]]
+    with pytest.raises(ValueError, match="no column"):
+        lyst.data.set_row_policy(owner, "northwind", "mixed_names", "nope", principal_kind="role", principal="viewer", allowed_values=[])
+    assert not lyst.data.delete_row_policy(owner, "northwind", "mixed_names", "region", principal_kind="role", principal="viewer")
+    with pytest.raises(ValueError):
+        lyst.data.delete_row_policy(owner, "northwind", "mixed_names", "region", principal_kind="group", principal="x")
+    assert lyst.data.delete_row_policy(owner, "northwind", "mixed_names", "Region", principal_kind="user", principal=viewer.user_id)
+    # query history: a member sees their own queries, an owner sees everyone's
+    lyst.data.query(owner, "northwind", "select 42 as owner_only")
+    assert all(h["actor"] == viewer.user_id for h in lyst.data.history(viewer, "northwind"))
+    assert any("owner_only" in h["sql"] for h in lyst.data.history(owner, "northwind"))
+    # a column policy hides that column from the stored profile too
+    lyst.data.set_column_policy(owner, "northwind", "mixed_names", "total_sales", "restricted", "admin")
+    prof = lyst.data.dataset_profile(viewer, "northwind", "mixed_names")
+    assert "total_sales" not in [c["name"] for c in prof["columns"]] and prof["columns"]
