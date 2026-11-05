@@ -246,7 +246,26 @@ def documents() -> None:
                         st.rerun()
 
 
+def review_memory() -> None:
+    """Admins: memories that may no longer apply (newer data, a changed definition, or age), each with the reason.
+    Teach a correction below when one is wrong; Lyst stops using memories that no longer apply."""
+    if not admin:
+        return
+    try:
+        stale = api.get(f"/v1/workspaces/{ws}/memory/review")
+    except APIError:
+        return
+    if not stale:
+        return
+    with kit.group(f"Waiting for review · {len(stale)}", "mem_review",
+                   note="Lyst no longer relies on these. Correct any that are wrong with the form below."):
+        for i, m in enumerate(stale[:20]):
+            kit.row(m["content"], " · ".join(x for x in (m.get("stale_reason"), m.get("layer"), kit.when(m.get("created_at"))) if x),
+                    status=("May not apply", "warn"), key=f"mr{m['id']}", divider=i < min(len(stale), 20) - 1)
+
+
 def memory() -> None:
+    review_memory()
     mem = api.get(f"/v1/workspaces/{ws}/memory")
     with st.form("correction", border=True):
         text = st.text_input("Teach Lyst something it should remember",

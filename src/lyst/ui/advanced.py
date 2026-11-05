@@ -117,3 +117,6 @@ def skills() -> None:
     from lyst.ui import anticipate  # noqa: PLC0415  (working-ahead quality and the methods Lyst could add)
 
     anticipate.quality_block()
+    from lyst.ui import continuity  # noqa: PLC0415  (installation administrators only)
+
+    continuity.section()

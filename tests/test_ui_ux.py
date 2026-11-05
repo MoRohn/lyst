@@ -507,3 +507,34 @@ def test_a_specialization_shows_the_evidence_behind_its_maturity(seeded, ui):  #
     at.run(timeout=30)
     assert not at.exception, at.exception
     assert any("Representative task passed" in c.value for c in at.caption)
+
+
+def test_backups_and_recovery_show_measured_objectives_to_installation_admins(seeded, ui):  # noqa: F811
+    import lyst.ui.client as client_mod  # noqa: PLC0415
+
+    try:
+        client_mod.client().get("/v1/installation/continuity")
+    except client_mod.APIError:
+        import pytest  # noqa: PLC0415
+
+        pytest.skip("the test owner is not an installation administrator")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "advanced"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Data you could lose" in body and "Time to restore" in body and "never contain the master key" in body
+    next(b for b in at.button if b.label == "Back up now").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(b.label == "Test a restore" for b in at.button)
+
+
+def test_memory_review_is_quiet_when_nothing_is_stale(seeded, ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/brain.py")
+    at.query_params["view"] = "memory"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
