@@ -177,7 +177,7 @@ def trust_line(r: dict[str, Any]) -> str | None:
     passed = sum(1 for c in checks if c.get("passed"))
     if r.get("status") == "needs_input":
         return "Lyst needs one more detail before it can answer; see below."
-    if conf.get("level") == "verified":
+    if conf.get("level") == "verified" and passed == len(checks):
         return (f"All {len(checks)} checks passed: every figure was recomputed independently from approved data."
                 if checks else "Every figure was recomputed independently from approved data.")
     if checks:

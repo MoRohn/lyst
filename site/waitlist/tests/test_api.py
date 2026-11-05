@@ -215,3 +215,33 @@ def test_store_reopens(tmp_path):
     s.close()
     s2 = Store(tmp_path / "x.duckdb", b"k" * 32, key)
     assert s2.count() == 1 and s2.export()[0]["email"] == "a@example.com"
+
+
+def test_healthz_reports_an_unavailable_store(tmp_path, monkeypatch):
+    client, store = make(tmp_path)
+    monkeypatch.setattr(store, "count", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("gone")))
+    r = client.get("/healthz")
+    assert r.status_code == 503 and r.json()["store"] == "unavailable"
+
+
+def test_export_writes_minimal_fields_to_a_private_file(tmp_path, monkeypatch, capsys):
+    import os
+
+    from lyst_waitlist import cli
+
+    key = Fernet.generate_key().decode()
+    monkeypatch.setenv("LYST_WAITLIST_ENV", "production")
+    monkeypatch.setenv("LYST_WAITLIST_DB", str(tmp_path / "w.duckdb"))
+    monkeypatch.setenv("LYST_WAITLIST_HASH_KEY", "h" * 43)
+    monkeypatch.setenv("LYST_WAITLIST_ENCRYPTION_KEY", key)
+    monkeypatch.setenv("LYST_WAITLIST_ALLOWED_ORIGINS", ORIGIN)
+    from lyst_waitlist.store import Registration
+
+    s = Store(tmp_path / "w.duckdb", cli.Settings.from_env().hash_key, key.encode())
+    s.add(Registration(kind="early_access", email="a@example.com", consent_version="2026-11-04", message="private note"))
+    s.close()
+    out = tmp_path / "export.jsonl"
+    assert cli.main(["export", "--out", str(out)]) == 0
+    rec = json.loads(out.read_text().splitlines()[0])
+    assert rec["email"] == "a@example.com" and "message" not in rec
+    assert (os.stat(out).st_mode & 0o777) == 0o600 and "a@example.com" not in capsys.readouterr().out

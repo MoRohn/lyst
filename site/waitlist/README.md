@@ -16,7 +16,8 @@ variable is empty, the site shows a truthful "sign-up isn’t open" state instea
 | Single writer | One DuckDB connection per process, every statement serialized through a lock; run exactly one worker. DuckDB's file lock stops a second process from opening the database for writing. |
 | Encryption at rest | Email, organization and message are encrypted with Fernet (AES-128-CBC + HMAC) using `LYST_WAITLIST_ENCRYPTION_KEY`. Duplicate detection uses a keyed HMAC of the email. Also put the database on an encrypted volume. |
 | Consent | Each record stores `consent_scope` (`early_access_updates` or `design_partner_contact`), the consent text version and a UTC timestamp. |
-| Removal and retention | `lyst-waitlist remove EMAIL` deletes every record for an address. `lyst-waitlist purge` deletes records older than `LYST_WAITLIST_RETENTION_DAYS` (default 730); run it from cron. |
+| Removal and retention | `lyst-waitlist remove EMAIL` deletes every record for an address (the erasure path for a request by e-mail). `lyst-waitlist purge` deletes records older than `LYST_WAITLIST_RETENTION_DAYS` (default 730); run it from cron. |
+| Export | `lyst-waitlist export --out FILE [--fields kind,email,...]` writes only the chosen fields (default kind, email, consent) to a new file readable only by you; it never writes to stdout. |
 | Logging | JSON lines on stdout with event, request id and a hashed client id. Emails and IPs are never logged. |
 | DuckDB file | Never served. The service has no route that reads the database; only the operator CLI does. |
 
