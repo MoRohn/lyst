@@ -45,3 +45,8 @@ def attach(lyst) -> None:
     from .pins import PinService  # noqa: PLC0415 - UI lane
 
     lyst.pins = PinService(lyst.stores, lyst.guard)
+    from .graphs import GraphService  # noqa: PLC0415 - graph lane
+
+    lyst.graphs = GraphService(lyst.stores, lyst.guard, lyst.runtime, knowledge=lyst.knowledge, semantic=lyst.semantic,
+                               data=lyst.data, memory=lyst.memory)
+    lyst.runtime.periodic.append(lyst.graphs.tick)  # Builder → Checker → Router, every running graph

@@ -102,6 +102,7 @@ def test_brain_shows_the_health_of_definitions(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/brain.py")
+    at.query_params["view"] = "definitions"  # Brain opens on its Graph; definitions are one section over
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     labels = [e.label for e in at.expander]

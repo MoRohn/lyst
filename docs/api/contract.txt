@@ -56,6 +56,7 @@ GET /v1/workspaces/{ws}/assets/{asset_id}/proposal | query: - | body: -
 GET /v1/workspaces/{ws}/assignments | query: - | body: -
 GET /v1/workspaces/{ws}/attention | query: - | body: -
 GET /v1/workspaces/{ws}/audit | query: - | body: -
+GET /v1/workspaces/{ws}/brain/graph | query: - | body: -
 GET /v1/workspaces/{ws}/catalog | query: - | body: -
 GET /v1/workspaces/{ws}/catalog/relationships | query: - | body: -
 GET /v1/workspaces/{ws}/catalog/search | query: q | body: -
@@ -101,6 +102,12 @@ GET /v1/workspaces/{ws}/exports | query: - | body: -
 GET /v1/workspaces/{ws}/exports/{eid}/download | query: - | body: -
 GET /v1/workspaces/{ws}/findings | query: - | body: -
 GET /v1/workspaces/{ws}/glossary | query: - | body: -
+GET /v1/workspaces/{ws}/graph-runs | query: - | body: -
+GET /v1/workspaces/{ws}/graph-runs/{run_id} | query: - | body: -
+GET /v1/workspaces/{ws}/graph-runs/{run_id}/files | query: - | body: -
+GET /v1/workspaces/{ws}/graph/brief | query: - | body: -
+GET /v1/workspaces/{ws}/graph/harness | query: - | body: -
+GET /v1/workspaces/{ws}/graph/review | query: - | body: -
 GET /v1/workspaces/{ws}/inbox | query: - | body: -
 GET /v1/workspaces/{ws}/ingest | query: - | body: -
 GET /v1/workspaces/{ws}/ingest/{jid} | query: - | body: -
@@ -218,6 +225,13 @@ POST /v1/workspaces/{ws}/experiments/{eid}/run | query: - | body: -
 POST /v1/workspaces/{ws}/exports | query: - | body: -
 POST /v1/workspaces/{ws}/findings/{finding_id} | query: - | body: status
 POST /v1/workspaces/{ws}/glossary | query: - | body: definition,term
+POST /v1/workspaces/{ws}/graph-runs | query: - | body: goal
+POST /v1/workspaces/{ws}/graph-runs/{run_id}/branches/{branch_id}/decide | query: - | body: -
+POST /v1/workspaces/{ws}/graph-runs/{run_id}/branches/{branch_id}/revise | query: - | body: job
+POST /v1/workspaces/{ws}/graph-runs/{run_id}/cancel | query: - | body: -
+POST /v1/workspaces/{ws}/graph-runs/{run_id}/go | query: - | body: -
+POST /v1/workspaces/{ws}/graph-runs/{run_id}/rerun | query: - | body: -
+POST /v1/workspaces/{ws}/graph/rules/{rule_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/ingest | query: - | body: file
 POST /v1/workspaces/{ws}/ingest/{jid}/commit | query: - | body: -
 POST /v1/workspaces/{ws}/members | query: - | body: email,role

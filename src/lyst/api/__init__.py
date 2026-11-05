@@ -1648,6 +1648,10 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .ui import routes as ui_routes  # noqa: PLC0415
 
     ui_routes(app, L, User)
+    # -- graph lane: graph runs, the harness and its learned rules, brief and review, the Brain graph ---------------
+    from .graphs import routes as graph_routes  # noqa: PLC0415
+
+    graph_routes(app, L, User)
 
     return app
 
