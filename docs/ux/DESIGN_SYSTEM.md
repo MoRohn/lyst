@@ -83,6 +83,18 @@ Pages are workspaces; what Lyst makes are **artifacts** people find, open, refin
 * **Pins.** Per person and workspace in the workspace database (`ui_pins`, migration 80; `GET/PUT/DELETE
   /v1/workspaces/{ws}/pins/{kind}/{id}`), so they survive reloads, browsers and sessions and never cross workspaces.
 
+## Data and Brain as workspaces
+
+Workspaces show objects and how they relate, not numbers: values live in artifacts and in each object's own view.
+
+* **Data › Datasets** has **Cards** (shape, freshness, columns by role, grain, the metrics a dataset feeds; no metric
+  sparklines) and **Map**: every dataset on a ring, linked by the columns they share, drawn from discovery's
+  evidence (`GET relations`). Column profiles open from a dataset.
+* **Brain › Definitions** has **Cards** as knowledge cards (what a metric means, its formula as written, the
+  dimensions it splits by, its synonyms; no live values) and **Map**: data → approved metrics → business terms as
+  a layered, left-to-right map that never becomes a hairball. A definition's trend and lineage open with it.
+* `visuals.ring_graph` and `visuals.layered_graph` draw maps as SVG images whose alt text lists every connection.
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.

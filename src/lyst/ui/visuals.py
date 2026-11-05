@@ -161,6 +161,94 @@ def steps(items: Sequence[dict], *, label: str = "Steps") -> str:
     return (f'<ol class="lyst-steps" aria-label="{escape(label)}: {done} of {len(items)} done">' + "".join(rows) + "</ol>")
 
 
+def _img(svg: str, alt: str, *, max_w: int | None = None) -> str:
+    """An SVG drawing as an image: never wider than drawn, so text keeps its size; narrower screens scale it down."""
+    data = base64.b64encode(svg.encode()).decode()
+    style = "width:100%;height:auto" + (f";max-width:{max_w}px" if max_w else "")
+    return f'<img class="lyst-graph" src="data:image/svg+xml;base64,{data}" alt="{escape(alt)}" style="{style}">'
+
+
+def _node(x: float, y: float, w: float, label: str, sub: str, c: dict, *, accent: bool = False) -> str:
+    fill, stroke = (c["raised"], c["accent"] if accent else c["border"])
+    lab = escape(label if len(label) <= 26 else label[:25] + "…")
+    sb = escape(sub if len(sub) <= 28 else sub[:27] + "…")
+    return (f'<rect x="{x - w / 2:.1f}" y="{y - 22:.1f}" width="{w:.1f}" height="44" rx="12" fill="{fill}" '
+            f'stroke="{stroke}" stroke-width="{1.6 if accent else 1}"/>'
+            f'<text x="{x:.1f}" y="{y - 3:.1f}" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" '
+            f'font-size="13" font-weight="600" fill="{c["text"]}">{lab}</text>'
+            f'<text x="{x:.1f}" y="{y + 13:.1f}" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" '
+            f'font-size="10.5" fill="{c["text-muted"]}">{sb}</text>')
+
+
+def layered_graph(layers: Sequence[tuple[str, Sequence[tuple[str, str, str]]]], edges: Sequence[tuple[str, str]],
+                  *, label: str) -> str:
+    """A left-to-right map of a few kinds of things and how they connect (sources → datasets → metrics → terms):
+    readable at a glance, never a hairball. ``layers`` = [(heading, [(id, label, sub)])], ``edges`` = [(id, id)]."""
+    c = tokens.colors(mode())
+    lw, gap_y, top = 220, 60, 44
+    rows = max((len(nodes) for _, nodes in layers), default=1)
+    w, h = lw * len(layers), top + gap_y * rows + 10
+    pos: dict[str, tuple[float, float]] = {}
+    parts = []
+    for li, (head, nodes) in enumerate(layers):
+        cx = lw * li + lw / 2
+        parts.append(f'<text x="{cx:.1f}" y="18" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" '
+                     f'font-size="10.5" font-weight="700" letter-spacing=".08em" fill="{c["text-muted"]}">'
+                     f'{escape(head.upper())}</text>')
+        off = (rows - len(nodes)) * gap_y / 2
+        for ni, (nid, _, _) in enumerate(nodes):
+            pos[nid] = (cx, top + off + gap_y * ni + 22)
+    lines = []
+    for a, b in edges:
+        if a in pos and b in pos:
+            (x1, y1), (x2, y2) = pos[a], pos[b]
+            x1, x2 = x1 + 85, x2 - 85
+            mx = (x1 + x2) / 2
+            lines.append(f'<path d="M{x1:.1f},{y1:.1f} C{mx:.1f},{y1:.1f} {mx:.1f},{y2:.1f} {x2:.1f},{y2:.1f}" '
+                         f'fill="none" stroke="{c["accent"]}" stroke-opacity=".45" stroke-width="1.5"/>')
+    for li, (_, nodes) in enumerate(layers):
+        for nid, lab, sub in nodes:
+            x, y = pos[nid]
+            parts.append(_node(x, y, 170, lab, sub, c, accent=li == len(layers) // 2))
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">'
+           + "".join(lines) + "".join(parts) + "</svg>")
+    names = {nid: lab for _, nodes in layers for nid, lab, _ in nodes}
+    desc = "; ".join(f"{names.get(a, a)} to {names.get(b, b)}" for a, b in edges if a in names and b in names)
+    return _img(svg, f"{label}. Connections: {desc or 'none'}.", max_w=int(w * 1.15))
+
+
+def ring_graph(nodes: Sequence[tuple[str, str, str]], edges: Sequence[tuple[str, str, str]], *, label: str) -> str:
+    """A few things arranged on a ring with labelled links between them (datasets and the columns they share)."""
+    import math  # noqa: PLC0415
+
+    c = tokens.colors(mode())
+    n = max(len(nodes), 1)
+    w, h = 760, 380 if n > 2 else 220
+    cx, cy, rx, ry = w / 2, h / 2, w / 2 - 110, h / 2 - 50
+    pos = {nid: (cx + rx * math.cos(2 * math.pi * i / n - math.pi / 2) if n > 1 else cx,
+                 cy + ry * math.sin(2 * math.pi * i / n - math.pi / 2) if n > 1 else cy)
+           for i, (nid, _, _) in enumerate(nodes)}
+    parts = []
+    for a, b, lab in edges:
+        if a in pos and b in pos:
+            (x1, y1), (x2, y2) = pos[a], pos[b]
+            parts.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{c["accent"]}" '
+                         f'stroke-opacity=".45" stroke-width="1.6"/>')
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            t = escape(lab if len(lab) <= 30 else lab[:29] + "…")
+            parts.append(f'<rect x="{mx - 4 * len(t) - 8:.1f}" y="{my - 10:.1f}" width="{8 * len(t) + 16:.1f}" height="20" '
+                         f'rx="10" fill="{c["bg"]}" stroke="{c["border"]}"/>'
+                         f'<text x="{mx:.1f}" y="{my + 4:.1f}" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" '
+                         f'font-size="10.5" fill="{c["text-muted"]}">{t}</text>')
+    for nid, lab, sub in nodes:
+        x, y = pos[nid]
+        parts.append(_node(x, y, 180, lab, sub, c, accent=True))
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + "".join(parts) + "</svg>"
+    names = {nid: lab for nid, lab, _ in nodes}
+    desc = "; ".join(f"{names.get(a, a)} and {names.get(b, b)} share {lab}" for a, b, lab in edges)
+    return _img(svg, f"{label}. {desc or 'No shared columns found'}.", max_w=int(w * 1.15))
+
+
 CSS = """
 .lyst-spark {display: block;}
 .lyst-viz-empty {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm);}
@@ -216,6 +304,13 @@ CSS = """
 .lyst-step-err {color: var(--lyst-bad); font-size: var(--lyst-size-sm);}
 /* Work board: columns of compact task cards */
 .lyst-col-head {display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .3rem;}
+.lyst-formula {font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--lyst-size-xs);
+               background: var(--lyst-surface); border-radius: var(--lyst-radius-sm); padding: .3rem .5rem;
+               display: inline-block; color: var(--lyst-text);}
+.lyst-tags {display: flex; flex-wrap: wrap; gap: .3rem; margin: .45rem 0 .2rem 0;}
+.lyst-tag {font-size: var(--lyst-size-xs); border: 1px solid var(--lyst-border); border-radius: var(--lyst-radius-pill);
+           padding: .05rem .5rem; color: var(--lyst-text-muted);}
+img.lyst-graph {display: block; margin: .4rem auto 0 auto;}
 /* cards: a title row, a headline, a visual, a quiet footer */
 .lyst-card-kicker {font-size: var(--lyst-size-xs); text-transform: uppercase; letter-spacing: var(--lyst-tracking-label);
                    color: var(--lyst-text-muted); font-weight: 600;}

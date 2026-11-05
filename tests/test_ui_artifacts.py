@@ -39,3 +39,14 @@ def test_the_viewer_opens_an_artifact_by_id_and_refuses_an_unknown_one(ui):  # n
     assert any("Not found" in m.value for m in at.markdown)
     tasks = [b for b in at.button if b.label == "Open"]
     assert tasks is not None
+
+
+def test_maps_carry_their_connections_as_text():
+    from lyst.ui import visuals  # noqa: PLC0415
+
+    ring = visuals.ring_graph([("a", "Sales", "10 rows"), ("b", "Costs", "5 rows")], [("a", "b", "month")],
+                              label="Datasets")
+    assert 'alt="Datasets. Sales and Costs share month."' in ring
+    lay = visuals.layered_graph([("Data", [("d:a", "Sales", "")]), ("Metrics", [("m:r", "Revenue", "")])],
+                                [("d:a", "m:r")], label="Map")
+    assert "Sales to Revenue" in lay and lay.startswith("<img")

@@ -409,6 +409,10 @@ def datasets(catalog: list[dict]) -> None:
     full = [{**d, **info.get(d["name"], {})} for d in shown]
     by = _metrics_by_dataset()
     overview(full, by)
+    if st.segmented_control("Layout", ["Cards", "Map"], default="Cards", key="ds_layout",
+                            label_visibility="collapsed") == "Map":
+        data_map(full)
+        return
     for start in range(0, len(full), 2):
         cols = st.columns(2)
         for col, c in zip(cols, full[start:start + 2], strict=False):
@@ -442,6 +446,28 @@ def _metrics_by_dataset() -> dict[str, list[dict]]:
     for m in metrics:
         out.setdefault(m["dataset"], []).append(m)
     return out
+
+
+def data_map(full: list[dict]) -> None:
+    """How the datasets connect: each one on a ring, linked by the columns they share (from discovery's evidence)."""
+    try:
+        rels = api.get(f"/v1/workspaces/{ws}/relations")
+    except APIError:
+        rels = []
+    names = {c["name"] for c in full}
+    pairs: dict[tuple[str, str], set[str]] = {}
+    for r in rels:
+        if r.get("from_kind") == "column" and r.get("to_kind") == "column":
+            fd, fc = str(r["from_name"]).split(".", 1)
+            td, _ = str(r["to_name"]).split(".", 1)
+            if fd in names and td in names and fd != td:
+                pairs.setdefault(tuple(sorted((fd, td))), set()).add(fc)
+    nodes = [(c["name"], c["title"], f"{int(c.get('rows') or c.get('row_count') or 0):,} rows") for c in full]
+    edges = [(a, b, ", ".join(sorted(cols)[:3]).replace("_", " ")) for (a, b), cols in sorted(pairs.items())]
+    with kit.card("data_map"):
+        st.html(visuals.ring_graph(nodes, edges, label="Datasets and the columns they share"))
+        st.caption("Lines join datasets that share a column with matching values, so Lyst can compare or combine them. "
+                   "Open a dataset from Cards to see every relationship and its evidence.")
 
 
 def overview(full: list[dict], by: dict[str, list[dict]]) -> None:
@@ -481,14 +507,6 @@ def dataset_card(c: dict, feeds: list[dict]) -> bool:
                               label=f"{c['title']} columns by role")
             + (f'<div class="lyst-card-meta" style="margin-top:.4rem">One row per {kit._esc(grain)}</div>'
                if grain else ""))
-    live = visuals.pulse(api, ws)
-    lead = next((live[m["name"]] for m in feeds if m["name"] in live), None)
-    if lead:
-        st.html(f'<div class="lyst-card-meta" style="margin-top:.2rem">{kit._esc(lead["title"])} · '
-                f'{kit._esc(lead["period"])} <b class="lyst-num">{kit._esc(lead["value_text"])}</b> '
-                f'{visuals.delta(lead["change_text"], lead.get("good"))}</div>'
-                + visuals.spark(lead["history"], label=f"{lead['title']} over the last {len(lead['history'])} "
-                                f"{lead['grain']}s", height=36))
     if feeds:
         st.caption(f"Feeds {len(feeds)} approved metric{'s' * (len(feeds) != 1)}: "
                    + ", ".join(m["title"] for m in feeds[:4]) + ("…" if len(feeds) > 4 else ""))
