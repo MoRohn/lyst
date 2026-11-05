@@ -29,6 +29,11 @@ def attach(lyst) -> None:
 
     lyst.portability = PortabilityService(lyst.stores, lyst.guard, lyst.credentials, lyst.settings.home)
     lyst.portability.governance = getattr(lyst, 'governance', None)
+
+    from .publishing import PublishingService
+
+    lyst.publishing = PublishingService(lyst.stores, lyst.guard, lyst.data, lyst.runtime)
+    lyst.publishing.governance = getattr(lyst, 'governance', None)
     # -- other lanes
     from .specialists.core import UniversalAnalystCore  # noqa: PLC0415 - specializations lane
 

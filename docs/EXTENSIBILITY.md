@@ -214,3 +214,24 @@ query returned identical rows from both.
 `deploy/offline/docker-compose.yml` is an air-gapped stack (engine, interface, Ollama on an `internal: true`
 network, only the interface published on loopback). It is written to Compose's schema but was not run: there is
 no Docker on the development Mac.
+
+## 10. Publishing (`src/lyst/publishing.py`, workspace migration 43, control migration 41)
+
+`POST /v1/workspaces/{ws}/publications {task_id, audience, title, min_role, expires_days}` publishes a finished
+analysis as a snapshot page: the briefing (answer, evidence, tables, checks, the queries behind it) rendered to
+self-contained HTML with no scripts and no external requests, light and dark.
+
+* `members`: editors publish; members with at least `min_role` read it signed in (`.../publications/{id}/content`).
+* `link`: admins publish; anyone with the link reads `GET /p/<token>` until it expires (30 days by default, at
+  most 365). The link is shown once; only its SHA-256 is kept (with an installation-wide index from fingerprint
+  to workspace). Refused when the analysis read a dataset classified confidential or restricted (the demo P&L is
+  confidential, so the demo publishes to members), when a `publish_checks` hook refuses, or when the governance
+  service's `publish` policy does. The datasets read are found by parsing the analysis's own queries with the guard.
+
+Pages are served with `Content-Security-Policy: default-src 'none'`, `noindex`, `no-referrer`, `no-store`.
+Unknown, expired and withdrawn links all answer the same 404. `.../republish {task_id}` puts a newer analysis
+behind the same link as a new version (earlier versions stay readable by members); `.../revoke` stops the link
+and members' access at once. Views are counted and recorded per version. Events: `publication.published|revoked`.
+
+Gaps: dashboards (live Dash apps) are not published as snapshots; no scheduled republish; no per-viewer link
+analytics beyond counts (by design).

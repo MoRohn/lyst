@@ -1432,3 +1432,52 @@ WORKSPACE.append((
     )
     """,
 ))
+WORKSPACE.append((
+    43,
+    """
+    CREATE TABLE publications (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        audience VARCHAR NOT NULL,
+        min_role VARCHAR NOT NULL DEFAULT 'viewer',
+        link_hash VARCHAR UNIQUE,
+        expires_at TIMESTAMPTZ,
+        status VARCHAR NOT NULL,
+        current_version INTEGER NOT NULL,
+        views INTEGER NOT NULL DEFAULT 0,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        revoked_by VARCHAR,
+        revoked_at TIMESTAMPTZ
+    );
+    CREATE TABLE publication_versions (
+        publication_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        task_id VARCHAR NOT NULL,
+        markdown VARCHAR NOT NULL,
+        html VARCHAR NOT NULL,
+        sha256 VARCHAR NOT NULL,
+        datasets JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (publication_id, version)
+    );
+    CREATE TABLE publication_views (
+        publication_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        viewer VARCHAR NOT NULL,
+        viewed_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
+))
+CONTROL.append((
+    41,
+    """
+    CREATE TABLE publication_links (
+        link_hash VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        publication_id VARCHAR NOT NULL
+    )
+    """,
+))
