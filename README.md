@@ -34,15 +34,30 @@ uv sync --all-extras
 uv run lyst start --demo
 ```
 
-One command initialises encryption (the master key goes into the OS credential store), seeds the Northwind
-demo workspace, starts the engine on `http://127.0.0.1:8770` and opens the interface at
-**http://lyst.localhost:8501**. Ctrl-C stops everything.
+One command initialises encryption (the master key goes into the OS credential store), seeds the Northwind demo
+workspace, starts the engine and the interface, and opens **http://lyst.localhost:8501**:
 
-It is safe to run again. If Lyst is already running it opens that one instead of starting a second, if a default port
-is busy it picks the next free one and says so, and if another program has the data open it names that program's PID
-instead of failing with a traceback. From any terminal, `lyst status` says what is running and `lyst stop` stops it
-(only the processes `lyst start` recorded). `lyst start --check` checks Python, the data folder, the encryption key, the
-database and the ports before you start.
+```text
+Lyst is running at http://lyst.localhost:8501
+  Engine     http://127.0.0.1:8770
+  Interface  http://lyst.localhost:8501
+  Data       ./var
+  Demo       the Northwind workspace is ready; try "Why did operating margin decline last quarter?"
+Ctrl-C stops it. From another terminal: `lyst status`, `lyst stop`.
+```
+
+From any terminal in the checkout:
+
+```bash
+uv run lyst status          # is Lyst running here, at which address, under which PIDs (--json for scripts)
+uv run lyst stop            # stop the Lyst that `lyst start` launched; never touches processes it didn't record
+uv run lyst start --check   # preflight: Python, data folder, encryption key, database lock and ports, opening no database
+```
+
+`lyst start` is safe to run again. If Lyst is already running here it opens that one instead of starting a second; if
+a default port is busy it moves to the next free one and says so (an explicit `LYST_PORT` or `LYST_UI_PORT` that is
+busy is a clear error); and if another program holds the data open it names that program's PID instead of failing
+with a traceback. Ctrl-C in the starting terminal stops everything cleanly.
 
 Then ask: **"Why did operating margin decline last quarter?"** Lyst finds that operating margin fell from 36.0%
 in Q2 2026 to 32.5% in Q3 2026, that EMEA's own margin drop (36.8% to 24.0%) explains it, reconciles the
@@ -64,7 +79,7 @@ and a "What these words mean" glossary.
 
 | Area | What you do there |
 |---|---|
-| **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card follows the workspace's real set-up state and shows the top suggestions from your data to accept or dismiss, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
+| **Home** | A workspace, not a dashboard: the composer (with **Speak**), a Get started card that follows the workspace's real set-up state, suggested questions, **Your work** (a shelf of what Lyst has made, each with a preview drawn from its own content) and the conversations to pick up |
 | **Work** | A command center: a live status strip, then what needs you (approvals), what Lyst is doing and finished as a day-by-day timeline or a board, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed. Each task's steps show as a timeline from the engine |
 | **Data** | Every dataset is a card with its size, freshness, the shape of its columns and the live trend of the measure it feeds; open one for a profile of every column. Sources, dashboards, saved analyses, and a SQL workspace with the schema beside the editor, results kept while you explore, a first chart drawn for you, and a sandboxed **Python** tab. **Add data** uploads a file, connects a source, or proposes connections from an API description |
 | **Brain** | What Lyst knows about the business: every approved metric with its latest value, whether the change is good or bad, its twelve-month trend, and a lineage view from source file to dataset to definition; business terms, documents it can cite, what it remembers and how far to trust it, and **Specializations**: a searchable catalog of the 136 kinds of analyst work with each one's honest maturity |
@@ -83,6 +98,26 @@ Breakdown answers show their split as a chart.
 <p align="center">
   <img src="docs/images/palette.png" alt="The Ctrl/Cmd+K palette for 'margin': Ask Lyst, matching metrics, a saved analysis and an earlier answer, and three matching specializations with their maturity" width="80%">
 </p>
+
+### What Lyst makes is an artifact
+
+Dashboards, charts, briefings, slides, workbooks and saved analyses appear as previews drawn from their own content,
+and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides as slides,
+a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to refine it in
+words, see its versions, pin it to your sidebar, and return exactly where you were. Every chart in an answer
+appears under **Made in this answer**, Data › Dashboards is the gallery of everything made, and ⌘K finds artifacts
+by title.
+
+Data and Brain are workspaces too. Data › Datasets shows **Cards** or a **Map** of how datasets connect through the
+columns they share; Brain › Definitions shows each definition as what it means and how it is built, or a **Map**
+from data to approved metrics.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/data-map.png" alt="Data, Map: four datasets on a ring, linked by shared columns such as month, product line and region"><br><b>Data map</b>: datasets linked by the columns they share</td>
+    <td width="50%"><img src="docs/images/brain-map.png" alt="Brain, Map: Support demand and Monthly P&L linked to the six approved metrics and how each is built"><br><b>Brain map</b>: from data to approved metrics</td>
+  </tr>
+</table>
 
 ### Every answer: Summary, Detail, Method, and a Brief
 
@@ -291,8 +326,8 @@ where they point, with Mark all read and "What to tell me about".
   answered with the nearest number. Seven specialist methods run on datasets a request names (customer
   segmentation, outcome prediction with logistic regression, process mining with paths, bottlenecks and rework,
   distances between locations, two-source reconciliation, network and graph structure, and event-log burst
-  detection), all through the same access checks. Brain › **Specializations** lists all 136 with their maturity
-  and what each still lacks, and example questions can be asked in one click
+  detection), all through the same access checks. Brain › **Specializations** lists all 136 with their maturity,
+  what each still lacks and the recorded evidence behind it, and example questions can be asked in one click
   ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
 * **A workbench for your own Python and SQL.** Analysts run their own Python on governed data in an
   operating-system sandbox, on data already filtered by their column and row permissions. The code cannot read
@@ -381,6 +416,15 @@ where they point, with Mark all read and "What to tell me about".
   its schedules paused, so a copy never runs the same work twice. In Settings › Workspace › **Move or copy this
   workspace**, you seal the workspace into a passphrase-protected pack and download it; on another installation an
   admin checks the pack and brings it in as a new workspace, with schedules paused unless they choose otherwise.
+* **Remembers carefully.** Each memory records the datasets and metric versions it was learned from, and is
+  flagged as possibly out of date, with the reason, when a source has a newer version or is gone, a definition
+  changed, or it is older than a year. Recall ranks memories that still apply first, an answer that draws on a
+  stale one says it "may no longer apply", and admins get a review list. Retention removes only old agent-observed
+  memory, never approved or person-validated knowledge.
+* **Recovers from the worst day.** Backups are atomic (a full disk partway through leaves no half backup) and can
+  run on a schedule. Every new backup gets a restore drill that checks each checksum, refuses a backup containing
+  key material, and opens every database with the current master key. Lyst reports the measured recovery point and
+  recovery time against your targets ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
