@@ -265,3 +265,33 @@ def test_a_suggestion_waits_for_a_person_and_the_api_runs_it(seeded):
         assert c.get("/v1/workspaces/northwind/activities", headers=he).status_code == 403
         bad = c.post("/v1/workspaces/northwind/rules", headers=h, json={"spec": {"name": "x", "on": ["a.b"], "action": {"kind": "nope"}}})
         assert bad.status_code in (400, 422)
+
+
+def test_a_monitor_finding_becomes_an_event_a_rule_investigates(seeded):
+    """Scenario B end to end: a monitor validates a deviation (robust shift), the finding is staged as metric.deviated,
+    the rule investigates it, and the findings are kept as a report."""
+    lyst, owner = seeded
+    _rule(lyst, owner, "metric_deviation")
+    _start(lyst)
+    m = lyst.monitors.create(owner, "northwind", metric="operating_margin", grain="month", investigate=False)
+    lyst.runtime.decide(owner, m["approval_id"], True)
+    found = lyst.monitors.tick("northwind")
+    assert any(f["kind"] == "metric_shift" for f in found)
+    _settle(lyst)
+    acts = lyst.autonomy.activities(owner, "northwind", subject=("metric", "operating_margin"))
+    assert len(acts) == 1, acts
+    a = acts[0]
+    assert a["status"] == "completed" and a["outcome"]["asset_id"], a["stages"]
+    assert lyst.runtime.get(owner, a["task_id"])["result"]["status"] == "complete"
+
+
+def test_a_prediction_alone_never_starts_consequential_work(seeded):
+    lyst, owner = seeded
+    spec = {"name": "Retry on a forecast", "on": ["anticipation.found"], "autonomy": "automate",
+            "action": {"kind": "retry_task"}}
+    r = lyst.autonomy.activate(owner, "northwind", lyst.autonomy.save(owner, "northwind", spec)["id"])
+    lyst.runtime.decide(owner, r["approval_id"], True)
+    _start(lyst)
+    lyst.events.emit("northwind", "anticipation.found", subject=("task", "t_x"), source="service", data={"score": 0.9})
+    _settle(lyst, 1)
+    assert lyst.autonomy.activities(owner, "northwind")[0]["status"] == "suggested"

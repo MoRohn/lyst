@@ -49,6 +49,7 @@ class MonitorService:
         self.semantic = semantic
         self.runtime = runtime
         self.http = http or httpx.Client(timeout=10)
+        self.events = None  # the event service (lane.attach): each finding is staged as metric.deviated
 
     def _db(self, ws: str):
         return self.stores.workspace(ws)
@@ -229,11 +230,20 @@ class MonitorService:
                 key = f"{m['id']}|{f['period']}|{f['kind']}"
                 fid = "f_" + uuid.uuid4().hex[:10]
                 task_id = investigation if f["kind"] in ("metric_shift", "forecast_deviation") else None
-                db.execute(
-                    "INSERT INTO findings (id, monitor_id, kind, period, label, metric, summary, priority, direction, z, value, "
-                    "baseline, task_id, status, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)",
-                    [fid, m["id"], f["kind"], f["period"], f["label"], f["metric"], f["summary"], f["priority"], f["direction"],
-                     f["z"], f["value"], f["baseline"], task_id, key])
+                def record(c, f=f, fid=fid, task_id=task_id, key=key, m=m):
+                    c.execute(
+                        "INSERT INTO findings (id, monitor_id, kind, period, label, metric, summary, priority, direction, z, value, "
+                        "baseline, task_id, status, dedupe_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)",
+                        [fid, m["id"], f["kind"], f["period"], f["label"], f["metric"], f["summary"], f["priority"], f["direction"],
+                         f["z"], f["value"], f["baseline"], task_id, key])
+                    if self.events is not None:  # staged with the finding: rules can act on a validated deviation
+                        self.events.stage(c, ws, "metric.deviated", subject=("metric", f["metric"]), source="service",
+                                          dedupe_key=f"finding:{key}", related=[("monitor", m["id"]), ("finding", fid)],
+                                          data={"kind": f["kind"], "period": str(f["label"]), "direction": f["direction"],
+                                                "z": f["z"], "value": f["value"], "baseline": f["baseline"],
+                                                "priority": f["priority"], "investigation_task": task_id})
+
+                db.write(record)
                 f = {**f, "id": fid, "monitor_id": m["id"], "task_id": task_id}
                 new_findings.append(f)
                 self._notify(ws, m, f)

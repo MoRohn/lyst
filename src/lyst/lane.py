@@ -18,6 +18,9 @@ def attach(lyst) -> None:
     lyst.runtime.periodic.append(lyst.webhooks.run)  # collects events, then delivers what is due
     lyst.runtime.periodic.append(lyst.events.dispatch)  # durable consumers: new and due-for-retry events
     lyst.data.events = lyst.events  # dataset.schema_changed, staged with the version it describes
+    lyst.monitors.events = lyst.events  # metric.deviated, staged with each monitor finding
+    if getattr(lyst, "anticipation", None) is not None:
+        lyst.anticipation.events = lyst.events  # anticipation.found, for each new anticipation
     if getattr(lyst, "assets", None) is not None:
         lyst.assets.events = lyst.events  # asset.health_changed, staged with the health update
 

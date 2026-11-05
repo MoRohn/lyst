@@ -451,6 +451,8 @@ class AutonomyService:
             decision = "observed"
         elif s.action.kind == "propose":
             decision = "proposed"
+        elif ev["type"].startswith("anticipation.") and ACTIONS[s.action.kind][0] != "low":
+            decision = "suggested"  # a prediction never starts consequential work by itself: a person decides
         elif LEVELS.index(level) >= LEVELS.index(need):
             decision = "act"
         else:
@@ -893,6 +895,14 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "description": "When a saved dashboard or report breaks or goes stale, prepare a repair and ask before running it.",
         "when": {"field": "data.to", "op": "in", "value": ["broken", "stale", "invalidated"]},
         "action": {"kind": "propose", "proposal": "asset_repair"}, "autonomy": "suggest", "priority": 6},
+    "metric_deviation": {
+        "name": "Investigate a material metric deviation", "on": ["metric.deviated"],
+        "description": "When a watched metric moves beyond its expected range and no investigation is running yet, "
+                       "investigate it and keep the findings as a report.",
+        "when": {"all": [{"field": "data.kind", "op": "in", "value": ["metric_shift", "forecast_deviation"]},
+                         {"field": "data.investigation_task", "op": "missing"}]},
+        "action": {"kind": "investigate", "question": "Why did {subject.id} change in {data.period}?"},
+        "autonomy": "investigate", "priority": 7, "suppress_seconds": 86400},
     "recoverable_failure": {
         "name": "Retry a task after a recoverable failure", "on": ["task.failed"],
         "description": "When a task fails with a transient or model error, retry it once; the task's retry cap still applies.",

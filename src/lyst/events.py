@@ -130,6 +130,8 @@ TASK_STATES = {"done": "task.completed", "failed": "task.failed", "awaiting_appr
 EMITTED: dict[str, str] = {
     "dataset.schema_changed": "a new dataset version added, removed or retyped columns",
     "asset.health_changed": "a registered deliverable became current, stale, invalidated or broken",
+    "metric.deviated": "a monitor found a validated deviation (robust shift, forecast deviation, quality check)",
+    "anticipation.found": "anticipation recorded something worth preparing or watching",
     "event.chain_stopped": "an event was refused because its causal chain reached the depth limit",
     "event.dead_lettered": "a durable consumer gave up on an event after its attempt cap",
 }
