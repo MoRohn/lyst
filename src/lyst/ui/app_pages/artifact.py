@@ -44,8 +44,11 @@ def pin_button(item: dict) -> None:
         st.rerun()
 
 
-item = artifacts.find(kind, aid) if kind in artifacts.VIEWERS and aid else None
-bar = st.columns([1.3, 5, 1.1, 1.3], vertical_alignment="center")
+if kind == "asset" and aid:  # a server-given link names only the asset; its kind comes from the registry
+    item = artifacts.find("report", aid)
+else:
+    item = artifacts.find(kind, aid) if kind in artifacts.VIEWERS and aid else None
+bar = st.columns([1.3, 4, 1.3, 1.1, 1.3], vertical_alignment="center")
 if bar[0].button("Back", icon=":material/arrow_back:", type="tertiary", key="art_back"):
     back()
 if not item:
@@ -57,8 +60,15 @@ label, icon = artifacts.KINDS.get(item["kind"], ("Artifact", ""))
 meta = " · ".join(x for x in (label, f"v{item['version']}" if item.get("version") else None,
                               f"updated {kit.when(item.get('updated'))}" if item.get("updated") else None) if x)
 with bar[2]:
-    pin_button(item)
+    from lyst.ui import actions  # noqa: PLC0415
+
+    if item.get("asset"):
+        actions.menu("asset", item["id"], page="artifact", exclude=("asset.open",))
+    elif item.get("task_id"):
+        actions.menu("task", item["task_id"], page="artifact", exclude=("task.open",))
 with bar[3]:
+    pin_button(item)
+with bar[4]:
     artifacts.versions(item)
 kit.header(item["title"], meta)
 a = item.get("asset") or {}

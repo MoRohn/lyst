@@ -115,6 +115,21 @@ Data follows AcuArch's data surface, in Lyst's tokens and Streamlit, and keeps e
   count and time as pills. The Python tab still joins through `WORKBENCH`.
 * Styles are page-scoped in `app_pages/data.py` (`_CSS`), written only in `--lyst-*` tokens.
 
+## Actions and progress (the autonomy layer, in place)
+
+Autonomy is not a page. Every object offers what Lyst can do with it, where the object is (`src/lyst/ui/actions.py`):
+
+* `actions.menu(kind, id, page=)` lists `GET /v1/workspaces/{ws}/objects/{kind}/{id}/actions` (#121) as **Ask Lyst**,
+  **Do** and **Go to**, marks what needs approval, and runs through `POST .../actions/{id}`, which re-checks the
+  offer server-side. The result is shown as what it is: the new task opens, an approval or schedule is announced as
+  waiting, a draft as drafted, an artifact opens in the viewer. The page holds no agent logic, and on an engine
+  without the API the menu simply does not appear.
+* Menus live on answers (**More** beside Brief and Focus), metric definitions, Work's task details and the artifact
+  viewer. Datasets get theirs on the Data page (owned by the Data redesign).
+* **Progress is the engine's.** Work's list and board show each task's lifecycle state (Preparing, Investigating,
+  Executing, Verifying, Awaiting Approval, Completed, Needs Attention) and what it is doing now; details add **How it
+  progressed** from `GET /v1/tasks/{id}/lifecycle`. No percentages, no simulated motion.
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.
