@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 from datetime import date
 from typing import Any
@@ -133,7 +134,11 @@ class ContractService:
 
         version = db.write(tx)
         self.guard.audit(actor, ws, "contract.define", dataset, "ok", {"version": version})
-        check = self.check(actor, ws, dataset)
+        try:
+            check = self.check(actor, ws, dataset)
+        except Exception as exc:  # noqa: BLE001 - the contract is saved; a check that cannot run is reported, not raised
+            log.exception("contract check after defining %s v%s failed", dataset, version)
+            check = {"outcome": None, "error": f"the contract was saved but could not be checked: {str(exc)[:200]}"}
         return {"dataset": dataset, "version": version, "check": check}
 
     def retire(self, actor: Principal, ws: str, dataset: str) -> None:
@@ -157,14 +162,18 @@ class ContractService:
         return {"dataset": dataset, "active": active, "versions": rows, "status": self.status(ws, dataset)}
 
     def status(self, ws: str, dataset: str) -> dict[str, Any] | None:
-        """The active contract version and its latest check, for catalog rows and lineage."""
+        """The active contract version and its latest check, for catalog rows and lineage: None without a contract,
+        otherwise always the same five keys (``outcome`` None and ``problems`` empty before the first check).
+
+        Internal: takes no principal because its callers (``get`` and the catalog's insights, overview and metric
+        explanation) have already required ``data.read`` on the dataset."""
         active = self._active(ws, dataset)
         if not active:
             return None
         r = self._db(ws).query("SELECT outcome, dataset_version, checked_at, results FROM contract_checks WHERE dataset = ? AND contract_version = ? "
                                "ORDER BY checked_at DESC LIMIT 1", [dataset, active[0]])
         if not r:
-            return {"version": active[0], "outcome": None}
+            return {"version": active[0], "outcome": None, "dataset_version": None, "checked_at": None, "problems": []}
         results = json.loads(r[0]["results"])
         return {"version": active[0], "outcome": r[0]["outcome"], "dataset_version": r[0]["dataset_version"], "checked_at": r[0]["checked_at"],
                 "problems": [x["text"] for x in results if x["severity"] in ("breaking", "fail")][:5]}
@@ -177,9 +186,9 @@ class ContractService:
 
     def after_ingest(self, actor: Principal, ws: str, result: dict[str, Any]) -> None:
         """Ingestion hook: check the new version against the active contract. Never fails the ingest."""
-        if result.get("unchanged") or not self._active(ws, result["dataset"]):
-            return
         try:
+            if result.get("unchanged") or not self._active(ws, result["dataset"]):
+                return
             self._check(actor, ws, result["dataset"], result["version"])
         except Exception:  # noqa: BLE001 - the version is committed; a failed check is logged, not raised
             log.exception("contract check for %s v%s failed", result.get("dataset"), result.get("version"))
@@ -204,7 +213,10 @@ class ContractService:
             if severity in ("breaking", "fail"):
                 broken_cols.update(cols)
 
+        protected = {r["col"] for r in db.query("SELECT lower(column_name) AS col FROM column_policies WHERE dataset = ?", [dataset])}
+        started = time.perf_counter()
         with db.read() as cur:
+            checked: list[ColumnRule] = []
             for rule in spec.columns:
                 if rule.name not in schema:
                     add("breaking", "column_removed", [rule.name], f"column {rule.name} is missing")
@@ -212,26 +224,49 @@ class ContractService:
                 if _family(schema[rule.name]) != _family(rule.type):
                     add("breaking", "type_changed", [rule.name], f"{rule.name} changed type from {rule.type} to {schema[rule.name]}")
                     continue
+                checked.append(rule)
+            # every required and range rule in one pass over the table, not one scan per rule
+            counts: list[tuple[str, ColumnRule]] = []
+            exprs: list[str] = []
+            for rule in checked:
                 col = _q(rule.name)
                 if rule.required:
-                    n = cur.execute(f"SELECT count(*) FROM {table} WHERE {col} IS NULL").fetchone()[0]
-                    if n:
-                        add("fail", "required_missing", [rule.name], f"{n:,} rows have no {rule.name}, which is required", rows=n)
-                if rule.accepted_values is not None:
-                    allowed = ", ".join("'" + v.replace("'", "''") + "'" for v in rule.accepted_values) or "NULL"
-                    bad = cur.execute(f"SELECT CAST({col} AS VARCHAR) AS v, count(*) FROM {table} WHERE {col} IS NOT NULL AND "
-                                      f"CAST({col} AS VARCHAR) NOT IN ({allowed}) GROUP BY 1 ORDER BY 2 DESC LIMIT 10").fetchall()
-                    if bad:
-                        add("fail", "unexpected_values", [rule.name],
-                            f"{rule.name} has values outside the accepted set: {', '.join(str(v) for v, _ in bad[:5])}",
-                            values=[v for v, _ in bad])
+                    counts.append(("required", rule))
+                    exprs.append(f"count(*) FILTER (WHERE {col} IS NULL)")
                 if (rule.min is not None or rule.max is not None) and _family(schema[rule.name]) == "number":
                     conds = ([f"{col} < {float(rule.min)!r}"] if rule.min is not None else []) + \
                             ([f"{col} > {float(rule.max)!r}"] if rule.max is not None else [])
-                    n = cur.execute(f"SELECT count(*) FROM {table} WHERE {' OR '.join(conds)}").fetchone()[0]
-                    if n:
-                        rng = " to ".join(str(x) for x in (rule.min, rule.max) if x is not None)
-                        add("fail", "out_of_range", [rule.name], f"{n:,} values of {rule.name} fall outside {rng}", rows=n)
+                    counts.append(("range", rule))
+                    exprs.append(f"count(*) FILTER (WHERE {' OR '.join(conds)})")
+            values = cur.execute(f"SELECT {', '.join(exprs)} FROM {table}").fetchone() if exprs else ()
+            for (what, rule), n in zip(counts, values, strict=True):
+                if not n:
+                    continue
+                if what == "required":
+                    add("fail", "required_missing", [rule.name], f"{n:,} rows have no {rule.name}, which is required", rows=n)
+                else:
+                    rng = " to ".join(str(x) for x in (rule.min, rule.max) if x is not None)
+                    add("fail", "out_of_range", [rule.name], f"{n:,} values of {rule.name} fall outside {rng}", rows=n)
+            for rule in checked:
+                if rule.accepted_values is None:
+                    continue
+                col = _q(rule.name)
+                # an empty accepted set means no value is acceptable: every non-null value is flagged
+                marks = ", ".join("?" for _ in rule.accepted_values)
+                outside = f"CAST({col} AS VARCHAR) NOT IN ({marks})" if rule.accepted_values else "TRUE"
+                bad = cur.execute(f"SELECT CAST({col} AS VARCHAR) AS v, count(*) FROM {table} WHERE {col} IS NOT NULL AND "
+                                  f"{outside} GROUP BY 1 ORDER BY 2 DESC LIMIT 10", [str(v) for v in rule.accepted_values]).fetchall()
+                if bad:
+                    rows_bad = sum(n for _, n in bad)
+                    if rule.name.lower() in protected:
+                        # a column under a sensitivity policy: its cell values are never copied into check results
+                        add("fail", "unexpected_values", [rule.name],
+                            f"{rule.name} has values outside the accepted set ({len(bad)}{'+' if len(bad) == 10 else ''} distinct)",
+                            rows=rows_bad)
+                    else:
+                        add("fail", "unexpected_values", [rule.name],
+                            f"{rule.name} has values outside the accepted set: {', '.join(str(v) for v, _ in bad[:5])}",
+                            values=[v for v, _ in bad], rows=rows_bad)
             if spec.key and all(k in schema for k in spec.key):
                 cols = ", ".join(_q(k) for k in spec.key)
                 # rows with a NULL key part are incomplete, not repeats: count(DISTINCT) skips them, so leave them out
@@ -276,15 +311,19 @@ class ContractService:
                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                    [cid, dataset, cversion, version, outcome, json.dumps(results, default=str), json.dumps(impacted, default=str), actor.user_id])
         self.guard.audit(actor, ws, "contract.check", dataset, outcome, {"contract_version": cversion, "dataset_version": version,
+                                                                         "ms": int((time.perf_counter() - started) * 1000),
                                                                          "problems": len([r for r in results if r["severity"] in ("breaking", "fail")])})
         if outcome in ("breaking", "fail"):
             self._notify(ws, dataset, version, cid, outcome, results, impacted, spec.owner)
         return {"id": cid, "dataset": dataset, "contract_version": cversion, "dataset_version": version, "outcome": outcome,
                 "results": results, "impacted": impacted}
 
-    def checks(self, actor: Principal, ws: str, dataset: str, *, limit: int = 20) -> list[dict[str, Any]]:
+    def checks(self, actor: Principal, ws: str, dataset: str, *, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "data.read", dataset)
-        rows = self._db(ws).query("SELECT * FROM contract_checks WHERE dataset = ? ORDER BY checked_at DESC LIMIT ?", [dataset, limit])
+        rows = self._db(ws).query(
+            "SELECT id, dataset, contract_version, dataset_version, outcome, results, impacted, checked_by, checked_at "
+            "FROM contract_checks WHERE dataset = ? ORDER BY checked_at DESC LIMIT ? OFFSET ?",
+            [dataset, max(1, min(int(limit), 200)), max(0, int(offset))])
         for r in rows:
             r["results"], r["impacted"] = json.loads(r["results"]), json.loads(r["impacted"])
         return rows
@@ -292,7 +331,8 @@ class ContractService:
     def _notify(self, ws: str, dataset: str, version: int, check_id: str, outcome: str, results: list[dict[str, Any]],
                 impacted: list[dict[str, Any]], owner: str | None) -> None:
         """A finding in the inbox, deduplicated per dataset version, for the owner and the workspace's owners and admins."""
-        problems = [r["text"] for r in results if r["severity"] in ("breaking", "fail")]
+        # the inbox gets what failed, never cell values: a recipient opens the check (which requires data.read) for those
+        problems = [_value_free(r) for r in results if r["severity"] in ("breaking", "fail")]
         order = {"dashboard": 0, "report": 1, "presentation": 1, "workbook": 1, "workflow": 2, "monitor": 3, "metric": 4}
         assets = [f"{i['kind']} {i.get('title') or i['name']}" for i in sorted(impacted, key=lambda i: order.get(i["kind"], 9))
                   if i["kind"] in order]
@@ -305,6 +345,12 @@ class ContractService:
                      priority=9.0 if outcome == "breaking" else 6.0 + min(3.0, len(assets) * 0.5),
                      dedupe_key=f"contract:{dataset}:{version}", recipients={owner} if owner else None)
         log.info("contract %s on %s v%s (check %s)", outcome, dataset, version, check_id)
+
+
+def _value_free(result: dict[str, Any]) -> str:
+    if result["kind"] == "unexpected_values":
+        return f"{', '.join(result['columns'])} has values outside the accepted set"
+    return result["text"]
 
 
 __all__ = ["ColumnRule", "ContractService", "ContractSpec", "Freshness", "Reference"]
