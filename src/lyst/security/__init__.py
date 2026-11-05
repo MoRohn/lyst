@@ -86,6 +86,7 @@ class Guard:
     # -- identity ---------------------------------------------------------------------------
 
     def create_user(self, email: str, name: str) -> Principal:
+        email = email.strip().lower()  # stored as it is looked up, so a mixed-case address is still found
         uid = "u_" + uuid.uuid4().hex[:12]
         self.stores.control.execute("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", [uid, email, name])
         return Principal(uid, email)
@@ -119,13 +120,15 @@ class Guard:
             due = self._touched.get(h, -TOKEN_TOUCH_SECONDS) <= now - TOKEN_TOUCH_SECONDS
             if due:
                 self._touched[h] = now
+                if len(self._touched) > 10_000:  # forget tokens not seen for a touch interval (revoked, expired, idle)
+                    self._touched = {k: t for k, t in self._touched.items() if t > now - TOKEN_TOUCH_SECONDS}
         if due:
             self.stores.control.execute("UPDATE api_tokens SET last_used_at = now() WHERE token_hash = ?", [h])
         return Principal(rows[0]["id"], rows[0]["email"], token_label=rows[0]["label"], auth_age_seconds=float(rows[0]["age"] or 0))
 
     def user_from_oidc(self, subject: str, email: str, name: str) -> Principal:
         """Find or create the user a verified ID token describes. Email is the identity; the subject is kept."""
-        rows = self.stores.control.query("SELECT id, email FROM users WHERE email = ?", [email])
+        rows = self.stores.control.query("SELECT id, email FROM users WHERE lower(email) = ?", [email.strip().lower()])
         if rows:
             self.stores.control.execute("UPDATE users SET subject = ?, last_login_at = now() WHERE id = ?",
                                         [subject, rows[0]["id"]])
@@ -137,7 +140,7 @@ class Guard:
         return p
 
     def user_by_email(self, email: str) -> Principal | None:
-        rows = self.stores.control.query("SELECT id, email FROM users WHERE email = ?", [email.lower()])
+        rows = self.stores.control.query("SELECT id, email FROM users WHERE lower(email) = ?", [email.strip().lower()])
         return Principal(rows[0]["id"], rows[0]["email"]) if rows else None
 
     def members(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
@@ -148,12 +151,19 @@ class Guard:
 
     def remove_member(self, actor: Principal, workspace_id: str, user_id: str) -> None:
         self.require(actor, workspace_id, "workspace.admin")
-        owners = self.stores.control.scalar(
-            "SELECT count(*) FROM memberships WHERE workspace_id = ? AND role = 'owner' AND user_id <> ?",
-            [workspace_id, user_id])
-        if not owners:
-            raise ValueError("a workspace keeps at least one owner")
-        self.stores.control.execute("DELETE FROM memberships WHERE workspace_id = ? AND user_id = ?", [workspace_id, user_id])
+
+        def tx(c):
+            # the check and the delete in one transaction: two removals cannot each see the other owner remaining
+            if not c.execute("SELECT count(*) FROM memberships WHERE workspace_id = ? AND user_id = ?",
+                             [workspace_id, user_id]).fetchone()[0]:
+                raise KeyError(user_id)
+            owners = c.execute("SELECT count(*) FROM memberships WHERE workspace_id = ? AND role = 'owner' AND user_id <> ?",
+                               [workspace_id, user_id]).fetchone()[0]
+            if not owners:
+                raise ValueError("a workspace keeps at least one owner")
+            c.execute("DELETE FROM memberships WHERE workspace_id = ? AND user_id = ?", [workspace_id, user_id])
+
+        self.stores.control.write(tx)
         self.audit(actor, workspace_id, "member.remove", user_id, "ok")
 
     # -- workspaces -------------------------------------------------------------------------
@@ -171,8 +181,14 @@ class Guard:
                 [workspace_id, owner.user_id],
             )
 
+        existed = self.stores.settings.workspace_db(workspace_id).exists() if _ws_id_ok(workspace_id) else True
         self.stores.workspace(workspace_id)  # validates id, creates the encrypted file
-        self.stores.control.write(tx)
+        try:
+            self.stores.control.write(tx)
+        except BaseException:
+            if not existed:  # a failed creation leaves no orphaned workspace file behind
+                self.stores.discard_workspace(workspace_id)
+            raise
         self.audit(owner, workspace_id, "workspace.create", workspace_id, "ok")
 
     def add_member(self, actor: Principal, workspace_id: str, user_id: str, role: str) -> None:
@@ -214,10 +230,12 @@ class Guard:
         return have is not None and RANK[have] >= RANK[need]
 
     def require(self, principal: Principal, workspace_id: str, action: str, target: str | None = None) -> str:
-        if not self.can(principal, workspace_id, action):
+        need = PERMISSIONS.get(action)
+        have = self.role(principal, workspace_id) if need is not None else None  # one membership lookup, not two
+        if need is None or have is None or RANK[have] < RANK[need]:
             self.audit(principal, workspace_id, action, target, "denied")
             raise AccessDenied(f"{principal.email or principal.user_id} may not {action} in {workspace_id}")
-        return self.role(principal, workspace_id) or "viewer"
+        return have
 
     # -- audit ------------------------------------------------------------------------------
 
@@ -235,6 +253,12 @@ class Guard:
             "VALUES (nextval('audit_seq'), ?, ?, ?, ?, ?, ?)",
             [actor.user_id, workspace_id, action, target, outcome, json.dumps(redact_obj(detail or {}))],
         )
+
+
+def _ws_id_ok(workspace_id: str) -> bool:
+    from ..store import _WS_ID  # noqa: PLC0415
+
+    return bool(_WS_ID.match(workspace_id or ""))
 
 
 # -- sensitive information ------------------------------------------------------------------

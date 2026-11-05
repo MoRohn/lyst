@@ -52,6 +52,16 @@ class Stores:
                 self._workspaces[workspace_id] = db
             return db
 
+    def discard_workspace(self, workspace_id: str) -> None:
+        """Close and delete a workspace database that was just created for a workspace whose creation failed."""
+        with self._lock:
+            db = self._workspaces.pop(workspace_id, None)
+        if db is not None:
+            db.close()
+        path = self.settings.workspace_db(workspace_id)
+        for p in (path, path.with_name(path.name + ".wal")):
+            p.unlink(missing_ok=True)
+
     def backup(self, dest: Path) -> dict:
         """Back up every database (consistent, encrypted with the same derived keys) plus artifacts and dashboards."""
         import hashlib
