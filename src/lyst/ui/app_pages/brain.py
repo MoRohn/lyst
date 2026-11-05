@@ -92,6 +92,9 @@ def metric_detail(m: dict, terms: list[dict]) -> None:
         from lyst.ui import actions  # noqa: PLC0415
 
         actions.menu("metric", m["name"], page="brain", label="More", exclude=("metric.lineage",))
+    from lyst.ui import activity  # noqa: PLC0415
+
+    activity.panel("metric", m["name"], key=f"mact_{m['name']}", admin=st.session_state.get("role") in ("admin", "owner"))
 
 
 def tidy(metrics: list[dict]) -> None:

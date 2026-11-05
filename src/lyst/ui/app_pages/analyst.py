@@ -358,6 +358,14 @@ def task_view(task: str) -> None:
     full = ((t.get("request") or {}).get("question") or t["title"]).strip()
     size = "" if len(full) <= 90 else ' style="font-size:1.2rem;line-height:1.35"'
     top[0].html(f'<h1 class="lyst-title"{size}>{kit._esc(full)}</h1>')
+    trig = (t.get("request") or {}).get("trigger") or {}
+    if trig.get("activity_id"):  # started by an event rule: one calm line saying why, the details a click away
+        from lyst.ui import activity  # noqa: PLC0415
+
+        why = st.columns([6, 1.4], vertical_alignment="center")
+        why[0].caption(f":material/bolt: Lyst started this on its own, from the rule \"{trig.get('rule_id', '')}\".")
+        if why[1].button("Why", key=f"why_{task}", type="tertiary", icon=":material/info:", width="stretch"):
+            activity.details(trig["activity_id"])
     if t["status"] in ACTIVE:
         progress(task)
         return

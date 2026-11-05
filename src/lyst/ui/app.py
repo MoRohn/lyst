@@ -280,6 +280,9 @@ with st.sidebar:
             st.session_state.pop("token", None)
             st.rerun()
     collab.bell()
+    from lyst.ui import activity  # noqa: PLC0415 - events lane: live activity, on every page
+
+    activity.live()
     with st.popover("What these words mean", icon=":material/help:", width="stretch"):
         st.markdown(GLOSSARY)
 nav.run()

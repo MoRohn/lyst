@@ -318,9 +318,12 @@ def dataset_detail(d: dict) -> None:
     from lyst.ui import actions  # noqa: PLC0415
 
     name = d["name"]
-    top = st.columns([4, 1.2], vertical_alignment="center")
+    from lyst.ui import activity  # noqa: PLC0415
+
+    top = st.columns([4, 1.6, 1.2], vertical_alignment="center")
     top[0].markdown(f"**{d['title']}**")
-    with top[1]:  # what Lyst can do with this dataset: ask, run, approve, go to (already open here, so not Open)
+    activity.presence("dataset", name, top[1])
+    with top[2]:  # what Lyst can do with this dataset: ask, run, approve, go to (already open here, so not Open)
         actions.menu("dataset", name, page="data", label="More", exclude=("dataset.open",))
     fresh = d.get("freshness") or {}
     st.caption(" · ".join(x for x in (d.get("description"), f"{d.get('rows', d.get('row_count', 0)):,} rows",
@@ -335,6 +338,7 @@ def dataset_detail(d: dict) -> None:
         if not ins:
             return
         anticipate.about("dataset", name, key=f"hf_d{name}")
+        activity.panel("dataset", name, key=f"dsact_{name}", admin=st.session_state.get("role") in ("admin", "owner"))
         governance.classification(name, d.get("classification"))
         integrations.authority(name, integrations.source_authority().get(name))
         risks = ins.get("risks") or []

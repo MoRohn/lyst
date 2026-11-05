@@ -196,6 +196,13 @@ class AnticipationService:
                     stored, what = model.upsert(db, cand)
                     if what == "new":
                         out["anticipated"] += 1
+                        if getattr(self, "events", None) is not None:  # a rule may act on it, within its own autonomy
+                            self.events.emit(ws, "anticipation.found", subject=(stored["subject_kind"] or "workspace",
+                                                                                 stored["subject_id"] or ws),
+                                             source="service", dedupe_key=f"anticipation:{stored['id']}",
+                                             related=[("anticipation", stored["id"])],
+                                             data={"kind": stored["kind"], "score": stored["score"],
+                                                   "level_required": stored["level_required"]})
                     elif what == "invalidated":
                         out["invalidated"] += 1
                     if stored["status"] != "candidate" or not hasattr(mod, "prepare") or not s.allows("prepare"):

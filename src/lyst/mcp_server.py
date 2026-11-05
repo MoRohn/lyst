@@ -64,6 +64,11 @@ def _fit(result: Any) -> Any:
         keep = max(1, int(len(rows) * limit / len(text) * 0.9))
         return {**result, "rows": rows[:keep], "truncated": True, "total_rows": len(rows),
                 "note": f"showing {keep} of {len(rows)} rows; narrow the query or aggregate for the rest"}
+    if isinstance(result, dict) and isinstance(result.get("events"), list) and result["events"]:
+        evs = result["events"]  # a page of events: keep the oldest that fit and move the cursor to the last one kept
+        keep = max(1, int(len(evs) * limit / len(text) * 0.9))
+        return {**result, "events": evs[:keep], "next": evs[keep - 1]["seq"], "truncated": True,
+                "note": f"showing {keep} of {len(evs)} events; pass `next` back as `after` for the rest"}
     if isinstance(result, list):
         keep = max(1, int(len(result) * limit / len(text) * 0.9))
         return {"items": result[:keep], "truncated": True, "total_items": len(result)}

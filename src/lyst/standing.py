@@ -36,6 +36,12 @@ ACTIONS: dict[str, tuple[str, str, str]] = {
                       "Restore the previous version from the metric's history; earlier answers keep the version they used."),
     "contract.define": ("medium", "New versions of the dataset are checked against these rules; a breaking version is flagged "
                                   "and the reports built on it are marked.", "Define the previous contract version again."),
+    "rule.activate": ("medium", "An event rule starts acting on new events in this workspace within its autonomy level, "
+                                "for example retrying failed tasks or preparing repairs.",
+                      "Deactivate the rule; activities it already opened stay in Work with their history."),
+    "activity.execute": ("medium", "Lyst carries out the activity a rule prepared, such as repairing an artifact or starting "
+                                   "an investigation, as the rule's owner.",
+                         "A repaired artifact keeps its previous version; an investigation can be cancelled in Work."),
     "asset.publish": ("medium", "More people can see this report or dashboard, and the data in it.",
                       "Share it back to its owner only."),
     "look": ("low", "Someone is asked to look at it; nothing changes.", "Nothing to undo."),
