@@ -570,3 +570,25 @@ def test_data_is_a_workspace_with_a_library_and_three_layouts(ui):  # noqa: F811
     at.text_input(key="ds_find").set_value("ledger").run()  # the rail's search narrows the library and the canvas
     keys = {b.key for b in at.button}
     assert "lib_bad_ds_pnl_ledger" in keys and "lib_ok_ds_pnl" not in keys
+
+
+def test_health_lists_problems_first_with_what_to_do(seeded, ui):  # noqa: F811
+    import lyst.ui.client as client_mod  # noqa: PLC0415
+
+    try:
+        d = client_mod.client().get("/v1/diagnostics")
+    except client_mod.APIError:
+        import pytest  # noqa: PLC0415
+
+        pytest.skip("the test owner is not an installation administrator")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/settings.py")
+    at.query_params["view"] = "advanced"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Check again" in body or any(b.label == "Check again" for b in at.button)
+    bad = [c for c in d["checks"] if c["status"] != "ok" and c.get("fix")]
+    if bad:
+        assert "What to do:" in body and bad[0]["fix"].split(".")[0] in body
