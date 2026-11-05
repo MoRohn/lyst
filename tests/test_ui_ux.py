@@ -484,3 +484,26 @@ def test_admins_can_pack_the_workspace_with_a_confirmed_passphrase(seeded, ui): 
     next(b for b in at.button if b.label == "Make a pack").click().run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Download" for b in at.get("download_button"))
+
+
+def test_a_specialization_shows_the_evidence_behind_its_maturity(seeded, ui):  # noqa: F811
+    from lyst.specialists.maturity import evidence  # noqa: PLC0415
+
+    sid = next((k for k, v in evidence().items() if v.get("operational")), None)
+    if sid is None:
+        import pytest  # noqa: PLC0415
+
+        pytest.skip("no recorded evidence in this catalog")
+
+    def app(sid):
+        import streamlit as st
+
+        from lyst.ui import specialists
+
+        st.session_state.workspace = "northwind"
+        specialists.detail(sid)
+
+    at = AppTest.from_function(app, args=(sid,))
+    at.run(timeout=30)
+    assert not at.exception, at.exception
+    assert any("Representative task passed" in c.value for c in at.caption)

@@ -71,6 +71,14 @@ def detail(sid: str) -> None:
     st.markdown(md(ident.get("description") or ""))
     if m.get("next_step"):
         st.caption(md(f"{m.get('label')}: {m['next_step']}"))
+    ev = m.get("evidence") or {}
+    for stage, label in (("operational", "Representative task passed"), ("validated", "Validated"),
+                         ("production", "Qualified for production")):
+        rec = ev.get(stage)
+        if rec:
+            tasks = rec.get("scenarios") or []
+            st.caption(md(f":material/verified: {label}" + (f": {'; '.join(tasks[:3])}" if tasks else "")
+                          + (f" (recorded {rec['recorded']})" if rec.get("recorded") else "")))
     acc = d.get("access") or {}
     if acc.get("note"):
         st.info(md(acc["note"]), icon=":material/lock:")
