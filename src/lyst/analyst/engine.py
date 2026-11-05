@@ -103,9 +103,9 @@ def _frame_records(df: pd.DataFrame) -> list[dict[str, Any]]:
 def _max_date(ctx: Context, spec: MetricSpec) -> date | None:
     if not spec.time_column:
         return None
-    col = f'"{spec.time_column}"'
+    col = _q(spec.time_column)
     r = ctx.services.data.query(ctx.actor, ctx.workspace_id,
-                                f'SELECT max({col}) AS d, max(day({col})) AS maxday FROM "{spec.dataset}"',
+                                f'SELECT max({col}) AS d, max(day({col})) AS maxday FROM {_q(spec.dataset)}',
                                 task_id=ctx.task_id)
     d = r.rows[0][0] if r.rows else None
     if d is None:
@@ -160,13 +160,6 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     intent = rule_intent(text)
     by = None
     metrics = {m.name: m for m in s.semantic.metrics(ctx.actor, ctx.workspace_id)}
-    if resolved["metrics"]:
-        dims = set(metrics[resolved["metrics"][0]].dimensions)
-        for m in re.finditer(r"\b(?:by|per|across|for each)\s+([a-z_ ]+)", text.lower()):
-            cand = m.group(1).strip().replace(" ", "_")
-            for d in dims:
-                if cand.startswith(d) or d.startswith(cand.rstrip("s")):
-                    by = d
     dataset = None
     if intent == "profile":
         names = [d["name"] for d in s.data.catalog(ctx.actor, ctx.workspace_id)]
@@ -193,6 +186,14 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 intent = choice["intent"]
         except LLMUnavailable:
             pass
+    # the split is read after the model may have chosen the metric, so a model-resolved breakdown keeps its split
+    if resolved["metrics"]:
+        dims = set(metrics[resolved["metrics"][0]].dimensions)
+        for m in re.finditer(r"\b(?:by|per|across|for each)\s+([a-z_ ]+)", text.lower()):
+            cand = m.group(1).strip().replace(" ", "_")
+            for d in dims:
+                if cand.startswith(d) or d.startswith(cand.rstrip("s")):
+                    by = d
     if intent == "breakdown" and not by:
         intent = "value"
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
@@ -201,14 +202,18 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     filters = []
     if resolved["metrics"]:
         spec0 = metrics[resolved["metrics"][0]]
+        lowered = text.lower()
         for d in spec0.dimensions:
             try:
-                vals = s.data.query(ctx.actor, ctx.workspace_id, f'SELECT DISTINCT "{d}" FROM "{spec0.dataset}" LIMIT 200',
+                vals = s.data.query(ctx.actor, ctx.workspace_id, f'SELECT DISTINCT {_q(d)} FROM {_q(spec0.dataset)} LIMIT 200',
                                     task_id=ctx.task_id).rows
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001 - filter detection is best effort; the question still runs unfiltered
+                logging.getLogger("lyst.analyst").warning("filter values for %s.%s could not be read: %s", spec0.dataset, d, type(exc).__name__)
                 vals = []
             for (v,) in vals:
-                if isinstance(v, str) and len(v) >= 3 and re.search(rf"(?<![a-z0-9]){re.escape(v.lower())}(?![a-z0-9])", text.lower()):
+                # a cheap substring test first; the word-boundary regex only for values that appear at all
+                if isinstance(v, str) and len(v) >= 3 and v.lower() in lowered and \
+                        re.search(rf"(?<![a-z0-9]){re.escape(v.lower())}(?![a-z0-9])", lowered):
                     filters.append({"column": d, "op": "=", "value": v})
     impact = prescriptive.wants_impact(text)
     if impact and resolved["metrics"]:
@@ -366,11 +371,18 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         steps.append({"capability": cap, "key": key, "args": a, "after": after if after is not None else ["plan"]})
 
     drift = [m for m in c.get("metrics", []) if m.get("missing_columns")]
+    drift_blockers = [f"The approved definition of {m['spec']['title'].lower()} needs column(s) "
+                      f"{', '.join(m['missing_columns'])}, which {m['spec']['dataset']} v{m['dataset_version']} no longer "
+                      "has. Lyst did not compute it on a changed schema. An admin can update the metric in "
+                      "Intelligence, or the data owner can restore the column." for m in drift]
     if u["ambiguous"]:
         for term, names in u["ambiguous"].items():
             blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
                             "Name the one you mean, or ask an admin to map the term in the glossary.")
-    if u["intent"] == "method":
+    if drift and u["intent"] in ("correlate", "dashboard", "gap"):
+        # these read an approved metric too: a definition on a changed schema blocks them like a plain value
+        blockers.extend(drift_blockers)
+    elif u["intent"] == "method":
         add("run_method", "method", **{k: u["specialist_method"][k] for k in ("method", "datasets", "params")})
     elif u["intent"] == "causal_unsupported":
         blockers.append("Lyst cannot establish causation from this request. It can estimate an effect with an interrupted time "
@@ -408,11 +420,7 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         else:
             blockers.append("Name the dataset to profile. Available: " + ", ".join(c["datasets"]))
     elif drift:
-        for m in drift:
-            blockers.append(f"The approved definition of {m['spec']['title'].lower()} needs column(s) "
-                            f"{', '.join(m['missing_columns'])}, which {m['spec']['dataset']} v{m['dataset_version']} no longer "
-                            "has. Lyst did not compute it on a changed schema. An admin can update the metric in "
-                            "Intelligence, or the data owner can restore the column.")
+        blockers.extend(drift_blockers)
     elif not u["metrics"]:
         if not blockers:
             blockers.append("No approved metric matches this request. Approved metrics are listed in "
@@ -558,8 +566,9 @@ def metric_value(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     p = args["period"]
     sql = compile_metric(spec, start=p["start"], end=p["end"])
     r = _query(ctx, sql)
-    rows = _query(ctx, f'SELECT count(*) FROM "{spec.dataset}" WHERE "{spec.time_column}" >= \'{p["start"]}\' '
-                       f'AND "{spec.time_column}" < \'{p["end"]}\'') if spec.time_column else None
+    # the period's bounds are parsed as dates, so only a date ever reaches the SQL text
+    rows = _query(ctx, f"SELECT count(*) FROM {_q(spec.dataset)} WHERE {_q(spec.time_column)} >= DATE '{date.fromisoformat(str(p['start']))}' "
+                       f"AND {_q(spec.time_column)} < DATE '{date.fromisoformat(str(p['end']))}'") if spec.time_column else None
     value = r.rows[0][0] if r.rows else None
     return _clean({"metric": spec.name, "period": p, "value": float(value) if value is not None else None,
                    "rows_in_period": rows.rows[0][0] if rows else None, "evidence": [_evidence(r, f"{spec.name} for {p['label']}")]})
@@ -617,11 +626,12 @@ def _sum_target(m: Measure) -> str | None:
 
 def _period_frame(ctx: Context, spec: MetricSpec, p: dict[str, Any], exprs: dict[str, str]):
     dims = [d for d in spec.dimensions]
-    cols = ", ".join(f'"{d}"' for d in dims)
+    cols = ", ".join(_q(d) for d in dims)
     aggs = ", ".join(f"SUM({e}) AS {k}" for k, e in exprs.items())
-    where = [f'"{spec.time_column}" >= \'{p["start"]}\'', f'"{spec.time_column}" < \'{p["end"]}\'']
+    tc = _q(spec.time_column)
+    where = [f"{tc} >= DATE '{date.fromisoformat(str(p['start']))}'", f"{tc} < DATE '{date.fromisoformat(str(p['end']))}'"]
     where += [_cond(f) for f in spec.filters]
-    sql = f'SELECT {cols + ", " if cols else ""}{aggs} FROM "{spec.dataset}" WHERE {" AND ".join(where)}'
+    sql = f'SELECT {cols + ", " if cols else ""}{aggs} FROM {_q(spec.dataset)} WHERE {" AND ".join(where)}'
     if cols:
         sql += f" GROUP BY {cols}"
     r = _query(ctx, sql)
@@ -840,7 +850,7 @@ def run_sql(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if joins and not tree.find(exp.AggFunc) and len(r.datasets) >= 2:
         counts = {}
         for d in r.datasets:
-            counts[d] = ctx.services.data.query(ctx.actor, ctx.workspace_id, f'SELECT count(*) FROM "{d}"', task_id=ctx.task_id).rows[0][0]
+            counts[d] = ctx.services.data.query(ctx.actor, ctx.workspace_id, f'SELECT count(*) FROM {_q(d)}', task_id=ctx.task_id).rows[0][0]
         biggest = max(counts.values())
         if len(r.rows) > biggest:
             warnings.append(f"join fan-out: the query returned {len(r.rows):,} rows but the largest table has {biggest:,}; "
@@ -865,11 +875,11 @@ def quality_scan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     cat = {d["name"]: d for d in ctx.services.data.catalog(ctx.actor, ctx.workspace_id)}[ds]
     cols = [c["name"] for c in cat["schema"]]
     numeric = [c["name"] for c in cat["schema"] if any(t in c["type"].lower() for t in ("int", "double", "float", "decimal"))]
-    null_sql = "SELECT " + ", ".join(f'count(*) - count("{c}") AS "{c}"' for c in cols) + f' FROM "{ds}"'
+    null_sql = "SELECT " + ", ".join(f"count(*) - count({_q(c)}) AS {_q(c)}" for c in cols) + f" FROM {_q(ds)}"
     r1 = _query(ctx, null_sql)
     nulls = {k: v for k, v in zip(r1.columns, r1.rows[0], strict=True) if v}
-    collist = ", ".join(f'"{c}"' for c in cols)
-    r2 = _query(ctx, f'SELECT count(*) - (SELECT count(*) FROM (SELECT DISTINCT {collist} FROM "{ds}")) FROM "{ds}"')
+    collist = ", ".join(_q(c) for c in cols)
+    r2 = _query(ctx, f'SELECT count(*) - (SELECT count(*) FROM (SELECT DISTINCT {collist} FROM {_q(ds)})) FROM {_q(ds)}')
     neg = {}
     r3 = None
     if numeric:
@@ -1011,8 +1021,8 @@ def _integrity(ctx: Context) -> list[tuple[str, bool, str, str]]:
         return []
     out: list[tuple[str, bool, str, str]] = []
     p = cur["period"]
-    tc, ds = f'"{spec.time_column}"', f'"{spec.dataset}"'
-    where = f"{tc} >= DATE '{p['start']}' AND {tc} < DATE '{p['end']}'"
+    tc, ds = _q(spec.time_column), _q(spec.dataset)
+    where = f"{tc} >= DATE '{date.fromisoformat(str(p['start']))}' AND {tc} < DATE '{date.fromisoformat(str(p['end']))}'"
     schema = next((d["schema"] for d in ctx.services.data.catalog(ctx.actor, ctx.workspace_id) if d["name"] == spec.dataset), [])
     cols = [col["name"] for col in schema]
     try:
@@ -1032,7 +1042,7 @@ def _integrity(ctx: Context) -> list[tuple[str, bool, str, str]]:
     for col in cols:
         if _CURRENCY_COL.match(col) and col not in filtered:
             try:
-                vals = [v for (v,) in _query(ctx, f'SELECT DISTINCT "{col}" FROM {ds} WHERE {where} ORDER BY 1').rows
+                vals = [v for (v,) in _query(ctx, f'SELECT DISTINCT {_q(col)} FROM {ds} WHERE {where} ORDER BY 1').rows
                         if v is not None]
             except (QueryRejected, AccessDenied):
                 continue
@@ -1061,7 +1071,7 @@ def _independent_recompute(ctx: Context, current: dict[str, Any]) -> dict[str, A
     spec = _spec(ctx, current["metric"])
     p = current["period"]
     cols = sorted(spec.columns())
-    r = _query(ctx, f'SELECT {", ".join(chr(34) + c + chr(34) for c in cols)} FROM "{spec.dataset}" '
+    r = _query(ctx, f'SELECT {", ".join(_q(c) for c in cols)} FROM {_q(spec.dataset)} '
                     f'WHERE "{spec.time_column}" >= \'{p["start"]}\' AND "{spec.time_column}" < \'{p["end"]}\'')
     df = r.frame()
     from ..semantic import Filter  # noqa: PLC0415
@@ -1691,7 +1701,7 @@ def _shift_months(iso: str, n: int) -> str:
 
 
 def _dataset_range(ctx: Context, spec: MetricSpec) -> tuple[str, str]:
-    r = _query(ctx, f'SELECT min("{spec.time_column}"), max("{spec.time_column}") FROM "{spec.dataset}"')
+    r = _query(ctx, f'SELECT min({_q(spec.time_column)}), max({_q(spec.time_column)}) FROM {_q(spec.dataset)}')
     lo, hi = r.rows[0]
     return str(lo)[:10], str(hi)[:10]
 

@@ -164,6 +164,8 @@ def compile_metric(
     select: list[str] = []
     group: list[str] = []
     if grain:
+        if grain not in ("day", "week", "month", "quarter", "year"):
+            raise ValueError(f"unknown grain {grain!r}; use day, week, month, quarter or year")
         if not spec.time_column:
             raise ValueError(f"{spec.name} has no time column")
         shift = int(fiscal_start) - 1 if grain in ("quarter", "year") else 0
