@@ -120,3 +120,6 @@ def skills() -> None:
     from lyst.ui import continuity  # noqa: PLC0415  (installation administrators only)
 
     continuity.section()
+    from lyst.ui import health  # noqa: PLC0415  (installation administrators only)
+
+    health.section()
