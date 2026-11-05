@@ -48,19 +48,21 @@ understanding and wording, never the numbers.
 
 ## A tour of the interface
 
-One navigation with five areas and one design system behind every screen: a single set of tokens for type,
-spacing, motion and colour drives Streamlit's widgets, Lyst's own components and every chart, in light and dark,
-with reduced motion honoured. Every screen is checked by an automated render with WCAG 2.2 AA accessibility
-scanning, and text and status colours meet 4.5:1 contrast in both themes. The sidebar holds **Search or go to**
-(⌘K), notifications, and a "What these words mean" glossary.
+One navigation with five areas, and one visual language behind every screen: a calm canvas with raised, softly lit
+surfaces, a translucent sidebar, dialogs that rise as sheets, native-style segmented controls and buttons, the
+system typeface, and motion that respects reduced-motion settings, in light and dark. A single set of design
+tokens drives Streamlit's widgets, Lyst's own components and every chart, every screen is checked by an automated
+render with WCAG 2.2 AA accessibility scanning, and text and status colours meet 4.5:1 contrast in both themes.
+The sidebar holds **Search or go to** (⌘K), your four most recent questions with their live status, notifications,
+and a "What these words mean" glossary.
 
 | Area | What you do there |
 |---|---|
 | **Home** | Ask in plain words, follow live progress, and read the answer. A Get started card follows the workspace's real set-up state and shows the top suggestions from your data to accept or dismiss, and "This month at a glance" shows a tile per approved metric with a one-click **Why?** |
-| **Work** | What needs you (approvals), what Lyst is doing and finished, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed |
-| **Data** | Every dataset is a card with its size, freshness, the shape of its columns and the live trend of the measure it feeds; open one for a profile of every column. Sources, dashboards, saved analyses, and a SQL workspace with the schema beside the editor, results kept while you explore, and a first chart drawn for you. **Add data** uploads a file, connects a source, or proposes connections from an API description |
-| **Brain** | What Lyst knows about the business: every approved metric with its latest value, whether the change is good or bad, its twelve-month trend, and a lineage view from source file to dataset to definition; business terms, documents it can cite, and what it remembers and how far to trust it |
-| **Settings** | Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs) |
+| **Work** | A command center: a live status strip, then what needs you (approvals), what Lyst is doing and finished as a day-by-day timeline or a board, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed. Each task's steps show as a timeline from the engine |
+| **Data** | Every dataset is a card with its size, freshness, the shape of its columns and the live trend of the measure it feeds; open one for a profile of every column. Sources, dashboards, saved analyses, and a SQL workspace with the schema beside the editor, results kept while you explore, a first chart drawn for you, and a sandboxed **Python** tab. **Add data** uploads a file, connects a source, or proposes connections from an API description |
+| **Brain** | What Lyst knows about the business: every approved metric with its latest value, whether the change is good or bad, its twelve-month trend, and a lineage view from source file to dataset to definition; business terms, documents it can cite, what it remembers and how far to trust it, and **Specializations**: a searchable catalog of the 136 kinds of analyst work with each one's honest maturity |
+| **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
 
 <p align="center">
   <img src="docs/images/home.png" alt="Home: the ask box with Speak, the Get started card with its set-up steps, and the first metric tiles" width="80%">
@@ -78,9 +80,11 @@ Breakdown answers show their split as a chart.
 
 ### Every answer: Summary, Detail, Method, and a Brief
 
-Answers open at **Summary**: the answer, a one-line trust statement ("All 9 checks passed"), the evidence, a
-chart, what it means and what to do. **Detail** adds tables, hypotheses, assumptions and sources. **Method** adds
-the plan, every check and every query. **Brief** opens the two-line version with one chart, what to do and the PDF
+Answers open as a canvas: the answer beside an **evidence rail** showing which checks passed, the data and version
+it came from, the expertise applied and the assumptions made, with **Focus** to give the answer the whole width.
+It opens at **Summary**: the answer, a one-line trust statement ("All 9 checks passed"), the evidence, a chart,
+what it means and what to do. **Detail** adds tables, hypotheses, assumptions and sources. **Method** adds the
+plan, every check and every query. **Brief** opens the two-line version with one chart, what to do and the PDF
 briefing, ready to forward; executive requests lead with it. Limitations stay visible at every depth.
 
 Under each answer you can act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved
@@ -270,25 +274,30 @@ where they point, with Mark all read and "What to tell me about".
   136 specialization profiles in 11 domains (data and BI, statistics, AI and ML, software, cloud, security,
   finance and operations, marketing, media, science and industry, and more), backed by a shared library of 34
   method families and 36 verification rules. A router picks the disciplines with its reasons, never grants a
-  permission a person lacks, and reports methods Lyst does not have yet. Text, voice and other channels share one
-  entry point. Maturity is computed and stated honestly: 101 profiles are Equipped, 35 Defined, and none is yet
-  claimed Operational. Through the API today ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
+  permission a person lacks, and reports methods Lyst does not have yet. Maturity is computed and stated honestly:
+  101 profiles are Equipped, 35 Defined, and none is yet claimed Operational. Typed and spoken questions go
+  through the same entry point and pick the same expertise. When a question is routed to specialists, their
+  discipline's checks apply and can only tighten verification; the answer reports each as passed, failed or not
+  applicable, and says which cannot yet be run automatically. Brain › **Specializations** lists all 136 with their
+  maturity and what each still lacks, and example questions can be asked in one click
+  ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
 * **A workbench for your own Python and SQL.** Analysts run their own Python on governed data in an
   operating-system sandbox, on data already filtered by their column and row permissions. The code cannot read
   Lyst's databases, keys or home folders and has no network access. Every run records its code, inputs, data
   versions and software environment, so it can be reproduced and compared, and a result table can be saved as a
-  dataset with its lineage. On macOS the sandbox is verified by tests; on Linux it uses bubblewrap. Through the
-  API today ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+  dataset with its lineage. On macOS the sandbox is verified by tests; on Linux it uses bubblewrap. It lives in
+  Data › SQL › **Python** ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Voice.** Ask a question out loud and hear the verified answer read back, with the full result on screen. A
-  spoken question runs as you, through the same permissions, data policy and budgets as a typed one. Voice cannot
-  approve, delete, send or export anything; those go to the screen to confirm, and saying "stop" stops Lyst
-  talking without stopping the analysis. Audio is not kept unless an administrator turns that on, and transcripts
-  are redacted. Speech uses the browser by default; OpenRouter speech-to-text and text-to-speech are available
-  once an admin allows external audio, and an NVIDIA PersonaPlex server on your own GPU can add full-duplex
-  conversation (Lyst never bundles its weights, and that path has not yet been verified on real hardware). On
-  screen: **Speak** beside the ask box (push-to-talk or hands-free, using the browser's own speech, and talking
-  over Lyst stops it), and Settings › **Voice** for your mode, reading aloud and speaking style, the workspace's
-  rules, and every engine with its honest support label ([docs/VOICE.md](docs/VOICE.md)).
+  spoken question goes through the same Analyst as a typed one, picks the same expertise and runs as you, through
+  the same permissions, data policy and budgets as a typed one. Voice cannot approve, delete, send or export
+  anything; those go to the screen to confirm, and saying "stop" stops Lyst talking without stopping the analysis.
+  Audio is not kept unless an administrator turns that on, and transcripts are redacted. Speech uses the browser
+  by default; OpenRouter speech-to-text and text-to-speech are available once an admin allows external audio, and
+  an NVIDIA PersonaPlex server on your own GPU can add full-duplex conversation (Lyst never bundles its weights,
+  and that path has not yet been verified on real hardware). On screen: **Speak** beside the ask box (push-to-talk
+  or hands-free, using the browser's own speech, and talking over Lyst stops it; when recognition is not
+  confident, Lyst asks "I heard … Ask this?"), and Settings › **Voice** for your mode, reading aloud and speaking
+  style, the workspace's rules, and every engine with its honest support label ([docs/VOICE.md](docs/VOICE.md)).
 * **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
   anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -346,6 +355,17 @@ where they point, with Mark all read and "What to tell me about".
   (a verified task, an existing report, a current dashboard), by hand with a note, or waived by an admin with a
   reason. A project cannot complete while a must-have is open. Revisions keep the work that is still valid, flag
   changed requirements with their old wording, record dropped ones, and keep every version readable.
+* **Follows up and reuses what works.** A follow-up such as "now by region", "compare it to last year" or "what
+  about Q1 2026" is resolved against the earlier answer's verified understanding, and the new answer records what
+  changed and what was carried over, so re-asking reproduces it. A follow-up Lyst cannot carry out says so rather
+  than changing numbers silently. Before drafting a new method, Lyst ranks the approved skills and built-in
+  capabilities by what they do, checks each is still compatible and permitted, and reuses the best one. Through
+  the API today.
+* **Moves a whole workspace in one sealed file.** Datasets and their versions, definitions, knowledge, dashboards
+  and reports, members and history travel in one file encrypted with a passphrase; any tampering or truncation is
+  caught before anything is read. Credentials never travel, and data your policy keeps inside the workspace cannot
+  be exported this way either. Importing always creates a new workspace, checks every part first, and arrives with
+  its schedules paused, so a copy never runs the same work twice. Through the API today.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
@@ -376,7 +396,10 @@ where they point, with Mark all read and "What to tell me about".
   valuable item first. In Data, a source Lyst foresees trouble for shows **At risk** or **Keep an eye on it**,
   with the fix one click away. Lyst learns from outcomes (accepted, useful, dismissed, wrong) which kinds of item
   to rank higher, reports its own relevance, timeliness and accuracy, runs fully offline when external services
-  are not allowed, and notices methods that upcoming work needs but no approved skill covers
+  are not allowed, and notices methods that upcoming work needs but no approved skill covers. Settings › Advanced
+  shows how working ahead went over the last 30 days, measured from what actually happened: how much people found
+  useful, what was prepared on time, confirmed warnings against false alarms, runs fixed before they failed, and
+  interruptions, plus methods Lyst could add, each with **Ask to add it**
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
@@ -449,6 +472,13 @@ where they point, with Mark all read and "What to tell me about".
   <tr>
     <td width="50%"><img src="docs/images/settings-voice.png" alt="Settings, Voice: talk by pressing Speak, read answers aloud, speaking style, the workspace's voice rules, and each speech engine with its support label"><br><b>Settings › Voice</b>: your mode, the workspace's rules, honest engine labels</td>
     <td width="50%"><img src="docs/images/proposed-connection.png" alt="A proposed connection for /purchase-orders: why Lyst proposes it this way, its fields, the incremental column, and a dry test"><br><b>Proposed connection</b>: drafted from an API description, tested dry</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/specializations.png" alt="Brain, Specializations: 136 kinds of analyst work, searchable, each with its maturity (Equipped or Defined)"><br><b>Brain › Specializations</b>: 136 profiles, honest maturity</td>
+    <td width="50%"><img src="docs/images/workbench.png" alt="Data, SQL, Python: a sandboxed run of df.describe() over the pnl dataset, 396 rows, with its result table"><br><b>Python workbench</b>: sandboxed, recorded, reproducible</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/images/working-ahead.png" alt="Settings, Advanced: how working ahead went over the last 30 days, measured from records" width="70%"><br><b>Working ahead, last 30 days</b>: measured from what actually happened</td>
   </tr>
 </table>
 
