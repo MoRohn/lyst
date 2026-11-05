@@ -20,6 +20,17 @@ export const hero = {
   stack: ['Python', 'DuckDB', 'Open Source', 'Self-Hosted'],
 };
 
+export const intro = {
+  eyebrow: 'Lyst in 15 seconds',
+  headline: 'Meet Lyst.',
+  lede: 'A short animated introduction: ask or assign, investigate, build, connect, and get an answer with what to do next.',
+  label: 'Animated introduction to Lyst, 15 seconds.',
+  description:
+    'An animated guide walks through the Lyst story: ask or assign a question, investigate, build and connect, then an answer explaining why operating expenses rose, with a recommended next step.',
+  caption:
+    'Animated illustration, not a recording of the product. The character, screens and on-screen text are stylized; see the product showcase below for real screenshots.',
+};
+
 export const problem = {
   eyebrow: 'The problem',
   headline: 'Your data isn’t the problem. The work between question and answer is.',

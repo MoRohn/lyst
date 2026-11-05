@@ -1,0 +1,106 @@
+---
+import { getImage } from 'astro:assets';
+import posterSrc from '../assets/video/lyst-intro-poster.jpg';
+import { intro } from '../data/content';
+import { withBase } from '../lib/url';
+
+// One poster, sized to the largest the frame ever renders (1080 CSS px wide at 2x would be the
+// source's 1168 px, so the source width is used as-is).
+const poster = await getImage({ src: posterSrc, format: 'webp', quality: 72, width: 1168 });
+---
+
+<section class="section intro" id="intro" aria-labelledby="intro-title">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <p class="eyebrow">{intro.eyebrow}</p>
+      <h2 id="intro-title" class="h2">{intro.headline}</h2>
+      <p class="lede">{intro.lede}</p>
+    </div>
+
+    <figure class="frame" data-reveal>
+      <video
+        data-intro-video
+        width="1168"
+        height="784"
+        poster={poster.src}
+        preload="none"
+        muted
+        loop
+        playsinline
+        controls
+        aria-label={intro.label}
+        aria-describedby="intro-desc"
+      >
+        <source src={withBase('/video/lyst-intro.webm')} type="video/webm" />
+        <source src={withBase('/video/lyst-intro.mp4')} type="video/mp4" />
+      </video>
+      <p id="intro-desc" class="sr-only">{intro.description}</p>
+      <figcaption>{intro.caption}</figcaption>
+    </figure>
+  </div>
+</section>
+
+<style>
+  .frame {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1168 / 784;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--subtle);
+    box-shadow: var(--shadow-lg);
+    object-fit: cover;
+  }
+
+  figcaption {
+    margin-top: var(--space-4);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+  }
+</style>
+
+<script>
+  // Plays only while on screen, muted, and never under reduced motion. Nothing is
+  // downloaded until the section is near the viewport (preload="none", no autoplay attribute).
+  const video = document.querySelector<HTMLVideoElement>('[data-intro-video]');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (video && 'IntersectionObserver' in window) {
+    let userPaused = false;
+    let auto = false;
+    video.addEventListener('pause', () => {
+      if (!auto) userPaused = true;
+    });
+    video.addEventListener('play', () => {
+      userPaused = false;
+    });
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          if (reduced.matches || userPaused) return;
+          video.play().catch(() => {});
+        } else if (!video.paused) {
+          auto = true;
+          video.pause();
+          auto = false;
+        }
+      },
+      { threshold: 0.35 },
+    );
+    io.observe(video);
+    reduced.addEventListener('change', () => {
+      if (reduced.matches && !video.paused) {
+        auto = true;
+        video.pause();
+        auto = false;
+      }
+    });
+  }
+</script>

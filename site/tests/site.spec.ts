@@ -153,6 +153,34 @@ test.describe('autoplay', () => {
   });
 });
 
+test.describe('intro video', () => {
+  test.use({ reducedMotion: 'no-preference' });
+  test('loads nothing until scrolled to, then plays muted', async ({ page }) => {
+    const videos: string[] = [];
+    page.on('request', (r) => r.url().includes('/video/') && videos.push(r.url()));
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    expect(videos).toEqual([]);
+    const video = page.locator('[data-intro-video]');
+    await expect(video).toHaveAttribute('poster', /\.webp$/);
+    await video.scrollIntoViewIfNeeded();
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused && v.muted && v.currentTime > 0)).toBe(true);
+  });
+
+});
+
+test.describe('intro video, reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+  test('stays still and is labelled as an illustration', async ({ page }) => {
+    await page.goto('/');
+    const video = page.locator('[data-intro-video]');
+    await video.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1500);
+    expect(await video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+    await expect(page.getByText(/not a recording of the product/)).toBeVisible();
+  });
+});
+
 test.describe('demonstrations', () => {
   test('tabs switch by click and arrow keys', async ({ page }) => {
     await page.goto('/#demos');
