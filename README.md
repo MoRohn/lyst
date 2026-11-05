@@ -38,6 +38,12 @@ One command initialises encryption (the master key goes into the OS credential s
 demo workspace, starts the engine on `http://127.0.0.1:8770` and opens the interface at
 **http://lyst.localhost:8501**. Ctrl-C stops everything.
 
+It is safe to run again. If Lyst is already running it opens that one instead of starting a second, if a default port
+is busy it picks the next free one and says so, and if another program has the data open it names that program's PID
+instead of failing with a traceback. From any terminal, `lyst status` says what is running and `lyst stop` stops it
+(only the processes `lyst start` recorded). `lyst start --check` checks Python, the data folder, the encryption key, the
+database and the ports before you start.
+
 Then ask: **"Why did operating margin decline last quarter?"** Lyst finds that operating margin fell from 36.0%
 in Q2 2026 to 32.5% in Q3 2026, that EMEA's own margin drop (36.8% to 24.0%) explains it, reconciles the
 bridge exactly, and saves the analysis so it can be rerun for any period. That story is planted in the demo data
@@ -494,7 +500,9 @@ The threat model, autonomy levels and residual risks are in [docs/SECURITY.md](d
 
 | Command | What it does |
 |---|---|
-| `lyst start [--demo] [--no-browser]` | Everything in one terminal: encryption, the engine and the interface |
+| `lyst start [--demo] [--no-browser] [--check]` | Everything in one terminal: encryption, the engine and the interface; safe to rerun. `--check` only runs the start checks |
+| `lyst status [--json]` | Whether Lyst is running here, at which address, and under which PIDs |
+| `lyst stop` | Stop the Lyst that `lyst start` launched here; never touches processes it didn't record |
 | `lyst init-demo` | Create the Northwind demo workspace and a development token |
 | `lyst serve` | Run the API and workers (`http://127.0.0.1:8770`) |
 | `lyst ui` | Run the Streamlit interface (`http://lyst.localhost:8501`, loopback only by default) |
