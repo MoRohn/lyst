@@ -463,6 +463,14 @@ where they point, with Mark all read and "What to tell me about".
   network exposure, the sandbox, the model, stalled work, and the profile's own promises) and gives the fix for
   each, with no key, token, path or data in its report. An air-gapped Compose stack is in `deploy/offline/`
   (written, not yet run).
+* **Knows what can be done with each thing, and by whom.** Every dataset, metric, answer, report, workflow,
+  scenario model and decision record knows the actions available on it right now for the person looking, filtered
+  by role, data policy and its state, and anything that changes something asks a person first. The server
+  re-checks every action when it runs and refuses, and audits, anything not offered. Every task reports one
+  status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
+  tied to the event that caused it. Work started from any page lands in Work and records where it began, and its
+  verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
+  and each repair is verified. Through the API today; the screens are on the way.
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
