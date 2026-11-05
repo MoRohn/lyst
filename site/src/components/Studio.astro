@@ -18,6 +18,8 @@ import needsLight from '../assets/product/needsyou-light.png';
 import needsDark from '../assets/product/needsyou-dark.png';
 import paletteLight from '../assets/product/palette-light.png';
 import paletteDark from '../assets/product/palette-dark.png';
+import specsLight from '../assets/product/specialists-light.png';
+import specsDark from '../assets/product/specialists-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
@@ -29,16 +31,16 @@ const views: View[] = [
     callouts: [
       { icon: 'Mic', text: 'Type or speak', x: '35%', y: '26.5%' },
       { icon: 'LayoutDashboard', text: 'Every approved metric at a glance', x: '45%', y: '36%' },
-      { icon: 'ScanSearch', text: 'Why? starts an investigation', x: '30%', y: '64.8%' },
+      { icon: 'History', text: 'Recent questions, one click back', x: '1.5%', y: '58%' },
     ],
   },
   {
     id: 'answer', tab: 'Answer', img: answerLight, dark: answerDark,
-    alt: 'Lyst answering “Why did operating margin change last quarter?”: a verified headline (32.5% in Q3 2026, down 3.5 points), a note that all nine checks passed and that a checked analysis was reused, evidence naming EMEA as the driver, a monthly trend, what it means and what to do, with Summary, Detail and Method views and a one-page Brief.',
+    alt: 'Lyst answering “Why did operating margin change last quarter?” as a canvas: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend, what it means and what to do, with Summary, Detail and Method views, a Brief and Focus, and an evidence rail listing the checks passed, the data and version used, assumptions and method.',
     callouts: [
       { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '34%', y: '18.5%' },
-      { icon: 'Layers', text: 'Summary, Detail or Method', x: '64%', y: '30.5%' },
-      { icon: 'ListChecks', text: 'What it means, what to do', x: '74%', y: '75%' },
+      { icon: 'PanelRight', text: 'Evidence rail: checks, data, assumptions', x: '72%', y: '64.5%' },
+      { icon: 'ListChecks', text: 'What it means, what to do', x: '63%', y: '86%' },
     ],
   },
   {
@@ -68,16 +70,24 @@ const views: View[] = [
     id: 'health', tab: 'Out of date', img: healthLight, dark: healthDark,
     alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button.',
     callouts: [
-      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '58%', y: '44.5%' },
-      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '17%', y: '54%' },
+      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '58%', y: '62.5%' },
+      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '17%', y: '71.8%' },
     ],
   },
   {
     id: 'team', tab: 'Needs you', img: needsLight, dark: needsDark,
     alt: 'Lyst Work › Needs you: an answer assigned by Sam Ortiz, “Check the EMEA cost lines before Friday’s board pack”, due 2026-11-06, and a review waiting with Approve and Reject.',
     callouts: [
-      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '52%', y: '48%' },
-      { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '27%', y: '88%' },
+      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '54%', y: '62%' },
+      { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '52%', y: '83.5%' },
+    ],
+  },
+  {
+    id: 'specs', tab: 'Specialists', img: specsLight, dark: specsDark,
+    alt: 'Lyst Brain › Specializations: “136 kinds of analyst work across 11 areas. You don’t pick one: describe the work on Home and Lyst brings the right expertise. 35 defined, 101 equipped.” A search box, an area filter, “What Lyst can’t do yet · 13”, and a list of specializations such as Data Analyst, Business Intelligence Analyst and Analytics Engineer, each with its maturity.',
+    callouts: [
+      { icon: 'GraduationCap', text: '136 kinds of analyst work', x: '58%', y: '14%' },
+      { icon: 'BadgeCheck', text: 'Honest maturity, and what is missing', x: '50%', y: '30%' },
     ],
   },
   {
