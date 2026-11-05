@@ -244,8 +244,11 @@ single-writer DuckDB transactions. Enough for an analyst team's workspace; not f
    connection: failed syncs are now audited (`connection.sync` with outcome `error`) and reach the stream, three in an
    hour make one notification, and later failures are suppressed. Neither runs against a networked source or across
    two hosts.
-3. **Activity execution runs in the dispatcher.** `impact_review` and `notify` are quick; long work is always a
-   task.
+3. **Activity work is a separate job, in one process.** The rules consumer only opens an activity; `autonomy.work`
+   runs planned activities on the worker tick (priority first, 50 per pass, a 20-second budget), so a slow or failing
+   action never holds up the event stream. A process that dies mid-action leaves the activity planned and the next
+   pass runs it again; every action is idempotent by its activity id (notice dedupe key, task idempotency key). Two
+   Lyst processes would both run a planned activity (see item 5).
 4. **Visual regression.** UI behaviour is covered by AppTest (`tests/test_ui_activity.py`); screenshots were
    inspected by hand in light and dark, not compared automatically.
 5. **Single process.** Dispatch, the outbox collector and DuckDB's single writer assume one Lyst process. Running two

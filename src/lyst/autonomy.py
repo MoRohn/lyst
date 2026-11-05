@@ -38,6 +38,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
@@ -282,6 +284,11 @@ class AutonomyService:
         self.lyst = lyst
         self.stores = lyst.stores
         self.guard = lyst.guard
+        self._working = threading.Lock()  # one work() pass at a time
+        self._inflight: set[str] = set()  # activities being executed now (a person's run and work() never overlap)
+        self._inflight_lock = threading.Lock()
+        self._pending: set[str] = set()  # workspaces with planned activities opened by this process
+        self._last_sweep = 0.0
 
     def _db(self, ws: str):
         return self.stores.workspace(ws)
@@ -290,6 +297,8 @@ class AutonomyService:
         ev = self.lyst.events
         ev.consume(self.CONSUMER, self.on_event, types=None, max_attempts=5)
         ev.consume(self.FOLLOW, self.on_follow, types=["task.*", "approval.decided"], max_attempts=5)
+        # activity work runs as its own job, never inside the event dispatcher: a slow action cannot hold up the stream
+        self.lyst.runtime.periodic.append(self.work)
 
     # -- rule management ------------------------------------------------------------------------
 
@@ -566,8 +575,43 @@ class AutonomyService:
         if not self._db(ws).write(tx):
             return None
         if status == "planned":
-            self._execute(ws, aid)
+            self._pending.add(ws)  # executed by work(), off the dispatcher
         return aid
+
+    SWEEP_SECONDS = 60
+
+    def work(self, *, limit: int = 50, budget_seconds: float = 20.0) -> dict[str, int]:
+        """Execute planned activities, oldest and most important first, within a time budget. Runs on the worker tick
+        as its own job. A process that dies mid-action leaves the activity planned; the next pass (any process, after
+        the periodic sweep) runs it again, and every action is idempotent by its activity id."""
+        if not self._working.acquire(blocking=False):
+            return {"executed": 0}
+        try:
+            mono = time.monotonic()
+            if mono - self._last_sweep >= self.SWEEP_SECONDS:
+                self._last_sweep = mono
+                targets = {w["id"] for w in self.stores.control.query("SELECT id FROM workspaces")} | self._pending
+            else:
+                targets = set(self._pending)
+            self._pending.clear()
+            done, start = 0, time.monotonic()
+            for ws in sorted(targets):
+                rows = self._db(ws).query("SELECT id FROM activities WHERE status = 'planned' "
+                                          "ORDER BY priority DESC, created_at LIMIT ?", [limit])
+                for r in rows:
+                    if done >= limit or time.monotonic() - start > budget_seconds:
+                        self._pending.add(ws)  # the rest wait for the next pass
+                        break
+                    try:
+                        self._execute(ws, r["id"])
+                    except Exception as exc:  # noqa: BLE001 - one activity never stops the others
+                        log.exception("activity %s failed", r["id"])
+                        self._stage(ws, r["id"], "execute", "failed", f"{type(exc).__name__}: {str(exc)[:250]}")
+                        self._set(ws, r["id"], status="failed")
+                    done += 1
+            return {"executed": done}
+        finally:
+            self._working.release()
 
     def title(self, ws: str, kind: str, oid: str) -> str:
         """What people call an object (a dataset's title, a report's title), falling back to its id."""
@@ -628,7 +672,20 @@ class AutonomyService:
         return Principal(rows[0]["id"], rows[0]["email"])
 
     def _execute(self, ws: str, aid: str, approved_by: Principal | None = None) -> None:
-        act = self._activity(ws, aid)
+        with self._inflight_lock:
+            if aid in self._inflight:
+                return  # already being executed (a person's run and the work pass reached it together)
+            self._inflight.add(aid)
+        try:
+            act = self._activity(ws, aid)
+            if approved_by is None and act["status"] != "planned":
+                return  # dismissed, cancelled or already executed since it was picked
+            self._execute_one(ws, aid, act, approved_by)
+        finally:
+            with self._inflight_lock:
+                self._inflight.discard(aid)
+
+    def _execute_one(self, ws: str, aid: str, act: dict[str, Any], approved_by: Principal | None) -> None:
         spec = RuleSpec.model_validate_json(self._db(ws).scalar(
             "SELECT spec FROM event_rule_versions WHERE rule_id = ? AND version = ?", [act["rule_id"], act["rule_version"]]))
         ev = self._event(act)
