@@ -134,7 +134,8 @@ durable consumers on the event stream: `autonomy.rules` evaluates every active r
   `subject.kind`, `subject.id`, `data.<key>`) with `eq ne gt gte lt lte in not_in contains exists missing
   pct_change_gte`, combined with `all`, `any`, `not`: at most 20 comparisons, 4 levels. There is no expression
   language and no user code; an unknown field is a validation error.
-* `correlate` requires at least `min_count` events of a type within `within_seconds` (optionally on the same subject).
+* `correlate` requires at least `min_count` events of a type within `within_seconds` (optionally on the same subject,
+  and optionally only events that also meet its own `when`, so that three *failed* syncs are counted, not three syncs).
 * `suppress_seconds` keeps a rule from acting on the same subject again within the window; `max_per_day` caps it;
   `calendar` limits it to weekdays and hours in a time zone.
 * Placeholders in a question or summary are limited to `{subject.id}`, `{subject.kind}`, `{type}`, `{data.<key>}`.
@@ -237,10 +238,12 @@ single-writer DuckDB transactions. Enough for an analyst team's workspace; not f
 
 1. **Throughput.** About 25 rule deliveries/s (benchmark above). Batching inbox writes per dispatch round and
    evaluating rules for a batch of events per transaction are the next steps if a feed needs more.
-2. **Scenario E is logic-only.** The failing-connection rule is verified by dry run; connection syncs are audited
-   events, but a failing real connector was not exercised end to end here. Scenario I (worker killed mid-run) relies
-   on the runtime's existing lease and orphan recovery (`test_runtime_integrity.py`); there is no new crash test for
-   the dispatcher (a crash re-delivers at most one event per consumer, which the inbox or activity key absorbs).
+2. **Crash and connector coverage (scenarios E and I) is in-process only.** `tests/test_event_crash.py` kills a real
+   dispatcher process (`os._exit`) before and after a rule's side effect; the restarted process redelivers the event
+   and opens exactly one activity. `test_a_real_connection_that_keeps_failing_is_flagged_once` breaks a real SQLite
+   connection: failed syncs are now audited (`connection.sync` with outcome `error`) and reach the stream, three in an
+   hour make one notification, and later failures are suppressed. Neither runs against a networked source or across
+   two hosts.
 3. **Activity execution runs in the dispatcher.** `impact_review` and `notify` are quick; long work is always a
    task.
 4. **Visual regression.** UI behaviour is covered by AppTest (`tests/test_ui_activity.py`); screenshots were

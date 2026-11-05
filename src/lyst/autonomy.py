@@ -116,6 +116,7 @@ class Correlate(BaseModel):
     within_seconds: int = Field(ge=60, le=7 * 86400)
     min_count: int = Field(ge=1, le=100)
     same_subject: bool = True
+    when: Condition | None = Field(None, description="only events that also meet this condition are counted")
 
 
 class Calendar(BaseModel):
@@ -469,15 +470,20 @@ class AutonomyService:
         if dry is not None and dry.get("pool") is not None:  # a dry run counts within the events it was given
             return sum(1 for e in dry["pool"] if matches(e["type"], [cor.type])
                        and 0 <= (at - _at(e)).total_seconds() < cor.within_seconds
-                       and (not cor.same_subject or e["subject"] == ev["subject"]))
-        sql = ("SELECT type, subject_kind, subject_id FROM platform_events WHERE workspace_id = ? AND occurred_at <= ? "
+                       and (not cor.same_subject or e["subject"] == ev["subject"])
+                       and (cor.when is None or evaluate(cor.when, e)[0]))
+        sql = ("SELECT * FROM platform_events WHERE workspace_id = ? AND occurred_at <= ? "
                "AND occurred_at > CAST(? AS TIMESTAMPTZ) - to_seconds(CAST(? AS BIGINT))")
         params: list[Any] = [ws, at, at, cor.within_seconds]
         if cor.same_subject:
             sql += " AND subject_kind = ? AND subject_id = ?"
             params += [ev["subject"]["kind"], ev["subject"]["id"]]
         rows = self.stores.control.query(sql + " LIMIT 1000", params)
-        return sum(1 for r in rows if matches(r["type"], [cor.type]))
+        if cor.when is None:
+            return sum(1 for r in rows if matches(r["type"], [cor.type]))
+        from .events import row_to_event  # noqa: PLC0415
+
+        return sum(1 for r in rows if matches(r["type"], [cor.type]) and evaluate(cor.when, row_to_event(r))[0])
 
     # -- the consumer -----------------------------------------------------------------------------
 
@@ -936,8 +942,9 @@ TEMPLATES: dict[str, dict[str, Any]] = {
     "connector_failing": {
         "name": "Flag a failing connection", "on": ["connection.synced"],
         "description": "When a connection's sync fails three times within an hour, tell the owners with its diagnostics.",
-        "when": {"field": "data.outcome", "op": "ne", "value": None},
-        "correlate": {"type": "connection.synced", "within_seconds": 3600, "min_count": 3, "same_subject": True},
+        "when": {"field": "data.outcome", "op": "eq", "value": "error"},
+        "correlate": {"type": "connection.synced", "within_seconds": 3600, "min_count": 3, "same_subject": True,
+                      "when": {"field": "data.outcome", "op": "eq", "value": "error"}},
         "action": {"kind": "notify", "summary": "Connection {subject.id} keeps failing; see Settings > Connections for its diagnostics."},
         "autonomy": "prepare", "priority": 7, "suppress_seconds": 21600},
 }

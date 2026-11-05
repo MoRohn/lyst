@@ -295,3 +295,38 @@ def test_a_prediction_alone_never_starts_consequential_work(seeded):
     lyst.events.emit("northwind", "anticipation.found", subject=("task", "t_x"), source="service", data={"score": 0.9})
     _settle(lyst, 1)
     assert lyst.autonomy.activities(owner, "northwind")[0]["status"] == "suggested"
+
+
+def test_a_real_connection_that_keeps_failing_is_flagged_once(seeded, tmp_path, monkeypatch):
+    """Scenario E end to end: a SQLite connection (no credentials needed) loses its table; three failed syncs within
+    the hour make one notification with the connection's failure, and further failures are suppressed."""
+    import sqlite3
+
+    from lyst.connectors import ConnectorError
+
+    lyst, owner = seeded
+    root = tmp_path / "imports"
+    root.mkdir()
+    monkeypatch.setenv("LYST_IMPORT_ROOT", str(root))
+    lyst.connections.sleep = lambda s: None  # the connector's own retries need not wait in a test
+    db = root / "crm.sqlite"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE deals (id INTEGER PRIMARY KEY, amount REAL)")
+        c.execute("INSERT INTO deals (amount) VALUES (10)")
+    conn = lyst.connections.create(owner, "northwind", kind="sqlite", name="CRM export", values={"path": "crm.sqlite"})
+    _rule(lyst, owner, "connector_failing")
+    _start(lyst)
+    lyst.connections.sync(owner, "northwind", conn["id"], source_table="deals")  # a healthy sync is not a failure
+    with sqlite3.connect(db) as c:
+        c.execute("DROP TABLE deals")
+    for i in range(5):
+        with pytest.raises(ConnectorError):
+            lyst.connections.sync(owner, "northwind", conn["id"], source_table="deals")
+        _settle(lyst)
+        acts = lyst.autonomy.activities(owner, "northwind", subject=("connection", conn["id"]))
+        assert len(acts) == (0 if i < 2 else 1), (i, acts)  # the third failure trips it; the rest are suppressed
+    a = acts[0]
+    assert a["status"] == "completed" and a["outcome"]["notice_id"] and "CRM export" in a["explanation"]
+    assert "3 connection.synced events within 3600s" in a["stages"][1]["detail"]  # the healthy sync is not counted
+    evs = lyst.events.list(owner, "northwind", types=["connection.synced"], after=0)["events"]
+    assert [e["data"].get("outcome") for e in evs] == [None, "error", "error", "error", "error", "error"]

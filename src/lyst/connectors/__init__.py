@@ -545,6 +545,11 @@ class ConnectionService:
             if cursor_column and rows_added and spool.max_cursor is not None:
                 mx = spool.max_cursor
                 new_cursor = mx.isoformat() if hasattr(mx, "isoformat") else mx
+        except ConnectorError as err:
+            # a failed sync is news too: the event stream (and rules such as "flag a failing connection") see it
+            self.guard.audit(actor, ws, "connection.sync", cid, "error", {"table": source_table, "dataset": dataset,
+                                                                          "mode": mode, "category": classify(err)})
+            raise
         finally:
             spool.close()
         last_schema = json.dumps({f.name: str(f.type) for f in new_schema}) if new_schema is not None and len(new_schema) else None
