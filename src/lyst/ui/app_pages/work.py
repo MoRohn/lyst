@@ -6,6 +6,7 @@ import datetime
 
 import streamlit as st
 
+from lyst.ui import activity as auto
 from lyst.ui import anticipate, collab, decisions, kit, publish, visuals
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
@@ -16,7 +17,8 @@ editor = st.session_state.get("role") in ("editor", "admin", "owner")
 TONE = {"green": "ok", "orange": "warn", "red": "bad", "blue": "run", "gray": "off"}
 SENSITIVITY = {4.0: "Big moves only", 3.0: "Notable moves", 2.0: "Any unusual move"}
 ACTIONS = {"schedule.activate": "Start a scheduled question", "monitor.activate": "Start watching a metric",
-           "skill.register": "Add a new skill to Lyst", "decision.approve": "Approve a decision"}
+           "skill.register": "Add a new skill to Lyst", "decision.approve": "Approve a decision",
+           "rule.activate": "Turn on an event rule", "activity.execute": "Run work Lyst prepared"}
 WEEKDAYS = {"mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun"}
 EVERY = {3600: "Hourly", 21600: "Every 6 hours", 86400: "Daily", 604800: "Weekly", 2592000: "Monthly"}
 
@@ -122,7 +124,8 @@ def activity() -> None:
             st.switch_page("app_pages/analyst.py")
         return
     groups = {"All": None, "Running": {"queued", "running", "paused", "awaiting_approval"}, "Done": {"done"},
-              "Stopped": {"failed", "cancelled"}, "Decisions": "decisions", "Published": "published"}
+              "Stopped": {"failed", "cancelled"}, "Automatic": "automatic", "Decisions": "decisions",
+              "Published": "published"}
     top = st.columns([4, 1.3], vertical_alignment="center")
     with top[0]:
         pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
@@ -133,6 +136,9 @@ def activity() -> None:
         return
     if pick == "Published":
         publish.listed()
+        return
+    if pick == "Automatic":  # what event rules started, with why and where each one is
+        auto.workspace_list(admin=admin)
         return
     shown = [t for t in tasks if groups[pick] is None or t["status"] in groups[pick]][:60]
     layout = st.session_state.get("act_layout", "List")

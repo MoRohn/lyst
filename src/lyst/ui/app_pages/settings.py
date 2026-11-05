@@ -468,6 +468,10 @@ def workspace_section() -> None:
                 kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
                 st.rerun()
             anticipate.level_control()
+        with kit.group("Event rules", "rules", "What Lyst does when something happens, and how far it may go."):
+            from lyst.ui import activity  # noqa: PLC0415
+
+            activity.rules(admin=admin)
         with kit.group("Notifications", "notify"):
             with st.form("webhook", border=False):
                 w = st.columns([5, 1.2], vertical_alignment="bottom")

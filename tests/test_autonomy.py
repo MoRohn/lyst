@@ -104,7 +104,7 @@ def test_a_schema_change_opens_an_impact_review_with_its_dependents(seeded):
     assert a["status"] == "completed" and a["event"]["type"] == "dataset.schema_changed"
     assert [s["stage"] for s in a["stages"]] == ["detect", "interpret", "qualify", "plan", "authorize", "execute", "verify", "deliver"]
     assert any(x["kind"] == "metric" for x in a["outcome"]["affected"])  # demo metrics are computed from pnl
-    assert "schema_changed" in a["explanation"] and a["flow"][0] == {"node": "trigger", "label": "dataset.schema_changed",
+    assert "1 column added" in a["explanation"] and a["flow"][0] == {"node": "trigger", "label": "dataset.schema_changed",
                                                                      "ref": a["event"]["seq"]}
     # the activity is part of the event's causal chain
     chain = lyst.events.get(owner, "northwind", a["event"]["seq"])["chain"]
@@ -133,7 +133,7 @@ def test_a_kpi_deviation_starts_an_investigation_that_delivers_an_artifact(seede
     assert a["status"] == "completed", a["stages"]
     task = lyst.runtime.get(owner, a["task_id"])
     assert task["status"] == "done" and task["result"]["status"] == "complete"
-    assert a["outcome"]["artifact_id"]  # the verified briefing, kept as an artifact
+    assert a["outcome"]["artifact_id"] and a["outcome"]["asset_id"]  # the verified briefing, kept as an artifact
     assert next(s for s in a["stages"] if s["stage"] == "verify")["status"] == "done"
     # the task's own events continue the KPI event's chain
     done = [e for e in lyst.events.since("northwind", 0, types=["task.completed"]) if e["subject"]["id"] == a["task_id"]]

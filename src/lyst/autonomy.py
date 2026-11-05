@@ -505,17 +505,19 @@ class AutonomyService:
         aid = "act_" + uuid.uuid4().hex[:12]
         status = {"observed": "observed", "suppressed": "suppressed", "capped": "suppressed", "chain_limit": "suppressed",
                   "suggested": "suggested", "proposed": "planned", "act": "planned"}[d["decision"]]
-        explanation = (f"Because {d['why']}, rule \"{s.name}\" (v{r['current_version']}) "
-                       + {"observed": "recorded it without acting",
-                          "suppressed": f"did not act: {d['why'] if d['decision'] != 'suppressed' else 'it already responded to this recently'}",
-                          "suggested": f"suggests: {self._describe(s, ev)}",
-                          "planned": f"will {self._describe(s, ev)}"}[status] + ".")
+        # in words for people; the exact condition stays in the Interpret stage
+        happened = self.happened(ws, ev)
+        explanation = (f"{happened[:1].upper()}{happened[1:]}, so \"{s.name}\" "
+                       + {"observed": "noted it without acting",
+                          "suppressed": "did not act again so soon",
+                          "suggested": f"suggests that Lyst {self._describe(s, ev, ws)}",
+                          "planned": f"will {self._describe(s, ev, ws)}"}[status] + ".")
         stages = [{"stage": "detect", "status": "done", "detail": f"{ev['type']} (event {ev['seq']})"},
                   {"stage": "interpret", "status": "done", "detail": d["why"][:300]},
                   {"stage": "qualify", "status": "done" if status in ("planned", "suggested") else status,
                    "detail": d["decision"]}]
         if status in ("planned", "suggested"):
-            stages.append({"stage": "plan", "status": "done", "detail": self._describe(s, ev)})
+            stages.append({"stage": "plan", "status": "done", "detail": self._describe(s, ev, ws)})
 
         def tx(c):
             if c.execute("SELECT 1 FROM activities WHERE dedupe_key = ?", [key]).fetchall():
@@ -538,13 +540,53 @@ class AutonomyService:
             self._execute(ws, aid)
         return aid
 
-    def _describe(self, s: RuleSpec, ev: dict[str, Any]) -> str:
+    def title(self, ws: str, kind: str, oid: str) -> str:
+        """What people call an object (a dataset's title, a report's title), falling back to its id."""
+        sql = {"dataset": ("workspace", "SELECT title FROM datasets WHERE name = ?"),
+               "asset": ("workspace", "SELECT title FROM assets WHERE id = ?"),
+               "metric": ("workspace", "SELECT v.spec->>'$.title' FROM metrics m JOIN metric_versions v ON v.name = m.name "
+                                       "AND v.version = m.current_version WHERE m.name = ?"),
+               "task": ("control", "SELECT title FROM tasks WHERE id = ?"),
+               "connection": ("control", "SELECT name FROM connections WHERE id = ?")}.get(kind)
+        if not sql:
+            return oid
+        try:
+            db = self._db(ws) if sql[0] == "workspace" else self.stores.control
+            return str(db.scalar(sql[1], [oid]) or oid)
+        except Exception:  # noqa: BLE001 - a missing table or object keeps the id
+            return oid
+
+    def happened(self, ws: str, ev: dict[str, Any]) -> str:
+        """The event in a sentence."""
+        kind, oid, d = ev["subject"]["kind"], ev["subject"]["id"], ev.get("data") or {}
+        name = self.title(ws, kind, oid)
+        t = ev["type"]
+        if t == "dataset.schema_changed":
+            parts = [f"{len(d[k])} column{'s' * (len(d[k]) != 1)} {w}" for k, w in
+                     (("added", "added"), ("removed", "removed"), ("retyped", "changed type")) if d.get(k)]
+            return f"{name} has a new version with {', '.join(parts) or 'a different schema'}"
+        if t == "asset.health_changed":
+            return f"{name} became {d.get('to', 'out of date')}"
+        if t == "task.failed":
+            return f"the analysis \"{name}\" failed"
+        if t == "contract.checked":
+            return f"{name} did not pass its data contract"
+        if t == "metric.defined":
+            return f"the definition of {name} changed"
+        if t == "connection.synced":
+            return f"syncing {name} failed"
+        if t.startswith("activity."):
+            return "another activity started"
+        words = t.split(".", 1)[-1].replace(".", " ").replace("_", " ")
+        return f"{words} was reported for {name}"
+
+    def _describe(self, s: RuleSpec, ev: dict[str, Any], ws: str | None = None) -> str:
         a = s.action
-        subj = f"{ev['subject']['kind']} {ev['subject']['id']}"
+        subj = self.title(ws, ev["subject"]["kind"], ev["subject"]["id"]) if ws else f"{ev['subject']['kind']} {ev['subject']['id']}"
         return {"notify": f"tell the workspace's owners about {subj}",
                 "impact_review": f"list what depends on {subj} and how to repair it",
                 "investigate": f"investigate \"{fill(a.question or '', ev)}\"",
-                "retry_task": f"retry task {ev['subject']['id']} once, if its failure is recoverable",
+                "retry_task": f"retry \"{subj}\" once, if its failure is recoverable",
                 "propose": ("ask for approval to repair " + subj) if a.proposal == "asset_repair"
                 else f"ask for approval to investigate \"{fill(a.question or '', ev)}\""}[a.kind]
 
@@ -575,7 +617,7 @@ class AutonomyService:
             if act["approval_id"]:
                 return
             ap = self.lyst.runtime.request_approval(ws, act["owner"], "activity.execute",
-                                                    f"{self._describe(spec, ev)[:1].upper()}{self._describe(spec, ev)[1:]} "
+                                                    f"{self._describe(spec, ev, ws)[:1].upper()}{self._describe(spec, ev, ws)[1:]} "
                                                     f"(rule \"{spec.name}\")", {"activity_id": aid})
             self._stage(ws, aid, "authorize", "awaiting_approval", f"approval {ap}")
             self._set(ws, aid, status="awaiting_approval", approval_id=ap)
@@ -692,8 +734,9 @@ class AutonomyService:
                 self._stage(ws, r["id"], "deliver", "done" if verified else "skipped",
                             f"artifact {art[0]['id']}" if art else "findings in the task's result")
                 self._stage(ws, r["id"], "monitor", "done", "no further action")
+                asset = db.scalar("SELECT id FROM assets WHERE ref_kind = 'artifact' AND ref_id = ?", [art[0]["id"]]) if art else None
                 self._set(ws, r["id"], status="completed" if verified else "needs_attention",
-                          outcome_patch={"artifact_id": art[0]["id"] if art else None, "verified": verified})
+                          outcome_patch={"artifact_id": art[0]["id"] if art else None, "asset_id": asset, "verified": verified})
             elif t["status"] == "failed":
                 self._stage(ws, r["id"], "verify", "failed", (t["error"] or "the task failed")[:300])
                 self._set(ws, r["id"], status="failed")
@@ -709,6 +752,7 @@ class AutonomyService:
         a = dict(rows[0])
         a["stages"] = json.loads(a["stages"] or "[]")
         a["outcome"] = json.loads(a["outcome"]) if a.get("outcome") else None
+        a["subject_title"] = self.title(ws, a["subject_kind"], a["subject_id"])
         for k in ("created_at", "updated_at"):
             a[k] = str(a[k]) if a.get(k) is not None else None
         return a
