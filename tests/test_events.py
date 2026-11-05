@@ -179,3 +179,55 @@ def test_webhook_and_event_api(seeded, monkeypatch):
         page = c.get("/v1/workspaces/northwind/events", headers=h, params={"after": first, "types": "task.*", "wait": 2}).json()
         assert page["events"] and page["events"][0]["type"] == "task.created" and page["next"] > first
         assert c.delete(f"/v1/workspaces/northwind/webhooks/{sid}", headers=h).json() == {"deleted": True}
+
+
+def test_delivery_connects_to_the_checked_address(seeded, monkeypatch):
+    """DNS rebinding: the POST goes to the address check_target approved, with the real Host and TLS name."""
+    import ipaddress
+
+    monkeypatch.delenv("LYST_WEBHOOK_ALLOW_PRIVATE", raising=False)
+    monkeypatch.setattr("lyst.webhooks._resolve", lambda host, port: [ipaddress.ip_address("93.184.216.34")])
+    lyst, owner = seeded
+    rx = Receiver()
+    lyst.webhooks.client = httpx.Client(transport=httpx.MockTransport(rx))
+    sub = lyst.webhooks.create(owner, "northwind", "https://hooks.example.test:8443/lyst?x=1", types_=["dataset.*"])
+    assert lyst.webhooks.ping(owner, "northwind", sub["id"])["ok"]
+    req = rx.got[-1]
+    assert str(req.url) == "https://93.184.216.34:8443/lyst?x=1"
+    assert req.headers["host"] == "hooks.example.test:8443" and req.extensions["sni_hostname"] == "hooks.example.test"
+    # an address that turns private between create and delivery is refused at delivery
+    monkeypatch.setattr("lyst.webhooks._resolve", lambda host, port: [ipaddress.ip_address("::ffff:127.0.0.1")])
+    out = lyst.webhooks.ping(owner, "northwind", sub["id"])
+    assert not out["ok"] and "private" in out["error"]
+
+
+def test_redelivery_is_refused_while_paused_and_a_poison_row_does_not_block_the_queue(seeded, monkeypatch):
+    monkeypatch.setenv("LYST_WEBHOOK_ALLOW_PRIVATE", "1")
+    lyst, owner = seeded
+    rx = Receiver(fail=100, status=503)
+    lyst.webhooks.client = httpx.Client(transport=httpx.MockTransport(rx))
+    sub = lyst.webhooks.create(owner, "northwind", "https://hooks.example.test/", types_=["dataset.*"])
+    lyst.data.ingest(owner, "northwind", "targets", b"region,target\nEMEA,10\n", filename="targets.csv")
+    lyst.webhooks.run()
+    d = lyst.webhooks.deliveries(owner, "northwind", sub["id"])[0]
+    lyst.webhooks.update(owner, "northwind", sub["id"], active=False)
+    with pytest.raises(ValueError, match="paused"):
+        lyst.webhooks.redeliver(owner, "northwind", d["id"])
+    lyst.webhooks.update(owner, "northwind", sub["id"], active=True)
+    # a malformed event row at the head of the queue is marked dead; the delivery behind it is still attempted
+    lyst.data.ingest(owner, "northwind", "targets", b"region,target\nEMEA,11\n", filename="targets.csv")
+    lyst.webhooks.enqueue()
+    import lyst.webhooks as wh
+
+    real = wh.row_to_event
+
+    def poison(row):
+        if row["seq"] == d["event_seq"]:
+            raise ValueError("malformed event row")
+        return real(row)
+
+    monkeypatch.setattr(wh, "row_to_event", poison)
+    _due_now(lyst)
+    rx.fail = 0
+    assert lyst.webhooks.run() == {"sent": 1, "failed": 1}
+    assert lyst.webhooks.deliveries(owner, "northwind", sub["id"], status="dead")[0]["id"] == d["id"]

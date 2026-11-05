@@ -234,7 +234,9 @@ class ContractService:
                         add("fail", "out_of_range", [rule.name], f"{n:,} values of {rule.name} fall outside {rng}", rows=n)
             if spec.key and all(k in schema for k in spec.key):
                 cols = ", ".join(_q(k) for k in spec.key)
-                dup = cur.execute(f"SELECT count(*) - count(DISTINCT ({cols})) FROM {table}").fetchone()[0]
+                # rows with a NULL key part are incomplete, not repeats: count(DISTINCT) skips them, so leave them out
+                not_null = " AND ".join(f"{_q(k)} IS NOT NULL" for k in spec.key)
+                dup = cur.execute(f"SELECT count(*) - count(DISTINCT ({cols})) FROM {table} WHERE {not_null}").fetchone()[0]
                 if dup:
                     add("fail", "duplicate_key", list(spec.key), f"{dup:,} rows repeat the key {' × '.join(spec.key)}", rows=dup)
             for ref in spec.references:
