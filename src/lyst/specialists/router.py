@@ -105,6 +105,31 @@ _GENERIC = {"descriptive_reporting", "recommendation", "cost_analysis", "risk_as
 _INDEPENDENT = re.compile(r"\b(independent\w*|second opinion|challenge|red[- ]team|separate reviewer)\b", re.I)
 
 
+@cache
+def _package_vocabulary() -> dict[str, frozenset]:
+    """Catalog domain -> the words Lyst's business domain packages use (signals, concepts, synonyms, metric names,
+    glossary terms). It tells "margin" in a P&L question from "margin" in an engineering one."""
+    from .. import domains as packages  # noqa: PLC0415
+
+    vocab: dict[str, set[str]] = {}
+    for pid, pkg in packages.packages().items():
+        words = [*pkg.signals, *(c.name for c in pkg.concepts), *(s for c in pkg.concepts for s in c.synonyms),
+                 *(m.name.replace("_", " ") for m in pkg.metrics), *(m.title for m in pkg.metrics),
+                 *(t.term for t in pkg.glossary)]
+        toks = {t for w in words for t in tokens(w)}
+        for d in PACKAGE_DOMAINS.get(pid, []):
+            vocab.setdefault(d, set()).update(toks)
+    return {d: frozenset(v) for d, v in vocab.items()}
+
+
+def domain_affinity(q: list[str]) -> dict[str, float]:
+    """Share of the request's words that each catalog domain's business vocabulary contains."""
+    if not q:
+        return {}
+    qs = set(q)
+    return {d: len(qs & v) / len(qs) for d, v in _package_vocabulary().items() if qs & v}
+
+
 def _stem(t: str) -> str:
     for suf in ("ations", "ation", "ings", "ing", "ies", "ed", "es", "s"):
         if len(t) > len(suf) + 3 and t.endswith(suf):
@@ -259,6 +284,7 @@ def route(text: str, *, can=None, prefer: list[str] | None = None, workspace_dom
     q = tokens(text)
     lowered = " " + re.sub(r"[^a-z0-9&/+-]+", " ", text.lower()) + " "
     boost_domains = {d for pkg in (workspace_domains or []) for d in PACKAGE_DOMAINS.get(pkg, [])}
+    affinity = domain_affinity(q)
 
     requested: list[str] = []
     unresolved: list[str] = []
@@ -285,6 +311,8 @@ def route(text: str, *, can=None, prefer: list[str] | None = None, workspace_dom
             reasons.append("the request uses its vocabulary: " + ", ".join(f'"{h}"' for h in hits[:3]))
         if overlap:
             reasons.append("it covers the kind of work asked for: " + ", ".join(o.replace("_", " ") for o in overlap[:3]))
+        if affinity.get(p.identity.domain):
+            score *= 1 + 0.5 * affinity[p.identity.domain]
         if p.identity.domain in boost_domains:
             score *= 1.1
             reasons.append("it matches the workspace's business profile")

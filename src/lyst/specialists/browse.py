@@ -9,7 +9,9 @@ from typing import Any
 from . import library, verification
 from .catalog import load
 from .maturity import assess, summary
-from .router import _bm25, _index, tokens
+from .router import _bm25, _index, domain_affinity, tokens
+
+RELATIVE_FLOOR = 0.45
 
 
 def row(pid: str) -> dict[str, Any]:
@@ -40,8 +42,23 @@ def search(q: str | None = None, domain: str | None = None, min_level: int | Non
     if q and q.strip():
         ix = _index(cat.version)
         qt = tokens(q)
-        scored = [(i, _bm25(ix, qt, i)) for i in ids]
-        ids = [i for i, s in sorted(scored, key=lambda x: -x[1]) if s > 0]
+        aff = domain_affinity(qt)
+        lowered = " " + " ".join(q.lower().split()) + " "
+
+        def score(i: str) -> float:
+            p = cat.get(i)
+            s = _bm25(ix, qt, i)
+            if s <= 0:
+                return 0.0
+            matched = sum(1 for t in set(qt) if t in ix.docs[i])
+            s *= (matched / len(set(qt))) ** 0.5  # matching every word beats matching one
+            s += 1.5 * sum(1 for ph in ix.phrases[i] if " " in ph and f" {ph} " in lowered)
+            return s * (1 + aff.get(p.identity.domain, 0.0))  # the business vocabulary says which domain the words belong to
+
+        scored = sorted(((i, score(i)) for i in ids), key=lambda x: -x[1])
+        top = scored[0][1] if scored else 0.0
+        # weak tails (one shared word with an unrelated discipline) are noise in a search box
+        ids = [i for i, s in scored if s > 0 and s >= RELATIVE_FLOOR * top]
     rows = [row(i) for i in ids]
     if min_level:
         rows = [r for r in rows if r["level"] >= min_level]

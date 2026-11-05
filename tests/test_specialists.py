@@ -289,3 +289,17 @@ def test_expertise_rules_evaluation_is_exact():
     assert not any(ch.isdigit() for ch in d["note"])  # the note can never trip the unbacked-number check
     assert applied.intensity("standard", {"verification": {"automated": [{"id": "independent_recompute"}]}}) == "high"
     assert applied.intensity("standard", None) == "standard" and applied.intensity("high", {"general": True}) == "high"
+
+
+@pytest.mark.parametrize("q,first,absent", [
+    ("operating margin", "financial_data_analyst", {"engineering_simulation_analyst"}),
+    ("gross margin", "financial_data_analyst", {"engineering_simulation_analyst"}),
+    ("safety margin", "engineering_simulation_analyst", set()),
+    ("revenue forecast", "forecasting_analyst", set()),
+    ("cloud cost", "cloud_finops_analyst", set()),
+    ("finops", "cloud_finops_analyst", set()),
+])
+def test_catalog_search_ranks_by_meaning_not_a_shared_word(q, first, absent):
+    ids = [r["id"] for r in browse.search(q)]
+    assert ids[0] == first, ids[:4]
+    assert not (absent & set(ids[:3])), ids[:4]
