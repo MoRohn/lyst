@@ -1,0 +1,436 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!-- Copyright (C) 2026 Rohn Springfield -->
+<!-- The Brain graph: an interactive map of what Lyst knows and how its graph runs ran. No library and no network:
+     a small force layout (or the fixed positions of a run's flow) drawn on a canvas, with a keyboard list as the
+     accessible alternative. Clicking a node sends its id back to Streamlit. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg: #fff; --surface: #f6f6f4; --text: #1d1d1b; --muted: #6b6b66; --border: #e3e3df; --accent: #4f46e5;
+          --focus: #4f46e5; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); overflow: hidden;
+               font: 13px/1.35 "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #wrap { position: relative; width: 100%; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+          background: var(--bg); }
+  canvas { display: block; width: 100%; cursor: grab; outline: none; touch-action: none; }
+  canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+  canvas.dragging { cursor: grabbing; }
+  canvas.over { cursor: pointer; }
+  .bar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 6px; align-items: center;
+         pointer-events: none; flex-wrap: wrap; }
+  .bar > * { pointer-events: auto; }
+  input[type=search] { flex: 0 1 240px; min-width: 120px; height: 30px; padding: 0 10px; border-radius: 8px;
+         border: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 88%, transparent);
+         color: var(--text); font: inherit; backdrop-filter: blur(6px); }
+  button { height: 30px; min-width: 30px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--border);
+           background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--text); font: inherit;
+           cursor: pointer; backdrop-filter: blur(6px); }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible, input:focus-visible, .item:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .bar button[aria-pressed=true] { border-color: var(--accent); color: var(--accent); }
+  .spacer { flex: 1; }
+  .legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px; max-width: 70%; }
+  .legend button { height: 26px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+  .legend button[aria-pressed=false] { opacity: .45; text-decoration: line-through; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  .ring { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 2px solid; flex: none; }
+  .tip { position: absolute; pointer-events: none; max-width: 320px; padding: 8px 10px; border-radius: 8px;
+         background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.14);
+         display: none; z-index: 3; }
+  .tip b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .tip .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .tip .d { color: var(--muted); margin-top: 3px; }
+  .stats { position: absolute; right: 10px; bottom: 10px; color: var(--muted); font-size: 11px;
+           background: color-mix(in srgb, var(--bg) 80%, transparent); padding: 2px 6px; border-radius: 6px; }
+  #list { position: absolute; inset: 50px 0 0 0; overflow: auto; padding: 4px 14px 14px; display: none;
+          background: var(--bg); }
+  #list h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 4px; }
+  .item { display: flex; width: 100%; text-align: left; gap: 8px; align-items: center; height: auto; min-height: 30px;
+          padding: 5px 8px; border-radius: 6px; border: 1px solid transparent; background: transparent; }
+  .item:hover { background: var(--surface); }
+  .item .d { color: var(--muted); font-size: 12px; margin-left: auto; padding-left: 10px; white-space: nowrap;
+             overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" tabindex="0" role="img" aria-label="Graph"></canvas>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Find a node" aria-label="Find a node in the graph">
+    <span class="spacer"></span>
+    <button id="labels" aria-pressed="false" title="Show every label">Labels</button>
+    <button id="fit" title="Fit the whole graph (double-click the canvas)" aria-label="Fit the whole graph">Fit</button>
+    <button id="zin" aria-label="Zoom in" title="Zoom in">+</button>
+    <button id="zout" aria-label="Zoom out" title="Zoom out">−</button>
+    <button id="listbtn" aria-pressed="false" title="Show the nodes as a list you can move through with the keyboard">List</button>
+  </div>
+  <div id="list" role="region" aria-label="Every node, as a list"></div>
+  <div class="legend" id="legend" role="group" aria-label="Legend: click a kind to hide or show it"></div>
+  <div class="stats" id="stats" aria-hidden="true"></div>
+  <div class="tip" id="tip" role="tooltip"></div>
+  <div class="sr" id="live" aria-live="polite"></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const post = (type, extra) => window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type }, extra || {}), "*");
+  const send = (value) => post("streamlit:setComponentValue", { value, dataType: "json" });
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("c"), ctx = canvas.getContext("2d"), tip = $("tip"), wrap = $("wrap");
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let P = {}, nodes = [], links = [], byId = new Map(), adj = new Map(), hidden = new Set();
+  let W = 600, H = 560, dpr = 1, k = 1, tx = 0, ty = 0, alpha = 0, hover = null, selected = null, drag = null;
+  let pan = null, query = "", allLabels = false, sig = "", layout = "force", raf = 0, moved = false, auto = true;
+
+  function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function rand(seed) { let x = seed || 1; return () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return ((x >>> 0) % 100000) / 100000; }; }
+  function radius(n) { return n.kind === "rule" ? 5.5 : Math.min(17, 3.6 + Math.sqrt(n.degree || 0) * 1.9); }
+  function colorOf(n) { return (P.kinds && P.kinds[n.kind]) || P.colors.neutral; }
+  function statusColor(s) { return { ok: P.colors.good, warn: P.colors.warn, bad: P.colors.bad, run: P.colors.info }[s]; }
+  function visible(n) { return !hidden.has(n.kind); }
+  function matches(n) { return query && (n.label + " " + (n.detail || "") + " " + n.kind).toLowerCase().includes(query); }
+
+  // -- data -------------------------------------------------------------------------------------------------------
+  function load(args) {
+    P = args;
+    const c = P.colors;
+    const root = document.documentElement.style;
+    root.setProperty("--bg", c.bg); root.setProperty("--surface", c.surface); root.setProperty("--text", c.text);
+    root.setProperty("--muted", c.muted); root.setProperty("--border", c.border); root.setProperty("--accent", c.accent);
+    root.setProperty("--focus", c.focus || c.accent);
+    H = P.height || 560; canvas.style.height = H + "px"; post("streamlit:setFrameHeight", { height: H + 2 });
+    canvas.setAttribute("aria-label", P.alt || "Graph");
+    layout = P.layout || "force";
+    const s = JSON.stringify([P.graph, layout]);
+    if (s !== sig) {
+      sig = s;
+      const old = new Map(nodes.map((n) => [n.id, n]));
+      nodes = P.graph.nodes.map((n) => Object.assign({}, n));
+      byId = new Map(nodes.map((n) => [n.id, n]));
+      links = P.graph.links.filter((l) => byId.has(l.source) && byId.has(l.target))
+        .map((l) => Object.assign({}, l, { s: byId.get(l.source), t: byId.get(l.target) }));
+      adj = new Map(nodes.map((n) => [n.id, new Set()]));
+      links.forEach((l) => { adj.get(l.s.id).add(l.t.id); adj.get(l.t.id).add(l.s.id); });
+      auto = true;
+      place(old);
+      buildLegend(); buildList();
+      fit(false);
+    }
+    selected = P.selected || selected;
+    $("stats").textContent = nodes.length + " nodes · " + links.length + " links";
+    draw();
+  }
+
+  function place(old) {
+    resize();
+    if (layout === "flow") {
+      const m = 70;
+      nodes.forEach((n) => { n.x = m + n.x * (W - 2 * m); n.y = 70 + n.y * (H - 190); n.vx = n.vy = 0; });
+      alpha = 0; if (!reduced) loop(); return;
+    }
+    // kinds start on their own arc, so related things settle near each other; positions are stable per id
+    const kinds = [...new Set(nodes.map((n) => n.kind))];
+    nodes.forEach((n) => {
+      const o = old.get(n.id);
+      if (o && o.x !== undefined) { n.x = o.x; n.y = o.y; n.vx = n.vy = 0; return; }
+      const r = rand(hash(n.id)), a = (kinds.indexOf(n.kind) / kinds.length) * Math.PI * 2 + (r() - 0.5) * 1.2;
+      const d = 120 + r() * 160;
+      n.x = W / 2 + Math.cos(a) * d; n.y = H / 2 + Math.sin(a) * d; n.vx = n.vy = 0;
+    });
+    alpha = 1;
+    if (reduced) { for (let i = 0; i < 320 && alpha > 0.004; i++) step(); alpha = 0; }
+    else loop();
+  }
+
+  // -- force layout: many-body repulsion, link springs, a gentle pull to the centre ---------------------------------
+  function step() {
+    const N = nodes.length, vis = nodes;
+    const charge = -340 * Math.max(0.4, Math.min(1.4, 160 / Math.max(N, 1)));
+    for (let i = 0; i < N; i++) {
+      const a = vis[i];
+      for (let j = i + 1; j < N; j++) {
+        const b = vis[j];
+        let dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy;
+        if (d2 > 160000) continue;
+        if (d2 < 1) { dx = (i % 7) - 3 + 0.1; dy = (j % 5) - 2 + 0.1; d2 = dx * dx + dy * dy; }
+        const f = (charge * alpha) / d2;
+        a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+      }
+    }
+    links.forEach((l) => {
+      const a = l.s, b = l.t, dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const rest = 58 + (radius(a) + radius(b)) * 1.8, deg = Math.min(adj.get(a.id).size, adj.get(b.id).size) || 1;
+      const f = ((d - rest) / d) * alpha * (0.7 / deg);
+      a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    });
+    nodes.forEach((n) => {
+      n.vx += (W / 2 - n.x) * 0.012 * alpha; n.vy += (H / 2 - n.y) * 0.012 * alpha;
+      if (n.fx !== undefined) { n.x = n.fx; n.y = n.fy; n.vx = n.vy = 0; return; }
+      n.vx *= 0.58; n.vy *= 0.58; n.x += n.vx; n.y += n.vy;
+    });
+    alpha *= 0.977;
+  }
+
+  function loop() {
+    cancelAnimationFrame(raf);
+    const tick = () => {
+      if (alpha > 0.005) { step(); step(); if (auto) fit(false); }
+      draw();
+      if (alpha > 0.005 || (layout === "flow" && !reduced)) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  // -- drawing ------------------------------------------------------------------------------------------------------
+  function resize() {
+    dpr = window.devicePixelRatio || 1; W = wrap.clientWidth || 600;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+  function focusSet() {
+    const f = hover || (selected && byId.get(selected));
+    if (!f) return null;
+    const s = new Set([f.id]); adj.get(f.id).forEach((x) => s.add(x)); return s;
+  }
+  function arrow(x1, y1, x2, y2, r, col) {
+    const a = Math.atan2(y2 - y1, x2 - x1), x = x2 - Math.cos(a) * (r + 2), y = y2 - Math.sin(a) * (r + 2), s = 6 / k;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x - s * Math.cos(a - 0.4), y - s * Math.sin(a - 0.4)); ctx.lineTo(x - s * Math.cos(a + 0.4), y - s * Math.sin(a + 0.4));
+    ctx.closePath(); ctx.fill();
+  }
+  function linkColor(l) {
+    const c = P.colors;
+    return { fail: c.bad, pass: c.good, wait: c.warn, learn: c.warn }[l.kind] || c.edge || c.border;
+  }
+  function draw() {
+    const c = P.colors; if (!c) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = c.bg; ctx.fillRect(0, 0, W, H);
+    ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * tx, dpr * ty);
+    const fs = focusSet(), now = performance.now(), anyQ = !!query;
+    const dim = (n) => (fs && !fs.has(n.id)) || (anyQ && !matches(n) && !(fs && fs.has(n.id)));
+    // links
+    links.forEach((l) => {
+      if (!visible(l.s) || !visible(l.t)) return;
+      const on = fs && fs.has(l.s.id) && fs.has(l.t.id) && (fs.size === 1 || l.s.id === (hover || byId.get(selected) || {}).id || l.t.id === (hover || byId.get(selected) || {}).id);
+      const faded = (fs && !on) || (anyQ && !(matches(l.s) || matches(l.t)));
+      ctx.globalAlpha = faded ? 0.08 : on ? 0.95 : 0.42;
+      ctx.strokeStyle = on && layout === "force" ? c.accent : linkColor(l);
+      ctx.lineWidth = (on ? 1.6 : 1) / k * (layout === "flow" ? 1.6 + Math.min(3, (l.count || 1) - 1) * 0.6 : 1);
+      ctx.setLineDash(l.kind === "fail" || l.kind === "wait" ? [5 / k, 4 / k] : []);
+      if (l.kind === "fail" && !reduced && layout === "flow") ctx.lineDashOffset = -(now / 60) % 18 / k;
+      ctx.beginPath();
+      let mx, my;
+      if (layout === "flow" && l.s.x > l.t.x) {
+        // a return path: the correction edge loops over its own row, the learning edge runs back under the graph
+        mx = (l.s.x + l.t.x) / 2;
+        my = l.kind === "learn" ? H + 10 : Math.min(l.s.y, l.t.y) - 30;
+        ctx.moveTo(l.s.x, l.s.y); ctx.quadraticCurveTo(mx, my, l.t.x, l.t.y);
+        my = (l.s.y + l.t.y) / 4 + my / 2;
+      } else { ctx.moveTo(l.s.x, l.s.y); ctx.lineTo(l.t.x, l.t.y); mx = (l.s.x + l.t.x) / 2; my = (l.s.y + l.t.y) / 2; }
+      ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      if (layout === "flow") {
+        arrow(layout === "flow" && l.s.x > l.t.x ? mx : l.s.x, layout === "flow" && l.s.x > l.t.x ? my : l.s.y, l.t.x, l.t.y, radius(l.t) + 6, ctx.strokeStyle);
+        const label = (l.kind === "plan" || l.kind === "flow") ? "" :
+          ({ fail: "fail", pass: "pass", wait: "hold", learn: "learn" }[l.kind] || l.kind) + (l.count > 1 ? " ×" + l.count : "");
+        ctx.font = `${11 / k}px Inter, system-ui, sans-serif`; ctx.fillStyle = c.muted; ctx.textAlign = "center";
+        ctx.fillText(label, mx, my - 4 / k);
+        if (!reduced && (l.kind === "flow" || l.kind === "plan" || l.kind === "pass")) { // a quiet pulse along forward edges
+          const t = ((now / 1600) + (hash(l.source + l.target) % 100) / 100) % 1;
+          ctx.globalAlpha = faded ? 0.1 : 0.9; ctx.fillStyle = linkColor(l) === c.border ? c.accent : linkColor(l);
+          ctx.beginPath(); ctx.arc(l.s.x + (l.t.x - l.s.x) * t, l.s.y + (l.t.y - l.s.y) * t, 2.2 / k, 0, 7); ctx.fill();
+        }
+      }
+    });
+    ctx.globalAlpha = 1;
+    // nodes
+    const showAll = allLabels || layout === "flow";
+    const sorted = nodes.filter(visible).sort((a, b) => (a.degree || 0) - (b.degree || 0));
+    const topDeg = sorted.length ? sorted[Math.max(0, sorted.length - 12)].degree || 0 : 0;
+    const few = sorted.length <= 45, labels = [];
+    sorted.forEach((n) => {
+      const r = layout === "flow" ? 9 : radius(n), faded = dim(n), isSel = selected === n.id, isHov = hover && hover.id === n.id;
+      ctx.globalAlpha = faded ? 0.16 : 1;
+      if ((isSel || isHov || matches(n)) && !faded) {
+        ctx.beginPath(); ctx.arc(n.x, n.y, r + 7 / k, 0, 7);
+        ctx.fillStyle = colorOf(n); ctx.globalAlpha = 0.16; ctx.fill(); ctx.globalAlpha = 1;
+      }
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 7); ctx.fillStyle = colorOf(n); ctx.fill();
+      const sc = statusColor(n.status);
+      if (sc) { ctx.lineWidth = 2.2 / k; ctx.strokeStyle = sc; ctx.beginPath(); ctx.arc(n.x, n.y, r + 2.6 / k, 0, 7); ctx.stroke(); }
+      if (isSel) { ctx.lineWidth = 2 / k; ctx.strokeStyle = c.text; ctx.beginPath(); ctx.arc(n.x, n.y, r + 5 / k, 0, 7); ctx.stroke(); }
+      const labelled = showAll || isSel || isHov || matches(n) || (fs && fs.has(n.id)) || k > 1.35 || few ||
+        (n.degree || 0) >= Math.max(3, topDeg);
+      if (labelled && !faded) {
+        const pri = isSel ? 1e6 : isHov ? 9e5 : matches(n) ? 8e5 : (fs && fs.has(n.id)) ? 7e5 :
+          (n.degree || 0) * 10 + ({ metric: 60, dataset: 50, run: 45, rule: 40 }[n.kind] || 0);
+        labels.push({ n, r, pri, strong: isSel || isHov });
+      }
+    });
+    ctx.globalAlpha = 1;
+    // labels last, most important first, and never on top of one another (the map stays readable at any zoom)
+    labels.sort((a, b) => b.pri - a.pri);
+    const placed = [];
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    labels.forEach(({ n, r, strong }) => {
+      const size = (layout === "flow" ? 12 : 11) / k, max = layout === "flow" ? 44 : 30;
+      ctx.font = `${strong ? 600 : 400} ${size}px Inter, system-ui, sans-serif`;
+      const text = n.label.length > max && !strong ? n.label.slice(0, max - 1) + "…" : n.label;
+      const w = ctx.measureText(text).width, y = n.y + r + 4 / k, h = size * (layout === "flow" && n.detail ? 2.7 : 1.25);
+      const box = [n.x - w / 2 - 3 / k, y, n.x + w / 2 + 3 / k, y + h];
+      if (!strong && layout !== "flow" && placed.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) return;
+      placed.push(box);
+      ctx.lineWidth = 3 / k; ctx.strokeStyle = c.bg; ctx.strokeText(text, n.x, y);
+      ctx.fillStyle = c.text; ctx.fillText(text, n.x, y);
+      if (layout === "flow" && n.detail) {
+        ctx.font = `${10.5 / k}px Inter, system-ui, sans-serif`; ctx.fillStyle = c.muted;
+        ctx.strokeText(n.detail, n.x, y + 15 / k); ctx.fillText(n.detail, n.x, y + 15 / k);
+      }
+    });
+    ctx.textBaseline = "alphabetic";
+    ctx.globalAlpha = 1;
+  }
+
+  // -- view: fit, zoom, pan -----------------------------------------------------------------------------------------
+  function fit(animate) {
+    const vis = nodes.filter(visible); if (!vis.length) { k = 1; tx = ty = 0; return; }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    vis.forEach((n) => { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y); });
+    const pad = layout === "flow" ? 30 : 70, top = 46;
+    const kk = Math.min(2.2, Math.max(0.15, Math.min((W - 2 * pad) / Math.max(1, x1 - x0), (H - top - 2 * pad) / Math.max(1, y1 - y0))));
+    k = layout === "flow" ? Math.min(1, kk) : kk;
+    tx = W / 2 - ((x0 + x1) / 2) * k; ty = top / 2 + H / 2 - ((y0 + y1) / 2) * k;
+    if (animate !== false) draw();
+  }
+  function zoomAt(f, px, py) {
+    auto = false;
+    const nk = Math.min(6, Math.max(0.1, k * f)); tx = px - ((px - tx) * nk) / k; ty = py - ((py - ty) * nk) / k; k = nk; draw();
+  }
+  function at(px, py) {
+    const x = (px - tx) / k, y = (py - ty) / k; let best = null, bd = Infinity;
+    nodes.forEach((n) => {
+      if (!visible(n)) return;
+      const r = (layout === "flow" ? 9 : radius(n)) + 4 / k, d = (n.x - x) ** 2 + (n.y - y) ** 2;
+      if (d < r * r && d < bd) { bd = d; best = n; }
+    });
+    return best;
+  }
+  function pos(ev) { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; }
+
+  canvas.addEventListener("pointerdown", (ev) => {
+    const [px, py] = pos(ev), n = at(px, py); moved = false; canvas.setPointerCapture(ev.pointerId);
+    if (n) { drag = n; n.fx = n.x; n.fy = n.y; } else pan = { px, py, tx, ty };
+    canvas.classList.add("dragging"); tip.style.display = "none";
+  });
+  canvas.addEventListener("pointermove", (ev) => {
+    const [px, py] = pos(ev);
+    if (drag) {
+      moved = true; auto = false; drag.fx = drag.x = (px - tx) / k; drag.fy = drag.y = (py - ty) / k;
+      if (!reduced && layout === "force") { alpha = Math.max(alpha, 0.25); loop(); } else draw();
+      return;
+    }
+    if (pan) { moved = moved || Math.abs(px - pan.px) + Math.abs(py - pan.py) > 3; if (moved) auto = false; tx = pan.tx + px - pan.px; ty = pan.ty + py - pan.py; draw(); return; }
+    const n = at(px, py);
+    if ((n && n.id) !== (hover && hover.id)) { hover = n; draw(); }
+    canvas.classList.toggle("over", !!n);
+    if (n) {
+      tip.innerHTML = ""; const kd = document.createElement("div"); kd.className = "k"; kd.textContent = (P.kindLabels || {})[n.kind] || n.kind;
+      const b = document.createElement("b"); b.textContent = n.label; tip.append(kd, b);
+      if (n.detail) { const d = document.createElement("div"); d.className = "d"; d.textContent = n.detail; tip.append(d); }
+      const lk = adj.get(n.id).size; const d2 = document.createElement("div"); d2.className = "d";
+      d2.textContent = lk + " link" + (lk === 1 ? "" : "s") + " · click to open"; tip.append(d2);
+      tip.style.display = "block";
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = Math.min(W - tw - 8, px + 14) + "px"; tip.style.top = Math.min(H - th - 8, py + 14) + "px";
+    } else tip.style.display = "none";
+  });
+  function release(ev) {
+    const [px, py] = pos(ev);
+    if (drag) { if (!moved) choose(drag); if (layout === "flow") { delete drag.fx; delete drag.fy; } drag = null; }
+    else if (pan && !moved) { const n = at(px, py); if (!n && selected) { selected = null; draw(); } }
+    pan = null; canvas.classList.remove("dragging");
+  }
+  canvas.addEventListener("pointerup", release);
+  canvas.addEventListener("pointerleave", () => { if (hover) { hover = null; draw(); } tip.style.display = "none"; });
+  canvas.addEventListener("dblclick", (ev) => { if (!at(...pos(ev))) fit(); });
+  canvas.addEventListener("wheel", (ev) => { ev.preventDefault(); const [px, py] = pos(ev); zoomAt(Math.exp(-ev.deltaY * 0.0015), px, py); }, { passive: false });
+  canvas.addEventListener("keydown", (ev) => {
+    if (ev.key === "+" || ev.key === "=") zoomAt(1.2, W / 2, H / 2);
+    else if (ev.key === "-") zoomAt(1 / 1.2, W / 2, H / 2);
+    else if (ev.key === "0") fit();
+    else if (ev.key === "ArrowLeft") { tx += 40; draw(); } else if (ev.key === "ArrowRight") { tx -= 40; draw(); }
+    else if (ev.key === "ArrowUp") { ty += 40; draw(); } else if (ev.key === "ArrowDown") { ty -= 40; draw(); }
+    else return;
+    ev.preventDefault();
+  });
+
+  function choose(n) {
+    selected = n.id; draw();
+    $("live").textContent = "Selected " + ((P.kindLabels || {})[n.kind] || n.kind) + " " + n.label;
+    send({ id: n.id, ts: Date.now() });
+  }
+
+  // -- controls -----------------------------------------------------------------------------------------------------
+  $("q").addEventListener("input", (ev) => {
+    query = ev.target.value.trim().toLowerCase(); draw(); buildList();
+    const hits = nodes.filter(matches).length; $("live").textContent = query ? hits + " matching nodes" : "";
+  });
+  $("q").addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter") return;
+    const n = nodes.find((x) => visible(x) && matches(x)); if (!n) return;
+    k = Math.max(k, 1.4); tx = W / 2 - n.x * k; ty = H / 2 - n.y * k; choose(n);
+  });
+  $("fit").onclick = () => { auto = true; fit(); };
+  $("zin").onclick = () => zoomAt(1.25, W / 2, H / 2);
+  $("zout").onclick = () => zoomAt(0.8, W / 2, H / 2);
+  $("labels").onclick = (ev) => { allLabels = !allLabels; ev.target.setAttribute("aria-pressed", String(allLabels)); draw(); };
+  $("listbtn").onclick = (ev) => {
+    const on = $("list").style.display !== "block"; $("list").style.display = on ? "block" : "none";
+    ev.target.setAttribute("aria-pressed", String(on)); if (on) { const f = $("list").querySelector(".item"); if (f) f.focus(); }
+  };
+
+  function buildLegend() {
+    const el = $("legend"); el.innerHTML = "";
+    (P.legend || []).forEach((g) => {
+      const b = document.createElement("button"); b.setAttribute("aria-pressed", String(!hidden.has(g.kind)));
+      b.title = (hidden.has(g.kind) ? "Show " : "Hide ") + g.label;
+      const d = document.createElement("span"); d.className = g.ring ? "ring" : "dot";
+      if (g.ring) d.style.borderColor = g.color; else d.style.background = g.color;
+      b.append(d, document.createTextNode(g.label + (g.count ? " " + g.count : "")));
+      if (g.kind) b.onclick = () => { hidden.has(g.kind) ? hidden.delete(g.kind) : hidden.add(g.kind); buildLegend(); buildList(); draw(); };
+      else { b.disabled = true; b.style.cursor = "default"; }
+      el.append(b);
+    });
+  }
+  function buildList() {
+    const el = $("list"); el.innerHTML = "";
+    const groups = {};
+    nodes.filter((n) => visible(n) && (!query || matches(n))).forEach((n) => { (groups[n.kind] = groups[n.kind] || []).push(n); });
+    Object.keys(groups).sort().forEach((kind) => {
+      const h = document.createElement("h3"); h.textContent = ((P.kindLabels || {})[kind] || kind) + " · " + groups[kind].length; el.append(h);
+      groups[kind].sort((a, b) => a.label.localeCompare(b.label)).forEach((n) => {
+        const b = document.createElement("button"); b.className = "item";
+        const d = document.createElement("span"); d.className = "dot"; d.style.background = colorOf(n);
+        const t = document.createElement("span"); t.textContent = n.label;
+        const m = document.createElement("span"); m.className = "d"; m.textContent = n.detail || (adj.get(n.id).size + " links");
+        b.append(d, t, m); b.onclick = () => choose(n); el.append(b);
+      });
+    });
+    if (!el.children.length) el.textContent = "Nothing to show.";
+  }
+
+  window.addEventListener("resize", () => { resize(); draw(); });
+  window.addEventListener("message", (ev) => {
+    const d = ev.data || {}; if (d.type !== "streamlit:render") return;
+    load(d.args || {});
+  });
+  post("streamlit:componentReady", { apiVersion: 1 });
+})();
+</script>
+</body>
+</html>

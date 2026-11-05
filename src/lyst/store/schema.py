@@ -1339,3 +1339,96 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Graph lane (migrations 90-99): graph runs. A Planner splits a goal into branches; a Builder per branch does the work
+# as an ordinary task; a separate Checker grades it against the branch's requirements; a Router moves it on (pass),
+# sends it back with the error (fail, at most max_attempts times) or marks it blocked. Every routed edge is kept, so
+# the graph can be shown as it ran. Two return paths: the correction edge sends one unit back with a scoped packet, and
+# the learning edge turns a repeated failure (avoid) or an accepted fix (rewrite) into a rule the Planner applies.
+WORKSPACE.append((
+    90,
+    """
+    CREATE TABLE graph_runs (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        goal VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        created_by VARCHAR NOT NULL,
+        intake VARCHAR NOT NULL DEFAULT '{}',
+        max_attempts INTEGER NOT NULL DEFAULT 3,
+        rerun_of VARCHAR,
+        approved_by VARCHAR,
+        final VARCHAR,
+        merged VARCHAR,
+        budget_minutes INTEGER NOT NULL DEFAULT 120,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        started_at TIMESTAMPTZ,
+        finished_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE graph_branches (
+        run_id VARCHAR NOT NULL,
+        id VARCHAR NOT NULL,
+        seq INTEGER NOT NULL,
+        title VARCHAR NOT NULL,
+        job VARCHAR NOT NULL,
+        job_key VARCHAR NOT NULL,
+        requirements VARCHAR NOT NULL DEFAULT '[]',
+        status VARCHAR NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        task_id VARCHAR,
+        last_reason VARCHAR,
+        evidence VARCHAR,
+        warning VARCHAR,
+        lane VARCHAR NOT NULL DEFAULT 'contained',
+        after VARCHAR NOT NULL DEFAULT '[]',
+        original_job VARCHAR,
+        hold VARCHAR,
+        optional BOOLEAN NOT NULL DEFAULT false,
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (run_id, id)
+    );
+    CREATE TABLE graph_attempts (
+        run_id VARCHAR NOT NULL,
+        branch_id VARCHAR NOT NULL,
+        attempt INTEGER NOT NULL,
+        task_id VARCHAR,
+        outcome VARCHAR,
+        reason VARCHAR,
+        signature VARCHAR,
+        checks VARCHAR,
+        packet VARCHAR,
+        started_at TIMESTAMPTZ DEFAULT now(),
+        checked_at TIMESTAMPTZ,
+        PRIMARY KEY (run_id, branch_id, attempt)
+    );
+    CREATE SEQUENCE graph_edge_seq;
+    CREATE TABLE graph_edges (
+        seq BIGINT PRIMARY KEY,
+        run_id VARCHAR NOT NULL,
+        branch_id VARCHAR,
+        src VARCHAR NOT NULL,
+        dst VARCHAR NOT NULL,
+        edge VARCHAR NOT NULL,
+        detail VARCHAR,
+        occurred_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE graph_rules (
+        id VARCHAR PRIMARY KEY,
+        edge VARCHAR NOT NULL,
+        signature VARCHAR NOT NULL,
+        job_key VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL DEFAULT 'avoid',
+        rule VARCHAR NOT NULL,
+        rewrite VARCHAR,
+        source_run VARCHAR NOT NULL,
+        source_branch VARCHAR NOT NULL,
+        hits INTEGER NOT NULL DEFAULT 0,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        retired_by VARCHAR,
+        retired_at TIMESTAMPTZ,
+        UNIQUE (edge, signature, job_key)
+    )
+    """,
+))
