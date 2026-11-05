@@ -87,9 +87,14 @@ def test_permissions_and_switch_off(seeded, monkeypatch):
     with pytest.raises(ValueError, match="switched off"):
         lyst.workbench.python(owner, "northwind", "result = 1")
     assert lyst.workbench.status()["python"]["available"] is False
+    monkeypatch.delenv("LYST_SANDBOX")
     with pytest.raises(ValueError, match="identifier"):
-        monkeypatch.delenv("LYST_SANDBOX")
         lyst.workbench.python(owner, "northwind", "result = 1", inputs={"Bad Name": "SELECT 1"})
+    # a host without an OS sandbox (a CI runner without bubblewrap) refuses Python and says why, never runs it unboxed
+    monkeypatch.setattr(sandbox, "backend", lambda: (None, "no operating-system sandbox is available on this host"))
+    with pytest.raises(ValueError, match="no operating-system sandbox"):
+        lyst.workbench.python(owner, "northwind", "result = 1")
+    assert lyst.workbench.status()["python"]["available"] is False
 
 
 @needs_sandbox

@@ -86,6 +86,9 @@ class WorkbenchService:
         self.guard.require(actor, ws, "workbench.python")
         if len(code) > MAX_CODE:
             raise ValueError("the code is longer than 100,000 characters")
+        for name in inputs or {}:  # the request's own mistakes first, on every host, before the host's limits
+            if not _IDENT.match(name) or name in ("pd", "np", "data", "result"):
+                raise ValueError(f"input name {name!r} must be a lowercase identifier (and not pd, np, data or result)")
         kind, why = sandbox.backend()
         if kind is None:
             raise ValueError(why)

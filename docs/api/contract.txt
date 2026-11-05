@@ -3,6 +3,7 @@ DELETE /v1/credentials/{cid} | query: - | body: -
 DELETE /v1/workspaces/{ws}/connections/{cid} | query: - | body: -
 DELETE /v1/workspaces/{ws}/datasets/{name}/contract | query: - | body: -
 DELETE /v1/workspaces/{ws}/datasets/{name}/row-policies | query: column,principal,principal_kind | body: -
+DELETE /v1/workspaces/{ws}/exports/{eid} | query: - | body: -
 DELETE /v1/workspaces/{ws}/ingest/{jid} | query: - | body: -
 DELETE /v1/workspaces/{ws}/members/{user_id} | query: - | body: -
 DELETE /v1/workspaces/{ws}/webhooks/{sid} | query: - | body: -
@@ -39,6 +40,7 @@ GET /v1/tasks/{task_id}/expertise | query: - | body: -
 GET /v1/tasks/{task_id}/explain | query: - | body: -
 GET /v1/tasks/{task_id}/trace | query: - | body: -
 GET /v1/workspaces/{ws}/analyses | query: - | body: -
+GET /v1/workspaces/{ws}/anticipation/quality | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/settings | query: - | body: -
 GET /v1/workspaces/{ws}/anticipations | query: - | body: -
 GET /v1/workspaces/{ws}/anticipations/{aid} | query: - | body: -
@@ -62,6 +64,8 @@ GET /v1/workspaces/{ws}/connections/{cid}/events | query: - | body: -
 GET /v1/workspaces/{ws}/connections/{cid}/health | query: - | body: -
 GET /v1/workspaces/{ws}/connections/{cid}/syncs | query: - | body: -
 GET /v1/workspaces/{ws}/connections/{cid}/tables | query: - | body: -
+GET /v1/workspaces/{ws}/connector-drafts | query: - | body: -
+GET /v1/workspaces/{ws}/connector-drafts/{draft_id} | query: - | body: -
 GET /v1/workspaces/{ws}/costs | query: - | body: -
 GET /v1/workspaces/{ws}/costs/recommendations | query: - | body: -
 GET /v1/workspaces/{ws}/dashboards | query: - | body: -
@@ -90,6 +94,8 @@ GET /v1/workspaces/{ws}/experiment-runs/{run_id} | query: - | body: -
 GET /v1/workspaces/{ws}/experiments | query: - | body: -
 GET /v1/workspaces/{ws}/experiments/{eid} | query: - | body: -
 GET /v1/workspaces/{ws}/experiments/{eid}/comparison | query: - | body: -
+GET /v1/workspaces/{ws}/exports | query: - | body: -
+GET /v1/workspaces/{ws}/exports/{eid}/download | query: - | body: -
 GET /v1/workspaces/{ws}/findings | query: - | body: -
 GET /v1/workspaces/{ws}/glossary | query: - | body: -
 GET /v1/workspaces/{ws}/inbox | query: - | body: -
@@ -128,14 +134,19 @@ GET /v1/workspaces/{ws}/settings | query: - | body: -
 GET /v1/workspaces/{ws}/skills | query: - | body: -
 GET /v1/workspaces/{ws}/skills/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/source-authority | query: - | body: -
+GET /v1/workspaces/{ws}/specializations/{sid} | query: - | body: -
 GET /v1/workspaces/{ws}/specs | query: - | body: -
 GET /v1/workspaces/{ws}/specs/{sid} | query: - | body: -
-GET /v1/workspaces/{ws}/specializations/{sid} | query: - | body: -
 GET /v1/workspaces/{ws}/standing | query: - | body: -
 GET /v1/workspaces/{ws}/tasks | query: - | body: -
 GET /v1/workspaces/{ws}/transforms | query: - | body: -
 GET /v1/workspaces/{ws}/transforms/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/value | query: - | body: -
+GET /v1/workspaces/{ws}/voice/engines | query: - | body: -
+GET /v1/workspaces/{ws}/voice/preferences | query: - | body: -
+GET /v1/workspaces/{ws}/voice/sessions/{sid} | query: - | body: -
+GET /v1/workspaces/{ws}/voice/sessions/{sid}/answer/{task_id} | query: - | body: -
+GET /v1/workspaces/{ws}/voice/settings | query: - | body: -
 GET /v1/workspaces/{ws}/webhooks | query: - | body: -
 GET /v1/workspaces/{ws}/webhooks/{sid}/deliveries | query: - | body: -
 GET /v1/workspaces/{ws}/workbench/runs | query: - | body: -
@@ -144,7 +155,9 @@ GET /v1/workspaces/{ws}/workflows | query: - | body: -
 GET /v1/workspaces/{ws}/workflows/{wf_id} | query: - | body: -
 PATCH /v1/installation | query: - | body: -
 PATCH /v1/workspaces/{ws}/anticipation/settings | query: - | body: -
+PATCH /v1/workspaces/{ws}/connector-drafts/{draft_id} | query: - | body: -
 PATCH /v1/workspaces/{ws}/settings | query: - | body: -
+PATCH /v1/workspaces/{ws}/voice/settings | query: - | body: -
 PATCH /v1/workspaces/{ws}/webhooks/{sid} | query: - | body: -
 POST /auth/logout | query: - | body: -
 POST /setup/initialize | query: - | body: -
@@ -152,6 +165,8 @@ POST /v1/approvals/{approval_id} | query: - | body: approve
 POST /v1/credentials | query: - | body: name,provider
 POST /v1/credentials/{cid}/replace | query: - | body: secret
 POST /v1/credentials/{cid}/test | query: - | body: -
+POST /v1/imports | query: - | body: file
+POST /v1/imports/inspect | query: - | body: file
 POST /v1/installation/backup | query: - | body: -
 POST /v1/models/catalog/refresh | query: - | body: -
 POST /v1/tasks/{task_id}/artifacts/{kind} | query: - | body: -
@@ -170,6 +185,10 @@ POST /v1/workspaces/{ws}/comments/{comment_id}/resolve | query: - | body: -
 POST /v1/workspaces/{ws}/connections | query: - | body: kind,name,values
 POST /v1/workspaces/{ws}/connections/{cid}/sync | query: - | body: source_table
 POST /v1/workspaces/{ws}/connections/{cid}/test | query: - | body: -
+POST /v1/workspaces/{ws}/connector-drafts | query: - | body: name,openapi
+POST /v1/workspaces/{ws}/connector-drafts/{draft_id}/promote | query: - | body: -
+POST /v1/workspaces/{ws}/connector-drafts/{draft_id}/reject | query: - | body: -
+POST /v1/workspaces/{ws}/connector-drafts/{draft_id}/test | query: - | body: -
 POST /v1/workspaces/{ws}/dashboards/{dashboard_id}/refresh | query: - | body: -
 POST /v1/workspaces/{ws}/dashboards/{dashboard_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/datasets | query: - | body: file,name
@@ -188,6 +207,7 @@ POST /v1/workspaces/{ws}/experiment-runs/{run_id}/reproduce | query: - | body: -
 POST /v1/workspaces/{ws}/experiments | query: - | body: name
 POST /v1/workspaces/{ws}/experiments/{eid}/decision | query: - | body: choice
 POST /v1/workspaces/{ws}/experiments/{eid}/run | query: - | body: -
+POST /v1/workspaces/{ws}/exports | query: - | body: -
 POST /v1/workspaces/{ws}/findings/{finding_id} | query: - | body: status
 POST /v1/workspaces/{ws}/glossary | query: - | body: definition,term
 POST /v1/workspaces/{ws}/ingest | query: - | body: file
@@ -234,6 +254,11 @@ POST /v1/workspaces/{ws}/transforms/design | query: - | body: request
 POST /v1/workspaces/{ws}/transforms/preview | query: - | body: sql
 POST /v1/workspaces/{ws}/transforms/{name}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/transforms/{name}/run | query: - | body: -
+POST /v1/workspaces/{ws}/voice/sessions | query: - | body: -
+POST /v1/workspaces/{ws}/voice/sessions/{sid}/end | query: - | body: -
+POST /v1/workspaces/{ws}/voice/sessions/{sid}/speak | query: - | body: -
+POST /v1/workspaces/{ws}/voice/sessions/{sid}/stream-ticket | query: - | body: -
+POST /v1/workspaces/{ws}/voice/sessions/{sid}/turns | query: - | body: -
 POST /v1/workspaces/{ws}/webhook-deliveries/{did}/redeliver | query: - | body: -
 POST /v1/workspaces/{ws}/webhooks | query: - | body: url
 POST /v1/workspaces/{ws}/webhooks/{sid}/ping | query: - | body: -
@@ -252,3 +277,4 @@ PUT /v1/workspaces/{ws}/datasets/{name}/classification | query: - | body: level,
 PUT /v1/workspaces/{ws}/notification-preferences | query: - | body: -
 PUT /v1/workspaces/{ws}/profile | query: - | body: -
 PUT /v1/workspaces/{ws}/quotas | query: - | body: -
+PUT /v1/workspaces/{ws}/voice/preferences | query: - | body: -
