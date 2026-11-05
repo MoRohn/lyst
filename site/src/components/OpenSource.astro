@@ -28,6 +28,15 @@ import { site } from '../config/site';
         </ul>
         {
           site.githubUrl && (
+            <div class="quick">
+              <p class="quick-label">Try the preview on your own machine</p>
+              <pre class="code" tabindex="0" aria-label="Quick start commands"><code><span class="c"># needs git and uv</span>{'\n'}git clone {site.githubUrl}.git && cd lyst{'\n'}uv run lyst start --demo</code></pre>
+              <p class="quick-note">Opens Lyst at lyst.localhost:8501 with a sample company, Northwind. Everything runs locally.</p>
+            </div>
+          )
+        }
+        {
+          site.githubUrl && (
             <a class="btn btn-ghost repo" href={site.githubUrl} rel="noopener">
               <Icon name="Code" size={16} />
               View the source on GitHub
@@ -120,7 +129,33 @@ import { site } from '../config/site';
   }
 
   .repo {
-    margin-top: var(--space-6);
+    margin-top: var(--space-5);
+  }
+
+  .quick {
+    margin-top: var(--space-7);
+    max-width: 34rem;
+  }
+
+  .quick-label {
+    margin-bottom: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--teal);
+  }
+
+  .quick .code {
+    border: 1px solid var(--d-line);
+    background: #0b1015;
+    font-size: 0.8125rem;
+  }
+
+  .quick-note {
+    margin-top: var(--space-3);
+    font-size: 0.8125rem;
+    color: var(--d-muted);
   }
 
   .arch {
