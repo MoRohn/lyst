@@ -49,14 +49,6 @@ Ctrl-C stops it. From another terminal: `lyst status`, `lyst stop`.
 `uv sync` installs Lyst into the project's `.venv`, so run commands through `uv run` from the checkout (a bare
 `lyst` is "command not found" unless you first `source .venv/bin/activate`). From any terminal in the checkout:
 
-It is safe to run again. If Lyst is already running it opens that one instead of starting a second, if a default port
-is busy it picks the next free one and says so, and if another program has the data open it names that program's PID
-instead of failing with a traceback. From another terminal in the same folder, `uv run lyst status` says what is
-running and `uv run lyst stop` stops it (only the processes `lyst start` recorded). `uv run lyst start --check` checks
-Python, the data folder, the encryption key, the database and the ports before you start.
-
-`uv sync` installs `lyst` inside the project's `.venv`, not on your PATH, so a bare `lyst start` says "command not
-found". Use `uv run lyst ...`, or run `source .venv/bin/activate` once in a terminal to type plain `lyst ...` there.
 ```bash
 uv run lyst status          # is Lyst running here, at which address, under which PIDs (--json for scripts)
 uv run lyst stop            # stop the Lyst that `lyst start` launched; never touches processes it didn't record
@@ -90,8 +82,8 @@ and a "What these words mean" glossary.
 |---|---|
 | **Home** | A workspace, not a dashboard: the composer (with **Speak**), a Get started card that follows the workspace's real set-up state, suggested questions, **Your work** (a shelf of what Lyst has made, each with a preview drawn from its own content) and the conversations to pick up |
 | **Work** | A command center: a live status strip, then what needs you (approvals), what Lyst is doing and finished as a day-by-day timeline or a board, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed. Each task's steps show as a timeline from the engine |
-| **Data** | Every dataset is a card with its size, freshness, the shape of its columns and the live trend of the measure it feeds; open one for a profile of every column. Sources, dashboards, saved analyses, and a SQL workspace with the schema beside the editor, results kept while you explore, a first chart drawn for you, and a sandboxed **Python** tab. **Add data** uploads a file, connects a source, or proposes connections from an API description |
-| **Brain** | What Lyst knows about the business: every approved metric with its latest value, whether the change is good or bad, its twelve-month trend, and a lineage view from source file to dataset to definition; business terms, documents it can cite, what it remembers and how far to trust it, and **Specializations**: a searchable catalog of the 136 kinds of analyst work with each one's honest maturity |
+| **Data** | A library rail of datasets, approved metrics and dashboards beside the workspace; tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. Every dataset card shows its size, freshness, the shape of its columns and what it feeds. **Add data** uploads a file, connects a source, or proposes connections from an API description |
+| **Brain** | What Lyst knows about the business, opening on its **Graph**: a map of everything it knows and how it links, plus graph runs. Then Definitions (each approved metric and term as what it means and how it is built, or a map from data to metrics), Documents it can cite, Memory (with memories waiting for review), and **Specializations**: a searchable catalog of the 136 kinds of analyst work with each one's honest maturity |
 | **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
 
 <p align="center">
@@ -125,6 +117,35 @@ from data to approved metrics.
   <tr>
     <td width="50%"><img src="docs/images/data-map.png" alt="Data, Map: four datasets on a ring, linked by shared columns such as month, product line and region"><br><b>Data map</b>: datasets linked by the columns they share</td>
     <td width="50%"><img src="docs/images/brain-map.png" alt="Brain, Map: Support demand and Monthly P&L linked to the six approved metrics and how each is built"><br><b>Brain map</b>: from data to approved metrics</td>
+  </tr>
+</table>
+
+### Brain › Graph and graph runs
+
+The Brain opens on its graph. **Map** shows every dataset, approved metric, business term, document, memory, business
+entity, analysis and artifact, plus graph runs and the rules they learned. A link is a relation Lyst recorded or a
+literal mention, never an inferred one. Search, zoom, pan, drag, hide a kind from the legend, or use **List** from
+the keyboard; clicking a node shows its backlinks and opens it where it lives.
+
+**Runs** takes a goal written one job per line and runs it as a graph: a Planner splits the jobs into branches (they run
+at the same time unless one names another's answer), a Builder does each branch as an ordinary Lyst analysis, a
+Checker grades the stored result against requirements a program can fail, a Gate routes it to pass, repair, escalate
+or stop, and a code Merge orders the answers. Only a failing branch goes back for repair, with the reason and evidence;
+three failed repairs escalate to a person. Work is laned by blast radius: reading and analysing passes on its checks,
+defining or sharing needs a clean record or a person, and anything that deletes, sends, pays, deploys or was named as
+needing approval never starts without a person's approval. Repeated failures become rules the Planner reads next time,
+and **Harness** shows them. Each run leaves its state, a check table and the graph as it ran.
+
+Limits, stated plainly: builders are Lyst analyses, so a graph run cannot do anything a person's own question could
+not, and it does not write code, deploy or move money; the Planner splits the text you write rather than decomposing a
+goal with a model; the "independent path" check re-runs the recorded queries rather than deriving the answer a second
+way; and the morning brief and weekly review are produced on request, not yet on a schedule
+([docs/GRAPH_RUNS.md](docs/GRAPH_RUNS.md)).
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/brain-graph.png" alt="Brain, Graph, Map: metrics, datasets, memories, analyses and a graph run linked where Lyst recorded a relation, with a legend and a side panel"><br><b>Brain › Graph</b>: what Lyst knows, and how it links</td>
+    <td width="50%"><img src="docs/images/graph-run.png" alt="A graph run: Planner, three Builders, three Checkers, Gate and Router, Merge and Done, all branches passed"><br><b>A graph run</b>: three branches built, checked and merged</td>
   </tr>
 </table>
 
@@ -428,12 +449,20 @@ where they point, with Mark all read and "What to tell me about".
 * **Remembers carefully.** Each memory records the datasets and metric versions it was learned from, and is
   flagged as possibly out of date, with the reason, when a source has a newer version or is gone, a definition
   changed, or it is older than a year. Recall ranks memories that still apply first, an answer that draws on a
-  stale one says it "may no longer apply", and admins get a review list. Retention removes only old agent-observed
-  memory, never approved or person-validated knowledge.
+  stale one says it "may no longer apply", and admins review them in Brain › Memory. Retention removes only old
+  agent-observed memory, never approved or person-validated knowledge.
 * **Recovers from the worst day.** Backups are atomic (a full disk partway through leaves no half backup) and can
   run on a schedule. Every new backup gets a restore drill that checks each checksum, refuses a backup containing
   key material, and opens every database with the current master key. Lyst reports the measured recovery point and
-  recovery time against your targets ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
+  recovery time against your targets, shown with **Back up now** in Settings › Advanced › Backups and recovery
+  ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
+* **Fits how you deploy.** `LYST_PROFILE` picks `local` (the default), `offline` (a local model only, no catalog
+  refresh or telemetry, webhooks to private addresses only), `server` (all interfaces, with OIDC and TLS expected
+  at the proxy) or `portable` (a self-contained data folder that moves as a workspace pack). `lyst doctor` checks
+  the installation end to end (packages, disk, encryption, migrations, backups, the credential audit chain,
+  network exposure, the sandbox, the model, stalled work, and the profile's own promises) and gives the fix for
+  each, with no key, token, path or data in its report. An air-gapped Compose stack is in `deploy/offline/`
+  (written, not yet run).
 * **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
   budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
@@ -601,6 +630,9 @@ The threat model, autonomy levels and residual risks are in [docs/SECURITY.md](d
 | `lyst token EMAIL [--owner-of WS]` | Issue an API token, optionally creating a workspace with that user as owner |
 | `lyst init [--recovery]` | Initialise encryption, or restore a saved master key |
 | `lyst rotate-master-key` | Re-key every database and re-wrap every secret (engine stopped) |
+| `lyst doctor [--json] [--no-network]` | Check the whole installation and say how to fix each problem |
+| `lyst export WS FILE [--history]` | Seal a workspace into a passphrase-protected pack |
+| `lyst import FILE [--as ID] [--activate] [--check]` | Check a pack and bring it in as a new workspace, schedules paused |
 | `lyst backup DEST` | Consistent, encrypted backup, also while the engine is running |
 | `lyst restore SRC` | Verified restore into `LYST_HOME` (engine stopped) |
 | `lyst prune` | Apply retention to events, calls, query history and notifications |
@@ -636,7 +668,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
