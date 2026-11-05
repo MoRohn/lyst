@@ -46,6 +46,18 @@ The visual language, inspired by the craft of native apps without imitating them
 * **Sidebar.** Search (⌘K) and workspace first, then **Recent**: the latest four questions with their real status
   icon (running, waiting for approval, failed), one click back to each.
 
+## The pages in the new language
+
+* **Home canvas.** An answer opens as a canvas: the answer on the left, its **evidence rail** beside it (checks passed,
+  the data and version it came from, the expertise applied with each rule's outcome, assumptions, the method's size).
+  **Focus** hides the rail. Home's tiles are `visuals.metric_tile` cards (value, a change coloured by whether it is
+  good for that measure, a sparkline with alt text) instead of `st.metric`'s Vega chart.
+* **Work command center.** A strip of what is in progress, waiting on you, and finished or stopped this week.
+  Activity shows as a day-grouped list or a **board** (In progress, Needs you, Done, Stopped), where a running card
+  shows its real step progress. Task details show a progress meter and a step timeline (`visuals.steps`).
+* **Settings.** A native two-pane screen (`kit.panes`): panes listed on the left, the chosen pane on the right,
+  kept in `?view=`. Workspace settings sit in titled, raised groups (`kit.group`).
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.

@@ -136,6 +136,14 @@ button[data-variant="segmented_control"][aria-checked="true"] {background: var(-
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--lyst-accent) 22%, transparent);}
 /* tables and charts sit on the same raised surface */
 [data-testid="stDataFrame"] {border-radius: var(--lyst-radius-md); overflow: hidden; box-shadow: var(--lyst-shadow-1);}
+/* settings panes: a list on the left, the current pane a raised pill */
+div[class*="st-key-lyst_pane_"] button {justify-content: flex-start; padding: .45rem .7rem; border-radius: var(--lyst-radius-md);
+  min-height: 0;}
+div[class*="st-key-lyst_pane_"] button > div, div[class*="st-key-lyst_recent_"] button > div,
+div[class*="st-key-sqlr_"] button > div {justify-content: flex-start; width: 100%;}
+div[class*="st-key-lyst_pane_on_"] button {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);
+  font-weight: var(--lyst-weight-strong);}
+div[class*="st-key-lyst_pane_on_"] button [data-testid="stIconMaterial"] {color: var(--lyst-accent);}
 /* sidebar: recent work as quiet one-line links */
 div[class*="st-key-lyst_recent_"] button {min-height: 0; padding: .22rem .6rem; justify-content: flex-start;
   text-align: left; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); border-radius: var(--lyst-radius-md);}
@@ -191,6 +199,37 @@ def header(title: str, subtitle: str | None = None, *, action: str | None = None
     if action:
         return cols[1].button(action, type="primary", icon=icon, key=key or f"hdr_{title}", width="stretch")
     return False
+
+
+PANE_ICONS = {"Models": ":material/neurology:", "Connections": ":material/key:", "Workspace": ":material/apartment:",
+              "Voice": ":material/graphic_eq:", "Advanced": ":material/tune:"}
+
+
+def panes(names: Sequence[str], *, key: str, icons: dict[str, str] | None = None) -> tuple[str, Any]:
+    """Settings-style navigation: a list of panes on the left, the chosen pane's content on the right. The choice
+    lives in the URL (?view=), like sections, so links and reloads land on it. Returns (pane, content column)."""
+    icons = icons or PANE_ICONS
+    asked = (st.query_params.get(key) or "").lower()
+    pick = next((n for n in names if n.lower() == asked), names[0])
+    nav, body = st.columns([1, 3.4], gap="large")
+    with nav:
+        for n in names:
+            on = n == pick
+            if st.button(n, key=f"lyst_pane_{'on_' if on else ''}{n.lower().replace(' ', '_')}", type="tertiary",
+                         icon=icons.get(n), width="stretch") and not on:
+                st.query_params[key] = n.lower()
+                st.rerun()
+    if st.query_params.get(key) != pick.lower():
+        st.query_params[key] = pick.lower()
+    return pick, body
+
+
+def group(title: str, key: str, note: str | None = None) -> Any:
+    """A titled, raised group of related settings, like an inset group on a native settings screen."""
+    label(title)
+    if note:
+        st.caption(note)
+    return card(f"grp_{key}")
 
 
 def label(text: str) -> None:

@@ -459,29 +459,34 @@ def usage_and_limits() -> None:
 def workspace_section() -> None:
     """How this workspace is governed: autonomy, notifications, members and the audit trail."""
     if admin:
-        kit.label("Autonomy")
-        cur = s["workspace"]["autonomy"]
-        mode = st.segmented_control("Autonomy", list(AUTONOMY), default=cur, format_func=str.capitalize,
-                                    label_visibility="collapsed", key="autonomy")
-        st.caption(AUTONOMY.get(mode or cur, ""))
-        if mode and mode != cur:
-            kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
-            st.rerun()
-        anticipate.level_control()
-        kit.label("Notifications")
-        with st.form("webhook", border=False):
-            w = st.columns([5, 1.2], vertical_alignment="bottom")
-            hook = w[0].text_input("Webhook for monitor findings", value=s["workspace"].get("webhook_url") or "",
-                                   placeholder="https://… (empty turns it off)",
-                                   help="Lyst sends each new monitor finding as a JSON POST to this https address.")
-            if w[1].form_submit_button("Save", width="stretch") and hook != (s["workspace"].get("webhook_url") or ""):
-                kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
+        with kit.group("Autonomy", "autonomy", "How much Lyst may do on its own, and how far ahead it may prepare work."):
+            cur = s["workspace"]["autonomy"]
+            mode = st.segmented_control("Autonomy", list(AUTONOMY), default=cur, format_func=str.capitalize,
+                                        label_visibility="collapsed", key="autonomy")
+            st.caption(AUTONOMY.get(mode or cur, ""))
+            if mode and mode != cur:
+                kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
                 st.rerun()
-    onboarding.profile_section()
-    governance.policy_section()
+            anticipate.level_control()
+        with kit.group("Notifications", "notify"):
+            with st.form("webhook", border=False):
+                w = st.columns([5, 1.2], vertical_alignment="bottom")
+                hook = w[0].text_input("Webhook for monitor findings", value=s["workspace"].get("webhook_url") or "",
+                                       placeholder="https://… (empty turns it off)",
+                                       help="Lyst sends each new monitor finding as a JSON POST to this https address.")
+                if w[1].form_submit_button("Save", width="stretch") and hook != (s["workspace"].get("webhook_url") or ""):
+                    kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
+                    st.rerun()
+    with kit.card("grp_profile"):
+        onboarding.profile_section()
+    with kit.card("grp_policy"):
+        governance.policy_section()
     if admin:
-        usage_and_limits()
-        integrations.webhooks_section()
+        with kit.card("grp_usage"):
+            usage_and_limits()
+        with kit.card("grp_webhooks"):
+            integrations.webhooks_section()
+    # workspace packs (UX #94) join here as their own group
     try:
         people = api.get(f"/v1/workspaces/{ws}/members")
     except APIError as e:
@@ -526,5 +531,7 @@ def workspace_section() -> None:
 
 
 SECTIONS = ["Models"] + (["Connections"] if owner else []) + ["Workspace", "Voice", "Advanced"]
-{"Models": models, "Connections": connections, "Workspace": workspace_section,
- "Voice": voice.settings_section, "Advanced": advanced.skills}[kit.sections(SECTIONS, key="view")]()
+_pane, _body = kit.panes(SECTIONS, key="view")
+with _body:
+    {"Models": models, "Connections": connections, "Workspace": workspace_section,
+     "Voice": voice.settings_section, "Advanced": advanced.skills}[_pane]()
