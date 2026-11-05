@@ -507,13 +507,21 @@ class EventService:
         pos = self._position(c.name)
         rows = ctl.query("SELECT * FROM platform_events WHERE seq > ? ORDER BY seq LIMIT ?", [pos, limit])
         n = 0
+        batch: list[list[Any]] = []
+        mine = [r["id"] for r in rows if matches(r["type"], c.types)]
+        known = {x["event_id"]: x for x in ctl.query(  # one read of this page's inbox records, not one per event
+            f"SELECT event_id, status, attempts FROM event_inbox WHERE consumer = ? AND event_id IN ({','.join('?' * len(mine))})",
+            [c.name, *mine])} if mine else {}
         for r in rows:
             ev = row_to_event(r)
             if matches(ev["type"], c.types):
-                # the cursor moves past each handled event with its inbox record (one write); a crash re-delivers at
-                # most this one, and the inbox (or the handler's own idempotency) makes that harmless
-                self._process(c, ev, advance=True)
+                # handled events are recorded in batches with the cursor (one write per BATCH events); a crash
+                # re-delivers at most one batch, and the inbox (or the handler's own idempotency) makes that harmless
+                self._process(c, ev, advance=True, batch=batch, prior=[known[ev["id"]]] if ev["id"] in known else [])
                 n += 1
+                if len(batch) >= self.BATCH:
+                    self._flush(c, batch)
+        self._flush(c, batch)
         if rows and (not n or not matches(row_to_event(rows[-1])["type"], c.types)):
             ctl.execute("UPDATE event_consumers SET position = ?, updated_at = now() WHERE name = ?", [rows[-1]["seq"], c.name])
         due = ctl.query("SELECT p.* FROM event_inbox i JOIN platform_events p ON p.id = i.event_id WHERE i.consumer = ? "
@@ -523,14 +531,41 @@ class EventService:
             n += 1
         return n
 
-    def _process(self, c: Consumer, ev: dict[str, Any], *, advance: bool = False) -> None:
+    BATCH = 50  # handled events recorded per write
+
+    def _flush(self, c: Consumer, batch: list[list[Any]]) -> None:
+        """Record a batch of handled events and move the cursor past the last one, in one transaction."""
+        if not batch:
+            return
+        rows, top = list(batch), max(b[3] for b in batch)
+        batch.clear()
+
+        records = [b for b in rows if b[4] is not None]  # skipped redeliveries only move the cursor
+
+        def tx(x):
+            if records:
+                x.executemany("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
+                              "last_error, next_attempt_at, duration_ms, updated_at) VALUES (?, ?, ?, ?, 'done', ?, NULL, NULL, "
+                              "?, now())", records)
+            x.execute("UPDATE event_consumers SET position = greatest(position, ?), updated_at = now() WHERE name = ?",
+                      [top, c.name])
+
+        self.stores.control.write(tx)
+
+    def _process(self, c: Consumer, ev: dict[str, Any], *, advance: bool = False,
+                 batch: list[list[Any]] | None = None, prior: list[dict[str, Any]] | None = None) -> None:
         ctl = self.stores.control
+        pending = batch if (advance and batch is not None) else None
         move = (lambda x: x.execute("UPDATE event_consumers SET position = greatest(position, ?), updated_at = now() "
                                     "WHERE name = ?", [ev["seq"], c.name])) if advance else (lambda x: None)
-        prior = ctl.query("SELECT status, attempts FROM event_inbox WHERE consumer = ? AND event_id = ?", [c.name, ev["id"]])
+        if prior is None:
+            prior = ctl.query("SELECT status, attempts FROM event_inbox WHERE consumer = ? AND event_id = ?", [c.name, ev["id"]])
         if prior and prior[0]["status"] in ("done", "dead"):
             c.stats["skipped"] += 1  # a redelivery: the first delivery's outcome stands
-            ctl.write(move)
+            if pending is not None:
+                pending.append([c.name, ev["id"], ev["workspace_id"], ev["seq"], None, None])  # cursor only
+            else:
+                ctl.write(move)
             return
         attempts = (prior[0]["attempts"] if prior else 0) + 1
         started = time.monotonic()
@@ -542,6 +577,9 @@ class EventService:
             err = f"{type(exc).__name__}: {str(exc)[:300]}"
             log.warning("consumer %s %s event %s (attempt %s): %s", c.name, "dead-lettered" if permanent else "will retry",
                         ev["id"], attempts, err)
+            if pending is not None:
+                self._flush(c, pending)  # earlier handled events are recorded before the cursor passes this one
+
             def fail(x):
                 x.execute("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
                           "last_error, next_attempt_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())",
@@ -556,6 +594,11 @@ class EventService:
                           data={"consumer": c.name, "event_type": ev["type"], "attempts": attempts},
                           source="system", dedupe_key=f"dead:{c.name}:{ev['id']}")
             return
+        if pending is not None:
+            pending.append([c.name, ev["id"], ev["workspace_id"], ev["seq"], attempts, int((time.monotonic() - started) * 1000)])
+            c.stats["done"] += 1
+            return
+
         def done(x):
             x.execute("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
                       "last_error, next_attempt_at, duration_ms, updated_at) VALUES (?, ?, ?, ?, 'done', ?, NULL, NULL, ?, now())",

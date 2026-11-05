@@ -339,6 +339,7 @@ class AutonomyService:
             return version
 
         version = db.write(tx)
+        self.__dict__.get("_rule_cache", {}).pop(ws, None)  # the dispatcher sees the change at once
         self.guard.audit(actor, ws, "rule.save", rid, "ok", {"version": version, "action": s.action.kind, "autonomy": s.autonomy})
         return self._rule(ws, rid)
 
@@ -360,6 +361,7 @@ class AutonomyService:
         else:
             db.execute("UPDATE event_rules SET status = 'active', owner = ?, activated_at = now(), updated_at = now() WHERE id = ?",
                        [actor.user_id, rid])
+        self.__dict__.get("_rule_cache", {}).pop(ws, None)  # the dispatcher sees the change at once
         self.guard.audit(actor, ws, "rule.activate", rid, "ok", {"version": r["current_version"]})
         return self._rule(ws, rid)
 
@@ -367,6 +369,7 @@ class AutonomyService:
         self.guard.require(actor, ws, "workspace.admin", rid)
         self._rule(ws, rid)
         self._db(ws).execute("UPDATE event_rules SET status = ?, updated_at = now() WHERE id = ?", ["retired" if retire else "draft", rid])
+        self.__dict__.get("_rule_cache", {}).pop(ws, None)  # the dispatcher sees the change at once
         self.guard.audit(actor, ws, "rule.retire" if retire else "rule.deactivate", rid, "ok")
         return self._rule(ws, rid)
 
@@ -379,6 +382,7 @@ class AutonomyService:
                 return  # the rule changed after the request: that approval no longer covers it
             db.execute("UPDATE event_rules SET status = ?, activated_at = CASE WHEN ? THEN now() END, updated_at = now() WHERE id = ?",
                        ["active" if approve else "draft", approve, r["id"]])
+            self.__dict__.get("_rule_cache", {}).pop(ws, None)  # the dispatcher sees the change at once
         elif action == "activity.execute":
             act = self._activity(ws, payload["activity_id"])
             if act["status"] != "awaiting_approval":
@@ -502,44 +506,64 @@ class AutonomyService:
         if not ws or ev["type"].startswith("event."):
             return
         db = self._db(ws)
-        for r, s in self._active(ws):
-            if not matches(ev["type"], s.on):
-                continue
-            key = f"{r['id']}:v{r['current_version']}:{ev['id']}"
-            if db.scalar("SELECT count(*) FROM activities WHERE dedupe_key = ?", [key]):
+        rules = [(r, s, f"{r['id']}:v{r['current_version']}:{ev['id']}") for r, s in self._active(ws) if matches(ev["type"], s.on)]
+        if not rules:
+            return
+        # one read for every rule's redelivery check, one transaction for every rule's record and activity
+        keys = [k for _, _, k in rules]
+        seen = {x["dedupe_key"] for x in db.query(
+            f"SELECT dedupe_key FROM activities WHERE dedupe_key IN ({','.join('?' * len(keys))})", keys)}
+        ops, planned = [], False
+        for r, s, key in rules:
+            if key in seen:
                 continue  # this event was already handled by this rule version (a redelivery)
             d = self._decide(ws, s, ev, rule_id=r["id"])
             if d["decision"] == "no_match":
                 continue  # a non-match is the common case and not worth a record; a dry run shows them
             row = [r["id"], r["current_version"], ev["id"], ev["seq"], d["decision"], d["why"][:500]]
             acting = d["decision"] not in ("ignored", "outside_calendar", "suppressed", "capped", "chain_limit")
+            opened = self._opening(ws, r, s, ev, d, key) if acting else None  # held-back matches open no activity
+            planned = planned or bool(opened and opened[0] == "planned")
+            ops.append((row, acting, r["id"], opened[1] if opened else None))
+        if not ops:
+            return
 
-            def note(c, row=row, acting=acting, rid=r["id"]):
+        def tx(c):
+            for row, acting, rid, open_ in ops:
                 c.execute("INSERT INTO rule_evaluations (rule_id, rule_version, event_id, event_seq, decision, why) "
                           "VALUES (?, ?, ?, ?, ?, ?)", row)
                 if acting:
                     c.execute("UPDATE event_rules SET hits = hits + 1, last_matched_at = now() WHERE id = ?", [rid])
+                if open_ is not None:
+                    open_(c)
 
-            db.write(note)
-            if acting:  # held-back matches open no activity, so a repeat or a loop costs nothing
-                self._open(ws, r, s, ev, d, key)
+        db.write(tx)
+        if planned:
+            self._pending.add(ws)  # executed by work(), off the dispatcher
+
+    RULES_TTL = 2.0  # seconds a parsed rule set is reused without checking
 
     def _active(self, ws: str) -> list[tuple[dict[str, Any], RuleSpec]]:
         """The workspace's active rules, parsed once and reused until any rule changes (a cheap fingerprint read)."""
         db = self._db(ws)
-        stamp = db.query("SELECT count(*) AS n, max(updated_at) AS at, sum(current_version) AS v FROM event_rules")[0]
-        key = (stamp["n"], str(stamp["at"]), stamp["v"])
         cache = self.__dict__.setdefault("_rule_cache", {})
         hit = cache.get(ws)
+        if hit and time.monotonic() - hit[2] < self.RULES_TTL:
+            return hit[1]  # rule changes made here clear the cache at once; the fingerprint catches the rest
+        stamp = db.query("SELECT count(*) AS n, max(updated_at) AS at, sum(current_version) AS v FROM event_rules")[0]
+        key = (stamp["n"], str(stamp["at"]), stamp["v"])
         if hit and hit[0] == key:
+            cache[ws] = (key, hit[1], time.monotonic())
             return hit[1]
         rows = db.query("SELECT r.id, r.current_version, r.owner, v.spec FROM event_rule_versions v JOIN event_rules r "
                         "ON v.rule_id = r.id AND v.version = r.current_version WHERE r.status = 'active'")
         parsed = [(r, RuleSpec.model_validate_json(r["spec"])) for r in rows]
-        cache[ws] = (key, parsed)
+        cache[ws] = (key, parsed, time.monotonic())
         return parsed
 
-    def _open(self, ws: str, r: dict[str, Any], s: RuleSpec, ev: dict[str, Any], d: dict[str, Any], key: str) -> str | None:
+    def _opening(self, ws: str, r: dict[str, Any], s: RuleSpec, ev: dict[str, Any], d: dict[str, Any],
+                 key: str) -> tuple[str, Any]:
+        """The new activity's status and the write that opens it (run inside the caller's transaction)."""
         aid = "act_" + uuid.uuid4().hex[:12]
         status = {"observed": "observed", "suppressed": "suppressed", "capped": "suppressed", "chain_limit": "suppressed",
                   "suggested": "suggested", "proposed": "planned", "act": "planned"}[d["decision"]]
@@ -572,11 +596,7 @@ class AutonomyService:
                                    related=[(ev["subject"]["kind"], ev["subject"]["id"])])
             return True
 
-        if not self._db(ws).write(tx):
-            return None
-        if status == "planned":
-            self._pending.add(ws)  # executed by work(), off the dispatcher
-        return aid
+        return status, tx
 
     SWEEP_SECONDS = 60
 

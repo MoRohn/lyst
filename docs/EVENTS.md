@@ -59,6 +59,8 @@ the next attempt time) or `dead`. The worker tick calls `events.dispatch()`.
   a redelivery (a replayed cursor, a crash after the handler ran but before `done` was written) is skipped when the
   inbox already says `done`, and otherwise runs again, so handlers must be idempotent (use the event id or a dedupe
   key as the idempotency key of whatever they create, as `runtime.submit(idempotency_key=...)` allows).
+* Handled events are recorded `done`, and the cursor moved past them, once per 50 events (and always before a
+  failure is recorded), so a crash re-delivers at most that batch.
 * A failing handler is retried after 5 s, 30 s, 2 min, 10 min, then every 30 min, up to its attempt cap (default 5).
   Raising `PermanentFailure` dead-letters at once. A dead event (poison) stops only itself: the cursor has already
   moved on and later events are processed. Each dead letter also writes an `event.dead_lettered` event.
@@ -228,16 +230,23 @@ The Streamlit UI does not hold the SSE stream (Streamlit renders on the server);
 ## Benchmark
 
 `LYST_ENCRYPT=0 uv run python scripts/bench_events.py` (cloud container, 2 000 emissions from 8 threads, every
-dedupe key sent twice, 6 active rules): about 95 emissions/s (p50 34 ms, p95 173 ms), exactly 1 000 events stored
-(duplicates suppressed under contention), and about 25 rule deliveries/s through the rules consumer, with 4 500
-recorded evaluations and 300 activities. Correct under contention, modest in throughput: each event costs several
-single-writer DuckDB transactions. Enough for an analyst team's workspace; not for a high-volume integration feed
-(see the risks).
+dedupe key sent twice, 6 active rules): about 125 emissions/s (p50 32 ms, p95 131 ms), exactly 1 000 events stored
+(duplicates suppressed under contention), and about 64 deliveries/s through the two autonomy consumers, with 4 500
+recorded evaluations and 300 activities. That is 2.6 times the first measurement (25/s), from:
+
+* activity work moved out of dispatch (`autonomy.work`);
+* inbox records and the cursor written once per 50 handled events, and one read of a page's inbox records;
+* one redelivery check and one transaction per event for all of a workspace's rules;
+* parsed rules reused for 2 s (changes made in the process clear them at once).
+
+Enough for an analyst team's workspace; still not for a high-volume integration feed (see the risks).
 
 ## Risks and open work (prioritized)
 
-1. **Throughput.** About 25 rule deliveries/s (benchmark above). Batching inbox writes per dispatch round and
-   evaluating rules for a batch of events per transaction are the next steps if a feed needs more.
+1. **Throughput.** About 64 deliveries/s (benchmark above), bounded by DuckDB's single writer: each event still costs
+   one workspace transaction when a rule matches. Evaluating a page of events per transaction, or sharding the
+   dispatcher per workspace, are the next steps if a feed needs more. A crash now redelivers up to one batch (50
+   events) per consumer; the inbox and the handlers' idempotency keys absorb that.
 2. **Crash and connector coverage (scenarios E and I) is in-process only.** `tests/test_event_crash.py` kills a real
    dispatcher process (`os._exit`) before and after a rule's side effect; the restarted process redelivers the event
    and opens exactly one activity. `test_a_real_connection_that_keeps_failing_is_flagged_once` breaks a real SQLite
