@@ -108,7 +108,7 @@ div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
   border-radius: var(--lyst-radius-md) !important; box-shadow: var(--lyst-shadow-1);}
 [data-testid="stExpander"] summary {border-radius: var(--lyst-radius-md);}
 /* sheets: dialogs rise from below with depth; popovers and toasts float on the material */
-[data-testid="stDialog"] [role="dialog"] {border-radius: var(--lyst-radius-xl) !important; box-shadow: var(--lyst-shadow-3);
+[data-testid="stDialog"] [role="dialog"] {border-radius: var(--lyst-radius-xl) !important; box-shadow: var(--lyst-shadow-3); background: var(--lyst-raised) !important;
   border: 1px solid var(--lyst-edge); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
 [data-testid="stPopoverBody"] {border-radius: var(--lyst-radius-lg) !important; box-shadow: var(--lyst-shadow-3) !important;
   border: 1px solid var(--lyst-edge) !important;}

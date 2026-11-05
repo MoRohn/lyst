@@ -333,7 +333,7 @@ def test_what_if_and_decisions_are_reachable_where_people_work(seeded, ui):  # n
     at.switch_page("app_pages/work.py")
     at.query_params["view"] = "activity"
     at.run()
-    at.get("button_group")[-1].set_value("Decisions").run()
+    next(g for g in at.get("button_group") if g.key == "act_filter").set_value("Decisions").run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Compare options" for b in at.button)
 
