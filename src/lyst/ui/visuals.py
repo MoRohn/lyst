@@ -132,6 +132,16 @@ def delta(text: str, good: bool | None) -> str:
     return f'<span class="lyst-delta lyst-num" style="color:var(--lyst-{tone})">{escape(arrow + text)}</span>'
 
 
+def metric_tile(p: dict[str, Any], *, note: str = "vs prior month") -> str:
+    """A KPI tile from a pulse entry: the measure, its period, the value large, the change coloured by whether it is
+    good for this measure, and its recent history. An observation, so it says which period it observed."""
+    return (f'<div class="lyst-card-title">{escape(str(p["title"]))}</div>'
+            f'<div class="lyst-tile-value lyst-num">{escape(str(p["value_text"]))}</div>'
+            + delta(f'{p.get("change_text", "")} {note}', p.get("good"))
+            + spark(p.get("history") or [], label=f'{p["title"]} over the last {len(p.get("history") or [])} '
+                    f'{p.get("grain", "period")}s, latest {p["value_text"]}', height=48))
+
+
 CSS = """
 .lyst-spark {display: block;}
 .lyst-viz-empty {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm);}
@@ -166,7 +176,15 @@ CSS = """
 .lyst-stat-value {font-size: var(--lyst-size-lg); font-weight: var(--lyst-weight-strong); line-height: 1.2;}
 .lyst-stat-label {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted);}
 .lyst-stat-note {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted);}
+.lyst-tile-value {font-size: 2rem; font-weight: var(--lyst-weight-strong); letter-spacing: -0.02em; line-height: 1.1;
+                  margin: .15rem 0 .1rem 0;}
 .lyst-delta {font-size: var(--lyst-size-sm); font-weight: var(--lyst-weight-medium);}
+/* the evidence rail beside an answer: quiet sections separated by space, not boxes */
+.lyst-rail {display: grid; gap: 1rem; padding: .2rem 0 .2rem 1rem; border-left: 1px solid var(--lyst-border);}
+.lyst-rail-section {display: grid; gap: .35rem;}
+.lyst-rail-item {padding: .1rem 0;}
+@media (max-width: 640px) {.lyst-rail {border-left: none; padding-left: 0; border-top: 1px solid var(--lyst-border);
+                           padding-top: .8rem;}}
 /* cards: a title row, a headline, a visual, a quiet footer */
 .lyst-card-kicker {font-size: var(--lyst-size-xs); text-transform: uppercase; letter-spacing: var(--lyst-tracking-label);
                    color: var(--lyst-text-muted); font-weight: 600;}
