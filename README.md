@@ -24,6 +24,19 @@ a query, whether or not a model is involved.
 
 ![Lyst answering why operating margin declined: a verified answer with evidence, a trend chart, what it means and what to do](docs/images/analyst-light.png)
 
+**Why Lyst**
+
+- **Verified, not plausible.** Every figure is recomputed independently from approved data, and each answer shows
+  the checks it passed, the data and version it used, and the assumptions it made.
+- **Does the work, asks before it changes anything.** Lyst plans, investigates, prepares recurring work and reacts
+  to events on its own, inside limits you set; anything consequential waits for a person.
+- **Yours to run.** Self-hosted, encrypted at rest, works with OpenRouter or a local model (or none), open source
+  under AGPL-3.0.
+
+**Contents:** [Quick start](#quick-start) · [Tour](#a-tour-of-the-interface) · [What Lyst does](#what-lyst-does) ·
+[Models](#models) · [Security](#security-and-secrets) · [Commands](#commands) · [Development](#development) ·
+[Documents](#documents)
+
 ## Quick start
 
 You need [uv](https://docs.astral.sh/uv/) on macOS or Linux.
@@ -81,7 +94,7 @@ and a "What these words mean" glossary.
 | Area | What you do there |
 |---|---|
 | **Home** | A workspace, not a dashboard: the composer (with **Speak**), a Get started card that follows the workspace's real set-up state, suggested questions, **Your work** (a shelf of what Lyst has made, each with a preview drawn from its own content) and the conversations to pick up |
-| **Work** | A command center: a live status strip, then what needs you (approvals), what Lyst is doing and finished as a day-by-day timeline or a board, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed. Each task's steps show as a timeline from the engine |
+| **Work** | A command center: a live status strip, then what needs you (approvals), what Lyst is doing and finished as a day-by-day timeline or a board, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed. Each task's steps show as a timeline from the engine. **Automatic** shows what event rules started, with why, the flow and any approval inline |
 | **Data** | A library rail of datasets, approved metrics and dashboards beside the workspace; tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. Every dataset card shows its size, freshness, the shape of its columns and what it feeds. **Add data** uploads a file, connects a source, or proposes connections from an API description |
 | **Brain** | What Lyst knows about the business, opening on its **Graph**: a map of everything it knows and how it links, plus graph runs. Then Definitions (each approved metric and term as what it means and how it is built, or a map from data to metrics), Documents it can cite, Memory (with memories waiting for review), and **Specializations**: a searchable catalog of the 136 kinds of analyst work with each one's honest maturity |
 | **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
@@ -335,17 +348,21 @@ where they point, with Mark all read and "What to tell me about".
 
 ## What Lyst does
 
-* **Gets itself ready for a new organization.** Connect or upload data and Lyst studies the metadata only (names,
-  types and shape, never rows), recognises the business areas from thirteen versioned industry packages (finance,
-  procurement, sales, marketing, HR, manufacturing, customer service, product, logistics, IT, healthcare,
-  professional services, financial services), and suggests metrics, business terms, privacy limits for personal
-  data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
-  official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
-  business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
-  resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
-  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer. On
-  screen: the Get started card on Home, **Suggestions** in Data › Datasets (with **Study the data again**), and
-  the industry picker and **Business profile** in Settings › Workspace ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
+### Analysis you can rely on
+
+* **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
+  anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
+  that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
+  impact with stated assumptions.
+* **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
+  raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
+  model wording verified against the computed numbers.
+* **Shows its working on request.** Any figure in an answer or a generated report traces back through the step
+  that computed it, the SQL that ran, the metric version and the dataset version (rows, checksum, load time,
+  classification) to its source, with the checks, assumptions, citations and approvals involved. A figure counts as
+  traced only when a stored result backs it at the precision written. Ask how it was figured, what it rests on,
+  what would change it, or have Lyst reproduce it under your current permissions; the answers come from those
+  records, not invented explanations, and Lyst says when the data behind an answer has a newer version.
 * **One analyst, many specializations.** Lyst stays one analyst that assembles the expertise a request needs from
   136 specialization profiles in 11 domains (data and BI, statistics, AI and ML, software, cloud, security,
   finance and operations, marketing, media, science and industry, and more), backed by a shared library of 34
@@ -364,6 +381,23 @@ where they point, with Mark all read and "What to tell me about".
   detection), all through the same access checks. Brain › **Specializations** lists all 136 with their maturity,
   what each still lacks and the recorded evidence behind it, and example questions can be asked in one click
   ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
+* **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
+  drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
+  name a winner only when the difference is statistically significant, and otherwise recommend the simplest
+  method. Every run records its exact series, dataset and metric versions,
+  SQL and environment, and can be reproduced to show what, if anything, changed. An admin records the chosen
+  method, and a choice against the evidence is flagged.
+* **Follows up and reuses what works.** A follow-up such as "now by region", "compare it to last year" or "what
+  about Q1 2026" is resolved against the earlier answer's verified understanding, and the new answer records what
+  changed and what was carried over, so re-asking reproduces it. A follow-up Lyst cannot carry out says so rather
+  than changing numbers silently. Before drafting a new method, Lyst ranks the approved skills and built-in
+  capabilities by what they do, checks each is still compatible and permitted, and reuses the best one. Through
+  the API today.
+* **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
+  requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
+* **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
+  year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
+  group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
 * **A workbench for your own Python and SQL.** Analysts run their own Python on governed data in an
   operating-system sandbox, on data already filtered by their column and row permissions. The code cannot read
   Lyst's databases, keys or home folders and has no network access. Every run records its code, inputs, data
@@ -381,105 +415,55 @@ where they point, with Mark all read and "What to tell me about".
   or hands-free, using the browser's own speech, and talking over Lyst stops it; when recognition is not
   confident, Lyst asks "I heard … Ask this?"), and Settings › **Voice** for your mode, reading aloud and speaking
   style, the workspace's rules, and every engine with its honest support label ([docs/VOICE.md](docs/VOICE.md)).
-* **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
-  anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
-  that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
-  impact with stated assumptions.
-* **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
-  raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
-  model wording verified against the computed numbers.
-* **Shows its working on request.** Any figure in an answer or a generated report traces back through the step
-  that computed it, the SQL that ran, the metric version and the dataset version (rows, checksum, load time,
-  classification) to its source, with the checks, assumptions, citations and approvals involved. A figure counts as
-  traced only when a stored result backs it at the precision written. Ask how it was figured, what it rests on,
-  what would change it, or have Lyst reproduce it under your current permissions; the answers come from those
-  records, not invented explanations, and Lyst says when the data behind an answer has a newer version.
-* **Enforces data classification.** Administrators classify datasets on four levels plus personal, financial and
-  regulated tags, with a reason kept for every change. A versioned policy sets who may read each level and what
-  may reach an external model or an export, and it is enforced in the data service, the model gateway and the
-  exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from it
-  never reach an external model or an exported file. Anyone can check ahead of time whether work would be allowed,
-  narrowed or refused, and why; administrators also see the rule. On screen: a dataset's Overview shows its
-  **Sensitivity** in words, and Settings › Workspace › **Data policy** sets who reads each level and what may
-  leave.
-* **Explains what it asks you to approve.** Each approval and review states the action, why, what it affects
-  (including reports built on a changed definition), the expected result, how to undo it, and a risk level from
-  what it actually does. A "where things stand" summary tells a returning person what they asked for, what
-  finished, what is running, what needs them and what comes next.
-* **Accounts for cost and value.** Model cost, tokens, retries, compute and query time, rows and connector work by
-  person, task, schedule, model or purpose, beside verified answers, time to a verified answer and reuse. Effort
-  avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
-  suggested savings cite the numbers behind them.
-* **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
-  year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
-  group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
-* **Guards its own quality.** Every pull request runs Lyst's evaluation suite (21 real questions with
-  independently computed answers, including what-if and adversarial cases) against a recorded baseline. A change
-  that makes an answer wrong, slower, or more expensive in queries, steps, model calls or tokens fails the build,
-  and a planted-defect test proves the gate catches it. Runs report quality by dimension (completion, correctness,
-  evidence, efficiency) and by category. Model routing learns from Lyst's own call records: a model that keeps
-  failing a kind of work moves behind healthy ones (pinned models are never reordered), and a model registry shows
-  each model's context, prices and reasoning settings beside its measured performance.
-* **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
-  drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
-  name a winner only when the difference is statistically significant, and otherwise recommend the simplest
-  method. Every run records its exact series, dataset and metric versions,
-  SQL and environment, and can be reproduced to show what, if anything, changed. An admin records the chosen
-  method, and a choice against the evidence is flagged.
-* **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
-  requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
-* **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
-  data and definition change, with verified repair and every version kept.
-* **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
-  shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
-* **Turns a request into a living project spec.** The spec records the objective, stakeholders, the approved
-  metrics and datasets it uses (never invented ones), deliverables, deadlines, scope limits, assumptions and the
-  approvals it needs. Each requirement has a priority and acceptance criteria, and is met only by linked evidence
-  (a verified task, an existing report, a current dashboard), by hand with a note, or waived by an admin with a
-  reason. A project cannot complete while a must-have is open. Revisions keep the work that is still valid, flag
-  changed requirements with their old wording, record dropped ones, and keep every version readable.
-* **Follows up and reuses what works.** A follow-up such as "now by region", "compare it to last year" or "what
-  about Q1 2026" is resolved against the earlier answer's verified understanding, and the new answer records what
-  changed and what was carried over, so re-asking reproduces it. A follow-up Lyst cannot carry out says so rather
-  than changing numbers silently. Before drafting a new method, Lyst ranks the approved skills and built-in
-  capabilities by what they do, checks each is still compatible and permitted, and reuses the best one. Through
-  the API today.
-* **Moves a whole workspace in one sealed file.** Datasets and their versions, definitions, knowledge, dashboards
-  and reports, members and history travel in one file encrypted with a passphrase; any tampering or truncation is
-  caught before anything is read. Credentials never travel, and data your policy keeps inside the workspace cannot
-  be exported this way either. Importing always creates a new workspace, checks every part first, and arrives with
-  its schedules paused, so a copy never runs the same work twice. In Settings › Workspace › **Move or copy this
-  workspace**, you seal the workspace into a passphrase-protected pack and download it; on another installation an
-  admin checks the pack and brings it in as a new workspace, with schedules paused unless they choose otherwise.
+
+### Your data
+
+* **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
+  with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
+  and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
+  health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
+  reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
+* **Connects an API from its description.** Give Lyst an API's OpenAPI document and it drafts a connection for
+  every endpoint that returns records, explaining where the records sit, how pages link, how to fetch only what
+  changed, and which credential the API expects. Each draft is tested against the live API without loading any
+  data (the token is used once and never stored, and samples are masked), then approved by an admin other than the
+  person who drafted it. Drafts are settings for Lyst's reviewed REST connector, never generated code. On screen:
+  **Add data › From an API description**, then Data › Sources › **Proposed connections**, where each draft
+  explains itself and offers **Run a dry test**, **Approve and connect** or **Reject**.
+* **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
+  every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
+  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown
+  and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range, whether a
+  total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it** or
+  **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable so
+  answers can cite it. Macros, embedded objects and formulas are reported but never run, and unsupported files
+  (legacy Office, password-protected, images) are refused in plain words
+  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+* **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
+  verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
+  columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
+  query's inputs, joins and grouping are explained. With a model configured, it can be designed from a sentence
+  (the model sees names, types and relationships, never rows). It reruns when an input gets a new version, keeps
+  the last good version if a run fails, and carries lineage to every input. On screen: Data › Datasets › **Build a
+  dataset from data Lyst has** (describe it or write the query, **Run and check**, then **Save as a dataset**), and
+  a built dataset's Overview says in words how it is made, with **Run again** and **Retire**.
+* **Knows which source wins.** An administrator can mark a dataset as the authoritative source (optionally for a
+  subject such as "P&L") or as secondary. When one term names two definitions that compute the same number from
+  different sources, the authoritative one answers instead of the question bouncing back as ambiguous, and the
+  answer says which source was used and why; if the calculations differ, Lyst still asks. The semantic audit flags
+  definitions built on secondary sources, a secondary source is never marked trusted, and search ranks
+  authoritative sources first. In Data, an authoritative dataset shows **Source of truth**, and admins set it from
+  the dataset's Overview.
+* **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
+  citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
 * **Remembers carefully.** Each memory records the datasets and metric versions it was learned from, and is
   flagged as possibly out of date, with the reason, when a source has a newer version or is gone, a definition
   changed, or it is older than a year. Recall ranks memories that still apply first, an answer that draws on a
   stale one says it "may no longer apply", and admins review them in Brain › Memory. Retention removes only old
   agent-observed memory, never approved or person-validated knowledge.
-* **Recovers from the worst day.** Backups never contain the master key, and are atomic (a full disk partway
-  through leaves no half backup) and can run on a schedule. Every new backup gets a restore drill that checks each
-  checksum, refuses a backup containing key material, and opens every database with the current master key. Lyst
-  reports the measured recovery point and recovery time against your targets, shown with **Back up now** in
-  Settings › Advanced › Backups and recovery ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
-* **Fits how you deploy.** `LYST_PROFILE` picks `local` (the default), `offline` (a local model only, no catalog
-  refresh or telemetry, webhooks to private addresses only), `server` (all interfaces, with OIDC and TLS expected
-  at the proxy) or `portable` (a self-contained data folder that moves as a workspace pack). `lyst doctor` checks
-  the installation end to end (packages, disk, encryption, migrations, backups, the credential audit chain,
-  network exposure, the sandbox, the model, stalled work, and the profile's own promises) and gives the fix for
-  each, with no key, token, path or data in its report. An air-gapped Compose stack is in `deploy/offline/`
-  (written, not yet run).
-* **Knows what can be done with each thing, and by whom.** Every dataset, metric, answer, report, workflow,
-  scenario model and decision record knows the actions available on it right now for the person looking, filtered
-  by role, data policy and its state, and anything that changes something asks a person first. The server
-  re-checks every action when it runs and refuses, and audits, anything not offered. Every task reports one
-  status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
-  tied to the event that caused it. Work started from any page lands in Work and records where it began, and its
-  verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
-  and each repair is verified. On screen, **More** sits beside Brief and Focus on every answer, and on metric
-  definitions, Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
-  approval marked; Work's list and board show each task's lifecycle state and what it is doing now.
-* **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
-  budgets; approval-gated schedules and monitors with an inbox and webhooks.
+
+### Autonomy, with a person in charge
+
 * **Prepares recurring work before it runs.** Shortly before a scheduled review, Lyst checks as the schedule's
   owner that the run will work: its datasets have new data, its connections are healthy, its definitions are still
   approved and unchanged, its contracts hold, and its saved analysis still matches its inputs. Ready work waits
@@ -513,6 +497,44 @@ where they point, with Mark all read and "What to tell me about".
   useful, what was prepared on time, confirmed warnings against false alarms, runs fixed before they failed, and
   interruptions, plus methods Lyst could add, each with **Ask to add it**
   ([docs/ANTICIPATION.md](docs/ANTICIPATION.md)).
+* **Reacts to events, within limits.** Every change in a workspace becomes one event with a stable id, a
+  correlation chain and a sensitivity, written in the same transaction as the change and delivered at least once
+  to durable consumers, with retries, dead letters and a live stream that replays from where a client left off.
+  Typed **event rules** turn events into **activities** that go detect, qualify, plan, authorize, execute, verify,
+  deliver and monitor: notify, review what a change affects, investigate, retry a failed task, or propose a
+  repair. Each rule has a ceiling on how far it may go on its own, a daily cap and quiet periods, can be dry-run
+  against recent events first, and anything that changes something waits for approval. Seven templates cover data
+  quality, schema changes, broken reports, metric deviations, recoverable failures, definition changes and failing
+  connections. Rules live in Settings › Workspace › **Event rules**, and what they started shows in Work ›
+  Activity › **Automatic** ([docs/EVENTS.md](docs/EVENTS.md)).
+* **Knows what can be done with each thing, and by whom.** Every dataset, metric, answer, report, workflow,
+  scenario model and decision record knows the actions available on it right now for the person looking, filtered
+  by role, data policy and its state, and anything that changes something asks a person first. The server
+  re-checks every action when it runs and refuses, and audits, anything not offered. Every task reports one
+  status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
+  tied to the event that caused it. Work started from any page lands in Work and records where it began, and its
+  verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
+  and each repair is verified. On screen, **More** sits beside Brief and Focus on every answer, and on metric
+  definitions, Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
+  approval marked; Work's list and board show each task's lifecycle state and what it is doing now.
+* **Runs every task under a contract.** Each task gets a frozen, hashed contract (goal, inputs, output,
+  constraints, what done means) checked against the stored records, a cost budget and a cap on retries, and each
+  run leaves a change receipt: the context it used, data-policy version, model route, tools, checks, retries,
+  human corrections, cost and the point to roll back to. Repeated failures of the same job are classified and
+  become proposed harness rules that need approval, and the workspace can answer the harness checklist from its
+  own records ([docs/HARNESS.md](docs/HARNESS.md)).
+* **Turns a request into a living project spec.** The spec records the objective, stakeholders, the approved
+  metrics and datasets it uses (never invented ones), deliverables, deadlines, scope limits, assumptions and the
+  approvals it needs. Each requirement has a priority and acceptance criteria, and is met only by linked evidence
+  (a verified task, an existing report, a current dashboard), by hand with a note, or waived by an admin with a
+  reason. A project cannot complete while a must-have is open. Revisions keep the work that is still valid, flag
+  changed requirements with their old wording, record dropped ones, and keep every version readable.
+* **Maintains its own output.** One registry for reports, dashboards and saved analyses, re-assessed on every
+  data and definition change, with verified repair and every version kept.
+* **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
+  a sandbox with adversarial cases, and registers it only after another role approves.
+* **Runs work durably.** Leases, checkpoints and resume after a crash; parallel steps; pause, cancel, retry and
+  budgets; approval-gated schedules and monitors with an inbox and webhooks.
 * **Runs fairly at scale.** People's questions go ahead of background work, which never takes the last worker,
   and busy workspaces cannot crowd out quiet ones. Admins set per-workspace quotas: running and queued tasks (a
   full queue says "try again" instead of piling up), a monthly model spend and token budget (past it, analysis
@@ -524,29 +546,60 @@ where they point, with Mark all read and "What to tell me about".
   Workspace › **Usage & limits** shows spend, tokens and tasks against the limits; Work › **Recurring** shows each
   schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
   [docs/OPERATIONS.md](docs/OPERATIONS.md).
-* **Keeps governed knowledge.** Versioned metrics and a glossary, lineage from metric to column, documents with
-  citations, semantic recall when an embedding model is configured, and layered memory with trust levels.
-* **Extends itself, under control.** When a method is missing, the Capability Foundry drafts a skill, tests it in
-  a sandbox with adversarial cases, and registers it only after another role approves.
-* **Knows which source wins.** An administrator can mark a dataset as the authoritative source (optionally for a
-  subject such as "P&L") or as secondary. When one term names two definitions that compute the same number from
-  different sources, the authoritative one answers instead of the question bouncing back as ambiguous, and the
-  answer says which source was used and why; if the calculations differ, Lyst still asks. The semantic audit flags
-  definitions built on secondary sources, a secondary source is never marked trusted, and search ranks
-  authoritative sources first. In Data, an authoritative dataset shows **Source of truth**, and admins set it from
-  the dataset's Overview.
-* **Connects to your data.** CSV, TSV and Parquet uploads, PostgreSQL, SQLite, REST JSON and files at a URL,
-  with incremental syncs. Every connector failure is classified (auth, permission, rate limit, timeout, schema,
-  and so on) with the action that fixes it, transient failures retry with backoff, each connection reports its
-  health, and added, removed or retyped columns are caught on every sync (a retyped column triggers a full
-  reload). A versioned API and an MCP server at `/mcp` expose the same capabilities.
-* **Connects an API from its description.** Give Lyst an API's OpenAPI document and it drafts a connection for
-  every endpoint that returns records, explaining where the records sit, how pages link, how to fetch only what
-  changed, and which credential the API expects. Each draft is tested against the live API without loading any
-  data (the token is used once and never stored, and samples are masked), then approved by an admin other than the
-  person who drafted it. Drafts are settings for Lyst's reviewed REST connector, never generated code. On screen:
-  **Add data › From an API description**, then Data › Sources › **Proposed connections**, where each draft
-  explains itself and offers **Run a dry test**, **Approve and connect** or **Reject**.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/event-rules.png" alt="Settings, Workspace, Event rules: three rules with their ceiling and risk, two on and one waiting for approval, and templates to start from"><br><b>Event rules</b>: each with a ceiling, risk and approval</td>
+    <td width="50%"><img src="docs/images/health.png" alt="Settings, Advanced, Health: some things need a look, the model and backup checks with what to do, and 16 passing checks"><br><b>Health</b>: problems first, each with what to do</td>
+  </tr>
+</table>
+
+### Governance and trust
+
+* **Enforces data classification.** Administrators classify datasets on four levels plus personal, financial and
+  regulated tags, with a reason kept for every change. A versioned policy sets who may read each level and what
+  may reach an external model or an export, and it is enforced in the data service, the model gateway and the
+  exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from it
+  never reach an external model or an exported file. Anyone can check ahead of time whether work would be allowed,
+  narrowed or refused, and why; administrators also see the rule. On screen: a dataset's Overview shows its
+  **Sensitivity** in words, and Settings › Workspace › **Data policy** sets who reads each level and what may
+  leave.
+* **Explains what it asks you to approve.** Each approval and review states the action, why, what it affects
+  (including reports built on a changed definition), the expected result, how to undo it, and a risk level from
+  what it actually does. A "where things stand" summary tells a returning person what they asked for, what
+  finished, what is running, what needs them and what comes next.
+* **Accounts for cost and value.** Model cost, tokens, retries, compute and query time, rows and connector work by
+  person, task, schedule, model or purpose, beside verified answers, time to a verified answer and reuse. Effort
+  avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
+  suggested savings cite the numbers behind them.
+* **Guards its own quality.** Every pull request runs Lyst's evaluation suite (21 real questions with
+  independently computed answers, including what-if and adversarial cases) against a recorded baseline. A change
+  that makes an answer wrong, slower, or more expensive in queries, steps, model calls or tokens fails the build,
+  and a planted-defect test proves the gate catches it. Runs report quality by dimension (completion, correctness,
+  evidence, efficiency) and by category. Model routing learns from Lyst's own call records: a model that keeps
+  failing a kind of work moves behind healthy ones (pinned models are never reordered), and a model registry shows
+  each model's context, prices and reasoning settings beside its measured performance.
+
+### Working with others
+
+* **Gets itself ready for a new organization.** Connect or upload data and Lyst studies the metadata only (names,
+  types and shape, never rows), recognises the business areas from thirteen versioned industry packages (finance,
+  procurement, sales, marketing, HR, manufacturing, customer service, product, logistics, IT, healthcare,
+  professional services, financial services), and suggests metrics, business terms, privacy limits for personal
+  data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
+  official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
+  business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
+  resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
+  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer. On
+  screen: the Get started card on Home, **Suggestions** in Data › Datasets (with **Study the data again**), and
+  the industry picker and **Business profile** in Settings › Workspace ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
+* **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
+  shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
+* **Publishes a finished answer.** **Share › Publish** turns an answer into a read-only, versioned page of the
+  answer and its evidence: for members of the workspace, or, for an admin, by a link that expires (30 days by
+  default). Pages carry no scripts and make no outside requests; a link is refused when the analysis read
+  confidential or restricted data or the export policy says no; only the link's hash is kept; and a page can be
+  republished with a newer answer or revoked at once.
 * **Speaks to the rest of your stack.** Every change in a workspace, from a new dataset version to a finished
   analysis, a contract check or an approval, becomes one event with a stable id. Stream the events, or have them
   delivered as signed webhooks with retries, dead-lettering and replay; webhooks never reach private network
@@ -555,23 +608,33 @@ where they point, with Mark all read and "What to tell me about".
   callers. The MCP server marks which tools only read, audits every call, keeps results within a size budget, and
   can read files and report what changed. Admins manage webhooks in Settings › Workspace › **Webhooks** (Test,
   Pause, a delivery log with resend, and a signing secret shown once).
-* **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
-  every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
-  error values counted), CSV in any common delimiter and encoding, JSON, Parquet, Word, PowerPoint, HTML, Markdown
-  and PDF text. Before anything loads, Lyst shows each table it found with its rows, sheet and range, whether a
-  total row adds up, notes and a preview; you choose what to keep and what to call it, then **Load it** or
-  **Discard**. Uploads read but not loaded wait under **Waiting for review**. Document text becomes searchable so
-  answers can cite it. Macros, embedded objects and formulas are reported but never run, and unsupported files
-  (legacy Office, password-protected, images) are refused in plain words
-  ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
-* **Builds verified datasets.** A derived dataset is a governed `SELECT` through the same SQL guard, and is
-  verified by running it before it is saved: rows exist, a declared key is unique, joins do not multiply rows,
-  columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
-  query's inputs, joins and grouping are explained. With a model configured, it can be designed from a sentence
-  (the model sees names, types and relationships, never rows). It reruns when an input gets a new version, keeps
-  the last good version if a run fails, and carries lineage to every input. On screen: Data › Datasets › **Build a
-  dataset from data Lyst has** (describe it or write the query, **Run and check**, then **Save as a dataset**), and
-  a built dataset's Overview says in words how it is made, with **Run again** and **Retire**.
+* **Moves a whole workspace in one sealed file.** Datasets and their versions, definitions, knowledge, dashboards
+  and reports, members and history travel in one file encrypted with a passphrase; any tampering or truncation is
+  caught before anything is read. Credentials never travel, and data your policy keeps inside the workspace cannot
+  be exported this way either. Importing always creates a new workspace, checks every part first, and arrives with
+  its schedules paused, so a copy never runs the same work twice. In Settings › Workspace › **Move or copy this
+  workspace**, you seal the workspace into a passphrase-protected pack and download it; on another installation an
+  admin checks the pack and brings it in as a new workspace, with schedules paused unless they choose otherwise.
+
+<p align="center">
+  <img src="docs/images/publish.png" alt="Share, Publish: a read-only page of this answer for people in the workspace or anyone with the link" width="55%">
+</p>
+
+### Running it
+
+* **Fits how you deploy.** `LYST_PROFILE` picks `local` (the default), `offline` (a local model only, no catalog
+  refresh or telemetry, webhooks to private addresses only), `server` (all interfaces, with OIDC and TLS expected
+  at the proxy) or `portable` (a self-contained data folder that moves as a workspace pack). `lyst doctor` checks
+  the installation end to end (packages, disk, encryption, migrations, backups, the credential audit chain,
+  network exposure, the sandbox, the model, stalled work, and the profile's own promises) and gives the fix for
+  each, with no key, token, path or data in its report. Settings › Advanced › **Health** shows the same checks,
+  problems first, each with what to do. An air-gapped Compose stack is in `deploy/offline/` (written, not yet
+  run).
+* **Recovers from the worst day.** Backups never contain the master key, and are atomic (a full disk partway
+  through leaves no half backup) and can run on a schedule. Every new backup gets a restore drill that checks each
+  checksum, refuses a backup containing key material, and opens every database with the current master key. Lyst
+  reports the measured recovery point and recovery time against your targets, shown with **Back up now** in
+  Settings › Advanced › Backups and recovery ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
 
 <table>
   <tr>
@@ -626,9 +689,10 @@ A local OpenAI-compatible server (Ollama, llama.cpp, vLLM) works instead: set `L
   secret file, or OpenBao, and never beside the database. `lyst init` sets it up and `lyst rotate-master-key`
   re-keys everything.
 * **Encrypted at rest.** Every workspace is its own encrypted DuckDB file with a derived key.
-* **Governed access.** Roles, workspace isolation, a read-only SQL guard with column and row policies,
-  redaction before text reaches an external model (dataset rows are never sent), OIDC sign-in, and a
-  hash-chained credential audit trail.
+* **Governed access.** Roles, workspace isolation, a read-only SQL guard with column and row policies, redaction
+  before text reaches an external model (dataset rows are never sent), OIDC sign-in, and a hash-chained credential
+  audit trail. OIDC sign-in hands the browser a one-time code, never the token, and `lyst init` and `lyst
+  rotate-master-key` show a key only on a terminal (otherwise they need `--out FILE`, written owner-only).
 
 The threat model, autonomy levels and residual risks are in [docs/SECURITY.md](docs/SECURITY.md).
 
@@ -683,7 +747,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Events](docs/EVENTS.md) · [Harness](docs/HARNESS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
