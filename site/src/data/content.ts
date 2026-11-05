@@ -86,14 +86,14 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'Datasets built from a sentence, verified', 'PDF briefings', 'PowerPoint decks', 'Excel and Markdown'],
+    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Datasets built from a sentence, verified', 'PDF briefings and decks', 'Excel and Markdown'],
     status: 'available',
   },
   {
     icon: 'Workflow',
     title: 'Automate',
     text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
+    items: ['Graph runs that plan, build, check and fix', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Calendar schedules'],
     status: 'available',
   },
   {
@@ -107,7 +107,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns new methods, with an owner’s approval.',
-    items: ['Living knowledge', 'Search across data, definitions and saved work', 'Governed skills', 'New skills drafted, tested and approved'],
+    items: ['A map of everything Lyst knows', 'Search across data, definitions and saved work', 'Rules learned from repeated failures', 'Governed skills', 'New skills drafted, tested and approved'],
     status: 'available',
   },
 ];
@@ -164,7 +164,7 @@ export const enterprise = {
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Agents act within explicit permissions. Credentials are entered in Settings, encrypted, released only to the services that need them, and scrubbed from every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Any figure traces to its step, query, definition version, dataset version and source, and can be reproduced.', status: 'available' as Status },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. Decisions are recorded and later checked against what happened.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
