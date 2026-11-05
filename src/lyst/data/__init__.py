@@ -94,7 +94,7 @@ class DataService:
         actor: Principal,
         workspace_id: str,
         name: str,
-        table: pa.Table,
+        table: pa.Table | Any,
         *,
         source: str,
         sha: str | None = None,
@@ -104,12 +104,18 @@ class DataService:
         append_to_previous: bool = False,
     ) -> dict[str, Any]:
         """A new dataset version from an Arrow table. With ``append_to_previous`` the new version is the current
-        version's rows plus these (an incremental sync); otherwise it replaces them."""
+        version's rows plus these (an incremental sync); otherwise it replaces them.
+
+        ``table`` may also be a ``pyarrow.dataset.Dataset`` with normalised column names (a connector sync spooled to
+        disk); DuckDB scans it lazily, so the rows are never all in memory at once. Its ``sha`` must be given."""
         self.guard.require(actor, workspace_id, "data.ingest", name)
         name = normalise_name(name)
         if not _NAME.match(name):
             raise ValueError("invalid dataset name")
-        table = table.rename_columns([normalise_name(c) for c in table.column_names])
+        if isinstance(table, pa.Table):
+            table = table.rename_columns([normalise_name(c) for c in table.column_names])
+        elif sha is None or any(normalise_name(c) != c for c in table.schema.names):
+            raise ValueError("a spooled dataset needs its sha256 and normalised column names")
         if sha is None:
             import io as _io  # noqa: PLC0415
 
@@ -128,7 +134,8 @@ class DataService:
                     "SELECT source_sha256, physical_table, schema, row_count FROM dataset_versions WHERE dataset = ? AND version = ?",
                     [name, current[0]]).fetchall()[0]
             if prev_sha == sha and not append_to_previous:
-                return {"dataset": name, "version": current[0], "unchanged": True, "rows": table.num_rows}
+                rows = table.num_rows if isinstance(table, pa.Table) else table.count_rows()
+                return {"dataset": name, "version": current[0], "unchanged": True, "rows": rows}
             physical = f"{name}__v{version}"
             c.register("_incoming", table)
             if append_to_previous and prev_physical:

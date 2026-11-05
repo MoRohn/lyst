@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,8 @@ class SQLiteConnector(Connector):
     manifest = Manifest(kind="sqlite", label="SQLite file",
                         fields=(Field("path", "Database file (inside the import root)"),),
                         notes="Opened read-only. Tables and views are discovered; a cursor column (an integer id or a timestamp) "
-                              "makes later syncs incremental.")
+                              "makes later syncs incremental. Each sync reads past the last value seen, so the column must only "
+                              "grow: a row added later with a value already synced is not picked up.")
 
     def _path(self) -> Path:
         root = import_root()
@@ -36,16 +38,17 @@ class SQLiteConnector(Connector):
         return sqlite3.connect(f"file:{self._path()}?mode=ro", uri=True, timeout=10)
 
     def test(self) -> dict[str, Any]:
-        with self._connect() as c:
+        with closing(self._connect()) as c:  # sqlite3's own context manager ends the transaction, not the connection
             n = c.execute("SELECT count(*) FROM sqlite_master WHERE type IN ('table', 'view')").fetchone()[0]
             version = c.execute("SELECT sqlite_version()").fetchone()[0]
         return {"ok": True, "sqlite": version, "tables_visible": n, "read_only": True}
 
     def discover(self) -> list[SourceTable]:
         out = []
-        with self._connect() as c:
-            for (name,) in c.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"):
-                cols = [{"name": r[1], "type": r[2] or "any"} for r in c.execute(f'PRAGMA table_info("{name}")')]
+        with closing(self._connect()) as c:
+            for (name,) in c.execute("SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall():
+                quoted = name.replace('"', '""')  # a name from the file itself: quoted, never trusted to be plain
+                cols = [{"name": r[1], "type": r[2] or "any"} for r in c.execute(f'PRAGMA table_info("{quoted}")')]
                 out.append(SourceTable("", name, cols))
         return out
 
@@ -59,7 +62,7 @@ class SQLiteConnector(Connector):
                 sql += f' WHERE "{cursor_column}" > ?'
                 params = (after,)
             sql += f' ORDER BY "{cursor_column}"'
-        with self._connect() as c:
+        with closing(self._connect()) as c:  # closed even when the caller abandons the generator
             cur = c.execute(sql, params)
             names = [d[0] for d in cur.description]
             while True:
