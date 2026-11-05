@@ -23,6 +23,8 @@
 | Platform | Deployment profiles (local, offline, server, portable) and `lyst doctor` / `GET /v1/diagnostics` with a fix per check and profile-promise checks; `lyst export` / `lyst import` | Tested | `test_profiles.py`; export/import verified live |
 | Platform | Air-gapped Compose stack with a local model | Built (not run: no Docker host) | deploy/offline/docker-compose.yml |
 | Deliverables | Publishing: analyses as versioned snapshot pages for members or by expiring link (fingerprint only stored), classification and governance gated, strict CSP, republish, revoke, view counts | Tested | `test_publishing.py` |
+| Quality | Fault injection for ingestion, export, import, webhooks, events, SDK, workbench and corrupt files | Tested | `test_faults.py` |
+| Platform | Locale-aware number, currency, percent, compact and date formatting (8 locales), WCAG contrast checks, screen-reader descriptions of series and tables | Tested | `test_i18n.py`; adoption in the UI pending |
 | Data | Read-only SQL guard with column policies | Tested | `test_sqlguard.py`, `test_security.py` |
 | Data | Catalog insights on every version: grain, keys, duplicates at the grain, column meaning, robust outliers, missingness concentration and co-missingness, time-series gaps, freshness, ranked risks with a summary | Tested | `test_catalog.py::test_a_catalog_finds_grain_keys_relationships_and_planted_problems`, docs/PLATFORM.md |
 | Data | Relationships across datasets (foreign-key candidates, shared dimensions, inconsistent definitions, overlapping sources reconciled by totals) recorded in the knowledge graph | Tested | `test_catalog.py` |
