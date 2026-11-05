@@ -186,6 +186,7 @@ PATCH /v1/workspaces/{ws}/connector-drafts/{draft_id} | query: - | body: -
 PATCH /v1/workspaces/{ws}/settings | query: - | body: -
 PATCH /v1/workspaces/{ws}/voice/settings | query: - | body: -
 PATCH /v1/workspaces/{ws}/webhooks/{sid} | query: - | body: -
+POST /auth/exchange | query: - | body: code
 POST /auth/logout | query: - | body: -
 POST /setup/initialize | query: - | body: -
 POST /v1/approvals/{approval_id} | query: - | body: approve
@@ -309,7 +310,7 @@ POST /v1/workspaces/{ws}/what-if | query: - | body: question
 POST /v1/workspaces/{ws}/workbench/python | query: - | body: code
 POST /v1/workspaces/{ws}/workbench/runs/{rid}/reproduce | query: - | body: -
 POST /v1/workspaces/{ws}/workbench/runs/{rid}/save | query: - | body: name
-POST /v1/workspaces/{ws}/workbench/sql | query: - | body: -
+POST /v1/workspaces/{ws}/workbench/sql | query: - | body: sql
 POST /v1/workspaces/{ws}/workflows/{wf_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/workflows/{wf_id}/run | query: - | body: -
 POST /v1/workspaces/{ws}/workflows/{wf_id}/schedule | query: - | body: every_seconds

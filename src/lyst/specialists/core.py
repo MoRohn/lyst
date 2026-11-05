@@ -22,6 +22,7 @@ What the core guarantees:
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from typing import Any, Literal
@@ -130,12 +131,21 @@ class UniversalAnalystCore:
                                                               "catalog_version", "general", "brief")},
                      "channel": req.channel, "analyst_request_id": rid,
                      "attachments": [a.model_dump() for a in req.attachments]}
-            task_id = self.lyst.runtime.submit(actor, req.workspace_id, req.text, autonomy=req.autonomy,
-                                               idempotency_key=req.idempotency_key, extra=extra)
-            self.lyst.runtime.event(task_id, "expertise", message, {
-                "selected": [r["id"] for r in assembly.get("roles", [])], "task_classes": decision.request_task_classes,
-                "channel": req.channel, "general": decision.general, "routing_ms": round(decision.latency_ms, 2),
-                "catalog_version": decision.catalog_version, "request_id": rid})
+            try:
+                task_id = self.lyst.runtime.submit(actor, req.workspace_id, req.text, autonomy=req.autonomy,
+                                                   idempotency_key=req.idempotency_key, extra=extra)
+            except Exception as exc:
+                self.lyst.guard.audit(actor, req.workspace_id, "analyst.request", rid, "error", {
+                    "channel": req.channel, "error": type(exc).__name__})
+                raise
+            try:  # the trace event is informative; it must not fail a submission that was accepted
+                self.lyst.runtime.event(task_id, "expertise", message, {
+                    "selected": [r["id"] for r in assembly.get("roles", [])], "task_classes": decision.request_task_classes,
+                    "channel": req.channel, "general": decision.general, "routing_ms": round(decision.latency_ms, 2),
+                    "catalog_version": decision.catalog_version, "request_id": rid})
+            except Exception:  # noqa: BLE001
+                logging.getLogger("lyst.specialists").warning("expertise event for task %s was not recorded", task_id,
+                                                              exc_info=True)
             status = "queued"
         self.lyst.guard.audit(actor, req.workspace_id, "analyst.request", task_id or rid, "ok", {
             "channel": req.channel, "selected": [r["id"] for r in assembly.get("roles", [])], "status": status,
@@ -146,7 +156,8 @@ class UniversalAnalystCore:
     def expertise_for_task(self, actor: Principal, task_id: str) -> dict[str, Any]:
         task = self.lyst.runtime.get(actor, task_id)  # checks the actor may read the task
         ex = (task.get("request") or {}).get("expertise")
-        if not ex:
-            return {"task_id": task_id, "expertise": None, "note": "This task was not routed through the Analyst Core."}
+        if not ex:  # one shape either way: every key is always present
+            return {"task_id": task_id, "channel": None, "expertise": None,
+                    "note": "This task was not routed through the Analyst Core."}
         return {"task_id": task_id, "channel": task["request"].get("channel"),
-                "expertise": {k: v for k, v in ex.items() if k != "brief"}}
+                "expertise": {k: v for k, v in ex.items() if k != "brief"}, "note": None}

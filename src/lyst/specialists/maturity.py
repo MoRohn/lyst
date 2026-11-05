@@ -16,6 +16,7 @@ before a capability was removed does not keep the level.
 from __future__ import annotations
 
 import json
+import logging
 from functools import cache
 from importlib import resources
 from typing import Any
@@ -28,9 +29,17 @@ from .schema import Maturity, SpecializationProfile
 def evidence() -> dict[str, dict[str, Any]]:
     f = resources.files("lyst.specialists").joinpath("evidence.json")
     try:
-        return json.loads(f.read_text())
+        doc = json.loads(f.read_text())
     except FileNotFoundError:
         return {}
+    except (OSError, ValueError) as exc:  # truncated or invalid: assess without evidence rather than fail every call
+        logging.getLogger("lyst.specialists").warning("evidence.json is unreadable (%s); no specialization is "
+                                                      "assessed above Equipped until it is fixed", exc)
+        return {}
+    if not isinstance(doc, dict):
+        logging.getLogger("lyst.specialists").warning("evidence.json is not an object; ignoring it")
+        return {}
+    return {k: v for k, v in doc.items() if isinstance(v, dict)}
 
 
 def assess(p: SpecializationProfile) -> dict[str, Any]:

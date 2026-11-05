@@ -29,6 +29,8 @@ import socket
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from typing import Any
 from urllib.parse import urlparse
 
@@ -54,8 +56,27 @@ def _allow_private() -> bool:
     return os.environ.get("LYST_WEBHOOK_ALLOW_PRIVATE", "0") == "1"
 
 
-def check_target(url: str) -> None:
-    """Refuse a URL the engine must not call. Resolved now and again at every delivery (DNS can change)."""
+DNS_TIMEOUT = 3.0
+_resolver = ThreadPoolExecutor(max_workers=4, thread_name_prefix="lyst-webhook-dns")
+
+
+def _resolve(host: str, port: int) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Every address ``host`` resolves to, within DNS_TIMEOUT: a stalled resolver must not wedge a delivery pass."""
+    try:
+        infos = _resolver.submit(socket.getaddrinfo, host, port, proto=socket.IPPROTO_TCP).result(timeout=DNS_TIMEOUT)
+    except FutureTimeout as exc:
+        raise ValueError(f"the webhook host {host} did not resolve within {DNS_TIMEOUT:.0f} s") from exc
+    except (socket.gaierror, UnicodeError) as exc:
+        raise ValueError(f"the webhook host {host} does not resolve") from exc
+    return [ipaddress.ip_address(info[4][0]) for info in infos]
+
+
+def check_target(url: str) -> list[str]:
+    """Refuse a URL the engine must not call. Resolved now and again at every delivery (DNS can change).
+
+    Returns the addresses that passed the check, so the caller can connect to one of them rather than resolving
+    the name a second time (which a rebinding DNS server could answer differently); empty when the check is lifted.
+    """
     from .profiles import offline  # noqa: PLC0415
 
     p = urlparse(url)
@@ -65,28 +86,40 @@ def check_target(url: str) -> None:
         raise ValueError("the webhook URL has no host")
     if p.username or p.password:
         raise ValueError("put credentials in the signing secret, not in the webhook URL")
-    if offline():
-        # an air-gapped installation: only private addresses, whatever else is configured
-        try:
-            infos = socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)
-        except socket.gaierror as exc:
-            raise ValueError(f"the webhook host {p.hostname} does not resolve") from exc
-        for info in infos:
-            ip = ipaddress.ip_address(info[4][0])
+    if not offline() and _allow_private():
+        return []
+    port = p.port or (443 if p.scheme == "https" else 80)
+    ips = _resolve(p.hostname, port)
+    for ip in ips:
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        if offline():
+            # an air-gapped installation: only private addresses, whatever else is configured
             if ip.is_global:
                 raise ValueError(f"this installation is offline (LYST_PROFILE=offline); {p.hostname} is on the internet")
-        return
-    if _allow_private():
-        return
-    try:
-        infos = socket.getaddrinfo(p.hostname, p.port or 443, proto=socket.IPPROTO_TCP)
-    except socket.gaierror as exc:
-        raise ValueError(f"the webhook host {p.hostname} does not resolve") from exc
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+        elif ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
             raise ValueError(f"the webhook host {p.hostname} resolves to a private address ({ip}); set "
                              "LYST_WEBHOOK_ALLOW_PRIVATE=1 on a closed network to allow it")
+    return [str(ip) for ip in ips]
+
+
+def _pinned(url: str, ip: str) -> str:
+    """``url`` with its host replaced by the address that passed check_target (the port and path kept)."""
+    p = urlparse(url)
+    host = f"[{ip}]" if ":" in ip else ip
+    return p._replace(netloc=host + (f":{p.port}" if p.port else "")).geturl()
+
+
+def _retention_days() -> int:
+    raw = os.environ.get("LYST_RETENTION_DAYS_EVENTS", "90")
+    try:
+        days = int(raw)
+        if days < 1:
+            raise ValueError
+    except ValueError:
+        log.warning("LYST_RETENTION_DAYS_EVENTS=%r is not a positive whole number of days; using 90", raw)
+        return 90
+    return days
 
 
 def backoff(attempts: int) -> int:
@@ -135,8 +168,12 @@ class WebhookService:
 
     def list(self, actor: Principal, ws: str) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.admin")
-        ids = self.stores.control.query("SELECT id FROM webhook_subscriptions WHERE workspace_id = ? ORDER BY created_at", [ws])
-        return [self._get(ws, r["id"]) for r in ids]
+        rows = self.stores.control.query(
+            "SELECT id, url, types, description, active, disabled_reason, consecutive_failures, created_by, created_at "
+            "FROM webhook_subscriptions WHERE workspace_id = ? ORDER BY created_at", [ws])
+        for r in rows:
+            r["types"] = json.loads(r["types"])
+        return rows
 
     def update(self, actor: Principal, ws: str, sid: str, *, active: bool | None = None, rotate_secret: bool = False) -> dict[str, Any]:
         self.guard.require(actor, ws, "workspace.admin", sid)
@@ -173,15 +210,19 @@ class WebhookService:
 
     def redeliver(self, actor: Principal, ws: str, delivery_id: str) -> dict[str, Any]:
         rows = self.stores.control.query(
-            "SELECT d.id, d.subscription_id FROM webhook_deliveries d JOIN webhook_subscriptions s ON s.id = d.subscription_id "
-            "WHERE d.id = ? AND s.workspace_id = ?", [delivery_id, ws])
+            "SELECT d.id, d.subscription_id, s.active FROM webhook_deliveries d "
+            "JOIN webhook_subscriptions s ON s.id = d.subscription_id WHERE d.id = ? AND s.workspace_id = ?", [delivery_id, ws])
         if not rows:
             raise KeyError(delivery_id)
         self.guard.require(actor, ws, "workspace.admin", delivery_id)
+        if not rows[0]["active"]:
+            # the delivery pass skips paused subscriptions: queuing it would report a send that never happens
+            raise ValueError("this webhook is paused; resume it, then redeliver")
         self.stores.control.execute("UPDATE webhook_deliveries SET status = 'pending', attempts = 0, next_attempt_at = now() "
                                     "WHERE id = ?", [delivery_id])
         self.guard.audit(actor, ws, "webhook.redeliver", delivery_id, "ok", {})
-        self.run()
+        # attempt only this delivery now; the worker tick sends everything else (and this one, if a pass is running)
+        self.run(only=delivery_id)
         return self.stores.control.query("SELECT id, status, attempts, last_status, last_error FROM webhook_deliveries "
                                          "WHERE id = ?", [delivery_id])[0]
 
@@ -222,69 +263,117 @@ class WebhookService:
             made += len(wanted)
         return made
 
-    def run(self, *, limit: int = 50) -> dict[str, int]:
-        """Enqueue new events, then attempt every due delivery once. Called from the worker tick."""
+    def run(self, *, limit: int = 50, only: str | None = None) -> dict[str, int]:
+        """Enqueue new events, then attempt every due delivery once. Called from the worker tick.
+
+        ``only`` attempts that one delivery and nothing else (a hand redelivery), without enqueueing or pruning.
+        """
         if not self._run_lock.acquire(blocking=False):
             return {"sent": 0, "failed": 0}
         try:
-            if time.monotonic() - self._last_prune > 86400:
+            if only is None and time.monotonic() - self._last_prune > 86400:
                 self._last_prune = time.monotonic()
-                self.events.prune(int(os.environ.get("LYST_RETENTION_DAYS_EVENTS", "90")))
-                self.stores.control.execute("DELETE FROM webhook_deliveries WHERE created_at < now() - INTERVAL 30 DAY "
-                                            "AND status IN ('delivered', 'dead')")
-            return self._run(limit)
+                try:
+                    self._prune()
+                except Exception:  # retention must never stop deliveries
+                    log.exception("webhook retention prune failed; deliveries continue")
+            return self._run(limit, only=only)
         finally:
             self._run_lock.release()
 
-    def _run(self, limit: int) -> dict[str, int]:
-        self.enqueue()
+    def _prune(self) -> None:
+        self.events.prune(_retention_days())
+        self.stores.control.execute("DELETE FROM webhook_deliveries WHERE created_at < now() - INTERVAL 30 DAY "
+                                    "AND status IN ('delivered', 'dead')")
+        # a delivery whose event has been pruned can never be sent or listed (both join platform_events)
+        self.stores.control.execute("DELETE FROM webhook_deliveries d WHERE NOT EXISTS "
+                                    "(SELECT 1 FROM platform_events e WHERE e.seq = d.event_seq)")
+
+    def _run(self, limit: int, *, only: str | None = None) -> dict[str, int]:
+        if only is None:
+            self.enqueue()
+        where, params = ("d.id = ?", [only]) if only else ("d.next_attempt_at <= now()", [])
         due = self.stores.control.query(
             "SELECT e.*, d.id AS delivery_id, d.attempts AS delivery_attempts, d.subscription_id, s.url AS target_url, "
             "s.secret AS target_secret FROM webhook_deliveries d "
             "JOIN webhook_subscriptions s ON s.id = d.subscription_id JOIN platform_events e ON e.seq = d.event_seq "
-            "WHERE d.status = 'pending' AND d.next_attempt_at <= now() AND s.active ORDER BY d.event_seq LIMIT ?", [limit])
+            f"WHERE d.status = 'pending' AND {where} AND s.active ORDER BY d.event_seq LIMIT ?", [*params, limit])
         sent = failed = 0
-        for d in due:
-            event = row_to_event(d)
-            status, error = self._post(d["target_url"], d["target_secret"], event, delivery_id=d["delivery_id"])
-            attempts = d["delivery_attempts"] + 1
-            if status is not None and 200 <= status < 300:
-                sent += 1
-                self.stores.control.execute(
-                    "UPDATE webhook_deliveries SET status = 'delivered', attempts = ?, last_status = ?, last_error = NULL, "
-                    "delivered_at = now() WHERE id = ?", [attempts, status, d["delivery_id"]])
-                self.stores.control.execute("UPDATE webhook_subscriptions SET consecutive_failures = 0 WHERE id = ?",
-                                            [d["subscription_id"]])
-                continue
-            failed += 1
-            dead = attempts >= MAX_ATTEMPTS or (status is not None and status in (400, 401, 403, 404, 410) and attempts >= 3)
-            self.stores.control.execute(
-                "UPDATE webhook_deliveries SET status = ?, attempts = ?, last_status = ?, last_error = ?, "
-                "next_attempt_at = now() + to_seconds(CAST(? AS BIGINT)) WHERE id = ?",
-                ["dead" if dead else "pending", attempts, status, (error or "")[:300] or None, backoff(attempts), d["delivery_id"]])
-            if dead:
-                self.stores.control.execute("UPDATE webhook_subscriptions SET consecutive_failures = consecutive_failures + 1 "
-                                            "WHERE id = ?", [d["subscription_id"]])
-                n = self.stores.control.scalar("SELECT consecutive_failures FROM webhook_subscriptions WHERE id = ?",
-                                               [d["subscription_id"]])
-                if n >= PAUSE_AFTER_DEAD:
-                    self.stores.control.execute(
-                        "UPDATE webhook_subscriptions SET active = false, disabled_reason = ? WHERE id = ?",
-                        [f"paused after {n} deliveries in a row failed every retry; last: {status or error}", d["subscription_id"]])
+        client = self.client or httpx.Client(timeout=TIMEOUT, follow_redirects=False)  # one pool for the pass
+        try:
+            for d in due:
+                try:
+                    if self._deliver(client, d):
+                        sent += 1
+                    else:
+                        failed += 1
+                except Exception as exc:  # one bad row must not stop every delivery queued behind it
+                    failed += 1
+                    log.exception("webhook delivery %s could not be attempted", d.get("delivery_id"))
+                    try:
+                        self.stores.control.execute(
+                            "UPDATE webhook_deliveries SET status = 'dead', attempts = attempts + 1, last_error = ? "
+                            "WHERE id = ?", [f"{type(exc).__name__}: {exc}"[:300], d["delivery_id"]])
+                    except Exception:
+                        log.exception("could not mark webhook delivery %s dead", d.get("delivery_id"))
+        finally:
+            if self.client is None:
+                client.close()
         return {"sent": sent, "failed": failed}
 
-    def _post(self, url: str, secret: str, event: dict[str, Any], *, delivery_id: str) -> tuple[int | None, str | None]:
+    def _deliver(self, client: httpx.Client, d: dict[str, Any]) -> bool:
+        event = row_to_event(d)
+        status, error = self._post(d["target_url"], d["target_secret"], event, delivery_id=d["delivery_id"], client=client)
+        attempts = d["delivery_attempts"] + 1
+        if status is not None and 200 <= status < 300:
+            self.stores.control.execute(
+                "UPDATE webhook_deliveries SET status = 'delivered', attempts = ?, last_status = ?, last_error = NULL, "
+                "delivered_at = now() WHERE id = ?", [attempts, status, d["delivery_id"]])
+            self.stores.control.execute("UPDATE webhook_subscriptions SET consecutive_failures = 0 WHERE id = ?",
+                                        [d["subscription_id"]])
+            return True
+        host = urlparse(d["target_url"]).hostname
+        dead = attempts >= MAX_ATTEMPTS or (status is not None and status in (400, 401, 403, 404, 410) and attempts >= 3)
+        log.warning("webhook delivery %s to %s failed (subscription %s, attempt %d, status %s)%s", d["delivery_id"], host,
+                    d["subscription_id"], attempts, status, "; giving up" if dead else "")
+        self.stores.control.execute(
+            "UPDATE webhook_deliveries SET status = ?, attempts = ?, last_status = ?, last_error = ?, "
+            "next_attempt_at = now() + to_seconds(CAST(? AS BIGINT)) WHERE id = ?",
+            ["dead" if dead else "pending", attempts, status, (error or "")[:300] or None, backoff(attempts), d["delivery_id"]])
+        if dead:
+            self.stores.control.execute("UPDATE webhook_subscriptions SET consecutive_failures = consecutive_failures + 1 "
+                                        "WHERE id = ?", [d["subscription_id"]])
+            n = self.stores.control.scalar("SELECT consecutive_failures FROM webhook_subscriptions WHERE id = ?",
+                                           [d["subscription_id"]])
+            if n >= PAUSE_AFTER_DEAD:
+                log.error("webhook subscription %s (%s) paused after %d dead deliveries in a row", d["subscription_id"],
+                          host, n)
+                self.stores.control.execute(
+                    "UPDATE webhook_subscriptions SET active = false, disabled_reason = ? WHERE id = ?",
+                    [f"paused after {n} deliveries in a row failed every retry; last: {status or error}", d["subscription_id"]])
+        return False
+
+    def _post(self, url: str, secret: str, event: dict[str, Any], *, delivery_id: str,
+              client: httpx.Client | None = None) -> tuple[int | None, str | None]:
         body = json.dumps(event, separators=(",", ":"), default=str).encode()
         headers = {"content-type": "application/json", "user-agent": "Lyst-Webhooks/1", "lyst-event": event["type"],
                    "lyst-delivery": delivery_id, "lyst-signature": sign(secret, body)}
         try:
-            check_target(url)
-            client = self.client or httpx.Client(timeout=TIMEOUT, follow_redirects=False)
+            ips = check_target(url)
+            target, extensions = url, {}
+            if ips:
+                # connect to the address that was checked, not to whatever the name resolves to a moment later
+                # (DNS rebinding); the Host header and TLS name (SNI and certificate check) stay the real host
+                host = urlparse(url).hostname or ""
+                target, extensions = _pinned(url, ips[0]), {"sni_hostname": host}
+                headers["host"] = urlparse(url).netloc
+            own = client is None and self.client is None
+            http = client or self.client or httpx.Client(timeout=TIMEOUT, follow_redirects=False)
             try:
-                resp = client.post(url, content=body, headers=headers)
+                resp = http.post(target, content=body, headers=headers, extensions=extensions)
             finally:
-                if self.client is None:
-                    client.close()
+                if own:
+                    http.close()
             return resp.status_code, None if resp.status_code < 300 else resp.text[:200]
         except (httpx.HTTPError, ValueError, OSError) as exc:
             return None, f"{type(exc).__name__}: {exc}"[:300]

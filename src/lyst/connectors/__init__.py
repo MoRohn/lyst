@@ -99,10 +99,12 @@ def scrub(text: str, secrets: dict[str, Any]) -> str:
     from urllib.parse import quote, quote_plus  # noqa: PLC0415
 
     for v in sorted((str(v) for v in secrets.values() if v), key=len, reverse=True):
-        if len(v) < 4:
-            continue
         for form in {v, quote(v, safe=""), quote_plus(v)}:
-            text = text.replace(form, "[secret]")
+            if len(form) < 4:
+                # a short value (a PIN) is removed only where it stands alone, so ordinary words are not mangled
+                text = re.sub(rf"(?<![A-Za-z0-9]){re.escape(form)}(?![A-Za-z0-9])", "[secret]", text)
+            else:
+                text = text.replace(form, "[secret]")
     return text
 
 
@@ -138,6 +140,14 @@ class _Scrubbed(Connector):
             yield from self.inner.read(table, **kw)
         except Exception as exc:  # noqa: BLE001
             raise self._fail(exc) from None
+
+
+def connector_class(kind: str) -> type[Connector]:
+    """The connector registered for ``kind``; an unknown kind is a ConnectorError (a 400), wherever it is looked up."""
+    cls = CONNECTORS.get(kind)
+    if cls is None:
+        raise ConnectorError(f"unknown connector kind {kind}")
+    return cls
 
 
 def register(cls: type[Connector]) -> type[Connector]:
@@ -186,31 +196,35 @@ class ConnectionService:
             credentials.connector_rotate = self._rotate_secret
 
     def _rotate_secret(self, credential_id: str, kind: str, new_value: str) -> tuple[dict[str, str], dict[str, Any]]:
-        """Replace the one secret field of the connection that uses `credential_id`, test the connector with it, and
-        return the new payload. Called by the credential service's Replace, so Settings can rotate a password in place."""
-        row = self.stores.control.query("SELECT id, workspace_id, config FROM connections WHERE credential_id = ?", [credential_id])
-        if not row:
+        """Replace the one secret field of the connections that use `credential_id`, test each connector with it, and
+        return the new payload. Called by the credential service's Replace (which has already checked that the caller
+        administers the credential's workspace), so Settings can rotate a password in place."""
+        rows = self.stores.control.query("SELECT id, workspace_id, config FROM connections WHERE credential_id = ? ORDER BY id",
+                                         [credential_id])
+        if not rows:
             raise ValueError("no connection uses this credential any more")
-        cls = CONNECTORS.get(kind)
-        if not cls:
-            raise ValueError(f"unknown connector kind {kind}")
+        if len({r["workspace_id"] for r in rows}) != 1:
+            raise ValueError("this credential is used by connections in more than one workspace; recreate them on the Data page")
+        cls = connector_class(kind)
         secret_fields = [f.name for f in cls.manifest.fields if f.secret]
         if len(secret_fields) != 1:
             raise ValueError("this connection has more than one secret field; recreate it on the Data page")
-        current = self.credentials.connector_secrets(credential_id, workspace=row[0]["workspace_id"])
+        current = self.credentials.connector_secrets(credential_id, workspace=rows[0]["workspace_id"])
         payload = {**current, secret_fields[0]: new_value}
-        try:
-            result = self._connector(kind, json.loads(row[0]["config"]), payload).test()
-        except Exception as exc:  # noqa: BLE001 - the connector says why; never the value
-            return payload, {"ok": False, "outcome": f"connection test failed: {str(exc)[:160]}"}
-        self.stores.control.execute("UPDATE connections SET status = 'ok', last_tested_at = now(), last_error = NULL WHERE id = ?", [row[0]["id"]])
+        result: Any = None
+        for r in rows:  # every connection sharing the credential must work with the new value
+            try:
+                result = self._connector(kind, json.loads(r["config"]), payload).test()
+            except Exception as exc:  # noqa: BLE001 - the connector says why; never the value
+                return payload, {"ok": False, "outcome": f"connection test failed: {str(exc)[:160]}"}
+        for r in rows:
+            self.stores.control.execute("UPDATE connections SET status = 'ok', last_tested_at = now(), last_error = NULL, "
+                                        "failure_category = NULL, consecutive_failures = 0 WHERE id = ?", [r["id"]])
         return payload, {"ok": True, "outcome": "connection tested", **({"detail": result} if isinstance(result, dict) else {})}
 
     @staticmethod
     def _split(kind: str, values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
-        cls = CONNECTORS.get(kind)
-        if not cls:
-            raise ConnectorError(f"unknown connector kind {kind}")
+        cls = connector_class(kind)
         config, secrets = {}, {}
         for f in cls.manifest.fields:
             v = values.get(f.name, f.default)
@@ -221,7 +235,9 @@ class ConnectionService:
 
     def _connector(self, kind: str, config: dict[str, Any], secrets: dict[str, str]) -> Connector:
         try:
-            inner = CONNECTORS[kind](config, secrets)
+            inner = connector_class(kind)(config, secrets)
+        except ConnectorError as exc:
+            raise ConnectorError(scrub(str(exc), secrets), category=exc.category) from None
         except Exception as exc:  # noqa: BLE001 - a constructor that validates may echo what it was given
             raise ConnectorError(scrub(str(exc), secrets)) from None
         return _Scrubbed(inner, secrets)
@@ -242,8 +258,11 @@ class ConnectionService:
         if credential_id:  # a credential connected in Settings supplies the secret (and host fields) instead of the form
             mapped = self.credentials.connector_secrets(credential_id, workspace=ws)
             for k, v in mapped.items():
-                (secrets if any(f.name == k and f.secret for f in CONNECTORS[kind].manifest.fields) else config)[k] = v
+                (secrets if any(f.name == k and f.secret for f in connector_class(kind).manifest.fields) else config)[k] = v
             secrets = {k: v for k, v in secrets.items() if v not in (None, "")}
+        if secrets and not credential_id and self.credentials is None:
+            # never keep a password as plain JSON on the connection row: secrets live in the credential store
+            raise ConnectorError("this installation has no credential store, so a connection with a secret cannot be saved")
         result = self._connector(kind, config, secrets).test()  # raises on failure: nothing untestable is saved
         if not credential_id and secrets and self.credentials is not None:
             credential_id = self.credentials.store_connector_secrets(actor, ws, kind, name, secrets)
@@ -252,7 +271,7 @@ class ConnectionService:
         self.stores.control.execute(
             "INSERT INTO connections (id, workspace_id, kind, name, config, secrets, status, last_tested_at, created_by, credential_id) "
             "VALUES (?, ?, ?, ?, ?, ?, 'ok', now(), ?, ?)",
-            [cid, ws, kind, name, json.dumps(config), json.dumps(secrets if self.credentials is None else {}), actor.user_id, credential_id])
+            [cid, ws, kind, name, json.dumps(config), json.dumps({}), actor.user_id, credential_id])
         self.guard.audit(actor, ws, "connection.create", cid, "ok", {"kind": kind, "name": name, "credential": credential_id})
         return {"id": cid, "kind": kind, "name": name, "test": result, "credential_id": credential_id}
 
@@ -326,7 +345,8 @@ class ConnectionService:
             from ..notices import raise_notice  # noqa: PLC0415
 
             raise_notice(self.stores, ws, source=f"connection:{row['id']}", kind="connection_needs_action",
-                         label=row["name"], summary=f"The connection {row['name']} ({row['kind']}) is failing: {message}. {ACTIONS[category]}",
+                         label=row["name"], summary=f"The connection {row['name']} ({row['kind']}) is failing: {message}. "
+                         f"{ACTIONS.get(category, ACTIONS['unknown'])}",
                          priority=8.0 if category in ("auth", "permission") else 6.0, period=category,
                          dedupe_key=f"connection:{row['id']}:{category}:{time.strftime('%Y-%m-%d')}", recipients={row.get("created_by")})
 
@@ -336,7 +356,7 @@ class ConnectionService:
             raise KeyError(cid)
         rows = self.stores.control.query("SELECT id, action, source_table, outcome, category, message, attempts, retried, ms, details, actor, "
                                          "occurred_at FROM connection_events WHERE connection_id = ? AND workspace_id = ? "
-                                         "ORDER BY occurred_at DESC LIMIT ?", [cid, ws, limit])
+                                         "ORDER BY occurred_at DESC LIMIT ?", [cid, ws, max(1, min(int(limit), 500))])
         for r in rows:
             r["retried"], r["details"] = json.loads(r["retried"] or "[]"), json.loads(r["details"] or "{}")
         return rows
@@ -359,23 +379,37 @@ class ConnectionService:
                 overview = {d["name"]: d for d in self.catalog.overview(actor, ws)}
             except Exception:  # noqa: BLE001 - freshness is extra detail on a health row
                 logging.getLogger("lyst.connectors").exception("catalog overview for connection health failed")
+        # one query per kind of detail for every connection, grouped here (not three or more per connection)
+        ids = [r["id"] for r in rows]
+        marks = ", ".join("?" for _ in ids) or "NULL"
+        events_by: dict[str, list[dict[str, Any]]] = {}
+        for e in ctl.query(f"SELECT connection_id, outcome, category, attempts, retried FROM connection_events WHERE connection_id IN ({marks}) "
+                           "AND action <> 'schema_change' AND occurred_at > now() - INTERVAL 1 DAY", ids):
+            events_by.setdefault(e["connection_id"], []).append(e)
+        cred_ids = sorted({r["credential_id"] for r in rows if r["credential_id"]})
+        creds = {c["id"]: c for c in ctl.query(
+            "SELECT id, status, version, last_used_at, replaced_at, revoked_at FROM credentials WHERE id IN "
+            f"({', '.join('?' for _ in cred_ids) or 'NULL'})", cred_ids)}
+        syncs_by: dict[str, list[dict[str, Any]]] = {}
+        for t in ctl.query("SELECT connection_id, source_table, dataset, cursor_column, last_sync_at, last_rows_added, rows_total, syncs, "
+                           "last_schema, epoch(now() - last_sync_at) AS age FROM connection_syncs "
+                           f"WHERE connection_id IN ({marks}) ORDER BY source_table", ids):
+            syncs_by.setdefault(t["connection_id"], []).append(t)
+        questions = [(json.loads(s["request"]).get("question", ""), s) for s in schedules]  # decoded once, not per table
         out = []
         for r in rows:
-            day = ctl.query("SELECT outcome, category, attempts, retried FROM connection_events WHERE connection_id = ? AND action <> 'schema_change' "
-                            "AND occurred_at > now() - INTERVAL 1 DAY", [r["id"]])
+            day = events_by.get(r["id"], [])
             stats = {"operations": len(day), "errors": sum(e["outcome"] == "error" for e in day),
                      "retries": sum(max(0, (e["attempts"] or 1) - 1) for e in day),
                      "rate_limited": sum("rate_limit" in json.loads(e["retried"] or "[]") for e in day)}
             credential = None
             if r["credential_id"]:
-                c = ctl.query("SELECT id, status, version, last_used_at, replaced_at, revoked_at FROM credentials WHERE id = ?", [r["credential_id"]])
-                credential = c[0] if c else {"id": r["credential_id"], "status": "missing"}
+                credential = creds.get(r["credential_id"]) or {"id": r["credential_id"], "status": "missing"}
             tables = []
-            for t in ctl.query("SELECT source_table, dataset, cursor_column, last_sync_at, last_rows_added, rows_total, syncs, last_schema "
-                               "FROM connection_syncs WHERE connection_id = ? ORDER BY source_table", [r["id"]]):
+            for t in syncs_by.get(r["id"], []):
                 prefix = f"sync connection {r['id']} table {t['source_table']}"
-                sched = next((s for s in schedules if json.loads(s["request"]).get("question", "").startswith(prefix)), None)
-                age = ctl.scalar("SELECT epoch(now() - CAST(? AS TIMESTAMPTZ))", [t["last_sync_at"]]) if t["last_sync_at"] else None
+                sched = next((s for q, s in questions if q.startswith(prefix)), None)
+                age = t["age"] if t["last_sync_at"] else None
                 overdue = bool(sched and sched["enabled"] and age is not None and age > 2 * sched["every_seconds"])
                 entry = {"source_table": t["source_table"], "dataset": t["dataset"], "mode": "incremental" if t["cursor_column"] else "full",
                          "last_sync_at": t["last_sync_at"], "last_rows_added": t["last_rows_added"], "rows": t["rows_total"], "syncs": t["syncs"],
@@ -418,7 +452,7 @@ class ConnectionService:
             action = None
             if state in ("needs_action", "failing", "degraded"):
                 if category:
-                    action = ACTIONS[category]
+                    action = ACTIONS.get(category, ACTIONS["unknown"])
                 elif any(t["overdue"] for t in tables):
                     action = "Check that the Lyst worker is running; scheduled syncs run there."
                 elif any((t.get("contract") or {}).get("outcome") in ("breaking", "fail") for t in tables):
@@ -467,7 +501,10 @@ class ConnectionService:
         if cursor_column:
             validate_identifier(cursor_column, "cursor column")
         row, conn = self._load(actor, ws, cid)
-        dataset = dataset or re.sub(r"[^a-z0-9_]+", "_", source_table.split(".")[-1].lower())
+        from ..data import normalise_name  # noqa: PLC0415
+
+        # the name the dataset is stored under, so the sync state and every lookup below use the same one
+        dataset = normalise_name(dataset or re.sub(r"[^a-z0-9_]+", "_", source_table.split(".")[-1].lower()))
         state = self.stores.control.query(
             "SELECT * FROM connection_syncs WHERE connection_id = ? AND source_table = ?", [cid, source_table])
         last_cursor = None
@@ -475,51 +512,129 @@ class ConnectionService:
             last_cursor = json.loads(state[0]["last_cursor"])
         mode = "incremental" if last_cursor is not None else "full"
         start = time.perf_counter()
-        batches = self._attempt(actor, ws, row, "read", lambda: list(conn.read(source_table, cursor_column=cursor_column, after=last_cursor)),
-                                table=source_table)
-        new = pa.concat_tables(batches, promote_options="permissive") if batches else None
-        change = _schema_change(self.stores.workspace(ws), dataset, new)
-        if change and change["retyped"] and mode == "incremental":
-            # rows already stored cannot take a new column type: reload in full so the version is consistent
-            mode = "full"
-            batches = self._attempt(actor, ws, row, "read", lambda: list(conn.read(source_table, cursor_column=cursor_column, after=None)),
-                                    table=source_table, details={"reason": "schema changed; reloading in full"})
-            new = pa.concat_tables(batches, promote_options="permissive") if batches else None
-        rows_added = new.num_rows if new is not None else 0
-        if rows_added == 0 and mode == "incremental":
-            self.stores.control.execute("UPDATE connection_syncs SET last_sync_at = now(), last_rows_added = 0, syncs = syncs + 1 "
-                                        "WHERE connection_id = ? AND source_table = ?", [cid, source_table])
-            total = self.stores.workspace(ws).scalar(
-                "SELECT v.row_count FROM datasets d JOIN dataset_versions v ON v.dataset = d.name AND v.version = d.current_version "
-                "WHERE d.name = ?", [dataset]) or 0
-            return SyncResult(cid, source_table, dataset, int(self.stores.workspace(ws).scalar(
-                "SELECT current_version FROM datasets WHERE name = ?", [dataset]) or 0), 0, int(total), last_cursor,
-                time.perf_counter() - start, "incremental")
-        if new is None:
-            new = pa.table({})
-        result = self.data.ingest_arrow(actor, ws, dataset, new, source=f"{row['kind']}:{row['name']}:{source_table}",
-                                        append_to_previous=(mode == "incremental"), title=source_table.split(".")[-1].replace("_", " ").title(),
-                                        description=f"Synced from {row['name']} ({row['kind']}) table {source_table}")
-        new_cursor = last_cursor
-        if cursor_column and rows_added and cursor_column in new.column_names:
-            import pyarrow.compute as pc  # noqa: PLC0415
-
-            mx = pc.max(new[cursor_column]).as_py()
-            new_cursor = mx.isoformat() if hasattr(mx, "isoformat") else mx
+        spool = _Spool()
+        try:
+            # batches go to disk as they arrive: memory holds one batch, never the whole source table
+            self._attempt(actor, ws, row, "read", lambda: spool.fill(conn.read(source_table, cursor_column=cursor_column,
+                                                                              after=last_cursor), cursor_column),
+                          table=source_table)
+            change = _schema_change(self.stores.workspace(ws), dataset, spool.schema)
+            if change and change["retyped"] and mode == "incremental":
+                # rows already stored cannot take a new column type: reload in full so the version is consistent
+                mode = "full"
+                self._attempt(actor, ws, row, "read", lambda: spool.fill(conn.read(source_table, cursor_column=cursor_column,
+                                                                                  after=None), cursor_column),
+                              table=source_table, details={"reason": "schema changed; reloading in full"})
+            rows_added = spool.rows
+            if rows_added == 0 and mode == "incremental":
+                self.stores.control.execute("UPDATE connection_syncs SET last_sync_at = now(), last_rows_added = 0, syncs = syncs + 1 "
+                                            "WHERE connection_id = ? AND source_table = ?", [cid, source_table])
+                total = self.stores.workspace(ws).scalar(
+                    "SELECT v.row_count FROM datasets d JOIN dataset_versions v ON v.dataset = d.name AND v.version = d.current_version "
+                    "WHERE d.name = ?", [dataset]) or 0
+                return SyncResult(cid, source_table, dataset, int(self.stores.workspace(ws).scalar(
+                    "SELECT current_version FROM datasets WHERE name = ?", [dataset]) or 0), 0, int(total), last_cursor,
+                    time.perf_counter() - start, "incremental")
+            source = spool.dataset() if spool.files else pa.table({})
+            result = self.data.ingest_arrow(actor, ws, dataset, source, source=f"{row['kind']}:{row['name']}:{source_table}",
+                                            sha=spool.sha256() if spool.files else None,
+                                            append_to_previous=(mode == "incremental"), title=source_table.split(".")[-1].replace("_", " ").title(),
+                                            description=f"Synced from {row['name']} ({row['kind']}) table {source_table}")
+            new_schema = spool.schema
+            new_cursor = last_cursor
+            if cursor_column and rows_added and spool.max_cursor is not None:
+                mx = spool.max_cursor
+                new_cursor = mx.isoformat() if hasattr(mx, "isoformat") else mx
+        finally:
+            spool.close()
+        last_schema = json.dumps({f.name: str(f.type) for f in new_schema}) if new_schema is not None and len(new_schema) else None
+        # last_schema is carried over when this sync saw no columns: the drift baseline is never reset to NULL
         self.stores.control.execute(
             "INSERT OR REPLACE INTO connection_syncs (connection_id, workspace_id, source_table, dataset, cursor_column, last_cursor, "
-            "last_sync_at, last_rows_added, rows_total, syncs) VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?, "
-            "coalesce((SELECT syncs FROM connection_syncs WHERE connection_id = ? AND source_table = ?), 0) + 1)",
-            [cid, ws, source_table, dataset, cursor_column, json.dumps(new_cursor, default=str), rows_added, result["rows"], cid, source_table])
-        if new is not None and new.num_columns:
-            self.stores.control.execute("UPDATE connection_syncs SET last_schema = ? WHERE connection_id = ? AND source_table = ?",
-                                        [json.dumps({f.name: str(f.type) for f in new.schema}), cid, source_table])
+            "last_sync_at, last_rows_added, rows_total, syncs, last_schema) VALUES (?, ?, ?, ?, ?, ?, now(), ?, ?, "
+            "coalesce((SELECT syncs FROM connection_syncs WHERE connection_id = ? AND source_table = ?), 0) + 1, "
+            "coalesce(?, (SELECT last_schema FROM connection_syncs WHERE connection_id = ? AND source_table = ?)))",
+            [cid, ws, source_table, dataset, cursor_column, json.dumps(new_cursor, default=str), rows_added, result["rows"], cid, source_table,
+             last_schema, cid, source_table])
         if change:
             self._event(ws, cid, "schema_change", "ok", "schema", change["text"], Attempted(attempts=1), 0, source_table, change, actor)
         self.guard.audit(actor, ws, "connection.sync", cid, "ok", {"table": source_table, "dataset": dataset, "mode": mode,
                                                                    "rows_added": rows_added, "schema_change": bool(change)})
         return SyncResult(cid, source_table, dataset, result["version"], rows_added, result["rows"], new_cursor,
                           time.perf_counter() - start, mode, {"schema_change": change} if change else {})
+
+
+class _Spool:
+    """A source read written to Parquet files on disk batch by batch, so a sync holds one batch in memory at a time.
+
+    Column names are normalised as they are written; the batches' schemas are unified (a column missing from a page
+    is null there, an int that later turns float is widened), and the result is scanned lazily as one dataset.
+    """
+
+    def __init__(self) -> None:
+        import tempfile  # noqa: PLC0415
+
+        self._dir = tempfile.TemporaryDirectory(prefix="lyst-sync-")
+        self.files: list[str] = []
+        self.schemas: list[pa.Schema] = []
+        self.rows = 0
+        self.max_cursor: Any = None
+
+    def fill(self, batches: Iterator[pa.Table], cursor_column: str | None) -> _Spool:
+        import os  # noqa: PLC0415
+
+        import pyarrow.compute as pc  # noqa: PLC0415
+        import pyarrow.parquet as pq  # noqa: PLC0415
+
+        from ..data import unique_names  # noqa: PLC0415
+
+        for name in self.files:  # a retried read starts again from nothing
+            os.unlink(name)
+        self.files, self.schemas, self.rows, self.max_cursor = [], [], 0, None
+        for batch in batches:
+            if not batch.num_rows:
+                continue
+            if cursor_column and cursor_column in batch.column_names:
+                mx = pc.max(batch[cursor_column]).as_py()
+                if mx is not None and (self.max_cursor is None or _later(mx, self.max_cursor)):
+                    self.max_cursor = mx
+            batch = batch.rename_columns(unique_names(batch.column_names))
+            path = os.path.join(self._dir.name, f"{len(self.files):06d}.parquet")
+            pq.write_table(batch, path)
+            self.files.append(path)
+            self.schemas.append(batch.schema)
+            self.rows += batch.num_rows
+        return self
+
+    @property
+    def schema(self) -> pa.Schema | None:
+        return pa.unify_schemas(self.schemas, promote_options="permissive") if self.schemas else None
+
+    def dataset(self):
+        import pyarrow.dataset as ds  # noqa: PLC0415
+
+        return ds.dataset(self.files, schema=self.schema, format="parquet")
+
+    def sha256(self) -> str:
+        import hashlib  # noqa: PLC0415
+
+        h = hashlib.sha256()
+        for name in self.files:
+            with open(name, "rb") as f:
+                for chunk in iter(lambda f=f: f.read(1 << 20), b""):
+                    h.update(chunk)
+        return h.hexdigest()
+
+    def close(self) -> None:
+        self._dir.cleanup()
+
+
+def _later(a: Any, b: Any) -> bool:
+    """``a > b`` for cursor values, which a loosely typed source (JSON) can mix: compared as text when types differ."""
+    try:
+        return a > b
+    except TypeError:
+        return str(a) > str(b)
 
 
 def _arrow_family(t: pa.DataType) -> str:
@@ -534,9 +649,9 @@ def _arrow_family(t: pa.DataType) -> str:
     return "text"
 
 
-def _schema_change(db, dataset: str, new: pa.Table | None) -> dict[str, Any] | None:
+def _schema_change(db, dataset: str, new: pa.Schema | None) -> dict[str, Any] | None:
     """Columns added, removed or retyped between the dataset's current version and what the source returned now."""
-    if new is None or not new.num_columns:
+    if new is None or not len(new):
         return None
     current = db.query("SELECT v.schema FROM datasets d JOIN dataset_versions v ON v.dataset = d.name AND v.version = d.current_version "
                        "WHERE d.name = ?", [dataset])
@@ -546,7 +661,7 @@ def _schema_change(db, dataset: str, new: pa.Table | None) -> dict[str, Any] | N
     from ..data import normalise_name  # noqa: PLC0415
 
     before = {c["name"]: _family(c["type"]) for c in json.loads(current[0]["schema"])}
-    after = {normalise_name(f.name): _arrow_family(f.type) for f in new.schema}
+    after = {normalise_name(f.name): _arrow_family(f.type) for f in new}
     added = sorted(set(after) - set(before))
     removed = sorted(set(before) - set(after))
     retyped = sorted(c for c in set(before) & set(after) if after[c] not in ("null", before[c]))

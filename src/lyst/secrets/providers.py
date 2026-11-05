@@ -25,6 +25,7 @@ class Provider:
     revocable_at_source: bool = False
     revocation_note: str = "Revoking here stops Lyst using it; revoke the key at the provider as well."
     short_lived: bool = False
+    secret_optional: bool = False   # may be connected with no secret at all (a keyless local server)
     notes: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -34,7 +35,7 @@ PROVIDERS: dict[str, Provider] = {
                            revocation_note="OpenRouter keys are revoked in the OpenRouter dashboard; revoking here only stops Lyst.",
                            notes="Models and embeddings on Acumane's rails. Install-wide by default; a workspace or personal key only when policy allows."),
     "local_llm": Provider("local_llm", "Local model server", "API key (optional)", fields=(("base_url", "Base URL", True),),
-                          notes="An OpenAI-compatible server (Ollama, llama.cpp, vLLM)."),
+                          secret_optional=True, notes="An OpenAI-compatible server (Ollama, llama.cpp, vLLM)."),
     "postgres": Provider("postgres", "PostgreSQL", "Password", fields=(("host", "Host", True), ("port", "Port", False),
                                                                        ("dbname", "Database", True), ("user", "User", True),
                                                                        ("sslmode", "SSL mode", False)),
@@ -49,7 +50,7 @@ PROVIDERS: dict[str, Provider] = {
     "oidc_client": Provider("oidc_client", "Sign-in provider (OIDC client)", "Client secret", scopes=("installation",),
                             fields=(("issuer", "Issuer", True), ("client_id", "Client ID", True))),
     "webhook": Provider("webhook", "Notification webhook", "Signing secret (optional)", fields=(("url", "URL", True),),
-                        scopes=("workspace",)),
+                        scopes=("workspace",), secret_optional=True),
     "custom": Provider("custom", "Custom secret", "Value", scopes=("installation", "workspace", "user"),
                        notes="Referenced by name from connectors and skills; Lyst does not test it."),
 }

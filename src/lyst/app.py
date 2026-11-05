@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from . import observability as obs
 from .analyst.engine import REGISTRY, Services
@@ -71,6 +72,7 @@ class Lyst:
     standing: StandingService | None = None
     costs: CostService | None = None
     specs: SpecService | None = None
+    ambient: Any = None  # AmbientService, set by build() once the app exists (it needs the whole app)
 
     @classmethod
     def build(cls, settings: Settings | None = None, **runtime_kw) -> Lyst:
@@ -134,10 +136,6 @@ class Lyst:
 
         services.scenarios = ScenarioService(stores, guard, data, semantic)
         services.decisions = DecisionService(stores, guard, runtime)
-        from . import continuity  # noqa: PLC0415
-
-        lyst_ref: dict = {}
-        runtime.periodic.append(lambda: continuity.scheduled(lyst_ref["app"]) if "app" in lyst_ref else None)
         anticipation = AnticipationService(stores, guard, services=services, runtime=runtime, semantic=semantic, connections=connections)
         data.after_ingest.append(anticipation.after_ingest)  # last: re-checks prepared work against the new version
         semantic.after_change.append(anticipation.after_definition)
@@ -155,7 +153,9 @@ class Lyst:
                                             connections=connections, onboarding=onboarding, semantic=semantic),
                    costs=CostService(stores, guard, settings),
                    specs=SpecService(stores, guard, semantic=semantic, runtime=runtime, artifacts=artifacts, assets=assets))
-        lyst_ref["app"] = app
+        from . import continuity  # noqa: PLC0415
+
+        runtime.periodic.append(lambda: continuity.scheduled(app))  # registered once the app it backs up exists
         from .ambient import AmbientService  # noqa: PLC0415
 
         app.ambient = AmbientService(app)
@@ -168,5 +168,9 @@ class Lyst:
         attach(self)
 
     def close(self) -> None:
-        self.runtime.stop()
-        self.stores.close()
+        try:
+            self.runtime.stop()
+        except Exception:  # noqa: BLE001 - the stores still close
+            logging.getLogger("lyst").warning("the runtime did not stop cleanly; closing the stores anyway", exc_info=True)
+        finally:
+            self.stores.close()

@@ -507,7 +507,7 @@ def test_setup_mode_initialises_only_from_the_engine_host_and_shows_the_recovery
         r = local.post("/setup/initialize", json={"recovery_key": "ab" * 32})  # a wrong "recovery" key for a fresh home still works...
         assert r.status_code == 200 and r.json()["recovery_key"] is None and store["LYST_MASTER_KEY"] == "ab" * 32
         assert local.get("/health").json()["status"] == "ok"
-        assert local.post("/setup/initialize", json={}).status_code == 400  # ...but only once
+        assert local.post("/setup/initialize", json={}).status_code == 409  # ...but only once (already initialised)
     store.clear()
     app2 = create_app(None, start_workers=False)
     with TestClient(app2) as local:
@@ -522,3 +522,30 @@ def test_setup_mode_initialises_only_from_the_engine_host_and_shows_the_recovery
         r = local.post("/setup/initialize", json={}).json()
         assert r["initialised"] and len(r["recovery_key"]) == 64 and store["LYST_MASTER_KEY"] == r["recovery_key"]
         assert "recovery_key" not in json.dumps(local.get("/setup/status").json())
+
+
+def test_connect_leaves_no_orphan_blob_and_drops_the_superseded_one(seeded, monkeypatch):
+    lyst, owner = seeded
+    lyst.credentials.http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True})))
+    args = {"scope_kind": "workspace", "scope_id": "northwind", "provider": "rest_token", "name": "API", "fields": {"url": "https://api.test/ping"}}
+    lyst.credentials.connect(owner, secret="first-value-1", **args)
+    before = lyst.stores.control.scalar("SELECT count(*) FROM secret_blobs")
+    lyst.credentials.connect(owner, secret="second-value-2", **args)  # replaces the first: its blob goes
+    assert lyst.stores.control.scalar("SELECT count(*) FROM secret_blobs") == before
+    assert not blobs_contain(lyst, "first-value-1")
+    real_write = lyst.stores.control.write
+    monkeypatch.setattr(lyst.stores.control, "write", lambda fn, **k: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError):
+        lyst.credentials.connect(owner, secret="third-value-3", **args)
+    monkeypatch.setattr(lyst.stores.control, "write", real_write)
+    assert lyst.stores.control.scalar("SELECT count(*) FROM secret_blobs") == before
+
+
+def test_redactor_is_bounded_and_the_audit_chain_verifies_in_batches(seeded):
+    lyst, _ = seeded
+    r = svc_mod.Redactor()
+    r.MAX_VALUES = 3
+    for v in ("alpha-secret", "bravo-secret", "charlie-secret", "delta-secret"):
+        r.register(v)
+    assert r.scrub("alpha-secret delta-secret") == "alpha-secret [secret]"  # the oldest left, the newest is masked
+    assert lyst.credentials.verify_audit_chain(batch=2) == lyst.credentials.verify_audit_chain()

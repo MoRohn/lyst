@@ -129,3 +129,49 @@ def test_rejected_source_is_stored_but_cannot_run(seeded):
     assert v["status"] == "rejected" and "import of os is not allowed" in v["problems"]
     with pytest.raises(SkillRejected):
         lyst.skills.test(owner, "northwind", "leaky", v["version"])
+
+
+def test_static_check_refuses_dunder_names_and_from_imports():
+    assert any("__name__" in p for p in static_check("__name__ = 'x'\nimport os\ndef run(df): return {}"))
+    assert any("read_csv" in p for p in static_check("from pandas import read_csv\ndef run(df): return {}"))
+    assert any("pandas.io" in p for p in static_check("from pandas.io import common\ndef run(df): return {}"))
+
+
+def test_sandbox_import_guard_cannot_be_disabled_by_renaming_the_module():
+    # a skill that rebinds __name__ must still be held to the allow-list
+    rep = run_sandboxed("__name__ = 'x'\nimport os\ndef run(df):\n    return {}", [{"columns": [], "rows": []}])
+    assert rep["error"] and "not allowed" in rep["error"]
+    rep = run_sandboxed("__name__ = 'x'\ndef run(df):\n    import subprocess\n    return {}",
+                        [{"columns": [], "rows": []}])
+    assert "not allowed" in rep["cases"][0]["error"]
+
+
+def test_sandbox_closes_library_file_and_network_access():
+    for body in ("import pandas as pd\n    return {'x': pd.read_csv('/etc/hosts').shape[0]}",
+                 "from pandas import read_json\n    return {}",
+                 "import numpy as np\n    return {'x': np.loadtxt('/etc/hosts').size}"):
+        rep = run_sandboxed(f"def run(df):\n    {body}", [{"columns": [], "rows": []}])
+        assert rep["cases"][0]["passed"] is False and "not allowed" in rep["cases"][0]["error"], body
+    rep = run_sandboxed("import scipy.stats\ndef run(df):\n    return {'p': float(scipy.stats.norm.cdf(0))}",
+                        [{"columns": [], "rows": [], "expect": {"p": 0.5}}])
+    assert rep["cases"][0]["passed"] is True, rep
+
+
+def test_sandbox_expect_error_case_fails_when_no_error_is_raised():
+    rep = run_sandboxed("def run(df):\n    return {}", [{"columns": [], "rows": [], "expect_error": True}])
+    assert rep["cases"][0]["passed"] is False
+    rep = run_sandboxed("def run(df):\n    raise ValueError('bad input')",
+                        [{"columns": [], "rows": [], "expect_error": True}])
+    assert rep["cases"][0]["passed"] is True
+
+
+def test_sandbox_reports_malformed_jobs_and_whether_limits_held():
+    import json
+    import subprocess
+    import sys
+
+    proc = subprocess.run([sys.executable, "-m", "lyst.skills.runner"], input="not json",
+                          capture_output=True, text=True, timeout=60)
+    assert json.loads(proc.stdout.strip())["error"].startswith("job:")
+    rep = run_sandboxed("def run(df):\n    return {}", [{"columns": [], "rows": []}])
+    assert "limits" in rep and rep["limits"] is None  # every cap applied on Linux

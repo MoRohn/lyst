@@ -6,11 +6,20 @@ cursor-based pagination, a bearer token or API-key header, and an allow-list of 
 Declared, not scripted: the manifest fields describe where the records are and how pages link, so a
 connection can be set up for most "list" APIs without code. Only https hosts in LYST_REST_ALLOWED_HOSTS
 (comma list; empty means any https host) are contacted, and only with GET.
+
+Whatever the allow-list says, a host that resolves to a loopback, link-local (cloud metadata), multicast or
+unspecified address is refused unless LYST_REST_ALLOW_PRIVATE=1; private-range (RFC 1918) hosts stay reachable,
+because an internal API is an ordinary source, and the allow-list is how an installation narrows that. A next-page
+link in a response is followed only on the configured endpoint's own scheme, host and port, so the source cannot
+send the token elsewhere.
 """
 
 from __future__ import annotations
 
+import ipaddress
+import logging
 import os
+import socket
 from collections.abc import Iterator
 from typing import Any
 from urllib.parse import urlparse
@@ -19,6 +28,36 @@ import httpx
 import pyarrow as pa
 
 from . import Connector, ConnectorError, Field, Manifest, SourceTable, register
+
+log = logging.getLogger("lyst.connectors.rest")
+_policy_logged = False
+
+
+def _log_policy(allowed: list[str]) -> None:
+    global _policy_logged
+    if not _policy_logged:
+        _policy_logged = True
+        log.info("REST connector egress: %s%s%s", f"hosts {', '.join(allowed)}" if allowed else "any https host (LYST_REST_ALLOWED_HOSTS is empty)",
+                 "; plain http allowed" if os.environ.get("LYST_REST_ALLOW_HTTP") else "",
+                 "; loopback and link-local allowed" if os.environ.get("LYST_REST_ALLOW_PRIVATE") == "1" else "")
+
+
+def _refuse_internal(host: str, port: int) -> None:
+    """Refuse a host that is, or resolves to, the engine's own machine or a link-local (metadata) address."""
+    if os.environ.get("LYST_REST_ALLOW_PRIVATE") == "1":
+        return
+    try:
+        addrs = [ipaddress.ip_address(host.strip("[]"))]
+    except ValueError:
+        try:
+            addrs = [ipaddress.ip_address(i[4][0]) for i in socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)]
+        except (OSError, UnicodeError):
+            return  # does not resolve: the request itself fails with a network error
+    for ip in addrs:
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        if ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+            raise ConnectorError(f"host {host} is an internal address ({ip}); set LYST_REST_ALLOW_PRIVATE=1 to allow it")
 
 
 @register
@@ -39,11 +78,21 @@ class RestConnector(Connector):
 
     def _check_url(self, url: str) -> None:
         u = urlparse(url)
-        if u.scheme != "https" and not os.environ.get("LYST_REST_ALLOW_HTTP"):
+        if u.scheme != "https" and not (os.environ.get("LYST_REST_ALLOW_HTTP") and u.scheme == "http"):
             raise ConnectorError("the endpoint must be https")
+        if not u.hostname:
+            raise ConnectorError("the endpoint URL has no host")
         allowed = [h.strip().lower() for h in os.environ.get("LYST_REST_ALLOWED_HOSTS", "").split(",") if h.strip()]
-        if allowed and u.hostname and u.hostname.lower() not in allowed:
+        _log_policy(allowed)
+        if allowed and u.hostname.lower() not in allowed:
             raise ConnectorError(f"host {u.hostname} is not in LYST_REST_ALLOWED_HOSTS")
+        _refuse_internal(u.hostname, u.port or (443 if u.scheme == "https" else 80))
+
+    def _same_origin(self, url: str) -> None:
+        """A next-page URL from the response body: only the configured endpoint's origin receives the token."""
+        a, b = urlparse(self.config["url"]), urlparse(url)
+        if (a.scheme, (a.hostname or "").lower(), a.port) != (b.scheme, (b.hostname or "").lower(), b.port):
+            raise ConnectorError(f"the next-page link points to another host ({b.hostname}); it is not followed")
 
     def _headers(self) -> dict[str, str]:
         tok = self.secrets.get("token")
@@ -73,6 +122,7 @@ class RestConnector(Connector):
                     q[self.config["page_param"]] = page
                 if cursor is not None and self.config.get("next_key"):
                     if str(cursor).startswith("http"):
+                        self._same_origin(str(cursor))
                         self._check_url(str(cursor))
                         r = c.get(str(cursor), headers=self._headers())
                     else:
@@ -123,13 +173,39 @@ class RestConnector(Connector):
 
     def read(self, table: str, *, cursor_column: str | None = None, after: Any = None,
              batch_rows: int = 50_000) -> Iterator[pa.Table]:
+        """Pages are gathered into tables of about ``batch_rows`` records; a table's columns are every key seen in
+        its records (a record without a key is null there), and the sync unifies the tables' schemas."""
+        buf: list[dict[str, Any]] = []
         for page in self._pages(since=after if cursor_column else None):
             if cursor_column and after is not None:
-                page = [r for r in page if r.get(cursor_column) is not None and r[cursor_column] > after]
-            if not page:
-                continue
-            cols = sorted({k for r in page for k in r})
-            yield pa.table({c: [_scalar(r.get(c)) for r in page] for c in cols})
+                page = [r for r in page if r.get(cursor_column) is not None and _after(r[cursor_column], after, cursor_column)]
+            buf.extend(page)
+            if len(buf) >= max(1, batch_rows):
+                yield _table(buf)
+                buf = []
+        if buf:
+            yield _table(buf)
+
+
+def _after(value: Any, after: Any, column: str) -> bool:
+    try:
+        return value > after
+    except TypeError:
+        # JSON can change a field's type between syncs (an int timestamp, then an ISO string): compare as text
+        # rather than failing the sync half way
+        return str(value) > str(after)
+
+
+def _table(records: list[dict[str, Any]]) -> pa.Table:
+    cols = sorted({k for r in records for k in r})
+    out = {}
+    for c in cols:
+        values = [_scalar(r.get(c)) for r in records]
+        try:
+            out[c] = pa.array(values)
+        except (pa.ArrowInvalid, pa.ArrowTypeError):  # a field whose type varies between records is kept as text
+            out[c] = pa.array([None if v is None else str(v) for v in values], pa.string())
+    return pa.table(out)
 
 
 def _scalar(v: Any) -> Any:

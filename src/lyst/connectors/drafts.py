@@ -232,7 +232,7 @@ class DraftService:
         try:
             report["test"] = conn.test()
             pages = []
-            for batch in conn.read(p["table"], cursor_column=None, after=None):
+            for batch in conn.read(p["table"], cursor_column=None, after=None, batch_rows=1):  # one table per page
                 pages.append(batch)
                 if len(pages) >= 2:
                     break

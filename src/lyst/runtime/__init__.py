@@ -201,10 +201,21 @@ class TaskRuntime:
             if done >= cap:
                 raise ValueError(f"this task was retried {done} time{'s' * (done != 1)}, its limit; change the request "
                                  "or ask again instead of repeating the same run")
-        self._set_status(task_id, "queued", only_from=("failed",))
-        self.db.execute("DELETE FROM task_steps WHERE task_id = ? AND status = 'failed'", [task_id])
-        self.db.execute("UPDATE tasks SET active_seconds = 0 WHERE id = ?", [task_id])  # a retry gets a fresh budget
-        self.event(task_id, "retry", "Retry requested")
+        def tx(c):
+            # one transaction, status flipped last: a worker cannot claim the task before its failed steps are cleared
+            cur = c.execute("SELECT status FROM tasks WHERE id = ?", [task_id]).fetchone()
+            if not cur or cur[0] != "failed":
+                raise ValueError(f"task is {cur[0] if cur else 'missing'}; cannot move to queued")
+            failed = c.execute("SELECT seq, capability, error FROM task_steps WHERE task_id = ? AND status = 'failed'",
+                               [task_id]).fetchall()
+            c.execute("DELETE FROM task_steps WHERE task_id = ? AND status = 'failed'", [task_id])
+            c.execute("UPDATE tasks SET status = 'queued', updated_at = now(), lease_owner = NULL, lease_until = NULL, "
+                      "active_seconds = 0 WHERE id = ?", [task_id])  # a retry gets a fresh budget
+            return [{"seq": r[0], "capability": r[1], "error": (r[2] or "")[:300]} for r in failed]
+
+        failed = self.db.write(tx)
+        # the failed steps' errors stay readable in the task's history after their rows are cleared for the rerun
+        self.event(task_id, "retry", "Retry requested", {"failed_steps": failed})
 
     def _set_status(self, task_id: str, status: str, only_from: tuple[str, ...]) -> None:
         def tx(c):
@@ -246,7 +257,7 @@ class TaskRuntime:
         rows = self.db.query(
             "SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, autonomy, kind, "
             "created_by, created_at, updated_at, schedule_id, error "
-            "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, limit])
+            "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, max(1, min(int(limit), 500))])
         active = [r["id"] for r in rows if r["status"] == "running"]
         steps: dict[str, list] = {}
         if active:
@@ -451,18 +462,31 @@ class TaskRuntime:
                 plan.append((row, n, occurrence, busy))
             return plan
 
+        def not_started(sid: str) -> None:
+            # the occurrence was consumed when next_run_at moved: count it, so a run that never started is visible
+            try:
+                self.db.execute("UPDATE schedules SET skipped = skipped + 1 WHERE id = ?", [sid])
+            except Exception:  # noqa: BLE001 - the count is a record; it never stops the tick
+                log.exception("could not count the skipped run of schedule %s", sid)
+
+        plan = self.db.write(tx)
+        owner_ids = sorted({row["created_by"] for row, *_ in plan})
+        owners = {u["id"]: u for u in self.db.query(
+            f"SELECT id, email FROM users WHERE id IN ({', '.join('?' for _ in owner_ids) or 'NULL'})", owner_ids)}
         started = []
-        for row, n, occurrence, busy in self.db.write(tx):
+        for row, n, occurrence, busy in plan:
             sid, ws = row["id"], row["workspace_id"]
             if busy:
                 log.info("schedule %s skipped: previous run %s still %s", sid, row["last_task_id"], busy)
                 self.event(row["last_task_id"], "schedule_skipped",
                            f"The next run of '{row['title']}' was skipped because this run was still {busy}")
                 continue
-            owner = self.db.query("SELECT id, email FROM users WHERE id = ?", [row["created_by"]])
+            owner = owners.get(row["created_by"])
             if not owner:
+                log.warning("schedule %s skipped: its owner no longer exists", sid)
+                not_started(sid)
                 continue
-            p = Principal(owner[0]["id"], owner[0]["email"])
+            p = Principal(owner["id"], owner["email"])
             try:
                 r = json.loads(row["request"])
                 tid = self.submit(p, ws, r["question"], autonomy="autonomous", kind="scheduled", schedule_id=sid,
@@ -470,9 +494,15 @@ class TaskRuntime:
                                   idempotency_key=f"schedule:{sid}:{occurrence.astimezone(UTC).isoformat()}")
             except AccessDenied:
                 log.warning("schedule %s owner lost access; skipped", sid)
+                not_started(sid)
                 continue
             except ops.QuotaExceeded as exc:
                 log.warning("schedule %s not started: %s", sid, exc)
+                not_started(sid)
+                continue
+            except Exception:  # one bad schedule must not drop the occurrences of the ones after it
+                log.exception("schedule %s could not start its run", sid)
+                not_started(sid)
                 continue
             self.db.execute("UPDATE schedules SET last_run_at = ?, last_task_id = ? WHERE id = ?", [now, tid, sid])
             if n > 1:
@@ -622,6 +652,12 @@ class TaskRuntime:
                 beat.start()
                 try:
                     state = self._run_task(task_id)
+                except BaseException:
+                    # not finished: the lease lapses and recover_orphans resumes it; say so where operators look
+                    span.set_attribute("lyst.status", "crashed")
+                    obs.TASKS.labels("crashed").inc()
+                    log.exception("task %s crashed outside its steps; it resumes when its lease lapses", task_id)
+                    raise
                 finally:
                     stop.set()
                     beat.join(timeout=5)
@@ -900,9 +936,10 @@ class TaskRuntime:
         return len(ids)
 
     def start(self, workers: int = 2) -> None:
+        self._stop.clear()  # a start after a stop runs again
         self.workers = max(1, workers)
         self.recover_orphans()
-        for i in range(workers):
+        for i in range(self.workers):
             th = threading.Thread(target=self._loop, name=f"lyst-worker-{i}", daemon=True)
             th.start()
             self._threads.append(th)
@@ -942,4 +979,6 @@ class TaskRuntime:
         self._stop.set()
         for th in self._threads:
             th.join(timeout=10)
+            if th.is_alive():
+                log.warning("worker %s did not stop within 10 s; it ends after its current step", th.name)
         self._threads.clear()

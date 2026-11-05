@@ -16,6 +16,7 @@ every action answers with a toast or an inline message; nothing technical unless
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -263,6 +264,13 @@ def chip(text: str, tone: str = "info", where: Any = st) -> None:
     where.badge(text, color=color, icon=icon)
 
 
+def _md_text(text: object) -> str:
+    """Markdown-safe text that may sit inside an HTML block: markdown stays, HTML tags are escaped. Inline code
+    spans are left as they are: markdown already shows their content literally (``uv run lyst backup <folder>``)."""
+    parts = re.split(r"(`[^`\n]*`)", md(text))
+    return "".join(p if i % 2 else p.replace("<", "&lt;").replace(">", "&gt;") for i, p in enumerate(parts))
+
+
 def row(title: str, meta: str = "", *, status: tuple[str, str] | None = None,
         actions: Sequence[tuple[str, str]] = (), key: str, divider: bool = True, slot: bool = True) -> str | None:
     """One list item. ``actions`` are (label, id) pairs shown as quiet buttons; returns the id clicked, if any.
@@ -273,9 +281,10 @@ def row(title: str, meta: str = "", *, status: tuple[str, str] | None = None,
     widths = [6] + ([1.4] if reserve else []) + [1.1] * len(actions)
     cols = st.columns(widths, vertical_alignment="center")
     with cols[0]:
-        st.markdown(f'<div class="lyst-row-title">\n\n{md(title)}\n\n</div>', unsafe_allow_html=True)
+        # Markdown (bold, :material: icons) still works; raw HTML in a title from workspace data is shown as text
+        st.markdown(f'<div class="lyst-row-title">\n\n{_md_text(title)}\n\n</div>', unsafe_allow_html=True)
         if meta:
-            st.markdown(f'<div class="lyst-row-meta">\n\n{md(meta)}\n\n</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="lyst-row-meta">\n\n{_md_text(meta)}\n\n</div>', unsafe_allow_html=True)
     i = 2 if reserve else 1
     if status:
         chip(status[0], status[1], cols[1])

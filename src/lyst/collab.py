@@ -193,7 +193,8 @@ class CollaborationService:
         self.guard.audit(actor, ws, "comment.resolve", comment_id, "ok")
         return {"id": comment_id, "status": "resolved"}
 
-    def decisions(self, actor: Principal, ws: str, *, object_kind: str | None = None, object_id: str | None = None) -> list[dict[str, Any]]:
+    def decisions(self, actor: Principal, ws: str, *, object_kind: str | None = None, object_id: str | None = None,
+                  limit: int = 200) -> list[dict[str, Any]]:
         """Recorded decisions, newest first, across the workspace or for one object."""
         self.guard.require(actor, ws, "workspace.read")
         sql, params = "SELECT * FROM comments WHERE kind = 'decision'", []
@@ -208,6 +209,8 @@ class CollaborationService:
                 continue
             r["mentions"] = json.loads(r["mentions"])
             out.append(r)
+            if len(out) >= max(1, min(int(limit), 1000)):
+                break
         return out
 
     # -- assignments ----------------------------------------------------------------------------
@@ -293,7 +296,8 @@ class CollaborationService:
         self.guard.audit(actor, ws, "review.request", rid, "ok", {"action": action, "object": f"{object_kind}:{object_id}"})
         return {"id": rid, "status": "pending", "action": action}
 
-    def reviews(self, actor: Principal, ws: str, *, status: str | None = None, for_me: bool = False) -> list[dict[str, Any]]:
+    def reviews(self, actor: Principal, ws: str, *, status: str | None = None, for_me: bool = False,
+                limit: int = 200) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.read")
         rows = self._db(ws).query("SELECT * FROM reviews" + (" WHERE status = ?" if status else "") + " ORDER BY created_at DESC",
                                   [status] if status else [])
@@ -306,6 +310,8 @@ class CollaborationService:
             if for_me and not r["can_decide"]:
                 continue
             out.append(r)
+            if len(out) >= max(1, min(int(limit), 1000)):
+                break
         return out
 
     def decide(self, actor: Principal, ws: str, review_id: str, *, approve: bool, note: str = "") -> dict[str, Any]:

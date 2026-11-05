@@ -181,7 +181,13 @@ def create_app(settings: Settings | None = None, store: Store | None = None) -> 
         return response
 
     @app.get("/healthz")
-    def healthz() -> dict[str, str]:
+    def healthz():
+        """Healthy only when the store answers a read; registrations depend on it."""
+        try:
+            store.count()
+        except Exception:  # noqa: BLE001 - never leak internals
+            log.exception("healthz_store_failed")
+            return JSONResponse({"status": "error", "store": "unavailable"}, status_code=503)
         return {"status": "ok"}
 
     @app.post("/v1/registrations")

@@ -211,3 +211,100 @@ def test_rest_connector_paginates_and_syncs(seeded, monkeypatch):
         assert "secret-key" not in str(lyst.connections.list(owner, "northwind"))
     finally:
         RestConnector.http = None
+
+
+def test_rest_token_never_follows_a_next_link_to_another_host_and_internal_hosts_are_refused(seeded, monkeypatch):
+    import httpx
+
+    from lyst.connectors.rest import RestConnector
+
+    lyst, owner = seeded
+    monkeypatch.delenv("LYST_REST_ALLOWED_HOSTS", raising=False)
+    seen: list[str] = []
+
+    def handler(req: httpx.Request):
+        seen.append(str(req.url))
+        return httpx.Response(200, json={"data": [{"id": 1}], "next": "https://attacker.example/steal"})
+
+    RestConnector.http = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        conn = RestConnector({"url": "https://api.example.test/v1/items", "records_key": "data", "next_key": "next"},
+                             {"token": "tok-123456"})
+        with pytest.raises(ConnectorError, match="another host"):
+            list(conn.read("items"))
+        assert all("attacker" not in u for u in seen)
+        for url in ("https://127.0.0.1/x", "https://169.254.169.254/latest/meta-data", "https://[::1]/x"):
+            with pytest.raises(ConnectorError, match="internal address"):
+                list(RestConnector({"url": url}, {}).read("x"))
+        monkeypatch.setenv("LYST_REST_ALLOW_PRIVATE", "1")
+        assert list(RestConnector({"url": "https://127.0.0.1/x", "records_key": "data"}, {}).read("x"))
+    finally:
+        RestConnector.http = None
+
+
+def test_rest_read_honours_batch_rows_and_mixed_cursor_types(monkeypatch):
+    import httpx
+
+    from lyst.connectors.rest import RestConnector
+
+    monkeypatch.setenv("LYST_REST_ALLOWED_HOSTS", "api.example.test")
+    pages = [[{"id": 1, "t": 5}, {"id": 2, "t": "2026-01-02"}], [{"id": 3, "t": 9, "extra": "x"}], [{"id": 4, "t": 10}], []]
+
+    def handler(req: httpx.Request):
+        return httpx.Response(200, json=pages[int(req.url.params.get("page", "1")) - 1])
+
+    RestConnector.http = httpx.Client(transport=httpx.MockTransport(handler))
+    try:
+        conn = RestConnector({"url": "https://api.example.test/v1/items", "page_param": "page"}, {})
+        tables = list(conn.read("items", batch_rows=3))
+        assert [t.num_rows for t in tables] == [3, 1]
+        assert "extra" in tables[0].column_names  # a key missing from some records is a null there
+        # the stored cursor is an int and one record's is a string: compared, not a TypeError mid-sync
+        assert sum(t.num_rows for t in conn.read("items", cursor_column="t", after=6)) >= 2
+    finally:
+        RestConnector.http = None
+
+
+def test_short_secrets_are_scrubbed_where_they_stand_alone():
+    from lyst.connectors import scrub
+
+    assert scrub("login failed for pin 931 (try 9310)", {"pin": "931"}) == "login failed for pin [secret] (try 9310)"
+    assert scrub("bad password hunter22", {"password": "hunter22"}) == "bad password [secret]"
+
+
+def test_sync_spools_batches_and_stores_under_the_normalised_name(seeded, monkeypatch):
+    """A sync never concatenates the source in memory: every batch goes to disk and DuckDB scans the files."""
+    import pyarrow as pa
+
+    import lyst.connectors as connectors
+
+    lyst, owner = seeded
+    calls = []
+
+    class Many(connectors.Connector):
+        manifest = connectors.Manifest(kind="many_test", label="many", fields=())
+
+        def test(self):
+            return {"ok": True}
+
+        def discover(self):
+            return []
+
+        def read(self, table, *, cursor_column=None, after=None, batch_rows=50_000):
+            calls.append(after)
+            for i in range(5):
+                if after is not None and i < 5:
+                    continue
+                yield pa.table({"Id": list(range(i * 100, i * 100 + 100)), "Updated": [i] * 100,
+                                **({"Note": ["x"] * 100} if i == 3 else {})})
+
+    monkeypatch.setitem(connectors.CONNECTORS, "many_test", Many)
+    monkeypatch.setattr(pa, "concat_tables", lambda *a, **k: (_ for _ in ()).throw(AssertionError("concatenated in memory")))
+    conn = lyst.connections.create(owner, "northwind", kind="many_test", name="Many", values={})
+    r = lyst.connections.sync(owner, "northwind", conn["id"], source_table="t", dataset="Big Table", cursor_column="Updated")
+    assert r.dataset == "big_table" and r.rows_added == 500 and r.cursor == 4
+    q = lyst.data.query(owner, "northwind", "select count(*), count(note), max(id) from big_table")
+    assert q.rows == [[500, 100, 499]]
+    r = lyst.connections.sync(owner, "northwind", conn["id"], source_table="t", dataset="Big Table", cursor_column="Updated")
+    assert r.mode == "incremental" and r.rows_added == 0 and r.rows_total == 500
+    assert lyst.connections.syncs(owner, "northwind", conn["id"])[0]["last_schema"]

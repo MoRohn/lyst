@@ -120,7 +120,11 @@ def _register_resources_per_worker(app: Dash) -> None:
                 app._generate_scripts_html()  # noqa: SLF001
                 app._generate_css_dist_html()  # noqa: SLF001
             except Exception as err:  # noqa: BLE001
-                log.warning("could not pre-register component bundles: %s", err)
+                # not marked done: the next request retries instead of serving without bundles for the worker's life
+                state["failures"] = state.get("failures", 0) + 1
+                (log.error if state["failures"] >= 3 else log.warning)(
+                    "could not pre-register component bundles (attempt %d): %s", state["failures"], err)
+                return
             state["done"] = True
 
     app.server.before_request(_register)

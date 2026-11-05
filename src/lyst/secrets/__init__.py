@@ -8,7 +8,7 @@ import os
 
 from .backends import EmbeddedBackend, OpenBaoBackend, SecretBackend, SecretUnavailable
 from .masterkey import MasterKey, MasterKeyMissing
-from .service import CredentialService, ReauthRequired
+from .service import CredentialConflict, CredentialService, ReauthRequired
 
 
 def backend_from_env(stores, master_key: bytes) -> SecretBackend:
@@ -23,5 +23,5 @@ def backend_from_env(stores, master_key: bytes) -> SecretBackend:
     return EmbeddedBackend(stores, master_key)
 
 
-__all__ = ["CredentialService", "EmbeddedBackend", "MasterKey", "MasterKeyMissing", "OpenBaoBackend", "ReauthRequired",
+__all__ = ["CredentialConflict", "CredentialService", "EmbeddedBackend", "MasterKey", "MasterKeyMissing", "OpenBaoBackend", "ReauthRequired",
            "SecretBackend", "SecretUnavailable", "backend_from_env"]

@@ -518,6 +518,14 @@ def _r(s: Any) -> str:
     return repr(s)
 
 
+def _quoted(s: Any) -> str:
+    """Free text for the inside of a double-quoted literal: valid in a Python string or docstring and in a TOML basic
+    string. Backslashes and quotes are escaped and control characters (newlines included) become spaces, so a title
+    can never close the literal and inject code."""
+    text = "".join(" " if ord(ch) < 32 or ord(ch) == 127 else ch for ch in str(s))
+    return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def write_app(folder: Path, design: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
     """Write the Dash app files for a design whose extracts are already in folder/data. Returns the file list."""
     from .dashkit import vendor  # noqa: PLC0415
@@ -536,7 +544,7 @@ def write_app(folder: Path, design: dict[str, Any], manifest: dict[str, Any]) ->
     order = n.get("kpi_order")
     if order and set(order) == {m["name"] for m in metrics}:
         metrics.sort(key=lambda m: order.index(m["name"]))
-    subs = {"@@TITLE@@": title, "@@DESCRIPTION@@": description.replace('"', "'"), "@@DIM_LABEL@@": dim_label,
+    subs = {"@@TITLE@@": _quoted(title), "@@DESCRIPTION@@": _quoted(description), "@@DIM_LABEL@@": _quoted(dim_label),
             "@@TITLE_R@@": _r(title), "@@DESCRIPTION_R@@": _r(description),
             "@@QUESTION_R@@": _r(n.get("question") or f"What changed in {metrics[0]['title'].lower()}, why, and what is next?"),
             "@@SUBTITLE_R@@": _r(n.get("subtitle") or f"{design['grain'].capitalize()}ly · data through {manifest.get('data_through')}"),
@@ -558,7 +566,7 @@ def write_app(folder: Path, design: dict[str, Any], manifest: dict[str, Any]) ->
         folder / "DESIGN.md": design_md(design, manifest, metrics),
     }
     for path, text in files.items():
-        path.write_text(text)
+        path.write_text(text, encoding="utf-8")
     vendored = vendor(folder)
     return sorted([str(p.relative_to(folder)) for p in files] + vendored)
 
@@ -615,7 +623,7 @@ def verify(folder: Path, *, timeout_s: float = 240) -> list[dict[str, Any]]:
 
     checks: list[dict[str, Any]] = []
     try:
-        compile((folder / "app.py").read_text(), str(folder / "app.py"), "exec")
+        compile((folder / "app.py").read_text(encoding="utf-8"), str(folder / "app.py"), "exec")
         checks.append({"name": "app_syntax", "passed": True, "detail": "app.py compiles", "severity": "error"})
     except SyntaxError as exc:
         checks.append({"name": "app_syntax", "passed": False, "detail": str(exc), "severity": "error"})
@@ -633,7 +641,18 @@ def verify(folder: Path, *, timeout_s: float = 240) -> list[dict[str, Any]]:
         checks.append({"name": "dash_check", "passed": False, "detail": f"check crashed: {(proc.stderr or proc.stdout)[-400:]}",
                        "severity": "error"})
         return checks
-    rep = json.loads(line[len("@@REPORT@@"):])
+    try:
+        rep = json.loads(line[len("@@REPORT@@"):])
+        items, result = list(rep["items"]), rep["result"]
+    except (ValueError, KeyError, TypeError) as exc:
+        checks.append({"name": "dash_check", "passed": False, "severity": "error",
+                       "detail": f"the check's report was unreadable ({type(exc).__name__}): {(proc.stderr or '')[-300:]}"})
+        return checks
+    if proc.returncode != 0:  # a report followed by a crash is not a pass
+        checks.append({"name": "dash_check", "passed": False, "severity": "error",
+                       "detail": f"the check exited {proc.returncode} after reporting: {(proc.stderr or '')[-300:]}"})
+        return checks
+    rep = {"items": items, "result": result}
     fails = [i for i in rep["items"] if i["level"] == "FAIL"]
     warns = [i for i in rep["items"] if i["level"] == "WARN"]
     detail = f"{len(rep['items'])} checks" + ("; failed: " + "; ".join(f"{i['check']}: {i['detail'][:160]}" for i in fails) if fails else "")

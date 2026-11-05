@@ -64,8 +64,25 @@ def test_failed_step_is_recorded_and_retry_works(seeded, monkeypatch):
     assert t["status"] == "failed" and "renderer down" in t["error"]
     state["fail"] = False
     lyst.runtime.retry(owner, tid)
+    retry = next(e for e in lyst.runtime.db.query("SELECT kind, data FROM task_events WHERE task_id = ?", [tid]) if e["kind"] == "retry")
+    assert "renderer down" in retry["data"]  # the cleared step's error stays in the task's history
     lyst.runtime.drain()
     assert lyst.runtime.get(owner, tid)["status"] == "done"
+
+
+def test_a_schedule_that_cannot_start_is_counted_and_does_not_stop_the_others(seeded):
+    lyst, owner = seeded
+    rt = lyst.runtime
+    admin = lyst.guard.create_user("admin2@northwind.test", "Admin")
+    lyst.guard.add_member(owner, "northwind", admin.user_id, "admin")
+    bad = rt.create_schedule(owner, "northwind", "Broken", "What was revenue last month?", 86400)
+    good = rt.create_schedule(owner, "northwind", "Fine", "What was revenue last month?", 86400)
+    for s in (bad, good):
+        rt.decide(admin, s["approval_id"], True)
+    rt.db.execute("UPDATE schedules SET request = '{}' WHERE id = ?", [bad["schedule_id"]])  # no question: submit fails
+    started = rt.tick_schedules(datetime.now(UTC) + timedelta(days=2))
+    assert len(started) == 1
+    assert rt.db.scalar("SELECT skipped FROM schedules WHERE id = ?", [bad["schedule_id"]]) == 1
 
 
 def test_trend_and_forecast(seeded):

@@ -59,9 +59,16 @@ def static_check(source: str) -> list[str]:
         if isinstance(node, ast.Import | ast.ImportFrom):
             mods = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module or ""]
             for mod in mods:
-                if mod.split(".")[0] not in roots:
+                if mod.split(".")[0] not in roots or (isinstance(node, ast.ImportFrom) and node.level):
                     problems.append(f"import of {mod} is not allowed")
-        elif isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
+                for part in mod.split(".")[1:]:
+                    if FORBIDDEN_ATTRS.match(part):
+                        problems.append(f"import of {mod} is not allowed")
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if FORBIDDEN_ATTRS.match(alias.name):
+                        problems.append(f"import of {alias.name} from {node.module} is not allowed")
+        elif isinstance(node, ast.Name) and (node.id in FORBIDDEN_NAMES or node.id.startswith("__")):
             problems.append(f"use of {node.id} is not allowed")
         elif isinstance(node, ast.Attribute) and FORBIDDEN_ATTRS.match(node.attr):
             problems.append(f"attribute .{node.attr} is not allowed")

@@ -112,7 +112,7 @@ What the published server allows, and how Lyst uses it:
 | GET | `/v1/workspaces/{ws}/voice/sessions/{sid}/answer/{task_id}` | read-back when the task is done (`ready`, `speak_text`) |
 | POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/speak` | speech for `{task_id}` or `{text}`; `engine: "browser"` means the page speaks `text` |
 | POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/stream-ticket` | one-time 60 s ticket for the duplex websocket |
-| WS | `/v1/workspaces/{ws}/voice/sessions/{sid}/duplex?ticket=` | duplex audio, PersonaPlex framing |
+| WS | `/v1/workspaces/{ws}/voice/sessions/{sid}/duplex` | duplex audio, PersonaPlex framing; the ticket goes in the subprotocols `["lyst.ticket", "<ticket>"]`, never in the URL |
 | POST | `/v1/workspaces/{ws}/voice/sessions/{sid}/end` | end the session |
 
 ## Known limits and risks

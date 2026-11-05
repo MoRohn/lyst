@@ -11,7 +11,7 @@ from typing import Annotated, Any
 from fastapi import File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 MAX_UPLOAD = 200 * 1024 * 1024
 API_VERSION = "1"  # bumped only for a breaking change; docs/api/contract.txt is the compatibility record
@@ -50,6 +50,11 @@ class PythonIn(BaseModel):
     code: str
     inputs: dict[str, str] = {}
     timeout: float | None = None
+
+
+class SqlIn(BaseModel):
+    sql: str
+    max_rows: int = Field(1000, ge=1, le=10_000)
 
 
 class SaveIn(BaseModel):
@@ -97,17 +102,20 @@ def register(app, L, User) -> None:
                              commit: Annotated[bool, Form()] = False) -> dict[str, Any]:
         """Upload any supported file and get back what is in it: tables (with columns, types, units, formulas,
         checked totals) and document text. ``commit=true`` loads the plan's own choices in the same call."""
+        if file.size is not None and file.size > MAX_UPLOAD:  # refused before the body is read into memory
+            raise HTTPException(413, "file too large (200 MB at most)")
         content = await file.read(MAX_UPLOAD + 1)
         if len(content) > MAX_UPLOAD:
             raise HTTPException(413, "file too large (200 MB at most)")
         svc = L(request).ingest
         name = file.filename or "upload"
+        # parsing is blocking work: keep it off the event loop, like the other heavy routes here
         if commit:
-            return svc.load(user, ws, content, filename=name, classification=classification)
-        return svc.inspect(user, ws, content, filename=name, classification=classification)
+            return await run_in_threadpool(svc.load, user, ws, content, filename=name, classification=classification)
+        return await run_in_threadpool(svc.inspect, user, ws, content, filename=name, classification=classification)
 
     @app.get("/v1/workspaces/{ws}/ingest")
-    def ingest_jobs(request: Request, ws: str, user: User, limit: int = 50):
+    def ingest_jobs(request: Request, ws: str, user: User, limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).ingest.list(user, ws, limit)
 
     @app.get("/v1/workspaces/{ws}/ingest/{jid}")
@@ -139,12 +147,14 @@ def register(app, L, User) -> None:
 
     @app.get("/v1/workspaces/{ws}/events")
     async def workspace_events(request: Request, ws: str, user: User, after: int = 0,
-                               types: Annotated[list[str] | None, Query()] = None, limit: int = 100, wait: float = 0):
+                               types: Annotated[list[str] | None, Query()] = None,
+                               limit: Annotated[int, Query(ge=1, le=500)] = 100,
+                               wait: Annotated[float, Query(ge=0, le=25)] = 0):
         """Events after the ``after`` cursor that this member may see; ``wait`` (seconds, at most 25) long-polls.
         Returns ``{"events": [...], "next": cursor}``; pass ``next`` back as ``after``."""
         pats = [p for t in (types or []) for p in t.split(",") if p]
         return await run_in_threadpool(L(request).events.list, user, ws, after=after, types=pats or None,
-                                       limit=min(limit, 500), wait=wait)
+                                       limit=limit, wait=wait)
 
     @app.get("/v1/workspaces/{ws}/webhooks")
     def webhooks_list(request: Request, ws: str, user: User):
@@ -168,7 +178,8 @@ def register(app, L, User) -> None:
         return L(request).webhooks.ping(user, ws, sid)
 
     @app.get("/v1/workspaces/{ws}/webhooks/{sid}/deliveries")
-    def webhooks_deliveries(request: Request, ws: str, sid: str, user: User, status: str | None = None, limit: int = 50):
+    def webhooks_deliveries(request: Request, ws: str, sid: str, user: User, status: str | None = None,
+                            limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).webhooks.deliveries(user, ws, sid, status=status, limit=limit)
 
     @app.post("/v1/workspaces/{ws}/webhook-deliveries/{did}/redeliver")
@@ -223,8 +234,8 @@ def register(app, L, User) -> None:
         return L(request).workbench.status()
 
     @app.post("/v1/workspaces/{ws}/workbench/sql")
-    def workbench_sql(request: Request, ws: str, body: dict[str, Any], user: User):
-        return L(request).workbench.sql(user, ws, str(body.get("sql", "")), max_rows=int(body.get("max_rows", 1000)))
+    def workbench_sql(request: Request, ws: str, body: SqlIn, user: User):
+        return L(request).workbench.sql(user, ws, body.sql, max_rows=body.max_rows)
 
     @app.post("/v1/workspaces/{ws}/workbench/python")
     async def workbench_python(request: Request, ws: str, body: PythonIn, user: User):
@@ -232,7 +243,7 @@ def register(app, L, User) -> None:
         return await run_in_threadpool(L(request).workbench.python, user, ws, body.code, inputs=body.inputs, timeout=body.timeout)
 
     @app.get("/v1/workspaces/{ws}/workbench/runs")
-    def workbench_runs(request: Request, ws: str, user: User, limit: int = 50):
+    def workbench_runs(request: Request, ws: str, user: User, limit: Annotated[int, Query(ge=1, le=500)] = 50):
         return L(request).workbench.list(user, ws, limit)
 
     @app.get("/v1/workspaces/{ws}/workbench/runs/{rid}")
@@ -270,6 +281,8 @@ def register(app, L, User) -> None:
         return {"deleted": L(request).portability.delete_export(user, ws, eid)}
 
     async def _pack(file: UploadFile) -> bytes:
+        if file.size is not None and file.size > 4 * MAX_UPLOAD:  # refused before the body is read into memory
+            raise HTTPException(413, "pack too large (800 MB at most)")
         content = await file.read(4 * MAX_UPLOAD + 1)
         if len(content) > 4 * MAX_UPLOAD:
             raise HTTPException(413, "pack too large (800 MB at most)")

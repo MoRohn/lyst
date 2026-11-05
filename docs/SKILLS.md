@@ -20,8 +20,13 @@ lifecycle.
 
 `lyst.skills.runner` runs in a separate `python -I` process with an empty environment, a temporary
 working directory, CPU time and file-size limits (`RLIMIT_CPU`, `RLIMIT_FSIZE=0`), a wall-clock timeout,
-an import hook that admits only the allow-list, and builtins without `open`, `exec`, `eval`, `compile`,
-`input` or `__import__`. The skill receives a DataFrame and returns JSON.
+an import hook that admits only the allow-list (keyed on the skill's own globals, so rebinding `__name__`
+does not switch it off), and builtins without `open`, `exec`, `eval`, `compile`, `input` or `__import__`.
+Before the skill runs, the file readers and writers of the allow-listed libraries (`pandas.read_*`,
+`numpy.load`, `loadtxt`, `fromfile`, `memmap`, …) and socket connections are replaced with functions that
+refuse. The report carries `limits`: `null` when every resource cap was applied, otherwise the reason it
+was not (for example on a platform without `resource`). A case marked `expect_error` passes only when the
+skill raises. The skill receives a DataFrame and returns JSON.
 
 What this is not: a kernel sandbox. A determined author could still find a path through a C extension's
 own file access. For hostile multi-tenant use, run the engine itself in a container with no network and a

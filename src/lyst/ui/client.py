@@ -21,6 +21,14 @@ class APIError(RuntimeError):
         self.status = status
 
 
+class APIUnreachable(APIError):
+    """The API could not be reached at all (no HTTP status). Subclasses APIError, so existing handlers still catch it;
+    ``status`` stays 0 for them, and ``isinstance(e, APIUnreachable)`` tells the two apart."""
+
+    def __init__(self, detail: str):
+        super().__init__(0, detail)
+
+
 LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
 
@@ -51,11 +59,16 @@ def _client() -> tuple[str | None, bool]:
 def _token() -> str | None:
     if t := st.session_state.get("token"):
         return t
-    if t := st.query_params.get("token"):
-        # arriving from /auth/callback: keep the token in this session and drop it from the URL
-        st.session_state["token"] = t
-        del st.query_params["token"]
-        return t
+    if code := st.query_params.get("login_code"):
+        # arriving from /auth/callback: the URL carries a one-time code, never the token; trade it over POST
+        del st.query_params["login_code"]
+        try:
+            r = _http(os.environ.get("LYST_API_URL", "http://127.0.0.1:8770")).post("/auth/exchange", json={"code": code})
+            if r.status_code == 200:
+                st.session_state["token"] = r.json()["token"]
+                return st.session_state["token"]
+        except (httpx.HTTPError, ValueError, KeyError):
+            pass
     ip, proxied = _client()
     if not shared_identity_allowed(ip, dict(os.environ), proxied=proxied):
         return None  # sign in (OIDC) or paste a personal token
@@ -84,14 +97,19 @@ class Client:
         try:
             r = self.http.request(method, path, headers=self._h() | (headers_extra or {}), **kw)
         except httpx.HTTPError as exc:
-            raise APIError(0, f"Lyst's API is not reachable at {self.base} ({type(exc).__name__}).") from exc
+            raise APIUnreachable(f"Lyst's API is not reachable at {self.base} ({type(exc).__name__}).") from exc
         if r.status_code >= 400:
             try:
                 detail = r.json().get("detail", r.text)
             except ValueError:
                 detail = r.text
             raise APIError(r.status_code, str(detail))
-        return r.json()
+        if r.status_code == 204 or not r.content:
+            return None
+        try:
+            return r.json()
+        except ValueError:
+            return r.text  # a successful non-JSON body (rare) is handed back as text, never a crash
 
     def get(self, path: str, **params) -> Any:
         return self._do("GET", path, params=params or None)
@@ -104,7 +122,16 @@ class Client:
         session within the same 30 seconds carries the same Idempotency-Key, so the engine returns the first task
         instead of running the work twice."""
         sid = st.session_state.setdefault("_lyst_sid", uuid.uuid4().hex)
-        key = hashlib.sha256(f"{sid}|{ws}|{' '.join(question.split())}|{int(time.time() // 30)}".encode()).hexdigest()
+        ident = hashlib.sha256(f"{sid}|{ws}|{' '.join(question.split())}".encode()).hexdigest()
+        # one key per question for 30 s from its first submit (not a wall-clock bucket, which a double click
+        # could straddle); after that, asking again is a new request
+        keys = st.session_state.setdefault("_lyst_idem", {})
+        now = time.time()
+        for k in [k for k, (_, t0) in keys.items() if now - t0 > 30]:
+            keys.pop(k, None)
+        if ident not in keys:
+            keys[ident] = (uuid.uuid4().hex, now)
+        key = keys[ident][0]
         return self._do("POST", f"/v1/workspaces/{ws}/tasks", json={"question": question},
                         headers_extra={"Idempotency-Key": key})
 

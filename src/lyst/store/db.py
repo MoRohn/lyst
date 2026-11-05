@@ -22,7 +22,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
+import os
 import queue
+import re
 import threading
 from collections.abc import Callable, Iterator
 from concurrent.futures import Future
@@ -36,9 +39,73 @@ T = TypeVar("T")
 
 Migration = tuple[int, str]
 
+log = logging.getLogger("lyst.store")
+_HEX_KEY = re.compile(r"^[0-9a-f]{64}$")
+
 
 def derive_key(master: bytes, name: str) -> str:
     return hmac.new(master, f"lyst:db:{name}".encode(), hashlib.sha256).hexdigest()
+
+
+def _attach(c, path: Path | str, alias: str, key: str | None) -> None:
+    """ATTACH a file, optionally encrypted. The key is checked to be a derived hex key (so it cannot break out of
+    its literal), and a failure is re-raised without the statement text, which would carry the key."""
+    quoted = str(path).replace("'", "''")
+    if key is None:
+        c.execute(f"ATTACH '{quoted}' AS {alias}")
+        return
+    if not _HEX_KEY.match(key):
+        raise ValueError("an encryption key must be a 64-character hex digest")
+    try:
+        c.execute(f"ATTACH '{quoted}' AS {alias} (ENCRYPTION_KEY '{key}')")
+    except duckdb.Error as exc:
+        detail = str(exc).replace(key, "<key>")
+        raise type(exc)(f"could not open {Path(path).name} with its encryption key: {detail}") from None
+
+
+def split_statements(sql: str) -> list[str]:
+    """Split a migration body on ';' outside string literals, quoted identifiers, comments and $$ bodies."""
+    out: list[str] = []
+    buf: list[str] = []
+    i, n = 0, len(sql)
+    while i < n:
+        ch = sql[i]
+        if ch in "'\"":
+            j = i + 1
+            while j < n:
+                if sql[j] == ch:
+                    if j + 1 < n and sql[j + 1] == ch:  # doubled quote is an escaped quote
+                        j += 2
+                        continue
+                    break
+                j += 1
+            buf.append(sql[i:j + 1])
+            i = j + 1
+        elif sql.startswith("--", i):
+            j = sql.find("\n", i)
+            j = n if j < 0 else j
+            buf.append(sql[i:j])
+            i = j
+        elif sql.startswith("/*", i):
+            j = sql.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            buf.append(sql[i:j])
+            i = j
+        elif sql.startswith("$$", i):
+            j = sql.find("$$", i + 2)
+            j = n if j < 0 else j + 2
+            buf.append(sql[i:j])
+            i = j
+        elif ch == ";":
+            out.append("".join(buf))
+            buf = []
+            i += 1
+        else:
+            buf.append(ch)
+            i += 1
+    out.append("".join(buf))
+    return [s for s in out if s.strip() and not all(
+        line.strip().startswith("--") or not line.strip() for line in s.splitlines())]
 
 
 class Database:
@@ -59,12 +126,7 @@ class Database:
         self._key = derive_key(master_key, name) if encrypt else None
         path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = duckdb.connect(":memory:")
-        quoted = str(path).replace("'", "''")
-        if encrypt:
-            key = derive_key(master_key, name)
-            self._conn.execute(f"ATTACH '{quoted}' AS {self.ALIAS} (ENCRYPTION_KEY '{key}')")
-        else:
-            self._conn.execute(f"ATTACH '{quoted}' AS {self.ALIAS}")
+        _attach(self._conn, path, self.ALIAS, self._key)
         self._conn.execute(f"USE {self.ALIAS}")
         # Generated or user SQL must never reach the filesystem or the network through this
         # connection. Lock the configuration so a query cannot turn it back on. The one directory
@@ -109,20 +171,30 @@ class Database:
                     pass
                 fut.set_exception(exc)
 
-    def write(self, fn: Callable[[duckdb.DuckDBPyConnection], T], timeout: float = 120) -> T:
-        """Run ``fn`` in one transaction on the writer thread and return its result."""
+    def _submit(self, fn: Callable[[duckdb.DuckDBPyConnection], Any]) -> Future:
+        """Queue ``fn`` for the writer thread (the one place the queue protocol lives)."""
         if self._closed:
             raise RuntimeError(f"database {self.name} is closed")
         fut: Future = Future()
         self._queue.put((fn, fut))
+        return fut
+
+    def write(self, fn: Callable[[duckdb.DuckDBPyConnection], T], timeout: float = 120,
+              grace: float | None = None) -> T:
+        """Run ``fn`` in one transaction on the writer thread and return its result."""
+        fut = self._submit(fn)
         try:
             return fut.result(timeout=timeout)
         except TimeoutError:
             # Withdraw the write if it has not started, so a caller told "timed out" never sees it applied later.
-            # If it already started it runs to its own commit or rollback; wait for that outcome rather than lie.
+            # If it already started it runs to its own commit or rollback; wait a bounded grace for that outcome.
             if fut.cancel():
                 raise TimeoutError(f"write to {self.name} not started within {timeout}s; withdrawn") from None
-            return fut.result()
+            try:
+                return fut.result(timeout=timeout if grace is None else grace)
+            except TimeoutError:
+                raise TimeoutError(f"write to {self.name} still running after {timeout}s plus the grace period; "
+                                   "it may still commit") from None
 
     def execute(self, sql: str, params: list | tuple | None = None) -> None:
         self.write(lambda c: c.execute(sql, params or []))
@@ -138,11 +210,14 @@ class Database:
         finally:
             cur.close()
 
-    def query(self, sql: str, params: list | tuple | None = None) -> list[dict[str, Any]]:
+    def query(self, sql: str, params: list | tuple | None = None, *,
+              max_rows: int | None = None) -> list[dict[str, Any]]:
+        """Rows as dicts. ``max_rows`` stops reading after that many rows (the rest is never fetched)."""
         with self.read() as cur:
             rel = cur.execute(sql, params or [])
             cols = [d[0] for d in rel.description]
-            return [dict(zip(cols, row, strict=True)) for row in rel.fetchall()]
+            rows = rel.fetchall() if max_rows is None else rel.fetchmany(max(0, int(max_rows)))
+            return [dict(zip(cols, row, strict=True)) for row in rows]
 
     def scalar(self, sql: str, params: list | tuple | None = None) -> Any:
         with self.read() as cur:
@@ -162,7 +237,7 @@ class Database:
             for version, sql in sorted(migrations):
                 if version in done:
                     continue
-                for stmt in [s for s in sql.split(";") if s.strip()]:
+                for stmt in split_statements(sql):
                     c.execute(stmt)
                 c.execute("INSERT INTO _migrations (version) VALUES (?)", [version])
                 applied += 1
@@ -178,32 +253,34 @@ class Database:
         """A consistent copy sealed with ``key`` (None: plain). Master-key rotation copies with the new derived key."""
         if self._backup_dir is None:
             raise RuntimeError("this database was opened without a backup directory")
+        if key is not None and not _HEX_KEY.match(key):
+            raise ValueError("an encryption key must be a 64-character hex digest")
         dest.parent.mkdir(parents=True, exist_ok=True)
         staging = self._backup_dir / f".{self.name.replace(':', '_')}.{dest.name}"
         for p in (staging, staging.with_name(staging.name + ".wal")):
             if p.exists():
                 p.unlink()
-        quoted = str(staging).replace("'", "''")
 
-        def tx(c: duckdb.DuckDBPyConnection) -> None:
-            if key:
-                c.execute(f"ATTACH '{quoted}' AS lyst_backup (ENCRYPTION_KEY '{key}')")
-            else:
-                c.execute(f"ATTACH '{quoted}' AS lyst_backup")
+        def copy(c: duckdb.DuckDBPyConnection) -> None:
+            # COPY FROM DATABASE cannot run inside the writer's BEGIN/COMMIT: step out of it, and always step back
+            # in, so the writer's own COMMIT or ROLLBACK has a transaction to end.
+            c.execute("COMMIT")
             try:
-                c.execute(f"COPY FROM DATABASE {self.ALIAS} TO lyst_backup")
+                _attach(c, staging, "lyst_backup", key)
+                try:
+                    c.execute(f"COPY FROM DATABASE {self.ALIAS} TO lyst_backup")
+                finally:
+                    c.execute("DETACH lyst_backup")
             finally:
-                c.execute("DETACH lyst_backup")
+                c.execute("BEGIN TRANSACTION")
 
-        # COPY FROM DATABASE cannot run inside the writer's BEGIN/COMMIT, so take the writer's cursor directly
-        fut: Future = Future()
-        self._queue.put((lambda c: (c.execute("COMMIT"), tx(c), c.execute("BEGIN TRANSACTION")) and None, fut))
-        fut.result(timeout=600)
-        if dest.exists():
-            dest.unlink()
+        self._submit(copy).result(timeout=600)
         import shutil  # noqa: PLC0415
 
-        shutil.move(staging, dest)
+        # Land next to dest first, then swap atomically: the previous copy survives until the new one is in place.
+        landing = dest.with_name(f".{dest.name}.incoming")
+        shutil.move(staging, landing)
+        os.replace(landing, dest)
         return dest
 
     def close(self) -> None:
@@ -212,4 +289,9 @@ class Database:
         self._closed = True
         self._queue.put(None)
         self._writer.join(timeout=30)
+        if self._writer.is_alive():
+            # A write is still running: closing the connection under it would abort it mid-transaction. Leave the
+            # connection to the (daemon) writer and say so.
+            log.error("database %s: the writer is still busy after 30s; its connection was left open", self.name)
+            return
         self._conn.close()

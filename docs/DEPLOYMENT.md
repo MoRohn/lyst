@@ -72,7 +72,7 @@ API response carries `X-Request-Id`; pass one in to correlate with a caller's lo
 `GET /metrics` is Prometheus text: `lyst_http_requests_total`, `lyst_http_request_seconds`, `lyst_tasks_total`
 by final status, `lyst_step_seconds` by capability, `lyst_model_calls_total` by outcome and pool,
 `lyst_model_cost_usd_total`, `lyst_tasks_queued`, `lyst_model_inflight`, `lyst_workers`. `GET /health` returns
-200 while the control database answers.
+200 while the control database answers. It answers in setup mode too. Set `LYST_METRICS_TOKEN` to require scrapes to send it as `Authorization: Bearer <token>` (Prometheus: `authorization: {credentials: ...}`); without it the endpoint is open, so keep the API port private.
 
 Suggested alerts (thresholds to set from your own baseline): task failure rate over 10% in 15 minutes,
 `lyst_tasks_queued` growing for 10 minutes, p95 `lyst_http_request_seconds` over 2 s, any `credits` outcome

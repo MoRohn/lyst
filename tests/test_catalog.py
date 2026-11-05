@@ -242,3 +242,22 @@ def test_api_routes_for_catalog_contracts_and_lineage(seeded):
         assert c.post(f"/v1/workspaces/{WS}/metrics/tickets/deprecate", json={}, headers=h).json()["status"] == "deprecated"
         assert c.get(f"/v1/workspaces/{WS}/metrics/nope/lineage", headers=h).status_code == 404
         assert c.delete(f"/v1/workspaces/{WS}/datasets/pnl/contract", headers=h).json() == {"ok": True}
+
+
+def test_contract_edge_rules_null_keys_empty_sets_and_values_kept_out_of_inboxes(seeded):
+    lyst, owner = seeded
+    frame = pd.DataFrame({"id": [1, 2, None, None], "tier": ["gold", "silver", "gold", "x"], "ssn": ["a", "b", "c", "d"]})
+    _ingest(lyst, owner, "people", frame)
+    lyst.data.set_column_policy(owner, WS, "people", "ssn", "restricted", "admin")
+    spec = ContractSpec.model_validate({
+        "columns": [{"name": "id", "type": "double", "required": False}, {"name": "tier", "type": "varchar", "accepted_values": []},
+                    {"name": "ssn", "type": "varchar", "accepted_values": ["a"]}], "key": ["id"]})
+    saved = lyst.contracts.define(owner, WS, "people", spec)
+    results = {r["kind"] + ":" + r["columns"][0]: r for r in saved["check"]["results"]}
+    assert "duplicate_key:id" not in results  # two NULL keys are incomplete rows, not a repeated key
+    assert results["unexpected_values:tier"]["rows"] == 4  # an empty accepted set accepts nothing
+    protected = results["unexpected_values:ssn"]
+    assert "values" not in protected and "b" not in protected["text"]
+    inbox = lyst.monitors.inbox(owner, WS)
+    assert inbox and "gold" not in inbox[0]["summary"] and "silver" not in inbox[0]["summary"]
+    assert lyst.contracts.status(WS, "people").keys() == {"version", "outcome", "dataset_version", "checked_at", "problems"}

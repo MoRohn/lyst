@@ -5,9 +5,9 @@ failures, the harness rules proposed from them, and the harness checklist. Regis
 
 # no `from __future__ import annotations`: FastAPI resolves the User dependency from the real annotation
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from pydantic import BaseModel
 
 
@@ -33,7 +33,8 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return L(request).harness.report(user, ws, days=days)
 
     @app.get("/v1/workspaces/{ws}/harness/failures")
-    def harness_failures(request: Request, ws: str, user: User, limit: int = 100) -> list[dict[str, Any]]:
+    def harness_failures(request: Request, ws: str, user: User,
+                         limit: Annotated[int, Query(ge=1, le=500)] = 100) -> list[dict[str, Any]]:
         return L(request).harness.failures(user, ws, limit=limit)
 
     @app.get("/v1/workspaces/{ws}/harness/rules")

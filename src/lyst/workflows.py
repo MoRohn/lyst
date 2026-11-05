@@ -30,12 +30,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 import uuid
 from typing import Any
 
 from .security import Guard, Principal
+
+log = logging.getLogger("lyst.workflows")
 
 COMPILABLE = {"value", "explain", "breakdown", "trend", "forecast", "correlate", "profile"}
 # capabilities a compiled workflow may contain: deterministic reads and analysis, nothing that mutates,
@@ -87,16 +90,18 @@ def _strip(p: dict[str, Any]) -> dict[str, Any]:
     return {k: p[k] for k in ("label", "start", "end", "grain") if k in p}
 
 
-def templatize(value: Any, slots: dict[str, dict]) -> Any:
-    """Replace concrete period dicts in step arguments by {"$period": slot}."""
+def templatize(value: Any, slots: dict[str, dict], prefer: str | None = None) -> Any:
+    """Replace concrete period dicts in step arguments by {"$period": slot}. When two slots hold the same period, the
+    slot named by ``prefer`` (the step's own key, e.g. 'prior') wins over insertion order."""
     if isinstance(value, dict):
         if {"start", "end"} <= value.keys():
-            for name, p in slots.items():
-                if _strip(value) == _strip(p):
+            order = ([prefer] if prefer in slots else []) + [n for n in slots if n != prefer]
+            for name in order:
+                if _strip(value) == _strip(slots[name]):
                     return {"$period": name}
-        return {k: templatize(v, slots) for k, v in value.items()}
+        return {k: templatize(v, slots, prefer) for k, v in value.items()}
     if isinstance(value, list):
-        return [templatize(v, slots) for v in value]
+        return [templatize(v, slots, prefer) for v in value]
     return value
 
 
@@ -134,11 +139,14 @@ class WorkflowService:
 
     def _current_deps(self, actor: Principal, ws: str, datasets: list[str], metrics: list[str]) -> dict[str, Any]:
         catalog = {d["name"]: d for d in self.data.catalog(actor, ws)}
-        db = self._db(ws)
+        versions: dict[str, int] = {}
+        if metrics:  # one query for every dependent metric
+            marks = ", ".join("?" * len(metrics))
+            versions = {r["name"]: int(r["current_version"] or 0) for r in self._db(ws).query(
+                f"SELECT name, current_version FROM metrics WHERE status = 'approved' AND name IN ({marks})", list(metrics))}
         return {
             "datasets": {n: (schema_fingerprint(catalog[n]["schema"]) if n in catalog else None) for n in sorted(datasets)},
-            "metrics": {n: int(db.scalar("SELECT current_version FROM metrics WHERE name = ? AND status = 'approved'", [n]) or 0)
-                        for n in sorted(metrics)},
+            "metrics": {n: versions.get(n, 0) for n in sorted(metrics)},
         }
 
     def staleness(self, actor: Principal, ws: str, wf: dict[str, Any]) -> str | None:
@@ -155,9 +163,11 @@ class WorkflowService:
                         if now["metrics"].get(name) else f"metric {name} is no longer approved")
         return None
 
-    def _mark_stale(self, ws: str, wf: dict[str, Any], reason: str) -> None:
+    def _mark_stale(self, actor: Principal, ws: str, wf: dict[str, Any], reason: str) -> None:
         self._db(ws).execute("UPDATE workflows SET status = 'stale', invalid_reason = ? WHERE id = ? AND version = ?",
                              [reason, wf["id"], wf["version"]])
+        log.info("workflow %s v%s is stale: %s", wf["id"], wf["version"], reason)
+        self.guard.audit(actor, ws, "workflow.stale", f"{wf['id']}:v{wf['version']}", "ok", {"reason": reason})
 
     # -- reading -------------------------------------------------------------------------------
 
@@ -169,10 +179,12 @@ class WorkflowService:
                 out[k] = json.loads(out[k])
         return out
 
-    def list(self, actor: Principal, ws: str, *, include_history: bool = False) -> list[dict[str, Any]]:
+    def list(self, actor: Principal, ws: str, *, include_history: bool = False, limit: int = 200,
+             offset: int = 0) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.read")
         where = "" if include_history else "WHERE status IN ('active', 'stale')"
-        rows = self._db(ws).query(f"SELECT * FROM workflows {where} ORDER BY last_used_at DESC NULLS LAST, created_at DESC")
+        rows = self._db(ws).query(f"SELECT * FROM workflows {where} ORDER BY last_used_at DESC NULLS LAST, created_at DESC "
+                                  "LIMIT ? OFFSET ?", [max(1, min(int(limit), 1000)), max(0, int(offset))])
         return [self._row(r) for r in rows]
 
     def get(self, actor: Principal, ws: str, wf_id: str, version: int | None = None) -> dict[str, Any]:
@@ -193,6 +205,7 @@ class WorkflowService:
         """An active, current workflow whose request pattern is this question's, or None."""
         if not enabled():
             return None
+        self.guard.require(actor, ws, "workspace.read")  # like list() and get(), before any read
         pat = pattern(question)
         rows = self._db(ws).query(
             "SELECT * FROM workflows WHERE status = 'active' AND list_contains(patterns, ?) "
@@ -202,7 +215,7 @@ class WorkflowService:
         wf = self._row(rows[0])
         reason = self.staleness(actor, ws, wf)
         if reason:
-            self._mark_stale(ws, wf, reason)
+            self._mark_stale(actor, ws, wf, reason)
             return None
         return wf
 
@@ -215,7 +228,7 @@ class WorkflowService:
                                 + (f": {wf['invalid_reason']}" if wf.get("invalid_reason") else ""))
         reason = self.staleness(actor, ws, wf)
         if reason:
-            self._mark_stale(ws, wf, reason)
+            self._mark_stale(actor, ws, wf, reason)
             raise WorkflowStale(f"workflow {wf['id']} v{wf['version']} is stale: {reason}")
         for perm in wf["permissions"]:
             self.guard.require(actor, ws, perm, f"workflow:{wf['id']}")
@@ -248,8 +261,8 @@ class WorkflowService:
             for s in steps:
                 if s["key"] in ("prior", "year_ago") and "period" in s["args"]:
                     slots[s["key"]] = s["args"]["period"]
-        template = [{k: s[k] for k in ("capability", "key", "after") if k in s} | {"args": templatize(s["args"], slots)}
-                    for s in steps]
+        template = [{k: s[k] for k in ("capability", "key", "after") if k in s}
+                    | {"args": templatize(s["args"], slots, s.get("key"))} for s in steps]
         und = {k: understanding.get(k) for k in _UNDERSTANDING_KEYS}
         sig = signature(understanding, period["grain"] if period else None)
         metrics = list(understanding.get("metrics") or [])
@@ -260,8 +273,7 @@ class WorkflowService:
         pat = pattern(understanding["question"])
         validation = {"intensity": plan.get("verification"), "required_checks": sorted(
             c["name"] for c in checks if c["severity"] == "error")}
-        purpose = understanding["question"] if not period else re.sub(
-            r"\s+", " ", understanding["question"].replace(period.get("label", "\0"), "{period}"))
+        purpose = understanding["question"] if not period else _purpose(understanding["question"], period)
         definition = {
             "purpose": purpose,
             "inputs": ({"period": {"type": "period", "grain": period["grain"],
@@ -273,23 +285,27 @@ class WorkflowService:
             "success_criteria": plan.get("success_criteria", []),
         }
         db = self._db(ws)
-        same = db.query("SELECT * FROM workflows WHERE signature = ? ORDER BY version DESC LIMIT 1", [sig])
-        if same:
-            cur = self._row(same[0])
-            if (cur["status"] == "active" and json.dumps(cur["definition"]["steps"], sort_keys=True)
-                    == json.dumps(template, sort_keys=True) and cur["deps"] == deps):
-                patterns = sorted(set(cur["patterns"]) | {pat})
-                db.execute("UPDATE workflows SET patterns = ?, verified_runs = verified_runs + 1, last_verified_at = now(), "
-                           "last_verified_task = ? WHERE id = ? AND version = ?",
-                           [patterns, task_id, cur["id"], cur["version"]])
-                return {"id": cur["id"], "version": cur["version"], "created": False}
-            wf_id, version = cur["id"], cur["version"] + 1
-            patterns = sorted(set(cur["patterns"]) | {pat})
-        else:
-            wf_id, version, patterns = "wf_" + uuid.uuid4().hex[:10], 1, [pat]
         title = _title(understanding, period)
+        steps_json = json.dumps(template, sort_keys=True)
 
         def tx(c):
+            # read the latest version and write the next one in one transaction on the single writer: two verified
+            # analyses with the same signature cannot both claim the same version
+            cols = [d[0] for d in c.execute("SELECT * FROM workflows WHERE signature = ? ORDER BY version DESC LIMIT 1",
+                                            [sig]).description]
+            row = c.fetchone()
+            if row:
+                cur = self._row(dict(zip(cols, row, strict=True)))
+                patterns = sorted(set(cur["patterns"]) | {pat})
+                if (cur["status"] == "active" and json.dumps(cur["definition"]["steps"], sort_keys=True) == steps_json
+                        and cur["deps"] == deps):
+                    c.execute("UPDATE workflows SET patterns = ?, verified_runs = verified_runs + 1, last_verified_at = now(), "
+                              "last_verified_task = ? WHERE id = ? AND version = ?",
+                              [patterns, task_id, cur["id"], cur["version"]])
+                    return cur["id"], cur["version"], False
+                wf_id, version = cur["id"], cur["version"] + 1
+            else:
+                wf_id, version, patterns = "wf_" + uuid.uuid4().hex[:10], 1, [pat]
             c.execute("UPDATE workflows SET status = 'superseded' WHERE id = ? AND status IN ('active', 'stale')", [wf_id])
             c.execute(
                 "INSERT INTO workflows (id, version, signature, title, intent, definition, deps, permissions, patterns, "
@@ -297,11 +313,17 @@ class WorkflowService:
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 1, 0, ?, now())",
                 [wf_id, version, sig, title, understanding["intent"], json.dumps(definition, default=str), json.dumps(deps),
                  json.dumps(permissions), patterns, task_id, task_id, actor.user_id])
+            return wf_id, version, True
 
-        db.write(tx)
+        wf_id, version, created = db.write(tx)
+        if not created:
+            return {"id": wf_id, "version": version, "created": False}
         self.guard.audit(actor, ws, "workflow.compile", f"{wf_id}:v{version}", "ok")
         if getattr(self, "assets", None):
-            self.assets.on_workflow(actor, ws, wf_id, version, title, deps, task_id, understanding.get("question"))
+            try:  # optional hook: the workflow is committed either way
+                self.assets.on_workflow(actor, ws, wf_id, version, title, deps, task_id, understanding.get("question"))
+            except Exception:  # noqa: BLE001
+                log.exception("asset registration failed for workflow %s v%s", wf_id, version)
         return {"id": wf_id, "version": version, "created": True}
 
     def plan_steps(self, wf: dict[str, Any], period: dict[str, Any] | None, prior: dict | None,
@@ -323,6 +345,9 @@ class WorkflowService:
             period = f"last {grain}" if grain in ("quarter", "month", "year") else None
         if period and not re.fullmatch(r"[A-Za-z0-9 '\-]{2,24}", period):
             raise ValueError("period must look like 'Q4 2026', 'Aug 2026', '2025' or 'last quarter'")
+        if "{period}" in purpose and not period:
+            raise ValueError(f"this workflow needs a period (its grain is {grain or 'unknown'}); pass one, "
+                             "such as 'Q4 2026' or 'Aug 2026'")
         if period and "{period}" in purpose:
             question = fill_period(purpose, period)
         elif period:
@@ -338,6 +363,8 @@ class WorkflowService:
         grain = (wf["definition"]["inputs"].get("period") or {}).get("grain")
         purpose = wf["definition"]["purpose"]
         rolling = f"last {grain}" if grain in ("quarter", "month", "year") else None
+        if "{period}" in purpose and not rolling:
+            raise ValueError(f"a {grain or 'workflow'} period has no rolling equivalent, so this workflow cannot be scheduled")
         question = fill_period(purpose, rolling) if rolling else purpose
         return runtime.create_schedule(actor, ws, wf["title"], question, every_seconds,
                                        workflow={"id": wf["id"], "fallback": True})
@@ -348,14 +375,29 @@ class WorkflowService:
         self.guard.audit(actor, ws, "workflow.retire", wf_id, "ok")
 
 
+def _purpose(question: str, period: dict[str, Any]) -> str:
+    """The question with its period as a {period} slot: the label when it appears verbatim, otherwise the period
+    phrase the pattern recogniser finds ('last quarter', 'in Q1 2026'). Unchanged when neither is present."""
+    label = period.get("label")
+    if label and label in question:
+        return re.sub(r"\s+", " ", question.replace(label, "{period}"))
+    for p, _slot in _PERIOD_PATTERNS:
+        m = re.search(p, question, flags=re.IGNORECASE)
+        if m and m.group(0).strip():
+            phrase = m.group(0).strip()
+            return re.sub(r"\s+", " ", question.replace(phrase, "{period}", 1))
+    return question
+
+
 def _title(u: dict[str, Any], period: dict[str, Any] | None) -> str:
-    metric = (u.get("metrics") or [u.get("dataset") or "data"])[0].replace("_", " ")
+    metric = str((u.get("metrics") or [None])[0] or u.get("dataset") or "data").replace("_", " ")
     kind = {"explain": "Why {m} changed", "value": "{m}", "breakdown": "{m} by {by}", "trend": "{m} trend",
-            "forecast": "{m} forecast", "correlate": "{m} vs {o}", "profile": "Data quality of {m}"}[u["intent"]]
+            "forecast": "{m} forecast", "correlate": "{m} vs {o}", "profile": "Data quality of {m}"}.get(u.get("intent"), "{m}")
     t = kind.format(m=metric, by=(u.get("by") or "").replace("_", " "), o=(u.get("second_metric") or "").replace("_", " "))
     t = t[0].upper() + t[1:]
     if period:
         t += f", each {period['grain']}" if period.get("grain") in ("quarter", "month", "year") else ""
     if u.get("filters"):
-        t += " (" + ", ".join(f"{f['column']} = {f['value']}" for f in u["filters"]) + ")"
+        # column names only: concrete filter values stay in the definition, governed by the workflow's permissions
+        t += " (filtered by " + ", ".join(sorted({str(f.get("column", "")) for f in u["filters"]})) + ")"
     return t
