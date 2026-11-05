@@ -144,23 +144,6 @@ def metric_cards(metrics: list[dict], terms: list[dict], per_row: int = 3) -> No
                     metric_detail(m, terms)
 
 
-def knowledge_map(metrics: list[dict], terms: list[dict]) -> None:
-    """Where meaning comes from: datasets feed approved metrics, and business terms point at them."""
-    ds = _datasets()
-    used = {m["dataset"] for m in metrics}
-    layers = [("Data", [(f"d:{d['name']}", d.get("title", d["name"]), f"{d.get('row_count', 0):,} rows")
-                        for d in ds if d["name"] in used]),
-              ("Approved metrics", [(f"m:{m['name']}", m["title"], _formula(m)) for m in metrics]),
-              ("Business terms", [(f"t:{t['term']}", t["term"], (t.get("definition") or "")[:40]) for t in terms
-                                  if t.get("maps_to_metric")][:12])]
-    edges = [(f"d:{m['dataset']}", f"m:{m['name']}") for m in metrics]
-    edges += [(f"m:{t['maps_to_metric']}", f"t:{t['term']}") for t in terms if t.get("maps_to_metric")]
-    if not layers[2][1]:
-        layers = layers[:2]
-    with kit.card("knowledge_map"):
-        st.html(visuals.layered_graph(layers, edges, label="How datasets, approved metrics and business terms connect"))
-
-
 def _datasets() -> list[dict]:
     try:
         return api.get(f"/v1/workspaces/{ws}/datasets")
@@ -179,15 +162,8 @@ def definitions() -> None:
         if len(metrics) + len(terms) > 8 else ""
     hits = [m for m in metrics if not q or q.lower() in (m["title"] + m["name"] + " ".join(m["synonyms"])).lower()]
     if hits:
-        top = st.columns([4, 1.4], vertical_alignment="bottom")
-        with top[0]:
-            kit.label(f"Metrics · {len(hits)}")
-        layout = top[1].segmented_control("Layout", ["Cards", "Map"], default="Cards", key="def_layout",
-                                          label_visibility="collapsed", width="stretch")
-        if layout == "Map":
-            knowledge_map(hits, terms)
-        else:
-            metric_cards(hits, terms)
+        kit.label(f"Metrics · {len(hits)}")  # how they connect is the Graph section's job
+        metric_cards(hits, terms)
     tshown = [t for t in terms if not q or q.lower() in (t["term"] + t["definition"]).lower()]
     if tshown:
         kit.label(f"Business terms · {len(tshown)}")

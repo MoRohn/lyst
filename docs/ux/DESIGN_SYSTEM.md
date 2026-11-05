@@ -90,9 +90,9 @@ Workspaces show objects and how they relate, not numbers: values live in artifac
 * **Data › Datasets** has **Cards** (shape, freshness, columns by role, grain, the metrics a dataset feeds; no metric
   sparklines) and **Map**: every dataset on a ring, linked by the columns they share, drawn from discovery's
   evidence (`GET relations`). Column profiles open from a dataset.
-* **Brain › Definitions** has **Cards** as knowledge cards (what a metric means, its formula as written, the
-  dimensions it splits by, its synonyms; no live values) and **Map**: data → approved metrics → business terms as
-  a layered, left-to-right map that never becomes a hairball. A definition's trend and lineage open with it.
+* **Brain › Definitions** shows knowledge cards (what a metric means, its formula as written, the dimensions it
+  splits by, its synonyms; no live values). How definitions, data and terms connect is Brain › Graph's job (#115).
+  A definition's trend and lineage open with it.
 * `visuals.ring_graph` and `visuals.layered_graph` draw maps as SVG images whose alt text lists every connection.
 
 ### The Data workspace (after AcuArch's Data page)
