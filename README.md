@@ -451,11 +451,11 @@ where they point, with Mark all read and "What to tell me about".
   changed, or it is older than a year. Recall ranks memories that still apply first, an answer that draws on a
   stale one says it "may no longer apply", and admins review them in Brain › Memory. Retention removes only old
   agent-observed memory, never approved or person-validated knowledge.
-* **Recovers from the worst day.** Backups are atomic (a full disk partway through leaves no half backup) and can
-  run on a schedule. Every new backup gets a restore drill that checks each checksum, refuses a backup containing
-  key material, and opens every database with the current master key. Lyst reports the measured recovery point and
-  recovery time against your targets, shown with **Back up now** in Settings › Advanced › Backups and recovery
-  ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
+* **Recovers from the worst day.** Backups never contain the master key, and are atomic (a full disk partway
+  through leaves no half backup) and can run on a schedule. Every new backup gets a restore drill that checks each
+  checksum, refuses a backup containing key material, and opens every database with the current master key. Lyst
+  reports the measured recovery point and recovery time against your targets, shown with **Back up now** in
+  Settings › Advanced › Backups and recovery ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
 * **Fits how you deploy.** `LYST_PROFILE` picks `local` (the default), `offline` (a local model only, no catalog
   refresh or telemetry, webhooks to private addresses only), `server` (all interfaces, with OIDC and TLS expected
   at the proxy) or `portable` (a self-contained data folder that moves as a workspace pack). `lyst doctor` checks
