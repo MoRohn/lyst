@@ -49,6 +49,14 @@ Ctrl-C stops it. From another terminal: `lyst status`, `lyst stop`.
 `uv sync` installs Lyst into the project's `.venv`, so run commands through `uv run` from the checkout (a bare
 `lyst` is "command not found" unless you first `source .venv/bin/activate`). From any terminal in the checkout:
 
+It is safe to run again. If Lyst is already running it opens that one instead of starting a second, if a default port
+is busy it picks the next free one and says so, and if another program has the data open it names that program's PID
+instead of failing with a traceback. From another terminal in the same folder, `uv run lyst status` says what is
+running and `uv run lyst stop` stops it (only the processes `lyst start` recorded). `uv run lyst start --check` checks
+Python, the data folder, the encryption key, the database and the ports before you start.
+
+`uv sync` installs `lyst` inside the project's `.venv`, not on your PATH, so a bare `lyst start` says "command not
+found". Use `uv run lyst ...`, or run `source .venv/bin/activate` once in a terminal to type plain `lyst ...` there.
 ```bash
 uv run lyst status          # is Lyst running here, at which address, under which PIDs (--json for scripts)
 uv run lyst stop            # stop the Lyst that `lyst start` launched; never touches processes it didn't record

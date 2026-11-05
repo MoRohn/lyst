@@ -74,6 +74,19 @@ def clear_record(home: Path, *, launcher: int | None = None) -> None:
         pass
 
 
+# -- how to name a command to this person ------------------------------------------------------------------------------
+
+def via_uv() -> bool:
+    """True when `lyst` was launched through `uv run`, or the `lyst` script isn't on PATH, so the bare command would
+    give "command not found"."""
+    return bool(os.environ.get("UV_RUN_RECURSION_DEPTH")) or shutil.which("lyst") is None
+
+
+def cmd(args: str) -> str:
+    """A Lyst command as the person should type it here, in backticks: `uv run lyst stop` or `lyst stop`."""
+    return f"`{'uv run ' if via_uv() else ''}lyst {args}`"
+
+
 # -- processes ---------------------------------------------------------------------------------------------------------
 
 def pid_alive(pid: int) -> bool:
@@ -306,16 +319,16 @@ def preflight(home: Path, *, api_port: int = DEFAULT_API_PORT, ui_port: int = DE
     if mk is not None:
         checks.append(Check("encryption key", True, "found"))
     elif masterkey.keyring_available():
-        checks.append(Check("encryption key", True, err or f"not set yet; `lyst start` creates it in the {masterkey.keyring_available()} credential store"))
+        checks.append(Check("encryption key", True, err or "not set yet; " + cmd("start") + f" creates it in the {masterkey.keyring_available()} credential store"))
     else:
-        checks.append(Check("encryption key", False, err or "none found and no OS credential store", "Run `lyst init`, or mount the key (docs/SECURITY.md)."))
+        checks.append(Check("encryption key", False, err or "none found and no OS credential store", f"Run {cmd('init')}, or mount the key (docs/SECURITY.md)."))
     state = inspect(home)
     if state.status in ("running", "starting"):
         checks.append(Check("already running", True, state.detail))
     elif state.status == "locked":
         checks.append(Check("database", False, state.detail))
     elif state.status == "unhealthy":
-        checks.append(Check("already running", False, state.detail, "Run `lyst stop`, then start again."))
+        checks.append(Check("already running", False, state.detail, f"Run {cmd('stop')}, then start again."))
     else:
         checks.append(Check("database", True, "not in use"))
     ours = {state.record.api_port, state.record.ui_port} if state.record and state.status != "stale" else set()
@@ -324,5 +337,5 @@ def preflight(home: Path, *, api_port: int = DEFAULT_API_PORT, ui_port: int = DE
             checks.append(Check(label, True, f"{port} {'used by this Lyst' if port in ours else 'free'}"))
         else:
             alt = pick_port(port, avoid={api_port, ui_port})
-            checks.append(Check(label, True, f"{port} is busy; `lyst start` will use {alt}" if alt else f"{port} is busy"))
+            checks.append(Check(label, True, f"{port} is busy; {cmd('start')} will use {alt}" if alt else f"{port} is busy"))
     return checks
