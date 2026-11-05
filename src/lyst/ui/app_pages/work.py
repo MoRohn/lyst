@@ -6,7 +6,7 @@ import datetime
 
 import streamlit as st
 
-from lyst.ui import anticipate, collab, decisions, kit, visuals
+from lyst.ui import anticipate, collab, decisions, kit, publish, visuals
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
@@ -122,7 +122,7 @@ def activity() -> None:
             st.switch_page("app_pages/analyst.py")
         return
     groups = {"All": None, "Running": {"queued", "running", "paused", "awaiting_approval"}, "Done": {"done"},
-              "Stopped": {"failed", "cancelled"}, "Decisions": "decisions"}
+              "Stopped": {"failed", "cancelled"}, "Decisions": "decisions", "Published": "published"}
     top = st.columns([4, 1.3], vertical_alignment="center")
     with top[0]:
         pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
@@ -130,6 +130,9 @@ def activity() -> None:
                              label_visibility="collapsed", width="stretch")
     if pick == "Decisions":
         decisions.activity_rows()
+        return
+    if pick == "Published":
+        publish.listed()
         return
     shown = [t for t in tasks if groups[pick] is None or t["status"] in groups[pick]][:60]
     layout = st.session_state.get("act_layout", "List")
