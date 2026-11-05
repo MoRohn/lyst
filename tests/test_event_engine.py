@@ -84,6 +84,53 @@ def test_a_durable_consumer_retries_then_succeeds_once_and_skips_redelivery(seed
     assert len(calls) == 3
 
 
+def test_handled_events_are_recorded_in_batches_and_a_failure_never_skips_one(seeded):
+    """Inbox records and the cursor are written once per batch. A failure first records the events handled before it,
+    so the cursor never passes an event without a record; a crash mid-batch redelivers that batch, which the inbox and
+    the handler's idempotency absorb."""
+    lyst, owner = seeded
+    calls: list[int] = []
+
+    def handler(e):
+        calls.append(e["seq"])
+        if e["data"]["n"] == 2 and calls.count(e["seq"]) == 1:
+            raise RuntimeError("once")
+
+    lyst.events.consume("test.batch", handler, types=["external.batch.*"])
+    lyst.events.dispatch()
+    seqs = [lyst.events.external(owner, "northwind", "external.batch.x", subject=("x", str(i)), data={"n": i},
+                                 dedupe_key=None)["seq"] for i in range(5)]
+    lyst.events.dispatch()
+    ctl = lyst.stores.control
+    inbox = {r["seq"]: r["status"] for r in ctl.query("SELECT seq, status FROM event_inbox WHERE consumer = 'test.batch'")}
+    assert inbox == {seqs[0]: "done", seqs[1]: "done", seqs[2]: "retry", seqs[3]: "done", seqs[4]: "done"}
+    assert ctl.scalar("SELECT position FROM event_consumers WHERE name = 'test.batch'") == seqs[-1]
+    _due(lyst)
+    lyst.events.dispatch()
+    assert ctl.scalar("SELECT status FROM event_inbox WHERE consumer = 'test.batch' AND seq = ?", [seqs[2]]) == "done"
+    assert sorted(calls) == sorted([*seqs, seqs[2]])  # each handled once, the failed one twice
+
+    # a crash (not an exception the dispatcher records) in the middle of a batch: nothing of the batch is recorded,
+    # so the whole batch comes again and the inbox skips none of it wrongly
+    more = [lyst.events.external(owner, "northwind", "external.batch.y", subject=("y", str(i)), data={"n": 10 + i},
+                                 dedupe_key=None)["seq"] for i in range(3)]
+    boom = {"armed": True}
+
+    def crashing(e):
+        if e["seq"] == more[1] and boom.pop("armed", False):
+            raise KeyboardInterrupt  # stands in for the process dying
+        calls.append(e["seq"])
+
+    lyst.events.consumers["test.batch"].handler = crashing
+    with pytest.raises(KeyboardInterrupt):
+        lyst.events.dispatch()
+    assert ctl.scalar("SELECT position FROM event_consumers WHERE name = 'test.batch'") < more[0]
+    lyst.events.dispatch()
+    assert ctl.scalar("SELECT count(*) FROM event_inbox WHERE consumer = 'test.batch' AND seq IN (?, ?, ?) AND "
+                      "status = 'done'", more) == 3
+    assert calls.count(more[0]) == 2 and calls.count(more[1]) == 1 and calls.count(more[2]) == 1
+
+
 def test_a_poison_event_is_dead_lettered_and_the_stream_moves_on(seeded):
     lyst, owner = seeded
     seen: list[str] = []
