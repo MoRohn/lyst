@@ -176,7 +176,8 @@ def database_lock_holder(path: Path) -> int | None:
 
 
 def describe_pid(pid: int) -> str:
-    cmd = command_line(pid)
+    """`PID n (command)` on one line: a `python -c` script's newlines and indentation collapse to single spaces."""
+    cmd = " ".join(command_line(pid).split())
     return f"PID {pid} ({cmd[:120]})" if cmd else f"PID {pid}"
 
 

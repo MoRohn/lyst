@@ -191,6 +191,12 @@ def test_lyst_command_lines_are_recognised_and_others_are_not():
     assert isinstance(pat, re.Pattern)
 
 
+def test_describe_pid_is_one_line_for_a_multi_line_command(monkeypatch):
+    monkeypatch.setattr(launch, "command_line", lambda pid: "python -c \n    import duckdb\n    time.sleep(1)\n")
+    assert launch.describe_pid(7) == "PID 7 (python -c import duckdb time.sleep(1))"
+    assert "\n" not in launch.lock_message(Path("/x/control.duckdb"), 7)
+
+
 def test_lock_message_parses_duckdb_wording():
     msg = ('IO Error: Could not set lock on file "/x/var/control.duckdb": Conflicting lock is held in '
            '/usr/bin/python3.13 (PID 2974) by user someone. See also https://duckdb.org/docs/current/connect/concurrency')
