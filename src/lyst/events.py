@@ -508,10 +508,10 @@ class EventService:
         for r in rows:
             ev = row_to_event(r)
             if matches(ev["type"], c.types):
-                self._process(c, ev)
+                # the cursor moves past each handled event with its inbox record (one write); a crash re-delivers at
+                # most this one, and the inbox (or the handler's own idempotency) makes that harmless
+                self._process(c, ev, advance=True)
                 n += 1
-                # the cursor moves past each handled event (a crash re-delivers at most this one; the inbox skips it)
-                ctl.execute("UPDATE event_consumers SET position = ?, updated_at = now() WHERE name = ?", [ev["seq"], c.name])
         if rows and (not n or not matches(row_to_event(rows[-1])["type"], c.types)):
             ctl.execute("UPDATE event_consumers SET position = ?, updated_at = now() WHERE name = ?", [rows[-1]["seq"], c.name])
         due = ctl.query("SELECT p.* FROM event_inbox i JOIN platform_events p ON p.id = i.event_id WHERE i.consumer = ? "
@@ -521,11 +521,14 @@ class EventService:
             n += 1
         return n
 
-    def _process(self, c: Consumer, ev: dict[str, Any]) -> None:
+    def _process(self, c: Consumer, ev: dict[str, Any], *, advance: bool = False) -> None:
         ctl = self.stores.control
+        move = (lambda x: x.execute("UPDATE event_consumers SET position = greatest(position, ?), updated_at = now() "
+                                    "WHERE name = ?", [ev["seq"], c.name])) if advance else (lambda x: None)
         prior = ctl.query("SELECT status, attempts FROM event_inbox WHERE consumer = ? AND event_id = ?", [c.name, ev["id"]])
         if prior and prior[0]["status"] in ("done", "dead"):
             c.stats["skipped"] += 1  # a redelivery: the first delivery's outcome stands
+            ctl.write(move)
             return
         attempts = (prior[0]["attempts"] if prior else 0) + 1
         started = time.monotonic()
@@ -537,19 +540,27 @@ class EventService:
             err = f"{type(exc).__name__}: {str(exc)[:300]}"
             log.warning("consumer %s %s event %s (attempt %s): %s", c.name, "dead-lettered" if permanent else "will retry",
                         ev["id"], attempts, err)
-            ctl.execute("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
-                        "last_error, next_attempt_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())",
-                        [c.name, ev["id"], ev["workspace_id"], ev["seq"], status, attempts, err,
-                         None if permanent else datetime.now(UTC) + backoff(attempts)])
+            def fail(x):
+                x.execute("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
+                          "last_error, next_attempt_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, now())",
+                          [c.name, ev["id"], ev["workspace_id"], ev["seq"], status, attempts, err,
+                           None if permanent else datetime.now(UTC) + backoff(attempts)])
+                move(x)
+
+            ctl.write(fail)
             c.stats[status] += 1
             if permanent and ev["workspace_id"] and not ev["type"].startswith("event."):
                 self.emit(ev["workspace_id"], "event.dead_lettered", subject=("event", str(ev["seq"])),
                           data={"consumer": c.name, "event_type": ev["type"], "attempts": attempts},
                           source="system", dedupe_key=f"dead:{c.name}:{ev['id']}")
             return
-        ctl.execute("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
-                    "last_error, next_attempt_at, duration_ms, updated_at) VALUES (?, ?, ?, ?, 'done', ?, NULL, NULL, ?, now())",
-                    [c.name, ev["id"], ev["workspace_id"], ev["seq"], attempts, int((time.monotonic() - started) * 1000)])
+        def done(x):
+            x.execute("INSERT OR REPLACE INTO event_inbox (consumer, event_id, workspace_id, seq, status, attempts, "
+                      "last_error, next_attempt_at, duration_ms, updated_at) VALUES (?, ?, ?, ?, 'done', ?, NULL, NULL, ?, now())",
+                      [c.name, ev["id"], ev["workspace_id"], ev["seq"], attempts, int((time.monotonic() - started) * 1000)])
+            move(x)
+
+        ctl.write(done)
         c.stats["done"] += 1
 
     def dead_letters(self, actor: Principal, ws: str, limit: int = 100) -> list[dict[str, Any]]:

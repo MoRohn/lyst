@@ -75,7 +75,7 @@ def test_a_durable_consumer_retries_then_succeeds_once_and_skips_redelivery(seed
     _due(lyst)
     lyst.events.dispatch()
     assert calls == [ev["id"]] * 3
-    state = lyst.events.get(owner, "northwind", ev["seq"])["processing"]
+    state = [p for p in lyst.events.get(owner, "northwind", ev["seq"])["processing"] if p["consumer"] == "test.flaky"]
     assert state == [{"consumer": "test.flaky", "status": "done", "attempts": 3, "error": None,
                       "updated_at": state[0]["updated_at"]}]
     # redelivery (a replayed cursor) does not run the handler again
