@@ -20,6 +20,7 @@ profile's rules and says what breaks them.
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from typing import Any
 
 PROFILES: dict[str, dict[str, Any]] = {
@@ -34,16 +35,19 @@ PROFILES: dict[str, dict[str, Any]] = {
 }
 
 
-def name() -> str:
-    return os.environ.get("LYST_PROFILE", "local").strip().lower() or "local"
+def name(env: Mapping[str, str] | None = None) -> str:
+    """The chosen profile; an unknown name is an error everywhere it is read, never a silent fallback."""
+    env = os.environ if env is None else env
+    chosen = (env.get("LYST_PROFILE") or "local").strip().lower() or "local"
+    if chosen not in PROFILES:
+        raise ValueError(f"LYST_PROFILE={chosen!r} is not a profile; choose one of {', '.join(PROFILES)}")
+    return chosen
 
 
 def apply(env: dict[str, str] | None = None) -> str:
     """Fill the chosen profile's defaults into the environment (never overriding what is set). Returns its name."""
     env = os.environ if env is None else env
-    chosen = env.get("LYST_PROFILE", "local").strip().lower() or "local"
-    if chosen not in PROFILES:
-        raise ValueError(f"LYST_PROFILE={chosen!r} is not a profile; choose one of {', '.join(PROFILES)}")
+    chosen = name(env)
     for k, v in PROFILES[chosen]["env"].items():
         env.setdefault(k, v)
     return chosen
@@ -54,4 +58,4 @@ def offline() -> bool:
 
 
 def rules() -> dict[str, Any]:
-    return PROFILES.get(name(), PROFILES["local"])["rules"]
+    return PROFILES[name()]["rules"]

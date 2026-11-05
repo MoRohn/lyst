@@ -32,3 +32,25 @@ def test_a_newer_version_cannot_take_over_or_loosen_a_core_capability():
         r.register(Capability("value", "d", "a", "p", "analyst.ask", lambda c, a: {}, version=2))
     r.register(Capability("value", "d", "a", "p", "data.read", lambda c, a: {}, version=2))  # a real core upgrade
     assert r.get("value").version == 2
+
+
+def test_generated_dashboard_source_escapes_free_text():
+    import tomllib
+
+    from lyst.studio_dash import _quoted
+
+    hostile = 'Sales "Q1"\\" ) ; import os\n#'
+    ns: dict = {}
+    exec(f'x = "{_quoted(hostile)}"', ns)  # noqa: S102 - proves the literal cannot be closed
+    assert "import os" in ns["x"] and "\n" not in ns["x"]
+    assert tomllib.loads(f'name = "{_quoted(hostile)}"')["name"] == ns["x"]
+
+
+@pytest.mark.parametrize("bad", ["nonsense", "Server2"])
+def test_an_unknown_profile_is_the_same_error_everywhere(monkeypatch, bad):
+    from lyst import profiles
+
+    monkeypatch.setenv("LYST_PROFILE", bad)
+    for fn in (profiles.name, profiles.rules, profiles.offline, lambda: profiles.apply({"LYST_PROFILE": bad})):
+        with pytest.raises(ValueError, match="LYST_PROFILE"):
+            fn()
