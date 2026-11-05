@@ -95,6 +95,26 @@ Workspaces show objects and how they relate, not numbers: values live in artifac
   a layered, left-to-right map that never becomes a hairball. A definition's trend and lineage open with it.
 * `visuals.ring_graph` and `visuals.layered_graph` draw maps as SVG images whose alt text lists every connection.
 
+### The Data workspace (after AcuArch's Data page)
+
+Data follows AcuArch's data surface, in Lyst's tokens and Streamlit, and keeps every Lyst use case:
+
+* **Header**: title and purpose; on the right the sources' status as a pill with a coloured dot (worst news first:
+  a source that needs action, uploads to review, sources to check, all working) that opens Sources, and **Add data**.
+* **Tabs**: Datasets · Sources · Dashboards · Saved analyses · SQL as icon pills, kept in `?view=` (palette links and
+  `?dataset=` / `?connection=` deep links land on the right one). **Ask about the data** is docked at the end of the
+  tab row, with three starting questions.
+* **Datasets**: a **Library** rail (find anything; datasets with a warning icon when one needs attention, *Build a
+  dataset*, approved metrics that open in Brain, dashboards that open in their viewer) beside a dotted **canvas**
+  holding Cards, Map or **List** (every dataset as a row, and every relationship with its shared columns). At-a-glance
+  pills sit above the canvas; a dataset opens in its dialog. On a phone the rail follows the canvas.
+* **Sources, Dashboards, Saved analyses** open with an intro card: what the view is, its one action (Connect a
+  source, New dashboard) and at-a-glance pills. Sources holds uploads waiting for review, proposed connections and
+  connected sources with their health; empty states are dashed panels.
+* **SQL**: the schema and recent queries in the same rail style; the editor and Run in one card; the result's row
+  count and time as pills. The Python tab still joins through `WORKBENCH`.
+* Styles are page-scoped in `app_pages/data.py` (`_CSS`), written only in `--lyst-*` tokens.
+
 ## Building blocks
 
 * `kit.header`, `kit.sections` (≤ 3–4 sections, kept in the URL as `?view=`), `kit.label`, `kit.empty`, `kit.chip`.
