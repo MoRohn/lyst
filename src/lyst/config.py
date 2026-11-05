@@ -131,6 +131,17 @@ def anchor(name: str) -> str | None:
     return _anchor(name)
 
 
+def _workers(raw: str) -> int:
+    """LYST_WORKERS: a whole number of task workers, 1 to 64."""
+    try:
+        n = int(raw)
+    except ValueError:
+        raise ValueError(f"LYST_WORKERS={raw!r} is not a number; set it to a whole number from 1 to 64") from None
+    if not 1 <= n <= 64:
+        raise ValueError(f"LYST_WORKERS={n} is out of range; set it to a whole number from 1 to 64")
+    return n
+
+
 def load_settings(home: str | Path | None = None) -> Settings:
     load_env_file()
     from .profiles import apply as apply_profile  # noqa: PLC0415 - LYST_PROFILE fills defaults before anything reads them
@@ -146,5 +157,5 @@ def load_settings(home: str | Path | None = None) -> Settings:
         encrypt=os.environ.get("LYST_ENCRYPT", "1") != "0",
         api_url=os.environ.get("LYST_API_URL", "http://127.0.0.1:8770"),
         llm=llm_settings_from_env(),
-        workers=int(os.environ.get("LYST_WORKERS", "2")),
+        workers=_workers(os.environ.get("LYST_WORKERS") or "2"),
     )

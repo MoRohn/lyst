@@ -130,3 +130,23 @@ def test_a_started_write_that_outlives_its_grace_raises_instead_of_waiting_forev
     queued_behind.set()
     blocker.join()
     db.close()
+
+
+def test_lyst_close_still_closes_the_stores_when_the_runtime_will_not_stop(lyst, monkeypatch):
+    closed = []
+    monkeypatch.setattr(lyst.runtime, "stop", lambda: (_ for _ in ()).throw(RuntimeError("worker stuck")))
+    monkeypatch.setattr(lyst.stores, "close", lambda: closed.append(True))
+    lyst.close()
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("value", ["two", "0", "-1", ""])
+def test_a_bad_worker_count_is_named_in_the_error(monkeypatch, tmp_path, value):
+    from lyst.config import load_settings
+
+    monkeypatch.setenv("LYST_WORKERS", value)
+    if value == "":
+        assert load_settings(tmp_path).workers == 2  # unset or empty means the default
+        return
+    with pytest.raises(ValueError, match="LYST_WORKERS"):
+        load_settings(tmp_path)
