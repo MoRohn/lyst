@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Scenario I: the dispatcher process dies in the middle of handling an event. A real process is killed (os._exit,
+"""Scenario I: the process dies in the middle of handling an event, or of the action a rule planned. A real process is killed (os._exit,
 no clean shutdown, no finally blocks); a fresh process on the same home must redeliver the event and act on it
 exactly once."""
 
@@ -43,14 +43,20 @@ _SETUP = textwrap.dedent("""
             os._exit(9)  # ... and the process dies before the inbox records it or the cursor moves
         return inner(ev)
 
-    c.handler = dying
+    if {when!r} == "working":  # the event is handled; the process dies while the activity's action runs
+        def dying_run(*a, **k):
+            os._exit(9)
+        lyst.autonomy._run = dying_run
+    else:
+        c.handler = dying
     _reingest(lyst, owner, "pnl", extra_col="channel")
     lyst.events.dispatch()
+    lyst.autonomy.work()
     print("the process was expected to die", flush=True)
 """)
 
 
-@pytest.mark.parametrize("when", ["before", "after"])
+@pytest.mark.parametrize("when", ["before", "after", "working"])
 def test_a_dispatcher_killed_mid_event_redelivers_it_and_acts_once(tmp_path, monkeypatch, when):
     home = tmp_path / "home"
     script = _SETUP.format(home=str(home), when=when, tests=str(Path(__file__).parent))
@@ -75,10 +81,14 @@ def test_a_dispatcher_killed_mid_event_redelivers_it_and_acts_once(tmp_path, mon
         assert seq is not None
         ws = lyst.stores.workspace("northwind")
         before = ws.scalar("SELECT count(*) FROM activities WHERE subject_kind = 'dataset' AND subject_id = 'pnl'")
-        assert before == (1 if when == "after" else 0)  # the crash came after the side effect, or before it
-        assert ctl.scalar("SELECT position FROM event_consumers WHERE name = 'autonomy.rules'") < seq  # not yet handled
+        assert before == (0 if when == "before" else 1)  # the crash came before the activity was opened, or after
+        handled = ctl.scalar("SELECT position FROM event_consumers WHERE name = 'autonomy.rules'") >= seq
+        assert handled == (when == "working")  # a crash inside the handler leaves the event to be redelivered
+        if when == "working":  # the activity was opened but its action never finished
+            assert ws.scalar("SELECT status FROM activities WHERE subject_id = 'pnl'") == "planned"
         for _ in range(3):
             lyst.events.dispatch()
+            lyst.autonomy.work()
         acts = ws.query("SELECT status FROM activities WHERE subject_kind = 'dataset' AND subject_id = 'pnl'")
         assert len(acts) == 1, acts  # redelivered, acted on exactly once, whether the crash came before or after
         assert acts[0]["status"] == "completed"

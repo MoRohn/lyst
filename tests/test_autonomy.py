@@ -17,8 +17,10 @@ from lyst.security import AccessDenied
 def _settle(lyst, rounds: int = 4):
     for _ in range(rounds):
         lyst.events.dispatch()
+        lyst.autonomy.work()  # activity work is its own job, not part of dispatch
         lyst.runtime.drain()
     lyst.events.dispatch()
+    lyst.autonomy.work()
 
 
 def _start(lyst):
@@ -200,6 +202,7 @@ def test_a_recoverable_failure_is_retried_once_and_an_unrecoverable_one_is_not(s
     ctl.execute("UPDATE tasks SET status = 'failed', error = 'input: unknown metric gross_vibes', updated_at = now() WHERE id = ?", [bad])
     lyst.events.dispatch()
     lyst.events.dispatch()
+    lyst.autonomy.work()
     by = {a["subject_id"]: a for a in lyst.autonomy.activities(owner, "northwind", limit=50)}
     assert lyst.runtime.get(owner, ok)["status"] in ("queued", "running", "done")
     assert by[ok]["status"] in ("running", "completed")
@@ -210,6 +213,7 @@ def test_a_recoverable_failure_is_retried_once_and_an_unrecoverable_one_is_not(s
     ctl.execute("UPDATE tasks SET status = 'failed', error = 'transient: again', updated_at = now() + INTERVAL 1 SECOND WHERE id = ?", [ok])
     lyst.events.dispatch()
     lyst.events.dispatch()
+    lyst.autonomy.work()
     assert lyst.stores.control.scalar("SELECT count(*) FROM task_events WHERE task_id = ? AND kind = 'retry'", [ok]) == 1
 
 
@@ -330,3 +334,34 @@ def test_a_real_connection_that_keeps_failing_is_flagged_once(seeded, tmp_path, 
     assert "3 connection.synced events within 3600s" in a["stages"][1]["detail"]  # the healthy sync is not counted
     evs = lyst.events.list(owner, "northwind", types=["connection.synced"], after=0)["events"]
     assert [e["data"].get("outcome") for e in evs] == [None, "error", "error", "error", "error", "error"]
+
+
+def test_a_slow_action_never_holds_up_the_event_stream(seeded, monkeypatch):
+    """Activity work runs as its own job: dispatch only opens the activity, so a slow or failing action cannot delay
+    other consumers; the work pass runs it, and one that crashes is recorded as failed without stopping the rest."""
+    import time as _time
+
+    lyst, owner = seeded
+    _rule(lyst, owner, "schema_change", suppress_seconds=0)
+    _start(lyst)
+    calls = []
+    real = lyst.autonomy._run
+
+    def slow(ws, aid, spec, ev, actor):
+        calls.append(aid)
+        _time.sleep(0.5)
+        if len(calls) == 1:
+            raise RuntimeError("the action blew up")
+        return real(ws, aid, spec, ev, actor)
+
+    monkeypatch.setattr(lyst.autonomy, "_run", slow)
+    _reingest(lyst, owner, "pnl", extra_col="channel")
+    _reingest(lyst, owner, "pnl", extra_col="region2")
+    lyst.events.dispatch()
+    assert not calls  # dispatch opened the activities and moved on; no action ran inside it
+    acts = lyst.autonomy.activities(owner, "northwind", subject=("dataset", "pnl"))
+    assert [a["status"] for a in acts] == ["planned", "planned"]
+    assert lyst.autonomy.work()["executed"] == 2
+    got = sorted(a["status"] for a in lyst.autonomy.activities(owner, "northwind", subject=("dataset", "pnl")))
+    assert got == ["completed", "failed"]
+    assert lyst.autonomy.work()["executed"] == 0  # nothing planned is left, nothing runs twice

@@ -63,6 +63,7 @@ def test_settings_offers_rules_and_work_shows_what_they_did(ui):  # noqa: F811
     lyst.events.dispatch()
     _reingest(lyst, owner, "pnl", extra_col="channel")
     lyst.events.dispatch()
+    lyst.autonomy.work()
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/work.py")
@@ -88,6 +89,7 @@ def test_a_proposal_shows_its_approval_where_it_happened(ui):  # noqa: F811
     lyst.events.dispatch()
     _reingest(lyst, owner, "pnl", extra_col="channel")
     lyst.events.dispatch()
+    lyst.autonomy.work()
     act = lyst.autonomy.activities(owner, "northwind")[0]
     assert act["status"] == "awaiting_approval"
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
