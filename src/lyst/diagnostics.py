@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from . import environment, profiles, sandbox
+from .launch import cmd
 from .store.schema import CONTROL, WORKSPACE
 
 ORDER = {"ok": 0, "skip": 0, "warn": 1, "fail": 2}
@@ -82,7 +83,7 @@ def checks(lyst, *, network: bool = True) -> list[dict[str, Any]]:
         sizes += f.stat().st_size if f.exists() else 0
     out.append(_c("schema", "storage", "ok" if not pending_ctl and not behind else "fail",
                   f"control schema {known_ctl}, {len(known_ws)} workspace migrations applied everywhere" if not pending_ctl and not behind
-                  else f"pending control migrations {pending_ctl}; workspaces behind: {behind}", "restart the engine to migrate"))
+                  else f"pending control migrations {pending_ctl}; workspaces behind: {behind}", f"restart Lyst ({cmd('stop')}, then {cmd('start')}) to migrate"))
     wal = sum(p.stat().st_size for p in home.rglob("*.wal")) if home.exists() else 0
     out.append(_c("database_size", "storage", "ok" if wal < 512e6 else "warn",
                   f"workspaces {sizes / 1e6:.1f} MB, write-ahead logs {wal / 1e6:.1f} MB",
@@ -91,9 +92,10 @@ def checks(lyst, *, network: bool = True) -> list[dict[str, Any]]:
     if backups:
         age = (time.time() - backups[-1].stat().st_mtime) / 86400
         out.append(_c("backup", "storage", "ok" if age < 2 else "warn", f"last backup {age:.1f} days ago",
-                      None if age < 2 else "schedule `lyst backup` daily (or POST /v1/installation/backup)"))
+                      None if age < 2 else f"Settings › Advanced › Back up now, and schedule {cmd('backup <folder>')} daily"))
     else:
-        out.append(_c("backup", "storage", "warn", "no backup found in the data folder", "run `lyst backup <folder>` and schedule it"))
+        out.append(_c("backup", "storage", "warn", "no backup found in the data folder",
+                      f"Settings › Advanced › Back up now (or {cmd('backup <folder>')}), then schedule it daily"))
     # -- security
     chain = lyst.credentials.verify_audit_chain()
     out.append(_c("credential_audit", "security", "ok" if chain["ok"] else "fail",
@@ -105,7 +107,7 @@ def checks(lyst, *, network: bool = True) -> list[dict[str, Any]]:
         "SELECT count(*) FROM credentials WHERE provider = 'oidc' AND status = 'active'") or 0)
     if exposed and not oidc:
         out.append(_c("exposure", "security", "fail", f"the API binds {host} without an identity provider",
-                      "configure OIDC (Settings › Secrets & Connections) or bind 127.0.0.1"))
+                      "configure OIDC (Settings › Connections) or bind 127.0.0.1"))
     elif rules.get("loopback") and exposed:
         out.append(_c("exposure", "security", "warn", f"profile {prof} expects loopback, but the API binds {host}",
                       "set LYST_HOST=127.0.0.1 or choose the server profile"))
@@ -134,11 +136,11 @@ def checks(lyst, *, network: bool = True) -> list[dict[str, Any]]:
     else:
         c = lyst.credentials.resolve("openrouter")
         out.append(_c("model", "models", "ok" if c else "warn", "OpenRouter key connected" if c else "no OpenRouter key yet",
-                      None if c else "connect it in Settings › Secrets & Connections; analyses that need a model wait until then"))
+                      None if c else "connect it in Settings › Connections; analyses that need a model wait until then"))
     # -- runtime
     stuck = ctl.scalar("SELECT count(*) FROM tasks WHERE status = 'running' AND lease_until < now() - INTERVAL 10 MINUTE") or 0
     out.append(_c("runtime", "runtime", "ok" if not stuck else "warn", f"{stuck} task(s) running past their lease" if stuck else "no stalled tasks",
-                  "restart the engine; it recovers orphaned tasks on start" if stuck else None))
+                  f"restart Lyst ({cmd('stop')}, then {cmd('start')}); it recovers orphaned tasks on start" if stuck else None))
     dead = ctl.scalar("SELECT count(*) FROM webhook_deliveries WHERE status = 'dead'") or 0
     paused = ctl.scalar("SELECT count(*) FROM webhook_subscriptions WHERE NOT active AND disabled_reason IS NOT NULL") or 0
     out.append(_c("webhooks", "runtime", "ok" if not dead and not paused else "warn",

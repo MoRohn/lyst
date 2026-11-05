@@ -41,6 +41,7 @@ GET /v1/tasks/{task_id}/artifacts | query: - | body: -
 GET /v1/tasks/{task_id}/evidence | query: - | body: -
 GET /v1/tasks/{task_id}/expertise | query: - | body: -
 GET /v1/tasks/{task_id}/explain | query: - | body: -
+GET /v1/tasks/{task_id}/lifecycle | query: - | body: -
 GET /v1/tasks/{task_id}/trace | query: - | body: -
 GET /v1/workspaces/{ws}/analyses | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/quality | query: - | body: -
@@ -125,6 +126,7 @@ GET /v1/workspaces/{ws}/model-usage | query: - | body: -
 GET /v1/workspaces/{ws}/monitors | query: - | body: -
 GET /v1/workspaces/{ws}/notification-preferences | query: - | body: -
 GET /v1/workspaces/{ws}/notifications | query: - | body: -
+GET /v1/workspaces/{ws}/objects/{kind}/{oid}/actions | query: - | body: -
 GET /v1/workspaces/{ws}/objects/{kind}/{oid}/activity | query: - | body: -
 GET /v1/workspaces/{ws}/objects/{kind}/{oid}/comments | query: - | body: -
 GET /v1/workspaces/{ws}/onboarding | query: - | body: -
@@ -243,6 +245,7 @@ POST /v1/workspaces/{ws}/monitors | query: - | body: metric
 POST /v1/workspaces/{ws}/monitors/tick | query: - | body: -
 POST /v1/workspaces/{ws}/monitors/{monitor_id}/disable | query: - | body: -
 POST /v1/workspaces/{ws}/notifications/{notification_id}/read | query: - | body: -
+POST /v1/workspaces/{ws}/objects/{kind}/{oid}/actions/{action_id} | query: - | body: -
 POST /v1/workspaces/{ws}/objects/{kind}/{oid}/comments | query: - | body: body
 POST /v1/workspaces/{ws}/onboarding/discover | query: - | body: -
 POST /v1/workspaces/{ws}/onboarding/proposals/{pid}/accept | query: - | body: -
