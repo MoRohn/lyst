@@ -16,6 +16,7 @@ every action answers with a toast or an inline message; nothing technical unless
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -264,8 +265,10 @@ def chip(text: str, tone: str = "info", where: Any = st) -> None:
 
 
 def _md_text(text: object) -> str:
-    """Markdown-safe text that may sit inside an HTML block: markdown stays, HTML tags are escaped."""
-    return md(text).replace("<", "&lt;").replace(">", "&gt;")
+    """Markdown-safe text that may sit inside an HTML block: markdown stays, HTML tags are escaped. Inline code
+    spans are left as they are: markdown already shows their content literally (``uv run lyst backup <folder>``)."""
+    parts = re.split(r"(`[^`\n]*`)", md(text))
+    return "".join(p if i % 2 else p.replace("<", "&lt;").replace(">", "&gt;") for i, p in enumerate(parts))
 
 
 def row(title: str, meta: str = "", *, status: tuple[str, str] | None = None,

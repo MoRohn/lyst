@@ -507,7 +507,7 @@ def test_setup_mode_initialises_only_from_the_engine_host_and_shows_the_recovery
         r = local.post("/setup/initialize", json={"recovery_key": "ab" * 32})  # a wrong "recovery" key for a fresh home still works...
         assert r.status_code == 200 and r.json()["recovery_key"] is None and store["LYST_MASTER_KEY"] == "ab" * 32
         assert local.get("/health").json()["status"] == "ok"
-        assert local.post("/setup/initialize", json={}).status_code == 400  # ...but only once
+        assert local.post("/setup/initialize", json={}).status_code == 409  # ...but only once (already initialised)
     store.clear()
     app2 = create_app(None, start_workers=False)
     with TestClient(app2) as local:
