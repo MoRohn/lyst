@@ -90,3 +90,22 @@ def test_openrouter_end_to_end_through_the_analyst(tmp_path, monkeypatch):
         assert "2024-01-01" not in sent
     finally:
         app.close()
+
+
+def test_call_identity_is_cleared_accounting_never_fails_a_call_and_errors_say_why(seeded, monkeypatch):
+    import pytest
+
+    from lyst.llm import LLMResponseInvalid, LLMUnavailable
+
+    lyst, owner = seeded
+    handler = lambda request: httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}], "usage": {}})  # noqa: E731
+    client = LLMClient(LLMSettings("http://localhost:11434/v1", "local"), lyst.stores, transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(client, "_owner_of", lambda task_id: "u_someone")
+    monkeypatch.setattr(client, "_insert_call", lambda r, cost: (_ for _ in ()).throw(RuntimeError("store down")))
+    assert client.chat("northwind", [{"role": "user", "content": "hi"}], purpose="t", task_id="t_1") == "not json"
+    assert getattr(client._local, "user_id", None) is None  # the task's owner does not outlive the call
+    with pytest.raises(LLMResponseInvalid):
+        client.chat_json("northwind", [{"role": "user", "content": "hi"}], purpose="t")
+    assert issubclass(LLMResponseInvalid, LLMUnavailable)
+    # a local provider with no model configured has no model to describe, rather than an IndexError
+    assert LLMClient(LLMSettings("http://localhost:11434/v1", None), lyst.stores, transport=httpx.MockTransport(handler)).info() is None
