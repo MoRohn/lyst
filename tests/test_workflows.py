@@ -233,3 +233,18 @@ def test_identical_findings_reuse_the_verified_wording_instead_of_calling_the_mo
     assert again["answer"] == first["answer"] and "reused" in again["supporting"]["narrative_by"]
     other = ask(lyst, owner, "Why did operating margin decline in Q2 2026?")["result"]  # different findings: worded anew
     assert calls == ["narrative", "narrative"] and "reused" not in other["supporting"]["narrative_by"]
+
+
+def test_workflow_helpers_handle_period_phrases_titles_and_duplicate_slots():
+    from lyst.workflows import _purpose, _title, templatize
+
+    p = {"label": "Q1 2026", "start": "2026-01-01", "end": "2026-04-01", "grain": "quarter"}
+    assert _purpose("Why did margin fall in Q1 2026?", p) == "Why did margin fall in {period}?"
+    assert "{period}" in _purpose("Why did margin fall last quarter?", p)
+    t = _title({"intent": "value", "metrics": ["revenue"], "filters": [{"column": "customer", "value": "Acme Corp"}]}, p)
+    assert "Acme" not in t and "customer" in t
+    assert _title({"intent": "unknown_new_intent", "metrics": [None], "dataset": None}, None) == "Data"
+    same = dict(p)
+    slots = {"current": p, "prior": same}
+    assert templatize({"period": same}, slots, "prior") == {"period": {"$period": "prior"}}
+    assert templatize({"period": same}, slots, None) == {"period": {"$period": "current"}}
