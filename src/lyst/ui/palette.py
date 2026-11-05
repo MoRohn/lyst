@@ -140,6 +140,7 @@ def palette(spaces: list[dict]) -> None:
                 st.switch_page(page, query_params=qp)
 
     if len(q) >= 2:
+        _artifacts(q)
         _found(api, ws, q)
         _expertise(api, ws, q)
 
@@ -151,6 +152,21 @@ def palette(spaces: list[dict]) -> None:
                        divider=False, slot=False):
                 st.session_state["_switch_ws"] = w["id"]
                 st.rerun()
+
+
+def _artifacts(q: str) -> None:
+    """What Lyst has made whose title matches: dashboards, briefings, saved analyses, analyses."""
+    from lyst.ui import artifacts  # noqa: PLC0415
+
+    hits = [i for i in artifacts.catalog(limit=200) if q.lower() in i["title"].lower()][:5]
+    if not hits:
+        return
+    _section("Made by Lyst", len(hits))
+    for i, it in enumerate(hits):
+        label = artifacts.KINDS.get(it["kind"], ("Artifact", ""))[0]
+        if kit.row(it["title"], f"{label} · {kit.when(it.get('updated'))}", actions=[("Open", "go")],
+                   key=f"pal_a{i}", divider=False, slot=False):
+            artifacts.open_artifact(it)
 
 
 def _found(api: Any, ws: str, q: str) -> None:

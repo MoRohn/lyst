@@ -109,32 +109,56 @@ def tidy(metrics: list[dict]) -> None:
                     divider=k < len(issues) - 1)
 
 
+def _formula(m: dict) -> str:
+    """How a metric is built, in its own terms: 'sum of revenue', 'sum of cogs ÷ sum of revenue'."""
+    def part(p: dict | None) -> str:
+        return f"{p.get('agg', 'sum')} of {str(p.get('column', '')).replace('_', ' ')}" if p else ""
+
+    if m.get("numerator") and m.get("denominator"):
+        return f"{part(m['numerator'])} ÷ {part(m['denominator'])}"
+    return part(m.get("measure") or m.get("numerator")) or "a governed expression"
+
+
 def metric_cards(metrics: list[dict], terms: list[dict], per_row: int = 3) -> None:
-    """Each approved metric as a card: its latest value, the change coloured by whether it is good for this measure,
-    a twelve-period sparkline, and where it comes from. Values are the engine's own (pulse), never estimated here."""
-    live = visuals.pulse(api, ws)
+    """Each approved definition as a knowledge card: what it means, how it is built, where it comes from and how it
+    can be split. Its numbers are one click away (the definition opens with its trend and lineage), not on the page."""
     datasets = {d["name"]: d.get("title", d["name"]) for d in _datasets()}
     for start in range(0, len(metrics), per_row):
         cols = st.columns(per_row)
         for col, m in zip(cols, metrics[start:start + per_row], strict=False):
-            p = live.get(m["name"])
             with col, kit.card(f"m_{m['name']}"):
-                dims = ", ".join(d.replace("_", " ") for d in m.get("dimensions") or [])
-                head = (f'<div class="lyst-card-title">{kit._esc(m["title"])}</div>'
-                        + (f'<div class="lyst-card-value lyst-num">{kit._esc(p["value_text"])}</div>'
-                           + visuals.delta(p["change_text"] + " vs prior " + p["grain"], p.get("good"))
-                           + visuals.spark(p["history"], label=f"{m['title']} over the last {len(p['history'])} "
-                                           f"{p['grain']}s") if p else
-                           '<div class="lyst-card-meta">No recent value: Lyst computes it when asked.</div>'))
-                st.html(head)
-                meta = " · ".join(x for x in (f"from {datasets.get(m['dataset'], m['dataset'])}",
-                                              f"split by {dims}" if dims else None) if x)
-                st.html(f'<div class="lyst-card-meta">{kit._esc(m.get("description") or "No description yet")}'
-                        f'<br>{kit._esc(meta)}</div>')
+                alias = sorted({*m.get("synonyms", []), *[t["term"] for t in terms if t.get("maps_to_metric") == m["name"]]})
+                chips = "".join(f'<span class="lyst-tag">{kit._esc(d.replace("_", " "))}</span>'
+                                for d in (m.get("dimensions") or [])[:4])
+                st.html(f'<div class="lyst-card-kicker">{kit._esc(m.get("kind", "measure"))} · '
+                        f'{kit._esc(datasets.get(m["dataset"], m["dataset"]))}</div>'
+                        f'<div class="lyst-card-title">{kit._esc(m["title"])}</div>'
+                        f'<div class="lyst-card-meta" style="margin:.2rem 0 .45rem 0">'
+                        f'{kit._esc(m.get("description") or "No description yet")}</div>'
+                        f'<div class="lyst-formula">{kit._esc(_formula(m))}</div>'
+                        + (f'<div class="lyst-tags">{chips}</div>' if chips else "")
+                        + (f'<div class="lyst-card-meta">also called {kit._esc(", ".join(alias[:3]))}</div>' if alias else ""))
                 if st.button("Open", key=f"m{m['name']}_open", type="tertiary", icon=":material/arrow_outward:") \
                         or st.query_params.get("metric") == m["name"]:
                     st.query_params.pop("metric", None)
                     metric_detail(m, terms)
+
+
+def knowledge_map(metrics: list[dict], terms: list[dict]) -> None:
+    """Where meaning comes from: datasets feed approved metrics, and business terms point at them."""
+    ds = _datasets()
+    used = {m["dataset"] for m in metrics}
+    layers = [("Data", [(f"d:{d['name']}", d.get("title", d["name"]), f"{d.get('row_count', 0):,} rows")
+                        for d in ds if d["name"] in used]),
+              ("Approved metrics", [(f"m:{m['name']}", m["title"], _formula(m)) for m in metrics]),
+              ("Business terms", [(f"t:{t['term']}", t["term"], (t.get("definition") or "")[:40]) for t in terms
+                                  if t.get("maps_to_metric")][:12])]
+    edges = [(f"d:{m['dataset']}", f"m:{m['name']}") for m in metrics]
+    edges += [(f"m:{t['maps_to_metric']}", f"t:{t['term']}") for t in terms if t.get("maps_to_metric")]
+    if not layers[2][1]:
+        layers = layers[:2]
+    with kit.card("knowledge_map"):
+        st.html(visuals.layered_graph(layers, edges, label="How datasets, approved metrics and business terms connect"))
 
 
 def _datasets() -> list[dict]:
@@ -155,8 +179,15 @@ def definitions() -> None:
         if len(metrics) + len(terms) > 8 else ""
     hits = [m for m in metrics if not q or q.lower() in (m["title"] + m["name"] + " ".join(m["synonyms"])).lower()]
     if hits:
-        kit.label(f"Metrics · {len(hits)}")
-        metric_cards(hits, terms)
+        top = st.columns([4, 1.4], vertical_alignment="bottom")
+        with top[0]:
+            kit.label(f"Metrics · {len(hits)}")
+        layout = top[1].segmented_control("Layout", ["Cards", "Map"], default="Cards", key="def_layout",
+                                          label_visibility="collapsed", width="stretch")
+        if layout == "Map":
+            knowledge_map(hits, terms)
+        else:
+            metric_cards(hits, terms)
     tshown = [t for t in terms if not q or q.lower() in (t["term"] + t["definition"]).lower()]
     if tshown:
         kit.label(f"Business terms · {len(tshown)}")

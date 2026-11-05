@@ -129,40 +129,6 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
                 st.switch_page(page, query_params=qp)
 
 
-def _pulse_data() -> list[dict]:
-    """Cached per person and workspace for five minutes: a query per metric is cheap once, not on every rerun."""
-    import time  # noqa: PLC0415
-
-    hit = st.session_state.get("_pulse")
-    if hit and hit[0] == ws and time.time() - hit[1] < 300:
-        return hit[2]
-    try:
-        data = api.get(f"/v1/workspaces/{ws}/pulse")
-    except APIError:
-        data = []
-    st.session_state["_pulse"] = (ws, time.time(), data)
-    return data
-
-
-def pulse() -> None:
-    """The business at a glance: each approved metric's last complete month against the one before. A tile opens
-    'why did it change?', so the status page leads straight into an explanation."""
-    tiles = _pulse_data()[:6]
-    if not tiles:
-        return
-    kit.label(f"This month at a glance · {tiles[0]['period']}")
-    from lyst.ui import visuals  # noqa: PLC0415
-
-    cols = st.columns(3)
-    for i, t in enumerate(tiles):
-        with cols[i % 3], kit.card(f"pulse_{t['metric']}"):
-            st.html(visuals.metric_tile(t))
-            if st.button("Why did it change?", key=f"pulse_{t['metric']}", type="tertiary",
-                         icon=":material/arrow_outward:"):
-                submit(f"Why did {kit.lower(t['title'])} change last month?")
-                st.rerun()
-
-
 def home() -> None:
     kit.header("What should Lyst work on?",
                "Ask in plain words. Lyst works it out from your approved numbers, checks every figure and shows why.")
@@ -174,8 +140,6 @@ def home() -> None:
         metrics, datasets = [], []
     anticipate.home_line()
     get_started(datasets, metrics)
-    if datasets:
-        pulse()
     if not datasets:
         if kit.empty(":material/database:", "Connect data to begin",
                      "Lyst answers from data you load or connect. Add a file or a database, and approved metrics on it "
@@ -220,6 +184,10 @@ def home() -> None:
                 else:
                     open_task(rest[0])
                 st.rerun()
+    # what Lyst has made, as artifacts to open (dashboards, briefings, saved analyses), then the conversations to pick up
+    from lyst.ui import artifacts  # noqa: PLC0415
+
+    artifacts.shelf(title="Your work", n=6, key="home", exclude=("analysis",))
     done = [t for t in recent if t.get("outcome") not in ("needs_input", "unverified")][:6]
     if done:
         kit.label("Continue where you left off")

@@ -15,7 +15,7 @@ const PAGES = [
   ['work-recurring', '/work?view=recurring'], ['data-datasets', '/data?view=datasets'],
   ['data-dashboards', '/data?view=dashboards'], ['data-saved', '/data?view=saved+analyses'], ['data-sql', '/data?view=sql'],
   ['brain-defs', '/brain?view=definitions'], ['brain-docs', '/brain?view=documents'], ['brain-memory', '/brain?view=memory'],
-  ['settings', '/settings'],
+  ['settings', '/settings'], ['artifact-dashboard', '/artifact?kind=dashboard&id=' + (process.env.ART_DASH || 'none')],
 ];
 const VIEWPORTS = (process.env.VP || 'desktop:1440x900').split(',').map(s => { const [n, d] = s.split(':'); const [w, h] = d.split('x').map(Number); return { n, w, h }; });
 const THEMES = (process.env.THEMES || 'light').split(',');

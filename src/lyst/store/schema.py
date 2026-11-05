@@ -1324,3 +1324,18 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# UI lane (migrations 80-89): what each person pins (an artifact, a dataset, a metric) for one-click return.
+WORKSPACE.append((
+    80,
+    """
+    CREATE TABLE ui_pins (
+        user_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        ref_id VARCHAR NOT NULL,
+        title VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (user_id, kind, ref_id)
+    )
+    """,
+))

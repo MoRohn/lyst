@@ -220,7 +220,7 @@ def evidence_rail(r: dict[str, Any]) -> None:
         ok = sum(1 for c in checks if c.get("passed"))
         tone = "good" if ok == len(checks) else ("warn" if ok else "bad")
         section("Checks", visuals.meter(ok / len(checks), label="Checks passed", tone=tone, text=f"{ok} of {len(checks)} passed"))
-    srcs = sup.get("sources") or []
+    srcs = list({(s.get("dataset"), s.get("version")): s for s in sup.get("sources") or []}.values())
     if srcs:
         rows = "".join(
             f'<div class="lyst-rail-item"><b>{escape(str(s.get("dataset", "")))}</b> '
@@ -256,6 +256,19 @@ def evidence_rail(r: dict[str, Any]) -> None:
                           f'quer{"y" if len(q) == 1 else "ies"}. Open “Show the method” for each.</div>')
     if parts:
         st.html('<div class="lyst-rail">' + "".join(parts) + "</div>")
+
+
+def made_here(r: dict[str, Any], key: str) -> None:
+    """The artifacts this answer produced, as previews that open in the viewer: each chart, on its own."""
+    tid = key.removeprefix("av_")
+    if not tid.startswith("t_") or not r.get("charts"):
+        return
+    from lyst.ui import artifacts  # noqa: PLC0415
+
+    items = [{"kind": "chart", "id": f"{tid}:{i}", "task_id": tid, "title": c.get("title") or f"Chart {i + 1}",
+              "updated": None} for i, c in enumerate(r["charts"][:4])]
+    st.html('<div class="lyst-card-kicker" style="margin-top:.6rem">Made in this answer</div>')
+    artifacts.grid(items, key=f"made_{tid}", per_row=4)
 
 
 def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
@@ -307,7 +320,8 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
             if not exec_ and r.get("evidence"):
                 st.markdown("**Evidence**")
                 st.markdown(bullets(r["evidence"]))
-            for c in (r.get("charts", [])[:1] if exec_ else r.get("charts", [])):
+            # one chart in the flow of the finding; every chart is also an artifact below, to open on its own
+            for c in r.get("charts", [])[:1]:
                 chart(c)
             if view == "Summary" and (bc := breakdown_chart(r)):
                 chart(bc)
@@ -335,6 +349,7 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
         if rail is not None:
             with rail:
                 evidence_rail(r)
+        made_here(r, key)
         with st.expander("Show the method, checks and queries", icon=":material/fact_check:",
                          expanded=view == "Method"):
             if sup.get("sources"):
