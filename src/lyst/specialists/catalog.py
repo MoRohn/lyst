@@ -144,8 +144,23 @@ def check_references(p: SpecializationProfile, known_ids: set[str] | None = None
     return problems
 
 
-@cache
+_LOAD_FAILURE: list[CatalogError] = []
+
+
 def load() -> Catalog:
+    """The packaged catalog, read and validated once. A failure is remembered too, so a bad catalog raises the same
+    error on every call without re-reading and re-hashing every file."""
+    if _LOAD_FAILURE:
+        raise _LOAD_FAILURE[0]
+    try:
+        return _load()
+    except CatalogError as exc:
+        _LOAD_FAILURE.append(exc)
+        raise
+
+
+@cache
+def _load() -> Catalog:
     files = sorted(f for f in resources.files("lyst.specialists").joinpath("catalog").iterdir() if f.name.endswith(".json"))
     digest = hashlib.sha256()
     profiles: dict[str, SpecializationProfile] = {}

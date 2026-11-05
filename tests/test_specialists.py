@@ -336,3 +336,45 @@ def test_audit_runs_examples_end_to_end(seeded):
     assert ("forecasting_analyst", "answered") in by
     assert all(r["outcome"] == "declined" for r in rep["rows"] if r["id"] == "soc_analyst")  # no security data in the demo
     assert "| Profile |" in audit.markdown(rep)
+
+
+def test_routing_scores_stay_relevance_and_limit_zero_selects_nothing():
+    from lyst.specialists.router import route
+
+    d = route("Why did cloud spend rise? Ask the FinOps analyst.", limit=0)
+    assert d.selected == []
+    d = route("Why did revenue fall last quarter?", prefer=[route("cloud cost").considered[0].id]
+              if route("cloud cost").considered else [])
+    assert all(c["score"] < 1000 for c in d.as_dict()["considered"])
+    if d.selected and d.selected[0].requested:
+        assert d.considered[0].requested  # requested still sorts first
+
+
+def test_a_supplied_catalog_gets_its_own_index():
+    import dataclasses
+
+    from lyst.specialists.catalog import load
+    from lyst.specialists.router import _index
+
+    cat = load()
+    assert _index(cat) is _index(cat)  # the packaged catalog is cached
+    other = dataclasses.replace(cat, profiles=dict(list(cat.profiles.items())[:3]))
+    assert set(_index(other).docs) == set(other.profiles)  # same version string, different profiles
+
+
+def test_a_malformed_evidence_file_does_not_break_assessment(monkeypatch):
+    from lyst.specialists import maturity
+
+    class F:
+        def joinpath(self, _):
+            return self
+
+        def read_text(self):
+            return "[1, 2"
+
+    maturity.evidence.cache_clear()
+    monkeypatch.setattr(maturity.resources, "files", lambda _: F())
+    try:
+        assert maturity.evidence() == {}
+    finally:
+        maturity.evidence.cache_clear()

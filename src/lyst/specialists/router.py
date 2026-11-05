@@ -156,6 +156,7 @@ class _Index:
     df: Counter
     names: dict[str, Counter]
     phrases: dict[str, list[str]]
+    name_df: Counter = field(default_factory=Counter)
 
 
 def _doc(p: SpecializationProfile) -> Counter:
@@ -170,8 +171,21 @@ def _doc(p: SpecializationProfile) -> Counter:
 
 
 @cache
-def _index(version: str) -> _Index:  # keyed on the catalog version so a new catalog rebuilds it
-    cat = load()
+def _default_index(version: str) -> _Index:  # keyed on the catalog version so a new catalog rebuilds it
+    return _build_index(load())
+
+
+def _index(cat: Catalog) -> _Index:
+    """The retrieval index for ``cat``: cached for the packaged catalog, built fresh for any other one, so a supplied
+    catalog is never answered from an index of different profiles."""
+    try:
+        default = load()
+    except Exception:  # noqa: BLE001 - a supplied catalog still works when the packaged one does not
+        default = None
+    return _default_index(cat.version) if cat is default else _build_index(cat)
+
+
+def _build_index(cat: Catalog) -> _Index:
     docs = {pid: _doc(p) for pid, p in cat.profiles.items()}
     df: Counter = Counter()
     for c in docs.values():
@@ -180,7 +194,8 @@ def _index(version: str) -> _Index:  # keyed on the catalog version so a new cat
     names = {pid: Counter(tokens(" ".join([p.name, *p.identity.alternative_titles]))) for pid, p in cat.profiles.items()}
     phrases = {pid: [re.sub(r"[^a-z0-9&/+-]+", " ", k.lower()).strip() for k in p.keywords if " " in k or len(k) > 3]
                for pid, p in cat.profiles.items()}
-    return _Index(docs, lengths, sum(lengths.values()) / len(lengths), df, names, phrases)
+    name_df = Counter(t for c in names.values() for t in set(c))
+    return _Index(docs, lengths, sum(lengths.values()) / len(lengths), df, names, phrases, name_df)
 
 
 def _bm25(ix: _Index, q: list[str], pid: str, k1: float = 1.2, b: float = 0.75) -> float:
@@ -203,13 +218,12 @@ def resolve_name(text: str, catalog: Catalog | None = None) -> str | None:
     """A specialization named in free text ("cloud finops", "statistical research"), or None. Rarer name words
     count for more, so "statistical research" means the statistical discipline, not any research one."""
     cat = catalog or load()
-    ix = _index(cat.version)
+    ix = _index(cat)
     q = set(tokens(text)) - {"analyst", "specialist", "expert"}
     if not q:
         return None
     n = len(ix.names)
-    name_df = Counter(t for c in ix.names.values() for t in set(c))
-    idf = {t: math.log(1 + n / (1 + name_df.get(t, 0))) for t in q}
+    idf = {t: math.log(1 + n / (1 + ix.name_df.get(t, 0))) for t in q}
     total = sum(idf.values())
     best, best_s = None, 0.0
     for pid in cat.order:
@@ -284,8 +298,9 @@ def route(text: str, *, can=None, prefer: list[str] | None = None, workspace_dom
     authorized beyond analyst.ask, so the decision shows what would be blocked); ``prefer`` lists specialization ids
     the person asked for; ``workspace_domains`` are the business profile's domain package ids."""
     t0 = time.perf_counter()
+    limit = max(0, int(limit))
     cat = catalog or load()
-    ix = _index(cat.version)
+    ix = _index(cat)
     can = can or (lambda perm: perm == "analyst.ask")
     classes = task_classes_of(text)
     q = tokens(text)
@@ -329,15 +344,14 @@ def route(text: str, *, can=None, prefer: list[str] | None = None, workspace_dom
         score *= 1.0 - 0.15 * (len(missing) + 0.5 * len(partial)) / max(1, len(req_caps))
         blocked = [perm for perm in p.governance.required_permissions if not can(perm)]
         is_req = pid in requested
-        if is_req:
-            score += 1000.0  # a requested perspective is always selected; it still gets no extra permission
+        if is_req:  # always selected (the sort puts it first); it still gets no extra permission
             reasons.insert(0, "you asked for this perspective")
         matched = frozenset(t for t in q if t in ix.docs[pid])
         if not is_req and not hits and len(matched) < 2 and not [o for o in overlap if o not in _GENERIC]:
             continue  # one shared word is not evidence of a discipline ("weather" alone is not an energy question)
         cands.append(Candidate(pid, p.name, p.identity.domain, score, r, overlap, hits, assess(p)["level"], missing, partial,
                                blocked, reasons, is_req, matched))
-    cands.sort(key=lambda c: -c.score)
+    cands.sort(key=lambda c: (not c.requested, -c.score))  # requested first; the score stays a pure relevance
     considered = cands[:12]
 
     selected: list[Candidate] = [c for c in cands if c.requested][:limit]
@@ -346,7 +360,7 @@ def route(text: str, *, can=None, prefer: list[str] | None = None, workspace_dom
     if not selected:
         if not top or top.score < MIN_SCORE:
             general = True
-        else:
+        elif limit > 0:
             selected.append(top)
     if selected:
         covered = {tc for c in selected for tc in cat.get(c.id).analytics.task_classes}

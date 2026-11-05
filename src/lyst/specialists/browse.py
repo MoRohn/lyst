@@ -40,7 +40,7 @@ def search(q: str | None = None, domain: str | None = None, min_level: int | Non
     if domain:
         ids = [i for i in ids if cat.get(i).identity.domain == domain]
     if q and q.strip():
-        ix = _index(cat.version)
+        ix = _index(cat)
         qt = tokens(q)
         aff = domain_affinity(qt)
         lowered = " " + " ".join(q.lower().split()) + " "
