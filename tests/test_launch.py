@@ -287,3 +287,20 @@ def test_start_check_reports_each_check(tmp_path):
     assert checks["encryption key"]["ok"] and checks["database"]["ok"]
     text = _cli(home, "start", "--check")
     assert "encryption key" in text.stdout and text.returncode == out.returncode
+
+
+def test_commands_are_named_as_the_person_can_type_them(monkeypatch):
+    monkeypatch.setenv("UV_RUN_RECURSION_DEPTH", "1")          # launched with `uv run`
+    assert launch.cmd("stop") == "`uv run lyst stop`"
+    monkeypatch.delenv("UV_RUN_RECURSION_DEPTH")
+    monkeypatch.setattr(launch.shutil, "which", lambda name: None)   # `lyst` not on PATH
+    assert launch.cmd("status") == "`uv run lyst status`"
+    monkeypatch.setattr(launch.shutil, "which", lambda name: "/venv/bin/lyst")
+    assert launch.cmd("status") == "`lyst status`"
+
+
+def test_stale_status_names_the_uv_command_under_uv_run(tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    _record(home, _dead_pid())
+    assert "`uv run lyst start`" in _cli(home, "status", UV_RUN_RECURSION_DEPTH="1").stdout

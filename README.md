@@ -40,9 +40,12 @@ demo workspace, starts the engine on `http://127.0.0.1:8770` and opens the inter
 
 It is safe to run again. If Lyst is already running it opens that one instead of starting a second, if a default port
 is busy it picks the next free one and says so, and if another program has the data open it names that program's PID
-instead of failing with a traceback. From any terminal, `lyst status` says what is running and `lyst stop` stops it
-(only the processes `lyst start` recorded). `lyst start --check` checks Python, the data folder, the encryption key, the
-database and the ports before you start.
+instead of failing with a traceback. From another terminal in the same folder, `uv run lyst status` says what is
+running and `uv run lyst stop` stops it (only the processes `lyst start` recorded). `uv run lyst start --check` checks
+Python, the data folder, the encryption key, the database and the ports before you start.
+
+`uv sync` installs `lyst` inside the project's `.venv`, not on your PATH, so a bare `lyst start` says "command not
+found". Use `uv run lyst ...`, or run `source .venv/bin/activate` once in a terminal to type plain `lyst ...` there.
 
 Then ask: **"Why did operating margin decline last quarter?"** Lyst finds that operating margin fell from 36.0%
 in Q2 2026 to 32.5% in Q3 2026, that EMEA's own margin drop (36.8% to 24.0%) explains it, reconciles the

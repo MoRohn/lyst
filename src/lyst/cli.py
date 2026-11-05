@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from .config import load_settings
+from .launch import cmd, via_uv
 from .secrets.masterkey import MasterKeyMissing
 
 
@@ -220,19 +221,19 @@ def _already_running(home: Path, *, open_browser: bool) -> bool:
     if state.status == "running":
         rec = state.record
         print(f"Lyst is already running at {rec.url}  (started {_ago(rec.started_at)}, PID {rec.launcher}).", file=sys.stderr)
-        print(("Opening it. " if open_browser else "") + "`lyst stop` stops it.", file=sys.stderr)
+        print(("Opening it. " if open_browser else "") + f"{cmd('stop')} stops it.", file=sys.stderr)
         if open_browser:
             webbrowser.open(rec.url)
         return True
     if state.status == "starting":
-        print(f"{state.detail} It will be at {state.record.url} in a moment; `lyst status` shows when.", file=sys.stderr)
+        print(f"{state.detail} It will be at {state.record.url} in a moment; {cmd('status')} shows when.", file=sys.stderr)
         return True
     if state.status == "stale":
         clear_record(home)
         print("Cleared a leftover record from a Lyst that is no longer running.", file=sys.stderr)
         return False
     if state.status == "unhealthy":
-        raise SystemExit(f"{state.detail}\nRun `lyst stop` to stop what is left of it, then `lyst start` again.")
+        raise SystemExit(f"{state.detail}\nRun {cmd('stop')} to stop what is left of it, then {cmd('start')} again.")
     if state.status == "locked":
         raise SystemExit(state.detail)
     return False
@@ -295,7 +296,7 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
         if stop["now"]:
             return {}
         if health is None:
-            raise SystemExit("The engine did not come up; the lines above say why. `lyst start --check` checks the usual causes.")
+            raise SystemExit(f"The engine did not come up; the lines above say why. {cmd('start --check')} checks the usual causes.")
         app = Path(__file__).parent / "ui" / "app.py"
         procs.append(subprocess.Popen([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", str(ui_port),
                                        "--server.headless", "true", "--browser.serverAddress", UI_HOST,
@@ -306,7 +307,7 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
         if _wait_http(f"http://127.0.0.1:{ui_port}/_stcore/health", 90, procs[-1]) is None:
             if stop["now"]:
                 return {}
-            raise SystemExit("The interface did not come up; the lines above say why. `lyst start --check` checks the usual causes.")
+            raise SystemExit(f"The interface did not come up; the lines above say why. {cmd('start --check')} checks the usual causes.")
         lines = [f"\nLyst is running at {url}",
                  f"  Engine     http://127.0.0.1:{api_port}" + (f"  ({api_note})" if api_note else ""),
                  f"  Interface  {url}" + (f"  ({ui_note})" if ui_note else ""),
@@ -315,7 +316,10 @@ def start(*, demo: bool = False, open_browser: bool = True, hold: bool = True) -
             lines.append("  Demo       the Northwind workspace is ready; try \"Why did operating margin decline last quarter?\"")
         if health.get("setup_required"):
             lines.append("  First run  the page asks you to initialise encryption; keep the recovery key it shows once.")
-        lines.append("Ctrl-C stops it. From another terminal: `lyst status`, `lyst stop`.\n")
+        lines.append(f"Ctrl-C stops it. From another terminal in this folder: {cmd('status')}, {cmd('stop')}.")
+        if via_uv():
+            lines.append("(To type plain `lyst ...`, run `source .venv/bin/activate` in that terminal first.)")
+        lines.append("")
         print("\n".join(lines), file=sys.stderr)
         if open_browser:
             webbrowser.open(url)
@@ -362,9 +366,9 @@ def status_cmd(as_json: bool) -> int:
               f"  Started    {_ago(rec.started_at)}\n  PIDs       {rec.launcher} (lyst start), "
               + ", ".join(f"{pid} ({name})" for name, pid in rec.children.items()))
     elif state.status == "stale":
-        print(f"Lyst isn't running. {state.detail} `lyst start` clears it.")
+        print(f"Lyst isn't running. {state.detail} {cmd('start')} clears it.")
     elif state.status == "unhealthy":
-        print(f"{state.detail}\n`lyst stop` stops what is left of it.")
+        print(f"{state.detail}\n{cmd('stop')} stops what is left of it.")
     else:
         print(state.detail)
     return 0 if state.status in ("running", "starting") else 1
@@ -401,7 +405,7 @@ def start_checks(as_json: bool) -> int:
     else:
         for c in checks:
             print(f"  {'ok ' if c.ok else 'FIX'}  {c.name:<16} {c.detail}" + (f"\n       {'':<16} {c.fix}" if not c.ok and c.fix else ""))
-        print("Everything looks ready." if all(c.ok for c in checks) else "Fix the items marked FIX, then `lyst start`.")
+        print("Everything looks ready." if all(c.ok for c in checks) else f"Fix the items marked FIX, then {cmd('start')}.")
     return 0 if all(c.ok for c in checks) else 1
 
 
@@ -609,7 +613,7 @@ def main(argv: list[str] | None = None) -> None:
     try:
         _dispatch(args)
     except MasterKeyMissing as exc:
-        sys.exit(f"{exc}\nRun `lyst init` on this machine (or open the interface here) to initialise encryption first.")
+        sys.exit(f"{exc}\nRun {cmd('init')} on this machine (or open the interface here) to initialise encryption first.")
     except KeyboardInterrupt:
         sys.exit(130)
     except Exception as exc:  # a DuckDB lock held by another process: one plain line instead of a traceback
