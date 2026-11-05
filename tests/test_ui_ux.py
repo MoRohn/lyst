@@ -144,10 +144,17 @@ def test_sources_show_health_and_the_action_to_take(seeded, ui, tmp_path, monkey
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "sources"  # sources, their health and uploads to review live in Sources
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert "CRM export" in _texts(at) and "feeds 1 dataset" in _texts(at)
     assert any("badge[" in m.value and "Healthy" in m.value for m in at.markdown)
+    assert any(b.label == "1 source · all working" for b in at.button)  # the header's status pill
+    at.query_params.clear()
+    at.query_params["connection"] = conn["id"]  # a link to one source opens Sources and its dialog
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert at.query_params["view"] == ["sources"] or at.query_params["view"] == "sources"
 
 
 def test_reports_from_answers_say_when_they_need_rebuilding(seeded, ui):  # noqa: F811
@@ -251,6 +258,7 @@ def test_uploads_wait_for_review_under_sources(seeded, ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "sources"  # sources, their health and uploads to review live in Sources
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert "regions.csv" in _texts(at) and any(b.label == "Review" for b in at.button)
@@ -431,6 +439,7 @@ def test_connections_proposed_from_an_api_description_wait_under_sources(seeded,
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
+    at.query_params["view"] = "sources"  # sources, their health and uploads to review live in Sources
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     body = _texts(at)
@@ -539,3 +548,25 @@ def test_memory_review_is_quiet_when_nothing_is_stale(seeded, ui):  # noqa: F811
     at.query_params["view"] = "memory"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
+
+
+def test_data_is_a_workspace_with_a_library_and_three_layouts(ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    keys = {b.key for b in at.button}
+    assert {"lib_ok_ds_pnl", "lib_bad_ds_pnl_ledger", "lib_ok_m_operating_margin"} <= keys  # the library rail
+    assert "Ask about the data" in set(_popovers(at.main))  # Ask, docked beside the tabs
+    tabs = next(g for g in at.get("button_group") if g.key == "sec_data_view")
+    assert len(tabs.proto.options) == 5  # Datasets, Sources, Dashboards, Saved analyses, SQL
+    layout = next(g for g in at.get("button_group") if g.key == "ds_layout")
+    layout.set_value("List").run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Relationships · " in _texts(at) and any(b.label == "Open" for b in at.button)
+    next(g for g in at.get("button_group") if g.key == "ds_layout").set_value("Map").run()
+    assert not at.exception, [e.value for e in at.exception]
+    at.text_input(key="ds_find").set_value("ledger").run()  # the rail's search narrows the library and the canvas
+    keys = {b.key for b in at.button}
+    assert "lib_bad_ds_pnl_ledger" in keys and "lib_ok_ds_pnl" not in keys
