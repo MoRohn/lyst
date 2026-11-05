@@ -27,6 +27,7 @@ from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from .. import harness
 from .. import observability as obs
 from .. import operations as ops
 from ..analyst.engine import Services
@@ -95,6 +96,7 @@ class TaskRuntime:
         self.monitors = None  # set by the app; ticked by the worker loop
         self.periodic: list = []  # platform jobs run on the worker tick (asset repairs)
         self.on_finish: list = []  # callbacks (task_id, state) after a run ends: done, failed or cancelled
+        self.harness = None  # the harness service (lane.attach): applies approved harness rules
         self._last_prune = time.monotonic()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
@@ -105,12 +107,17 @@ class TaskRuntime:
                kind: str = "analysis", schedule_id: str | None = None, max_steps: int = 40,
                budget_seconds: int = 600, workflow: dict[str, Any] | None = None,
                idempotency_key: str | None = None, priority: int | None = None,
-               deadline_at: datetime | None = None, extra: dict[str, Any] | None = None) -> str:
+               deadline_at: datetime | None = None, extra: dict[str, Any] | None = None,
+               budget_usd: float | None = None) -> str:
         """Queue a task. ``extra`` adds keys to the stored request (the Universal Analyst Core records the assembled
         expertise and the channel there); it cannot replace the question or the workflow.
 
         With an ``idempotency_key``, a repeat of the same submission by the same person in the same workspace (a double
-        click, a client retry after a timeout) returns the first task instead of running the work twice. The check and the insert are one write transaction, so two concurrent repeats cannot both win."""
+        click, a client retry after a timeout) returns the first task instead of running the work twice. The check and the insert are one write transaction, so two concurrent repeats cannot both win.
+
+        Every task is written with its contract (harness.build_contract) in the same transaction: the goal, inputs,
+        output, constraints (budgets, including ``budget_usd`` of model spend, default ``LYST_TASK_BUDGET_USD``) and
+        the checks that decide whether it is done. Approved harness rules for the job tighten it."""
         self.services.guard.require(actor, workspace_id, "task.create")
         autonomy = autonomy or self.db.scalar("SELECT autonomy FROM workspaces WHERE id = ?", [workspace_id]) or "delegate"
         if autonomy not in AUTONOMY:
@@ -121,6 +128,15 @@ class TaskRuntime:
         quota = ops.quotas(self.db, workspace_id)
         if quota["task_budget_seconds"]:
             budget_seconds = min(budget_seconds, quota["task_budget_seconds"])
+        stored = {k: v for k, v in (extra or {}).items() if k not in ("question", "workflow")} | {"question": question} \
+            | ({"workflow": workflow} if workflow else {})
+        contract = harness.build_contract(self.db, workspace_id, question=question, kind=kind, autonomy=autonomy,
+                                          max_steps=max_steps, budget_seconds=budget_seconds,
+                                          budget_usd=harness.default_budget_usd() if budget_usd is None
+                                          else (budget_usd if budget_usd > 0 else None), request=stored)
+        # an approved budget rule for this job tightens the task's own limits too
+        max_steps = contract["constraints"]["max_steps"]
+        budget_seconds = contract["constraints"]["budget_seconds"]
 
         def tx(c) -> str | None:
             if key:
@@ -138,10 +154,10 @@ class TaskRuntime:
                 "INSERT INTO tasks (id, workspace_id, created_by, kind, title, request, status, autonomy, max_steps, "
                 "budget_seconds, schedule_id, idempotency_key, priority, deadline_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?)",
-                [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps({k: v for k, v in (extra or {}).items() if k not in ("question", "workflow")}
-                                                                          | {"question": question} | ({"workflow": workflow} if workflow else {}), default=str),
+                [tid, workspace_id, actor.user_id, kind, short_title(question), json.dumps(stored, default=str),
                  autonomy, max_steps, budget_seconds, schedule_id, key, prio, deadline_at],
             )
+            harness.save_contract(c, tid, workspace_id, contract)
             return None
 
         if prior := self.db.write(tx):
@@ -175,7 +191,16 @@ class TaskRuntime:
         self.event(task_id, "cancelled", "Cancelled by user")
 
     def retry(self, actor: Principal, task_id: str) -> None:
+        """Run a failed task again from its failed step. Capped by the contract's ``max_retries``: past it, the same
+        request is not run again; a person changes it (or asks anew) instead of looping on the same failure."""
         self._owned(actor, task_id)
+        contract = harness.contract_of(self.db, task_id)
+        cap = ((contract or {}).get("constraints") or {}).get("max_retries")
+        if cap is not None:
+            done = self.db.scalar("SELECT count(*) FROM task_events WHERE task_id = ? AND kind = 'retry'", [task_id]) or 0
+            if done >= cap:
+                raise ValueError(f"this task was retried {done} time{'s' * (done != 1)}, its limit; change the request "
+                                 "or ask again instead of repeating the same run")
         self._set_status(task_id, "queued", only_from=("failed",))
         self.db.execute("DELETE FROM task_steps WHERE task_id = ? AND status = 'failed'", [task_id])
         self.db.execute("UPDATE tasks SET active_seconds = 0 WHERE id = ?", [task_id])  # a retry gets a fresh budget
@@ -345,12 +370,19 @@ class TaskRuntime:
         self.db.write(tx)
         if ap["action"] == "monitor.activate" and approve and self.monitors:
             self.monitors.on_approved(actor, ap["workspace_id"], json.loads(ap["payload"])["monitor_id"])
+        if ap["action"] == "harness.update" and self.harness:
+            self.harness.on_decided(actor, ap["workspace_id"], json.loads(ap["payload"])["rule_id"], approve)
         if ap["action"] == "skill.register" and approve and self.services.skills:
             p = json.loads(ap["payload"])
             self.services.skills.on_approved(actor, ap["workspace_id"], p["name"], int(p["version"]))
         self.services.guard.audit(actor, ap["workspace_id"], "approval.decide", approval_id, status)
         if ap["task_id"]:
             self.event(ap["task_id"], f"approval_{status}", f"{ap['summary']}: {status}")
+            if not approve and ap["action"].startswith("step:"):
+                try:  # the rejected run ends here: its receipt, and a permission proposal for the job
+                    harness.record_run(self, ap["task_id"], "cancelled")
+                except Exception:  # noqa: BLE001 - the record never changes the decision
+                    log.exception("harness record for %s failed", ap["task_id"])
         return {"id": approval_id, "status": status}
 
     # -- schedules --------------------------------------------------------------------------
@@ -603,6 +635,10 @@ class TaskRuntime:
             obs.task_id.reset(ctx_token)
         if state in ("done", "failed", "cancelled"):
             obs.TASKS.labels(state).inc()
+            try:
+                harness.record_run(self, task_id, state)  # contract checks, receipt, failure class, proposal
+            except Exception:  # noqa: BLE001 - the record never changes the task's outcome
+                log.exception("harness record for %s failed", task_id)
             for cb in self.on_finish:
                 try:
                     cb(task_id, state)
@@ -631,6 +667,9 @@ class TaskRuntime:
         started = time.monotonic() - float(t.get("active_seconds") or 0)
         self._clocks[task_id] = started
         completed: set[int] = set(finished) | skipped
+        contract = harness.contract_of(self.db, task_id) or {}
+        budget_usd = (contract.get("constraints") or {}).get("budget_usd")
+        job = contract.get("job") or harness.job_key(request.get("question", ""))
         key_done: set[str] = {steps[i]["key"] for i in completed if i < len(steps)}
         from opentelemetry import context as otel_context  # noqa: PLC0415
 
@@ -647,12 +686,20 @@ class TaskRuntime:
                     return self._fail(task_id, f"step budget of {t['max_steps']} exhausted")
                 if time.monotonic() - started > t["budget_seconds"]:
                     return self._fail(task_id, f"time budget of {t['budget_seconds']}s exhausted")
+                if budget_usd is not None and (spent := harness.task_cost(self.db, task_id)) > budget_usd:
+                    return self._fail(task_id, f"cost budget of ${budget_usd:.2f} exhausted (${spent:.4f} spent on "
+                                               "model calls)")
                 ready = [i for i, st in enumerate(steps) if i not in completed and self._deps_met(i, steps, key_done)]
                 if not ready:
                     return self._fail(task_id, "no runnable step: a dependency failed or the plan is cyclic")
-                # approval gates are checked before anything in this wave starts
+                # harness tool routes, then approval gates, are checked before anything in this wave starts
                 for i in ready:
-                    gate = self._approval_gate(t, actor, task_id, i, steps[i])
+                    refused = harness.refused_tool(self.db, t["workspace_id"], job, steps[i]["capability"])
+                    if refused:
+                        return self._fail(task_id, f"harness rule {refused['id']} routes this job away from "
+                                                   f"{steps[i]['capability']}: {refused['text']}")
+                for i in ready:
+                    gate = self._approval_gate(t, actor, task_id, i, steps[i], job)
                     if gate:
                         return gate
                 futures = {pool.submit(self._run_step, ctx, t, task_id, i, steps[i], request, otel_ctx): i for i in ready}
@@ -703,9 +750,11 @@ class TaskRuntime:
             return i == 0 or steps[i - 1]["key"] in key_done
         return all(k in key_done for k in after)
 
-    def _approval_gate(self, t, actor, task_id, seq, step) -> str | None:
+    def _approval_gate(self, t, actor, task_id, seq, step, job: str | None = None) -> str | None:
         cap = self.services.registry.get(step["capability"])
-        if not (cap.requires_approval and t["autonomy"] != "autonomous"):
+        # an approved harness permission rule gates this step on this job in every autonomy mode
+        ruled = harness.gated(self.db, t["workspace_id"], job, cap.name) if job else None
+        if not ruled and not (cap.requires_approval and t["autonomy"] != "autonomous"):
             return None
         approved = self.db.scalar("SELECT count(*) FROM approvals WHERE task_id = ? AND action = ? AND status = 'approved'",
                                   [task_id, f"step:{seq}"])
@@ -714,8 +763,9 @@ class TaskRuntime:
         pending = self.db.scalar("SELECT count(*) FROM approvals WHERE task_id = ? AND action = ? AND status = 'pending'",
                                  [task_id, f"step:{seq}"])
         if not pending:
-            self.request_approval(t["workspace_id"], actor.user_id, f"step:{seq}", f"Run {cap.name}: {cap.description}",
-                                  step.get("args", {}), task_id)
+            why = f" (harness rule {ruled['id']}: {ruled['text']})" if ruled else ""
+            self.request_approval(t["workspace_id"], actor.user_id, f"step:{seq}",
+                                  f"Run {cap.name}: {cap.description}{why}", step.get("args", {}), task_id)
         found = self._finish(task_id, "status = 'awaiting_approval', lease_owner = NULL, lease_until = NULL", [])
         if found is not None:
             return found
