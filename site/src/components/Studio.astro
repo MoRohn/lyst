@@ -2,124 +2,99 @@
 import { Picture } from 'astro:assets';
 import Icon from './Icon.astro';
 import overview from '../assets/product/studio-overview.png';
-import breakdown from '../assets/product/studio-breakdown.png';
 import answerLight from '../assets/product/analyst-answer-light.png';
 import answerDark from '../assets/product/analyst-answer-dark.png';
 import homeLight from '../assets/product/home-light.png';
 import homeDark from '../assets/product/home-dark.png';
+import whatifLight from '../assets/product/explorer-light.png';
+import whatifDark from '../assets/product/explorer-dark.png';
+import dataLight from '../assets/product/data-cards-light.png';
+import dataDark from '../assets/product/data-cards-dark.png';
 import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
-import sourcesLight from '../assets/product/sources-light.png';
-import sourcesDark from '../assets/product/sources-dark.png';
 import healthLight from '../assets/product/health-light.png';
 import healthDark from '../assets/product/health-dark.png';
 import needsLight from '../assets/product/needsyou-light.png';
 import needsDark from '../assets/product/needsyou-dark.png';
-import whatifLight from '../assets/product/explorer-light.png';
-import whatifDark from '../assets/product/explorer-dark.png';
+import paletteLight from '../assets/product/palette-light.png';
+import paletteDark from '../assets/product/palette-dark.png';
 
 type Callout = { icon: string; text: string; x: string; y: string };
 type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata; alt: string; callouts: Callout[] };
 
 const views: View[] = [
   {
-    id: 'home',
-    tab: 'Home',
-    img: homeLight,
-    dark: homeDark,
-    alt: 'Lyst Home: a plain-language question box with an Ask Lyst button, and “This month at a glance”: six metric tiles (COGS ratio, hardware revenue, operating income, operating margin, revenue, support tickets), each with its value, change versus the prior month, a sparkline and a Why? link.',
+    id: 'home', tab: 'Home', img: homeLight, dark: homeDark,
+    alt: 'Lyst Home: a plain-language question box with Ask Lyst and Speak buttons, and “This month at a glance”: six metric tiles, each with its value, change versus the prior month, a sparkline and a Why? link.',
     callouts: [
-      { icon: 'LayoutDashboard', text: 'Every approved metric at a glance', x: '45%', y: '30.2%' },
-      { icon: 'ScanSearch', text: 'Why? starts an investigation', x: '30%', y: '59.3%' },
+      { icon: 'Mic', text: 'Type or speak', x: '35%', y: '26.5%' },
+      { icon: 'LayoutDashboard', text: 'Every approved metric at a glance', x: '45%', y: '36%' },
+      { icon: 'ScanSearch', text: 'Why? starts an investigation', x: '30%', y: '64.8%' },
     ],
   },
   {
-    id: 'answer',
-    tab: 'Answer',
-    img: answerLight,
-    dark: answerDark,
-    alt: 'Lyst Analyst answering “Why did operating margin change last quarter?”: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend chart, what it means and what to do, with Summary, Detail and Method views and a one-page Brief.',
+    id: 'answer', tab: 'Answer', img: answerLight, dark: answerDark,
+    alt: 'Lyst answering “Why did operating margin change last quarter?”: a verified headline (32.5% in Q3 2026, down 3.5 points), a note that all nine checks passed and that a checked analysis was reused, evidence naming EMEA as the driver, a monthly trend, what it means and what to do, with Summary, Detail and Method views and a one-page Brief.',
     callouts: [
-      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '33%', y: '19%' },
-      { icon: 'Layers', text: 'Summary, Detail or Method', x: '66%', y: '24.6%' },
-      { icon: 'ListChecks', text: 'What it means, what to do', x: '72%', y: '78.6%' },
+      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '34%', y: '18.5%' },
+      { icon: 'Layers', text: 'Summary, Detail or Method', x: '64%', y: '30.5%' },
+      { icon: 'ListChecks', text: 'What it means, what to do', x: '74%', y: '75%' },
     ],
   },
   {
-    id: 'whatif',
-    tab: 'What if',
-    img: whatifLight,
-    dark: whatifDark,
-    alt: 'The What if explorer in Lyst: sliders for revenue (+3%), COGS ratio, operating expenses (+6%) and labor share; operating margin 36.0% to 35.4% marked Worse and operating income $9.04M to $9.15M marked Better; what moves it most, worst, base and best cases, and a Monte Carlo range from 2,000 random combinations. All results labelled hypothetical.',
+    id: 'whatif', tab: 'What if', img: whatifLight, dark: whatifDark,
+    alt: 'The What if explorer in Lyst: sliders for revenue (+3%), COGS ratio, operating expenses (+6%) and labor share; operating margin 36.0% to 35.4% marked Worse and operating income $9.04M to $9.15M marked Better; what moves it most, worst, base and best cases, and a Monte Carlo range. All results labelled hypothetical.',
     callouts: [
-      { icon: 'SlidersHorizontal', text: 'Move a driver, see the result', x: '62%', y: '11%' },
-      { icon: 'ArrowUpDown', text: 'Better or worse, at a glance', x: '55%', y: '48.5%' },
-      { icon: 'Dices', text: 'Worst, base, best and Monte Carlo', x: '58%', y: '90%' },
+      { icon: 'SlidersHorizontal', text: 'Move a driver, see the result', x: '62%', y: '10.4%' },
+      { icon: 'ArrowUpDown', text: 'Better or worse, at a glance', x: '55%', y: '45.7%' },
+      { icon: 'Dices', text: 'Worst, base, best and Monte Carlo', x: '58%', y: '85%' },
     ],
   },
   {
-    id: 'trust',
-    tab: 'Data trust',
-    img: trustLight,
-    dark: trustDark,
-    alt: 'A dataset in Lyst, “P&L from the ledger”, with “Before you rely on it · 3”: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look), what depends on it, and how it connects to other data.',
+    id: 'data', tab: 'Data', img: dataLight, dark: dataDark,
+    alt: 'Lyst Data: five datasets, rows, approved metrics, latest data and two that need attention, then dataset cards showing size, freshness, the shape of their columns, the live trend of the metric each feeds, and a “1 to fix” flag where a risk was found.',
     callouts: [
-      { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '45%', y: '60.5%' },
-      { icon: 'Network', text: 'What depends on it', x: '30%', y: '73.5%' },
+      { icon: 'Database', text: 'Shape, freshness and the trend it feeds', x: '14%', y: '63%' },
     ],
   },
   {
-    id: 'sources',
-    tab: 'Sources',
-    img: sourcesLight,
-    dark: sourcesDark,
-    alt: 'A connected source in Lyst, “CRM pipeline”, marked Healthy, with what it feeds and its recent activity: a “Layout changed” event caught on sync, where the source added amount_usd and removed amount.',
+    id: 'trust', tab: 'Data trust', img: trustLight, dark: trustDark,
+    alt: 'A dataset in Lyst, “P&L from the ledger”, with its sensitivity level, source of truth, and “Before you rely on it · 3”: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look).',
     callouts: [
-      { icon: 'HeartPulse', text: 'Health in plain words', x: '47%', y: '17%' },
-      { icon: 'GitCompare', text: 'Schema change caught on sync', x: '50%', y: '47%' },
+      { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '45%', y: '70%' },
     ],
   },
   {
-    id: 'health',
-    tab: 'Out of date',
-    img: healthLight,
-    dark: healthDark,
-    alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button, plus its versions and what it depends on.',
+    id: 'health', tab: 'Out of date', img: healthLight, dark: healthDark,
+    alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button.',
     callouts: [
-      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '56%', y: '54%' },
-      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '19%', y: '67.5%' },
+      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '58%', y: '44.5%' },
+      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '17%', y: '54%' },
     ],
   },
   {
-    id: 'team',
-    tab: 'Needs you',
-    img: needsLight,
-    dark: needsDark,
-    alt: 'Lyst Work › Needs you: an answer assigned by Sam Ortiz, “Check the EMEA cost lines before Friday’s board pack”, due 2026-11-06, and a review waiting, “Confirm the EMEA driver before this goes to the board”, with Approve and Reject.',
+    id: 'team', tab: 'Needs you', img: needsLight, dark: needsDark,
+    alt: 'Lyst Work › Needs you: an answer assigned by Sam Ortiz, “Check the EMEA cost lines before Friday’s board pack”, due 2026-11-06, and a review waiting with Approve and Reject.',
     callouts: [
-      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '52%', y: '41%' },
-      { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '27%', y: '79%' },
+      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '52%', y: '48%' },
+      { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '27%', y: '88%' },
     ],
   },
   {
-    id: 'overview',
-    tab: 'Dashboard',
-    img: overview,
-    alt: 'Overview page of a dashboard generated by Lyst Studio: operating margin 32.4% and revenue $8.23M with sparklines, a monthly margin trend with an ETS forecast band and anomaly markers, computed findings, and margin and revenue by region.',
+    id: 'palette', tab: '⌘K', img: paletteLight, dark: paletteDark,
+    alt: 'The Lyst command palette (⌘K) searching “revenue forecast”: ask Lyst directly, matching metrics and saved analyses, and matching specialist expertise such as Forecasting Analyst and FP&A Analyst with their maturity levels.',
+    callouts: [
+      { icon: 'Command', text: 'Ask, jump or find from anywhere', x: '60%', y: '9%' },
+      { icon: 'GraduationCap', text: 'Expertise, with honest maturity', x: '58%', y: '79%' },
+    ],
+  },
+  {
+    id: 'overview', tab: 'Dashboard', img: overview,
+    alt: 'A dashboard generated by Lyst Studio: operating margin 32.4% and revenue $8.23M with sparklines, a monthly margin trend with a forecast band and anomaly markers, computed findings, and margin and revenue by region.',
     callouts: [
       { icon: 'TrendingUp', text: 'Forecast with an 80% interval', x: '50%', y: '45.5%' },
       { icon: 'Sparkles', text: 'Findings computed from the numbers', x: '71%', y: '26.4%' },
       { icon: 'MousePointerClick', text: 'Click a bar to filter the page', x: '30%', y: '62.2%' },
-    ],
-  },
-  {
-    id: 'region',
-    tab: 'By region',
-    img: breakdown,
-    alt: 'By-region page of the same dashboard: a heatmap of operating margin by region and month, with EMEA dropping from about 37% to 24% in the last three months, and a table of the latest period by region.',
-    callouts: [
-      { icon: 'ScanSearch', text: 'EMEA drop stands out', x: '1.5%', y: '61%' },
-      { icon: 'ShieldCheck', text: 'Every cell from governed metrics', x: '67%', y: '64%' },
     ],
   },
 ];
