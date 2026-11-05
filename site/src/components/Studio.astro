@@ -8,8 +8,10 @@ import homeLight from '../assets/product/home-light.png';
 import homeDark from '../assets/product/home-dark.png';
 import whatifLight from '../assets/product/explorer-light.png';
 import whatifDark from '../assets/product/explorer-dark.png';
-import dataLight from '../assets/product/data-cards-light.png';
-import dataDark from '../assets/product/data-cards-dark.png';
+import dataLight from '../assets/product/data-map-light.png';
+import dataDark from '../assets/product/data-map-dark.png';
+import graphLight from '../assets/product/brain-graph-light.png';
+import graphDark from '../assets/product/brain-graph-dark.png';
 import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
 import healthLight from '../assets/product/health-light.png';
@@ -27,11 +29,11 @@ type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata;
 const views: View[] = [
   {
     id: 'home', tab: 'Home', img: homeLight, dark: homeDark,
-    alt: 'Lyst Home: a plain-language question box with Ask Lyst and Speak buttons, and “This month at a glance”: six metric tiles, each with its value, change versus the prior month, a sparkline and a Why? link.',
+    alt: 'Lyst Home: a plain-language question box with Ask Lyst and Speak, suggested questions from the approved metrics, and Your work: a saved analysis shown as a preview card with a “Newer data” flag.',
     callouts: [
-      { icon: 'Mic', text: 'Type or speak', x: '35%', y: '26.5%' },
-      { icon: 'LayoutDashboard', text: 'Every approved metric at a glance', x: '45%', y: '36%' },
-      { icon: 'History', text: 'Recent questions, one click back', x: '1.5%', y: '58%' },
+      { icon: 'Mic', text: 'Type or speak', x: '33%', y: '30.5%' },
+      { icon: 'LayoutGrid', text: 'Your work, previewed from its own content', x: '49%', y: '64%' },
+      { icon: 'RefreshCcw', text: 'Knows it has newer data', x: '46%', y: '85%' },
     ],
   },
   {
@@ -54,9 +56,9 @@ const views: View[] = [
   },
   {
     id: 'data', tab: 'Data', img: dataLight, dark: dataDark,
-    alt: 'Lyst Data: five datasets, rows, approved metrics, latest data and two that need attention, then dataset cards showing size, freshness, the shape of their columns, the live trend of the metric each feeds, and a “1 to fix” flag where a risk was found.',
+    alt: 'Lyst Data: a library of datasets and approved metrics, one source working, and a map of how the five datasets connect through the columns they share, such as month, region and product line.',
     callouts: [
-      { icon: 'Database', text: 'Shape, freshness and the trend it feeds', x: '14%', y: '63%' },
+      { icon: 'Network', text: 'How datasets connect, through shared columns', x: '47%', y: '79.5%' },
     ],
   },
   {
@@ -71,7 +73,7 @@ const views: View[] = [
     alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button.',
     callouts: [
       { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '58%', y: '62.5%' },
-      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '17%', y: '71.8%' },
+      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '17%', y: '67.8%' },
     ],
   },
   {
@@ -80,6 +82,14 @@ const views: View[] = [
     callouts: [
       { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '54%', y: '62%' },
       { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '52%', y: '83.5%' },
+    ],
+  },
+  {
+    id: 'graph', tab: 'Brain', img: graphLight, dark: graphDark,
+    alt: 'Lyst Brain › Graph: an interactive map of 16 nodes and 28 links joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
+    callouts: [
+      { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '37%', y: '72%' },
+      { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '27%', y: '45%' },
     ],
   },
   {

@@ -229,7 +229,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home, an answer with its evidence rail, the What if explorer, data that checks itself, analyses that know when they are out of date, team work, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home, an answer with its evidence rail, the What if explorer, how your datasets connect, data that checks itself, analyses that know when they are out of date, team work, the Brain graph, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
