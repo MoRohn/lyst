@@ -94,6 +94,7 @@ class TaskRuntime:
         self._clocks: dict[str, float] = {}  # task id -> monotonic start of its accumulated run time
         self.monitors = None  # set by the app; ticked by the worker loop
         self.periodic: list = []  # platform jobs run on the worker tick (asset repairs)
+        self.on_finish: list = []  # callbacks (task_id, state) after a run ends: done, failed or cancelled
         self._last_prune = time.monotonic()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
@@ -210,14 +211,29 @@ class TaskRuntime:
         ]
         task["events"] = self.db.query(
             "SELECT occurred_at, kind, message FROM task_events WHERE task_id = ? ORDER BY id", [task_id])
+        from ..ambient import lifecycle  # noqa: PLC0415
+
+        task["lifecycle"] = lifecycle(task, task["steps"], task["events"], self.services.registry)
         return task
 
     def list(self, actor: Principal, workspace_id: str, limit: int = 100) -> list[dict[str, Any]]:
         self.services.guard.require(actor, workspace_id, "workspace.read")
-        return self.db.query(
+        rows = self.db.query(
             "SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, autonomy, kind, "
-            "created_by, created_at, updated_at, schedule_id "
+            "created_by, created_at, updated_at, schedule_id, error "
             "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, limit])
+        active = [r["id"] for r in rows if r["status"] == "running"]
+        steps: dict[str, list] = {}
+        if active:
+            for s in self.db.query(f"SELECT task_id, seq, phase, capability, status FROM task_steps WHERE task_id IN "
+                                   f"({', '.join('?' * len(active))})", active):
+                steps.setdefault(s["task_id"], []).append(s)
+        from ..ambient import lifecycle  # noqa: PLC0415
+
+        for r in rows:
+            r["lifecycle"] = lifecycle(r, steps.get(r["id"], []), None, self.services.registry)
+            r.pop("error", None)
+        return rows
 
     def trace(self, actor: Principal, task_id: str) -> dict[str, Any]:
         """Where one task's time, model calls and queries went, step by step, from the records the engine
@@ -587,6 +603,11 @@ class TaskRuntime:
             obs.task_id.reset(ctx_token)
         if state in ("done", "failed", "cancelled"):
             obs.TASKS.labels(state).inc()
+            for cb in self.on_finish:
+                try:
+                    cb(task_id, state)
+                except Exception:  # noqa: BLE001 - a callback never changes the task's outcome
+                    log.exception("on_finish callback failed for %s", task_id)
         return state
 
     def _run_task(self, task_id: str) -> str:

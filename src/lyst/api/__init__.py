@@ -127,6 +127,12 @@ class FrameIn(BaseModel):
     question: str
 
 
+class ActionIn(BaseModel):
+    page: str | None = None  # home | work | data | brain | settings | artifact
+    objective: str | None = None
+    params: dict[str, Any] | None = None
+
+
 class FollowUpIn(BaseModel):
     text: str
     timezone: str | None = None  # for "schedule this every Monday at 8"
@@ -1140,6 +1146,30 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         "schedule this every Monday") to an earlier answer; the new task records what it came from and what changed."""
         lyst = L(request)
         return FollowUps(lyst.runtime, lyst.semantic).apply(user, task_id, body.text, timezone=body.timezone)
+
+    @app.get("/v1/workspaces/{ws}/objects/{kind}/{oid}/actions")
+    def object_actions(request: Request, ws: str, kind: str, oid: str, user: User):
+        """What this person can do with this object now: [{id, label, kind: navigate|ask|run|approve, needs_approval,
+        reason}], filtered by role, governance and the object's state. Execution checks the same list again."""
+        return L(request).ambient.actions(user, ws, kind, oid)
+
+    @app.post("/v1/workspaces/{ws}/objects/{kind}/{oid}/actions/{action_id}")
+    def run_object_action(request: Request, ws: str, kind: str, oid: str, action_id: str, body: ActionIn, user: User):
+        from ..ambient import Context  # noqa: PLC0415
+
+        ctx = Context(page=body.page or "home", objective=body.objective)
+        return L(request).ambient.execute(user, ws, kind, oid, action_id, context=ctx, params=body.params)
+
+    @app.get("/v1/tasks/{task_id}/lifecycle")
+    def task_lifecycle(request: Request, task_id: str, user: User):
+        """The task's canonical state now and every transition, each tied to the event that caused it."""
+        lyst = L(request)
+        from ..ambient import timeline  # noqa: PLC0415
+
+        t = lyst.runtime.get(user, task_id)
+        events = lyst.runtime.db.query("SELECT occurred_at, kind, message, data FROM task_events WHERE task_id = ? ORDER BY id",
+                                       [task_id])
+        return {"task_id": task_id, "lifecycle": t["lifecycle"], "timeline": timeline(events, t["steps"])}
 
     @app.get("/v1/workspaces/{ws}/memory/review")
     def memory_review(request: Request, ws: str, user: User):
