@@ -139,6 +139,10 @@ class Guard:
         self.audit(p, None, "auth.oidc", subject, "ok")
         return p
 
+    def user_by_id(self, user_id: str) -> Principal | None:
+        rows = self.stores.control.query("SELECT id, email FROM users WHERE id = ?", [user_id])
+        return Principal(rows[0]["id"], rows[0]["email"]) if rows else None
+
     def user_by_email(self, email: str) -> Principal | None:
         rows = self.stores.control.query("SELECT id, email FROM users WHERE lower(email) = ?", [email.strip().lower()])
         return Principal(rows[0]["id"], rows[0]["email"]) if rows else None

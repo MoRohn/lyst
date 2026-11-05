@@ -386,13 +386,18 @@ def test_voice_over_http_and_duplex_stream(voiced):
         a = c.get(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/answer/{t['task_id']}", headers=h).json()
         assert a["ready"] and "Revenue" in a["speak_text"]
         ticket = c.post(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/stream-ticket", headers=h).json()["ticket"]
-        with c.websocket_connect(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/duplex?ticket={ticket}") as w:
+        url = f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/duplex"
+        with pytest.raises(WebSocketDisconnect):  # a ticket in the URL is not accepted
+            with c.websocket_connect(url + f"?ticket={ticket}") as w:
+                w.receive_bytes()
+        ticket = c.post(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/stream-ticket", headers=h).json()["ticket"]
+        with c.websocket_connect(url, subprotocols=["lyst.ticket", ticket]) as w:
             assert w.receive_bytes() == b"\x00"
             w.send_bytes(bytes([KIND_AUDIO]) + b"opus")
             assert w.receive_bytes() == bytes([KIND_AUDIO]) + b"opus"
             assert w.receive_bytes()[0] == KIND_TEXT
         with pytest.raises(WebSocketDisconnect) as closed:  # a ticket is spent once
-            with c.websocket_connect(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/duplex?ticket={ticket}") as w:
+            with c.websocket_connect(url, subprotocols=["lyst.ticket", ticket]) as w:
                 w.receive_bytes()
         assert closed.value.code == 1008
         assert c.post(f"/v1/workspaces/{WS}/voice/sessions/{s['id']}/end", headers=h).json()["status"] == "ended"

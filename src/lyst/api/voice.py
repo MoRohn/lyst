@@ -18,6 +18,7 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from ..security import AccessDenied, Principal
@@ -25,6 +26,7 @@ from ..security import AccessDenied, Principal
 log = logging.getLogger("lyst.voice")
 MAX_FRAME = 64 * 1024
 IDLE_SECONDS = 60
+TICKET_PROTOCOL = "lyst.ticket"  # the page offers subprotocols ["lyst.ticket", "<ticket>"]; the URL never carries it
 
 
 class VoiceSettingsIn(BaseModel):
@@ -120,25 +122,32 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return L(request).voice.stream_ticket(user, ws, sid)
 
     @app.websocket("/v1/workspaces/{ws}/voice/sessions/{sid}/duplex")
-    async def voice_duplex(websocket: WebSocket, ws: str, sid: str, ticket: str = "") -> None:
+    async def voice_duplex(websocket: WebSocket, ws: str, sid: str) -> None:
         lyst = websocket.app.state.lyst
         if lyst is None:
             await websocket.close(code=1013)
             return
-        try:
+        # The one-time ticket arrives as a WebSocket subprotocol (a browser cannot set Authorization on a websocket),
+        # so it never appears in a URL, an access log or a Referer.
+        offered = [p.strip() for p in websocket.headers.get("sec-websocket-protocol", "").split(",") if p.strip()]
+        ticket = offered[1] if len(offered) == 2 and offered[0] == TICKET_PROTOCOL else ""
+
+        def authorise() -> tuple[Principal, dict[str, Any]]:
             uid = lyst.voice.redeem(ticket, ws, sid)
-            row = lyst.stores.control.query("SELECT id, email FROM users WHERE id = ?", [uid])
-            actor = Principal(row[0]["id"], row[0]["email"]) if row else None
+            actor = lyst.guard.user_by_id(uid)
             if actor is None:
                 raise AccessDenied("unknown user")
             s = lyst.voice.session(actor, ws, sid)  # the person must still be allowed voice in this workspace
             if s["status"] != "open":
                 raise AccessDenied("session ended")
+            return actor, lyst.voice.settings(actor, ws)
+
+        try:
+            actor, cfg = await run_in_threadpool(authorise)  # database reads stay off the event loop
         except (AccessDenied, KeyError):
             await websocket.close(code=1008)
             return
-        cfg = lyst.voice.settings(None, ws)
-        await websocket.accept()
+        await websocket.accept(subprotocol=TICKET_PROTOCOL)
         try:
             with lyst.voice.gateway.duplex(cfg["duplex_order"]) as engine:
                 lyst.guard.audit(actor, ws, "voice.duplex", sid, "ok", {"engine": engine.name})
@@ -188,14 +197,23 @@ async def _bridge_personaplex(websocket: WebSocket, engine, gateway, *, voice: s
     async with upstream:
         async def up() -> None:
             while True:
-                frame = await asyncio.wait_for(websocket.receive_bytes(), timeout=IDLE_SECONDS)
+                try:
+                    frame = await asyncio.wait_for(websocket.receive_bytes(), timeout=IDLE_SECONDS)
+                except (TimeoutError, WebSocketDisconnect):
+                    return  # idle or the page left: end the relay cleanly
                 if len(frame) > MAX_FRAME:
+                    await websocket.close(code=1009)
                     return
                 if frame and frame[0] == KIND_AUDIO:
                     await upstream.send(frame)
 
         async def down() -> None:
-            async for msg in upstream:
+            it = upstream.__aiter__()
+            while True:
+                try:
+                    msg = await asyncio.wait_for(it.__anext__(), timeout=IDLE_SECONDS)
+                except (StopAsyncIteration, TimeoutError):
+                    return  # upstream closed or went quiet
                 if isinstance(msg, bytes) and msg:
                     await websocket.send_bytes(msg)
 
@@ -203,3 +221,8 @@ async def _bridge_personaplex(websocket: WebSocket, engine, gateway, *, voice: s
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for t in pending:
             t.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)  # let them unwind before upstream closes
+        for t in done:
+            exc = t.exception()
+            if exc is not None and not isinstance(exc, WebSocketDisconnect):
+                raise exc  # the caller logs it and closes with 1013
