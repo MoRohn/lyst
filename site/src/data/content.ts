@@ -107,7 +107,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns new methods, with an owner’s approval.',
-    items: ['A map of everything Lyst knows', 'Search across data, definitions and saved work', 'Rules learned from repeated failures', 'Governed skills', 'New skills drafted, tested and approved'],
+    items: ['A map of everything Lyst knows', 'Memories flagged when their data changes', 'Search across data, definitions and saved work', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
@@ -169,7 +169,7 @@ export const enterprise = {
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every answer opens a “How this ran” breakdown. Discussions, decisions and assignments sit next to the work, backed by an audit log.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Encrypted backups checked before any restore, and whole workspaces that move in one sealed file.', status: 'available' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Scheduled, encrypted backups, each test-restored automatically, and whole workspaces that move in one sealed file.', status: 'available' as Status },
   ],
 };
 
