@@ -58,6 +58,7 @@ class AssetService:
         self.artifacts = artifacts
         self.studio = studio
         self.transforms = None  # transforms.TransformService, set by the composition root
+        self.events = None  # the event service (lane.attach): a health change is staged with the update
 
     def _db(self, ws: str):
         return self.stores.workspace(ws)
@@ -298,7 +299,16 @@ class AssetService:
             a = self._row(r)
             health, reason = self._assess(ws, a, dv, mv, contracts)
             if health != a["health"] or reason != a["health_reason"]:
-                db.execute("UPDATE assets SET health = ?, health_reason = ?, checked_at = now() WHERE id = ?", [health, reason, a["id"]])
+                def change(c, a=a, health=health, reason=reason):
+                    c.execute("UPDATE assets SET health = ?, health_reason = ?, checked_at = now() WHERE id = ?", [health, reason, a["id"]])
+                    if self.events is not None and health != a["health"]:
+                        deps = a.get("depends") or {}
+                        related = [("dataset", d) for d in deps.get("datasets", {})] + [("metric", m) for m in deps.get("metrics", {})]
+                        self.events.stage(c, ws, "asset.health_changed", subject=("asset", a["id"]), source="service",
+                                          data={"kind": a["kind"], "from": a["health"], "to": health, "version": a["version"],
+                                                "reason": (reason or "")[:200]}, related=related)
+
+                db.write(change)
                 changed.append({"asset_id": a["id"], "kind": a["kind"], "title": a["title"], "from": a["health"], "to": health, "reason": reason})
                 # a contract breach already raised one notice listing every affected asset; do not repeat it per asset
                 if health in ("broken", "invalidated") and not (health == "broken" and all("data contract" in x for x in reason.split("; "))):

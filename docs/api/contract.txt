@@ -97,7 +97,10 @@ GET /v1/workspaces/{ws}/documents | query: - | body: -
 GET /v1/workspaces/{ws}/documents/search | query: q | body: -
 GET /v1/workspaces/{ws}/entities | query: - | body: -
 GET /v1/workspaces/{ws}/evals | query: - | body: -
+GET /v1/workspaces/{ws}/event-dead-letters | query: - | body: -
 GET /v1/workspaces/{ws}/events | query: - | body: -
+GET /v1/workspaces/{ws}/events/stream | query: - | body: -
+GET /v1/workspaces/{ws}/events/{seq} | query: - | body: -
 GET /v1/workspaces/{ws}/experiment-runs/{run_id} | query: - | body: -
 GET /v1/workspaces/{ws}/experiments | query: - | body: -
 GET /v1/workspaces/{ws}/experiments/{eid} | query: - | body: -
@@ -229,6 +232,8 @@ POST /v1/workspaces/{ws}/decision-records/{decision_id}/submit | query: - | body
 POST /v1/workspaces/{ws}/documents | query: - | body: file
 POST /v1/workspaces/{ws}/documents/reindex | query: - | body: -
 POST /v1/workspaces/{ws}/entities | query: - | body: kind,name
+POST /v1/workspaces/{ws}/event-dead-letters/{consumer}/{seq}/retry | query: - | body: -
+POST /v1/workspaces/{ws}/events | query: - | body: subject,type
 POST /v1/workspaces/{ws}/experiment-runs/{run_id}/reproduce | query: - | body: -
 POST /v1/workspaces/{ws}/experiments | query: - | body: name
 POST /v1/workspaces/{ws}/experiments/{eid}/decision | query: - | body: choice

@@ -16,6 +16,10 @@ def attach(lyst) -> None:
     lyst.events = EventService(lyst.stores, lyst.guard)
     lyst.webhooks = WebhookService(lyst.stores, lyst.guard, lyst.events)
     lyst.runtime.periodic.append(lyst.webhooks.run)  # collects events, then delivers what is due
+    lyst.runtime.periodic.append(lyst.events.dispatch)  # durable consumers: new and due-for-retry events
+    lyst.data.events = lyst.events  # dataset.schema_changed, staged with the version it describes
+    if getattr(lyst, "assets", None) is not None:
+        lyst.assets.events = lyst.events  # asset.health_changed, staged with the health update
 
     from .experiments import ExperimentService
 

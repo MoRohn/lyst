@@ -1,0 +1,164 @@
+{
+  "$defs": {
+    "Subject": {
+      "properties": {
+        "kind": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "Subject",
+      "type": "object"
+    }
+  },
+  "description": "The canonical envelope, as stored and as served (API, SSE, webhooks). ``docs/events/envelope.schema.json``.",
+  "properties": {
+    "seq": {
+      "title": "Seq",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "type": {
+      "title": "Type",
+      "type": "string"
+    },
+    "schema": {
+      "default": 2,
+      "title": "Schema",
+      "type": "integer"
+    },
+    "type_version": {
+      "default": 1,
+      "title": "Type Version",
+      "type": "integer"
+    },
+    "workspace_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Workspace Id"
+    },
+    "occurred_at": {
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "actor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Actor"
+    },
+    "subject": {
+      "$ref": "#/$defs/Subject"
+    },
+    "data": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Data",
+      "type": "object"
+    },
+    "source": {
+      "enum": [
+        "audit",
+        "task",
+        "service",
+        "api",
+        "rule",
+        "schedule",
+        "system"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "correlation_id": {
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "causation_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Causation Id"
+    },
+    "depth": {
+      "default": 0,
+      "title": "Depth",
+      "type": "integer"
+    },
+    "sensitivity": {
+      "default": "internal",
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
+      "title": "Sensitivity",
+      "type": "string"
+    },
+    "dedupe_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dedupe Key"
+    },
+    "related": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Subject"
+      },
+      "title": "Related",
+      "type": "array"
+    }
+  },
+  "required": [
+    "seq",
+    "id",
+    "type",
+    "workspace_id",
+    "occurred_at",
+    "actor",
+    "subject",
+    "source",
+    "correlation_id"
+  ],
+  "title": "Event",
+  "type": "object"
+}

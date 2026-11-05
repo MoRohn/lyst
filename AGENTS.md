@@ -10,6 +10,7 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - The task runtime (leases, checkpoints, resume, budgets, approvals): `src/lyst/runtime/__init__.py`.
 - The harness (contracts, receipts, failure classes, harness rules, state): `src/lyst/harness.py`, `docs/HARNESS.md`.
 - Graph runs (planner, builders, checker, router, learned rules): `src/lyst/graphs.py`, `docs/GRAPH_RUNS.md`.
+- Events (envelope, transactional outbox, durable consumers, chains, SSE stream): `src/lyst/events.py`, `docs/EVENTS.md`.
 - Analyst capabilities: `src/lyst/analyst/registry.py` (the tool contract) and `src/lyst/analyst/engine.py`.
 - HTTP API: `src/lyst/api/__init__.py` plus one routes file per lane in `src/lyst/api/`; the compatibility record
   is `docs/api/contract.txt` (regenerate with `scripts/api_contract.py`).
@@ -31,9 +32,11 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - A task ends only through `_fail` or `_finish`, which are fenced on the worker's lease. **checked**
 - The UI never imports the store, runtime, data or security layers; it calls the API. **checked**
 - Backend code never imports `lyst.ui`. **checked**
-- Migration versions are never reused; each lane appends in its own range (harness 100-109, graph 90-99, UI 80-89,
+- Migration versions are never reused; each lane appends in its own range (events 110-119, harness 100-109, graph 90-99, UI 80-89,
   specializations 70-79, voice 60-69, anticipate 50-59, tenth 40-49, adapt 30-39, ops 20-29, platform below 20).
-  **checked** for uniqueness and the harness range.
+  **checked** for uniqueness and the harness and events ranges.
+- Work that must happen because of an event is a durable consumer (`events.consume`), idempotent by event id; the
+  in-memory `subscribers` list is best effort. Events never carry answer text or data rows.
 - A model's confidence is never evidence. Done means the contract's checks passed on stored records.
 - Speech never authenticates or authorizes; audio is ephemeral (`docs/VOICE.md`).
 - Do not describe Lyst as super-intelligence or ASI in product copy or docs.

@@ -48,12 +48,20 @@ class QueryResult:
         return pd.DataFrame(self.rows, columns=self.columns)
 
 
+def schema_diff(before: list[dict[str, str]], after: list[dict[str, str]]) -> dict[str, list[str]]:
+    """Columns added, removed and retyped between two dataset schemas (``[{"name", "type"}]``)."""
+    b, a = {c["name"]: c["type"] for c in before}, {c["name"]: c["type"] for c in after}
+    return {"added": [n for n in a if n not in b], "removed": [n for n in b if n not in a],
+            "retyped": [f"{n}:{b[n]}->{a[n]}" for n in a if n in b and a[n] != b[n]]}
+
+
 class DataService:
     def __init__(self, stores: Stores, guard: Guard) -> None:
         self.stores = stores
         self.guard = guard
         # called with (actor, workspace_id, result) after a new version commits: insights, contract checks
         self.after_ingest: list = []
+        self.events = None  # the event service (lane.attach): a schema change is staged with the version it describes
         # called with (actor, workspace_id, datasets) before a query runs; raise to refuse (governance.check_read)
         self.access_checks: list = []
 
@@ -114,10 +122,10 @@ class DataService:
             found = c.execute("SELECT current_version FROM datasets WHERE name = ?", [name]).fetchall()
             current = found[0] if found else None
             version = (current[0] + 1) if current else 1
-            prev_sha, prev_physical = None, None
+            prev_sha, prev_physical, prev_schema, prev_rows = None, None, None, None
             if current:
-                prev_sha, prev_physical = c.execute(
-                    "SELECT source_sha256, physical_table FROM dataset_versions WHERE dataset = ? AND version = ?",
+                prev_sha, prev_physical, prev_schema, prev_rows = c.execute(
+                    "SELECT source_sha256, physical_table, schema, row_count FROM dataset_versions WHERE dataset = ? AND version = ?",
                     [name, current[0]]).fetchall()[0]
             if prev_sha == sha and not append_to_previous:
                 return {"dataset": name, "version": current[0], "unchanged": True, "rows": table.num_rows}
@@ -145,6 +153,16 @@ class DataService:
                     "VALUES (?, ?, ?, ?, ?, ?)",
                     [name, title or name.replace("_", " ").title(), description, actor.user_id, classification, version],
                 )
+            if current and self.events is not None:
+                drift = schema_diff(json.loads(prev_schema or "[]"), schema)
+                if drift["added"] or drift["removed"] or drift["retyped"]:
+                    # staged in this transaction: the event exists exactly when the new version does
+                    level = c.execute("SELECT classification FROM datasets WHERE name = ?", [name]).fetchone()[0]
+                    self.events.stage(c, workspace_id, "dataset.schema_changed", subject=("dataset", name),
+                                      actor=actor.user_id, dedupe_key=f"schema:{name}:v{version}",
+                                      sensitivity=level if level in ("public", "internal", "confidential", "restricted") else "internal",
+                                      data={"version": version, "previous_version": current[0], "rows": rows,
+                                            "previous_rows": prev_rows, **{k: v[:20] for k, v in drift.items()}})
             return {"dataset": name, "version": version, "unchanged": False, "rows": rows}
 
         result = db.write(tx)
