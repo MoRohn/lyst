@@ -89,8 +89,16 @@ def test_mcp_hardening_annotations_audit_truncation_and_files(seeded, monkeypatc
         bad = _call(c, tok, "tools/call", {"name": "ingest_file", "arguments": {
             "workspace": "northwind", "filename": "x.csv", "content_base64": "%%%"}})
         assert bad["result"]["isError"] is True
-        ev = _result(_call(c, tok, "tools/call", {"name": "events", "arguments": {"workspace": "northwind", "types": ["dataset.*"]}}))
-        assert any(e["subject"]["id"] == "stores" for e in ev["events"])
+        seen, after = [], 0
+        for _ in range(20):  # a page cut to the size budget keeps a cursor that pages through the rest
+            ev = _result(_call(c, tok, "tools/call", {"name": "events", "arguments": {
+                "workspace": "northwind", "types": ["dataset.*"], "after": after}}))
+            seen += ev["events"]
+            if not ev.get("truncated"):
+                break
+            assert ev["next"] == ev["events"][-1]["seq"] > after
+            after = ev["next"]
+        assert any(e["subject"]["id"] == "stores" for e in seen)
     actions = {r["action"]: r["outcome"] for r in lyst.stores.control.query(
         "SELECT action, outcome FROM audit_log WHERE action LIKE 'mcp.%'")}
     assert actions["mcp.query"] == "ok" and actions["mcp.ingest_file"] in ("ok", "rejected")
