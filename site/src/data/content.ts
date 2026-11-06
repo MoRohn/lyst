@@ -97,7 +97,7 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Answers published as pages or expiring links', 'Datasets built from a sentence, verified', 'PDF briefings and decks'],
+    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Answers published as pages or expiring links', 'Datasets built from a sentence, verified', 'PDF, decks and workbooks, charts included'],
     status: 'available',
   },
   {
@@ -178,7 +178,7 @@ export const enterprise = {
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
-    { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, queries, time and cost.', status: 'available' as Status },
+    { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Scheduled, encrypted backups, each test-restored automatically, and whole workspaces that move in one sealed file.', status: 'available' as Status },
   ],
@@ -188,7 +188,7 @@ export const workflow = {
   eyebrow: 'How Lyst works',
   headline: 'A better way to get analytical work done.',
   steps: [
-    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Type or speak a question, or hand over a vague project. It becomes a living spec whose requirements count as met only with evidence.' },
+    { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Type or speak in plain words. Lyst replies in conversation, offers next steps you accept with a yes, and turns a vague project into a living spec.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze and verify each step, under one honest status from Preparing to Completed or Needs attention.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
@@ -240,7 +240,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with the agent bar and activity board, an answer with its evidence rail, the What if explorer, how your datasets connect, data that checks itself, analyses that know when they are out of date, Brain and its work, the knowledge graph, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with the agent bar and activity board, an answer with its evidence rail, a conversation, the What if explorer, how your datasets connect, data that checks itself, analyses that know when they are out of date, Brain and its work, the knowledge graph, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },

@@ -20,6 +20,8 @@ import needsLight from '../assets/product/needsyou-light.png';
 import needsDark from '../assets/product/needsyou-dark.png';
 import paletteLight from '../assets/product/palette-light.png';
 import paletteDark from '../assets/product/palette-dark.png';
+import convoLight from '../assets/product/conversation-light.png';
+import convoDark from '../assets/product/conversation-dark.png';
 import specsLight from '../assets/product/specialists-light.png';
 import specsDark from '../assets/product/specialists-dark.png';
 
@@ -43,6 +45,14 @@ const views: View[] = [
       { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '42%', y: '35.8%' },
       { icon: 'PanelRight', text: 'Evidence rail: checks, data, assumptions', x: '70%', y: '69%' },
       { icon: 'ListChecks', text: 'What it means, what to do', x: '63%', y: '91.5%' },
+    ],
+  },
+  {
+    id: 'convo', tab: 'Conversation', img: convoLight, dark: convoDark,
+    alt: 'Lyst replying in conversation to “What can you help me with here?”: a plain answer about what it can do with this workspace’s approved metrics and datasets, labelled “A reply from what’s in this workspace. Nothing was computed, so there was nothing to verify.”, followed by offers under “Want me to”.',
+    callouts: [
+      { icon: 'MessageSquareText', text: 'Plain replies, honestly labelled', x: '70%', y: '46%' },
+      { icon: 'CornerDownRight', text: 'Say yes, or pick an offer', x: '45%', y: '56%' },
     ],
   },
   {
