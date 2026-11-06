@@ -551,25 +551,37 @@ def _record_failure(runtime, task, contract, run, failure, result, vchecks) -> N
         return
     if fix in ("tool", "permission") and not cap:
         return  # nothing to route away from or gate
-    existing = db.query("SELECT id, status FROM harness_rules WHERE workspace_id = ? AND job_key = ? AND kind = ? "
-                        "AND signature = ? AND status IN ('proposed', 'active', 'rejected')",
-                        [ws, contract["job"], fix, signature])
-    if existing:
-        db.execute("UPDATE harness_failures SET rule_id = ? WHERE id = ?", [existing[0]["id"], fid])
-        return  # already proposed, in force, or a person said no: never re-proposed
     text, spec = _draft(fix, failure, contract, result, vchecks)
     rid = "hr_" + uuid.uuid4().hex[:12]
-    sources = [r["id"] for r in db.query("SELECT id FROM harness_failures WHERE workspace_id = ? AND job_key = ? "
-                                         "AND signature = ? ORDER BY created_at", [ws, contract["job"], signature])]
-    aid = runtime.request_approval(ws, task["created_by"], "harness.update",
-                                   f"Harness {fix} rule for \"{contract['goal'][:80]}\": {text[:200]}",
-                                   {"rule_id": rid, "kind": fix, "class": hclass}, None)
-    db.execute("INSERT INTO harness_rules (id, workspace_id, kind, job_key, capability, signature, text, spec, status, "
-               "source_failures, approval_id, proposed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'proposed', ?, ?, ?)",
-               [rid, ws, fix, contract["job"], cap, signature, text, json.dumps(spec), json.dumps(sources), aid,
-                task["created_by"]])
-    db.execute(f"UPDATE harness_failures SET rule_id = ? WHERE id IN ({', '.join('?' * len(sources))})",
-               [rid, *sources])
+
+    def propose(c):
+        # check and insert in one transaction on the single writer: two workers finishing runs of the same job at
+        # once cannot both propose the same rule
+        existing = c.execute("SELECT id, status, approval_id FROM harness_rules WHERE workspace_id = ? AND job_key = ? "
+                             "AND kind = ? AND signature = ? AND status IN ('proposed', 'active', 'rejected')",
+                             [ws, contract["job"], fix, signature]).fetchall()
+        if existing:
+            c.execute("UPDATE harness_failures SET rule_id = ? WHERE id = ?", [existing[0][0], fid])
+            return None, existing[0]  # already proposed, in force, or a person said no: never re-proposed
+        sources = [r[0] for r in c.execute("SELECT id FROM harness_failures WHERE workspace_id = ? AND job_key = ? "
+                                           "AND signature = ? ORDER BY created_at",
+                                           [ws, contract["job"], signature]).fetchall()]
+        c.execute("INSERT INTO harness_rules (id, workspace_id, kind, job_key, capability, signature, text, spec, "
+                  "status, source_failures, approval_id, proposed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'proposed', ?, "
+                  "NULL, ?)", [rid, ws, fix, contract["job"], cap, signature, text, json.dumps(spec),
+                               json.dumps(sources), task["created_by"]])
+        c.execute(f"UPDATE harness_failures SET rule_id = ? WHERE id IN ({', '.join('?' * len(sources))})",
+                  [rid, *sources])
+        return rid, None
+
+    new_id, existing = db.write(propose)
+    if new_id is None:
+        if existing[1] == "proposed" and existing[2] is None:
+            _ask(runtime, ws, task, contract, existing[0])  # a crash before its approval was requested: ask now
+        elif existing[1] == "active":
+            _flag_if_ineffective(runtime, ws, existing[0])
+        return
+    _ask(runtime, ws, task, contract, rid)
     runtime.event(task["id"], "harness_proposal", f"Proposed a {fix} rule for approval", {"rule_id": rid})
     try:
         from .notices import raise_notice  # noqa: PLC0415
@@ -579,6 +591,74 @@ def _record_failure(runtime, task, contract, run, failure, result, vchecks) -> N
                      dedupe_key=f"harness:{rid}")
     except Exception:  # noqa: BLE001,S110 - a notice never stops the record
         pass
+
+
+def _flag_if_ineffective(runtime, ws: str, rule_id: str) -> None:
+    """The failure an active rule targets happened again: if the rule has not lowered its rate, tell a person, once.
+    Retiring it stays their decision."""
+    rule = runtime.db.query("SELECT * FROM harness_rules WHERE id = ?", [rule_id])[0]
+    eff = rule_effect(runtime.db, ws, rule)
+    if not eff or not eff["ineffective"]:
+        return
+    try:
+        from .notices import raise_notice  # noqa: PLC0415
+
+        raise_notice(runtime.stores, ws, source="harness", kind="harness_ineffective",
+                     label="A harness rule is not working",
+                     summary=(f"{rule['text'][:200]}: the failure it targets ran at {eff['rate_after']:.0%} of "
+                              f"{eff['runs_after']} runs since approval, {eff['rate_before']:.0%} before. "
+                              "Consider retiring or rewording it."),
+                     priority=0.4, dedupe_key=f"harness-ineffective:{rule_id}")
+    except Exception:  # noqa: BLE001,S110 - a notice never stops the record
+        pass
+
+
+def _ask(runtime, ws: str, task: dict[str, Any], contract: dict[str, Any], rule_id: str) -> None:
+    """Request a person's approval for a proposed rule and record which approval decides it."""
+    db = runtime.db
+    r = db.query("SELECT kind, text, signature FROM harness_rules WHERE id = ?", [rule_id])[0]
+    aid = runtime.request_approval(ws, task["created_by"], "harness.update",
+                                   f"Harness {r['kind']} rule for \"{contract['goal'][:80]}\": {r['text'][:200]}",
+                                   {"rule_id": rule_id, "kind": r["kind"], "class": r["signature"].split(":", 1)[0]},
+                                   None)
+    db.execute("UPDATE harness_rules SET approval_id = ? WHERE id = ? AND approval_id IS NULL", [aid, rule_id])
+
+
+# -- whether an approved rule worked --------------------------------------------------------------------------------
+
+
+def rule_effect(db, ws: str, rule: dict[str, Any], *, min_runs: int | None = None) -> dict[str, Any] | None:
+    """The failure the rule targets, before and after it went into force: how often runs of its job failed with the
+    same signature. ``ineffective`` once at least ``LYST_HARNESS_EFFECT_MIN_RUNS`` (default 5) runs ran under the rule
+    and the rate did not fall. Counted from stored contracts and failures only; None for a rule never in force."""
+    if not rule.get("decided_at") or rule.get("status") not in ("active", "retired"):
+        return None
+    min_runs = min_runs or max(1, int(os.environ.get("LYST_HARNESS_EFFECT_MIN_RUNS", "5")))
+    at, until = rule["decided_at"], rule.get("retired_at")
+    job = "" if rule["job_key"] == "*" else " AND job_key = ?"
+    jargs = [] if rule["job_key"] == "*" else [rule["job_key"]]
+
+    def count(sql, args):
+        return int(db.scalar(sql, args) or 0)
+
+    after_end = " AND created_at < ?" if until else ""
+    aargs = [until] if until else []
+    runs_before = count(f"SELECT count(*) FROM task_contracts WHERE workspace_id = ?{job} AND created_at < ?",
+                        [ws, *jargs, at])
+    runs_after = count(f"SELECT count(*) FROM task_contracts WHERE workspace_id = ?{job} AND created_at >= ?"
+                       f"{after_end}", [ws, *jargs, at, *aargs])
+    fails_before = count(f"SELECT count(*) FROM harness_failures WHERE workspace_id = ?{job} AND signature = ? "
+                         "AND created_at < ?", [ws, *jargs, rule["signature"], at])
+    fails_after = count(f"SELECT count(*) FROM harness_failures WHERE workspace_id = ?{job} AND signature = ? "
+                        f"AND created_at >= ?{after_end}", [ws, *jargs, rule["signature"], at, *aargs])
+    before = round(fails_before / runs_before, 3) if runs_before else None
+    after = round(fails_after / runs_after, 3) if runs_after else None
+    judged = runs_after >= min_runs and before is not None
+    return {"runs_before": runs_before, "failures_before": fails_before, "rate_before": before,
+            "runs_after": runs_after, "failures_after": fails_after, "rate_after": after,
+            "verdict": ("too few runs yet" if not judged else
+                        "ineffective" if after >= before else "working"),
+            "ineffective": bool(judged and after >= before)}
 
 
 # -- durable state ----------------------------------------------------------------------------------------------------
@@ -718,6 +798,7 @@ class HarnessService:
         for r in rows:
             r["spec"] = _loads(r["spec"]) or {}
             r["source_failures"] = _loads(r["source_failures"]) or []
+            r["effect"] = rule_effect(self.db, ws, r)  # did the failure it targets stop? a person retires it if not
         return rows
 
     def _rule(self, ws: str, rule_id: str) -> dict[str, Any]:

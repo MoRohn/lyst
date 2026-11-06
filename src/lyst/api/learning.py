@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
 """Learning lane routes: a person's verdict on an answer (correct, incorrect, partly), withdrawing it, and the verdicts
-on an analysis. What a verdict changes is in ``lyst.feedback`` and docs/LEARNING.md. Registered from api/__init__.py."""
+on an analysis, and the learning report. What a verdict changes is in ``lyst.feedback`` and docs/LEARNING.md. Registered from api/__init__.py."""
 
 # no `from __future__ import annotations`: FastAPI resolves the User dependency from the real annotation
 
@@ -33,3 +33,7 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
     @app.get("/v1/workspaces/{ws}/feedback/summary")
     def feedback_summary(request: Request, ws: str, user: User, days: int = 90) -> dict[str, Any]:
         return L(request).feedback.summary(user, ws, days=days)
+
+    @app.get("/v1/workspaces/{ws}/learning")
+    def learning_report(request: Request, ws: str, user: User, days: int = 90) -> dict[str, Any]:
+        return L(request).learning.report(user, ws, days=days)

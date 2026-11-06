@@ -210,7 +210,7 @@ class WorkflowService:
         pat = pattern(question)
         rows = self._db(ws).query(
             "SELECT * FROM workflows WHERE status = 'active' AND list_contains(patterns, ?) "
-            "ORDER BY verified_runs DESC LIMIT 1", [pat])
+            "ORDER BY verified_runs - failed_verifications DESC, verified_runs DESC LIMIT 1", [pat])
         if not rows:
             return None
         wf = self._row(rows[0])
@@ -338,10 +338,30 @@ class WorkflowService:
         slots = _period_slots(period, prior, year_ago)
         return [dict(s, args=instantiate(s["args"], slots)) for s in wf["definition"]["steps"]]
 
-    def record_run(self, ws: str, wf_id: str, version: int, *, verified: bool) -> None:
-        self._db(ws).execute(
+    def record_run(self, ws: str, wf_id: str, version: int, *, verified: bool) -> str | None:
+        """Count a compiled run. A version whose runs keep failing verification (``LYST_WORKFLOW_FAIL_LIMIT``
+        failures, default 2, and at least half its runs) is held back as stale, so the next question is planned afresh
+        and a verified plan compiles a new version. Returns the reason when it was held back."""
+        db = self._db(ws)
+        db.execute(
             "UPDATE workflows SET runs = runs + 1, last_used_at = now(), failed_verifications = failed_verifications + ? "
             "WHERE id = ? AND version = ?", [0 if verified else 1, wf_id, version])
+        if verified:
+            return None
+        rows = db.query("SELECT status, runs, failed_verifications FROM workflows WHERE id = ? AND version = ?",
+                        [wf_id, version])
+        if not rows or rows[0]["status"] != "active":
+            return None
+        r = rows[0]
+        limit = max(1, int(os.environ.get("LYST_WORKFLOW_FAIL_LIMIT", "2")))
+        if r["failed_verifications"] < limit or 2 * r["failed_verifications"] < r["runs"]:
+            return None
+        reason = (f"{r['failed_verifications']} of its {r['runs']} runs failed verification "
+                  f"(limit {limit}); it is planned afresh until a verified run compiles a new version")
+        db.execute("UPDATE workflows SET status = 'stale', invalid_reason = ? WHERE id = ? AND version = ? "
+                   "AND status = 'active'", [reason, wf_id, version])
+        log.info("workflow %s v%s held back: %s", wf_id, version, reason)
+        return reason
 
     def run(self, actor: Principal, ws: str, wf_id: str, runtime, *, period: str | None = None) -> str:
         """Submit a compiled run for a period label ("Q4 2026", "Aug 2026") or, by default, the last complete one."""

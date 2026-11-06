@@ -126,6 +126,7 @@ GET /v1/workspaces/{ws}/harness/rules | query: - | body: -
 GET /v1/workspaces/{ws}/inbox | query: - | body: -
 GET /v1/workspaces/{ws}/ingest | query: - | body: -
 GET /v1/workspaces/{ws}/ingest/{jid} | query: - | body: -
+GET /v1/workspaces/{ws}/learning | query: - | body: -
 GET /v1/workspaces/{ws}/lineage/{kind}/{name} | query: - | body: -
 GET /v1/workspaces/{ws}/members | query: - | body: -
 GET /v1/workspaces/{ws}/memory | query: - | body: -

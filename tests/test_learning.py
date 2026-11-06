@@ -151,3 +151,110 @@ def test_feedback_over_http(seeded):
         assert c.get(f"/v1/workspaces/northwind/analyses/{aid}/feedback", headers=h).json()["feedback"][0]["id"] == fid
         assert c.post("/v1/workspaces/northwind/analyses/a_missing/feedback", json={"verdict": "correct"},
                       headers=h).status_code == 404
+
+
+# -- outcomes reach reuse and rules (phase 2) ------------------------------------------------------------------------
+
+
+def test_a_workflow_whose_runs_keep_failing_verification_is_held_back(seeded):
+    lyst, owner = seeded
+    wf = ask(lyst, owner, Q2)["result"]["supporting"]["workflow"]["compiled"]
+    wfs = lyst.services.workflows
+    assert wfs.record_run("northwind", wf["id"], wf["version"], verified=True) is None
+    assert wfs.record_run("northwind", wf["id"], wf["version"], verified=False) is None  # once is not a pattern
+    reason = wfs.record_run("northwind", wf["id"], wf["version"], verified=False)
+    assert reason and "failed verification" in reason
+    w = wfs.get(owner, "northwind", wf["id"])
+    assert w["status"] == "stale" and w["invalid_reason"] == reason
+    # the next question is planned afresh; its verified run compiles a new version with fresh counts
+    again = ask(lyst, owner, Q3)["result"]["supporting"]["workflow"]
+    assert again["used"] is None and again["compiled"]["created"] and again["compiled"]["version"] == wf["version"] + 1
+    held = lyst.learning.report(owner, "northwind")["workflows"]
+    assert held["active"] == 1 and held["held_back"] == {}  # the held-back version is superseded by the new one
+    assert held["compiled_runs"] == 3 and held["compiled_runs_verified_rate"] == round(1 / 3, 3)
+
+
+def _failing(lyst, monkeypatch, capability, exc):
+    real = lyst.services.registry.run
+
+    def run(name, ctx, args):
+        if name == capability:
+            raise exc
+        return real(name, ctx, args)
+
+    monkeypatch.setattr(lyst.services.registry, "run", run)
+    return real
+
+
+def _approve_rule(lyst, owner, rule_id):
+    import json  # noqa: PLC0415
+
+    a = next(a for a in lyst.runtime.approvals(owner, "northwind")
+             if a["action"] == "harness.update" and json.loads(a["payload"])["rule_id"] == rule_id)
+    lyst.runtime.decide(owner, a["id"], True)
+
+
+def test_an_approved_rule_is_measured_and_flagged_when_the_failure_keeps_happening(seeded, monkeypatch):
+    lyst, owner = seeded
+    monkeypatch.setenv("LYST_HARNESS_EFFECT_MIN_RUNS", "2")
+    q = "What is churn rate?"
+    _failing(lyst, monkeypatch, "plan", KeyError("no metric named churn_rate"))
+    for _ in range(2):
+        ask(lyst, owner, q)
+    [rule] = lyst.harness.rules(owner, "northwind")
+    assert rule["effect"] is None  # not in force yet
+    _approve_rule(lyst, owner, rule["id"])
+    ask(lyst, owner, q)
+    assert lyst.harness.rules(owner, "northwind", status="active")[0]["effect"]["verdict"] == "too few runs yet"
+    ask(lyst, owner, q)
+    eff = lyst.harness.rules(owner, "northwind", status="active")[0]["effect"]
+    assert eff["ineffective"] and eff["rate_before"] == 1.0 and eff["rate_after"] == 1.0 and eff["runs_after"] == 2
+    # a person is told once; retiring it stays their decision
+    assert lyst.stores.workspace("northwind").scalar(
+        "SELECT count(*) FROM findings WHERE dedupe_key = ?", [f"harness-ineffective:{rule['id']}"]) == 1
+    rep = lyst.learning.report(owner, "northwind")["harness"]
+    assert rep["in_force"] == 1 and rep["ineffective"] == 1 and rep["rules"][0]["id"] == rule["id"]
+
+
+def test_a_rule_that_stops_its_failure_reads_as_working(seeded, monkeypatch):
+    lyst, owner = seeded
+    monkeypatch.setenv("LYST_HARNESS_EFFECT_MIN_RUNS", "2")
+    real = _failing(lyst, monkeypatch, "validate", ValueError("cannot compare 'x' with 3"))
+    for _ in range(2):
+        ask(lyst, owner, Q2)
+    [rule] = lyst.harness.rules(owner, "northwind")
+    _approve_rule(lyst, owner, rule["id"])
+    monkeypatch.setattr(lyst.services.registry, "run", real)  # the cause is gone
+    for _ in range(2):
+        ask(lyst, owner, Q2)
+    eff = lyst.harness.rules(owner, "northwind", status="active")[0]["effect"]
+    assert eff["verdict"] == "working" and eff["rate_after"] == 0.0
+
+
+def test_a_proposal_whose_approval_was_never_requested_is_asked_on_the_next_failure(seeded, monkeypatch):
+    """Fault injection: the rule row was written, then the process died before the approval was requested."""
+    lyst, owner = seeded
+    _failing(lyst, monkeypatch, "validate", ValueError("cannot compare 'x' with 3"))
+    for _ in range(2):
+        ask(lyst, owner, Q2)
+    [rule] = lyst.harness.rules(owner, "northwind")
+    ctl = lyst.stores.control
+    ctl.execute("DELETE FROM approvals WHERE id = ?", [rule["approval_id"]])
+    ctl.execute("UPDATE harness_rules SET approval_id = NULL WHERE id = ?", [rule["id"]])
+    ask(lyst, owner, Q2)
+    [again] = lyst.harness.rules(owner, "northwind")  # still one rule: never proposed twice
+    assert again["id"] == rule["id"] and again["approval_id"] and again["approval_id"] != rule["approval_id"]
+    _approve_rule(lyst, owner, rule["id"])
+    assert lyst.harness.rules(owner, "northwind")[0]["status"] == "active"
+
+
+def test_the_learning_report_over_http(seeded):
+    lyst, owner = seeded
+    aid = _analysis(ask(lyst, owner, Q2))
+    lyst.feedback.give(owner, "northwind", aid, "incorrect")
+    token = lyst.guard.issue_token(owner, "t")
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        r = c.get("/v1/workspaces/northwind/learning", headers={"Authorization": f"Bearer {token}"}).json()
+    assert r["answers"]["verdicts"]["incorrect"] == 1 and r["answers"]["analyses"]["disputed"] == 1
+    assert r["workflows"]["held_back"] == {"disputed by a person": 1}
+    assert r["memory"]["held_back_disputed"] == 1 and r["harness"]["in_force"] == 0
