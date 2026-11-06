@@ -211,7 +211,7 @@ def _expertise(api: Any, ws: str, q: str) -> None:
 
 
 def trigger(spaces: list[dict]) -> None:
-    """The sidebar's search button; Ctrl/⌘+K opens the same palette from anywhere."""
-    if st.button("Search or go to", key="lyst_palette", icon=":material/search:", width="stretch",
-                 shortcut="Mod+K", help="Search, jump to any section, or ask (Ctrl/⌘+K)"):
+    """The sidebar foot's search icon; Ctrl/⌘+K opens the same palette from anywhere."""
+    if st.button("Search or go to", key="lyst_palette", icon=":material/search:", shortcut="Mod+K",
+                 help="Search, jump to any section, or ask (Ctrl/⌘+K)"):
         palette(spaces)

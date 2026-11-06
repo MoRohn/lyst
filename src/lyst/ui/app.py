@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
@@ -170,10 +171,6 @@ if (pending := st.session_state.pop("_switch_ws", None)) in ids:  # chosen in th
     st.session_state.workspace = pending
 if st.session_state.get("workspace") not in ids:
     st.session_state.workspace = ids[0]
-with st.sidebar:
-    palette.trigger(spaces)
-    st.selectbox("Workspace", ids, key="workspace", label_visibility="collapsed",
-                 format_func=lambda i: next(w["name"] for w in spaces if w["id"] == i))
 role = next(w["role"] for w in spaces if w["id"] == st.session_state.workspace)
 st.session_state.role = role
 st.session_state.me_id = me.get("user_id")
@@ -235,6 +232,8 @@ def _recent(ws: str) -> list[dict]:
 RECENT_ICON = {"queued": ":material/schedule:", "running": ":material/progress_activity:",
                "awaiting_approval": ":material/approval:", "failed": ":material/error:",
                "paused": ":material/pause:"}
+# a finished question still earns an icon when its answer waits on the person
+OUTCOME_ICON = {"needs_input": ":material/contact_support:", "unverified": ":material/error:"}
 
 def _pins(ws: str) -> list[dict]:
     hit = st.session_state.get("_pins")
@@ -250,44 +249,68 @@ def _pins(ws: str) -> list[dict]:
 
 PIN_PAGE = {"dataset": ("app_pages/data.py", "dataset"), "metric": ("app_pages/brain.py", "metric")}
 
+def _ws_name(i: str) -> str:
+    return next(w["name"] for w in spaces if w["id"] == i)
+
+
+def _quiet_list(title: str, key: str) -> Any:
+    """Pinned and Recent: a quiet, collapsible list under the four areas. It stays open until the person closes it."""
+    return st.container(key=f"lyst_side_list_{key}").expander(title, expanded=True, key=f"lyst_side_x_{key}")
+
+
+def _footer() -> None:
+    """The sidebar's foot: who and where (workspace, account, sign out) in one menu, then search, notifications and
+    the glossary as three quiet icons. Every label stays in the accessible name; only the eye sees icons."""
+    with st.container(key="lyst_side_foot"):
+        with st.popover(_ws_name(st.session_state.workspace), icon=":material/apartment:", width="stretch",
+                        key="lyst_side_account"):
+            who = me.get("name") or me["email"]
+            st.html(f'<p class="lyst-side-who"><b>{kit._esc(who)}</b>'
+                    + (f'<br>{kit._esc(me["email"])}' if who != me["email"] else "")
+                    + f'<br>{kit._esc(role.capitalize())} · {kit._esc(_ws_name(st.session_state.workspace))}</p>')
+            if len(ids) > 1:
+                st.selectbox("Workspace", ids, key="workspace", format_func=_ws_name)
+            if st.button("Sign out", type="tertiary", icon=":material/logout:", key="lyst_side_signout"):
+                try:
+                    api.post("/auth/logout")
+                except APIError:
+                    pass
+                st.session_state.pop("token", None)
+                st.rerun()
+        with st.container(key="lyst_side_icons", horizontal=True, gap="small"):
+            palette.trigger(spaces)
+            collab.bell()
+            with st.popover("What these words mean", icon=":material/help:", key="lyst_side_help",
+                            help="What these words mean"):
+                st.markdown(GLOSSARY)
+
+
 with st.sidebar:
     if pins := _pins(st.session_state.workspace):
-        kit.label("Pinned")
         from lyst.ui import artifacts as _art  # noqa: PLC0415
 
-        for p in pins:
-            if st.button(p.get("title") or p["id"], key=f"lyst_recent_pin_{p['kind']}_{p['id']}".replace(":", "_"),
-                         type="tertiary", width="stretch", icon=_art.KINDS.get(p["kind"], ("", ":material/keep:"))[1]
-                         if p["kind"] in _art.KINDS else ":material/keep:"):
-                if p["kind"] in PIN_PAGE:
-                    page, qk = PIN_PAGE[p["kind"]]
-                    st.switch_page(page, query_params={qk: p["id"]})
-                _art.open_artifact({"kind": p["kind"], "id": p["id"]})
+        with _quiet_list("Pinned", "pinned"):
+            for p in pins:
+                if st.button(p.get("title") or p["id"], key=f"lyst_recent_pin_{p['kind']}_{p['id']}".replace(":", "_"),
+                             type="tertiary", width="stretch", icon=_art.KINDS.get(p["kind"], ("", ":material/keep:"))[1]
+                             if p["kind"] in _art.KINDS else ":material/keep:"):
+                    if p["kind"] in PIN_PAGE:
+                        page, qk = PIN_PAGE[p["kind"]]
+                        st.switch_page(page, query_params={qk: p["id"]})
+                    _art.open_artifact({"kind": p["kind"], "id": p["id"]})
     if recent := _recent(st.session_state.workspace):
-        kit.label("Recent")
-        for t in recent:
-            if st.button(t.get("title") or "Untitled", key=f"lyst_recent_{t['id']}", type="tertiary", width="stretch",
-                         icon=RECENT_ICON.get(t["status"], ":material/chat_bubble:"),
-                         help=f"{t['status'].replace('_', ' ').capitalize()} · {kit.when(t.get('updated_at'))}"):
-                st.session_state.task_id = t["id"]
-                st.switch_page("app_pages/analyst.py", query_params={"task": t["id"]})
-        st.html('<div style="height:.4rem"></div>')
-    with st.popover(me["email"], icon=":material/account_circle:", width="stretch"):
-        st.caption(f"{me.get('name') or me['email']} · {role} in "
-                   f"{next(w['name'] for w in spaces if w['id'] == st.session_state.workspace)}")
-        if st.button("Sign out", type="tertiary", icon=":material/logout:"):
-            try:
-                api.post("/auth/logout")
-            except APIError:
-                pass
-            st.session_state.pop("token", None)
-            st.rerun()
-    collab.bell()
+        with _quiet_list("Recent", "recent"):
+            for t in recent:
+                # only a status worth noticing earns an icon; finished questions read as plain quiet links
+                if st.button(t.get("title") or "Untitled", key=f"lyst_recent_{t['id']}", type="tertiary",
+                             width="stretch", icon=RECENT_ICON.get(t["status"]) or OUTCOME_ICON.get(t.get("outcome")),
+                             help=f"{t['status'].replace('_', ' ').capitalize()} · {kit.when(t.get('updated_at'))}"):
+                    st.session_state.task_id = t["id"]
+                    st.switch_page("app_pages/analyst.py", query_params={"task": t["id"]})
+    _footer()
     from lyst.ui import activity  # noqa: PLC0415 - events lane: live activity, on every page
 
     activity.live()
-    with st.popover("What these words mean", icon=":material/help:", width="stretch"):
-        st.markdown(GLOSSARY)
 
 from lyst.ui import agent_bar  # noqa: E402 - the Lyst agent bar: ask, speak, go anywhere, watch Lyst work
 

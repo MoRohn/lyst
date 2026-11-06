@@ -112,7 +112,7 @@ existing API endpoints; nothing new in the engine.
   priority as High/Medium/Low, approvals described in words, task steps behind an expander.
 * **Data and Intelligence**: code names and SQL moved into the detail dialog and behind "How it's calculated".
 * **Build**: opens on Dashboards (the business artefact); Workflows and Skills keep their places.
-* **Glossary** in the sidebar: "What these words mean".
+* **Glossary** in the sidebar's foot (the help icon): "What these words mean".
 
 ## 8. Part B: decided by Rohn (2026-11-04) and implemented
 

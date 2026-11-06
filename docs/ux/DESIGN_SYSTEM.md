@@ -43,8 +43,12 @@ The visual language, inspired by the craft of native apps without imitating them
   accent icon.
 * **Motion.** Pages rise in over 320 ms, sheets over 320 ms, controls over 120 ms; all 0 ms under
   `prefers-reduced-motion`. Motion never stands in for progress: status comes from the engine.
-* **Sidebar.** Search (⌘K) and workspace first, then **Recent**: the latest four questions with their real status
-  icon (running, waiting for approval, failed), one click back to each.
+* **Sidebar.** Calm by construction. The four areas lead. **Pinned** and **Recent** follow as quiet, collapsible
+  lists of one-line links (the latest four questions; only a status worth noticing, such as running, waiting for
+  approval, failed or needing your input, earns an icon). Everything about who and where sits in one foot pinned to
+  the bottom: a menu with the workspace (and the switcher, when there is more than one), the account and Sign out,
+  then three icons for search (Ctrl/⌘+K), notifications (an accent dot while something is unread) and what the
+  words mean. The icons keep their words as accessible names; asking and going to a page belong to the agent bar.
 
 ## The pages in the new language
 
@@ -175,7 +179,7 @@ Autonomy is not a page. Every object offers what Lyst can do with it, where the 
   marked; transparent background in both themes; `alt` text with range and last value for screen readers.
 * `components.table`: words for headings, percent/compact number formats, `—` for missing values, fixed height past
   12 rows (the grid's own sort, search, column resize, copy and CSV export remain).
-* Command palette (`palette.py`): Ctrl/⌘+K or the sidebar's **Search or go to** button. Ask Lyst, jump to any
+* Command palette (`palette.py`): Ctrl/⌘+K or the search icon in the sidebar's foot. Ask Lyst, jump to any
   area/section (with the words people use: "approvals" finds Brain › Work › Needs you), recent questions with engine status,
   catalog results, matching Analyst specializations with their measured maturity label (catalog entries are not
   presented as proof of capability), and workspace switching. Everything is fetched for the current workspace when
@@ -241,6 +245,6 @@ change), Open (owner noted).
 | R17 | Data › SQL lost its result on any rerun (opening an expander, switching a tab) | result drawn only inside `if st.button` | Fixed: result kept in session state per workspace |
 | R18 | Data › SQL recent queries were full code blocks (8 × ~100 px) with no way to reuse one | rendering choice | Fixed: one-line links that load the query |
 | R13 | Home tile "0.0 pts" shows an up arrow | sign of zero | Open (Home tiles) |
-| R14 | Sidebar stacks five full-width controls | each feature added its own | Partly: search moved into the palette trigger at the top |
+| R14 | Sidebar stacks five full-width controls | each feature added its own | Fixed: one foot (workspace menu plus search, notifications and glossary icons); Recent and Pinned quiet and collapsible |
 | R15 | Console shows a 404 for a static resource on every page | pre-existing | Open |
 | R16 | Palette input is not focused on open (one click needed) | Streamlit dialogs do not autofocus | Open |
