@@ -146,7 +146,7 @@ def resolve(parent: dict[str, Any], text: str, dims: list[str], metric_title: st
     elif _WHY.search(text):
         changed["intent"] = "explain"
         q = f"Why did {metric_title} change{when}{where}?"
-    elif year or prior or re.fullmatch(r"(?:(?:and|what about|how about) )?(?:compared? (?:it |that |this )?(?:to |with )?)?last year\??",
+    elif year or prior or not changed.get("period") and re.fullmatch(r"(?:(?:and|what about|how about) )?(?:compared? (?:it |that |this )?(?:to |with )?)?last year\??",
                                        text, re.I):
         year = year or not prior
         changed["comparison"] = "year ago" if year else "prior period"

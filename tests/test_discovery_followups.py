@@ -90,6 +90,7 @@ def test_follow_up_phrases_resolve_against_the_earlier_answer():
     s = r("Schedule this every Monday at 9am")
     assert s["action"] == "schedule" and s["schedule"] == {"at": "09:00", "weekdays": ["mon"]}
     assert r("What about Q1 2026?")["question"] == "What was revenue Q1 2026?"
+    assert r("What about last year?")["question"] == "What was revenue last year?"  # a new period, not a comparison
     assert r("Exclude unusual transactions")["action"] == "unsupported"  # never silently drops rows
     assert r("Test whether the difference is significant")["action"] == "unsupported"
     assert r("hmm")["action"] == "unsupported"
