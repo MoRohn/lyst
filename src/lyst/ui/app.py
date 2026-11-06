@@ -288,4 +288,9 @@ with st.sidebar:
     activity.live()
     with st.popover("What these words mean", icon=":material/help:", width="stretch"):
         st.markdown(GLOSSARY)
+
+from lyst.ui import agent_bar  # noqa: E402 - the Lyst agent bar: ask, speak, go anywhere, watch Lyst work
+
+if nav.url_path != "artifact":
+    agent_bar.bar(agent_bar.PAGE_OF.get(nav.url_path, "home"))
 nav.run()

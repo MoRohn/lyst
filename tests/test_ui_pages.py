@@ -48,12 +48,11 @@ def test_every_page_renders(ui, page, title):
     assert title in _texts(at) or any(title in str(h.value) for h in at.get("html")), page
 
 
-def test_home_shows_what_needs_you_and_suggestions_from_metrics(ui):
+def test_home_shows_suggestions_from_metrics(ui):
+    """What waits on the person is on Home's activity zone (tests/test_ui_zone.py); the suggestions come from metrics."""
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     assert not at.exception
-    body = _texts(at)
-    assert "Needs you" in body and "What is our margin?" in body  # the ambiguous question waits on the person
     pills = at.get("button_group")
     assert pills and any("operating margin" in str(o).lower() for p in pills for o in p.proto.options)
 

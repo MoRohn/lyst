@@ -396,11 +396,13 @@ def test_source_of_truth_and_webhooks_have_a_place(seeded, ui):  # noqa: F811
     assert health({"authority": "authoritative", "risks": {}}) == ("Source of truth", "verified")
 
 
-def test_voice_sits_by_the_ask_box_and_has_its_settings(seeded, ui):  # noqa: F811
+def test_voice_sits_in_the_agent_bar_and_has_its_settings(seeded, ui):  # noqa: F811
+    from .test_ui_agent import _bar  # noqa: PLC0415
+
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    assert not at.exception, [e.value for e in at.exception]  # Home renders with the Speak control beside the ask box
-    assert any(k.startswith("voice_sid_") and at.session_state[k] not in (None, "denied") for k in at.session_state)
+    assert not at.exception, [e.value for e in at.exception]  # Home renders with the mic in the agent bar
+    assert _bar(at)["voice"] is True
     at.switch_page("app_pages/settings.py")
     at.query_params["view"] = "voice"
     at.run()
