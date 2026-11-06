@@ -897,7 +897,10 @@ def _dispatch(args) -> None:
 
         lyst = Lyst.build()
         try:
-            print(json.dumps(lyst.stores.prune(event_days=args.event_days, audit_days=args.audit_days)))
+            from .memory import retention_days  # noqa: PLC0415
+
+            print(json.dumps(lyst.stores.prune(event_days=args.event_days, audit_days=args.audit_days,
+                                               memory_days=retention_days())))
         finally:
             lyst.close()
     elif args.cmd == "eval":

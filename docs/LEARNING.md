@@ -81,6 +81,19 @@ question bank, in the `learning` category and dimension (`lyst.evals.learning_ro
 They are in the baseline, so a change that breaks the loop fails CI as a regression. `tests/test_learning.py` injects
 the fault (a verdict whose effects never apply) and checks that the gate reports it.
 
+## Memory: who may change it, and how much is read
+
+- Approved or organization memory is taken back only by an admin (`memory.promote`), the role that may approve it.
+- A person's private (user-layer) memory is shared or removed only by that person.
+- Promoting or revoking a memory that does not exist, or was already revoked, is an error, not a silent success.
+- Expired memory is hidden from the memory list as it already was from recall.
+- Recall scores a bounded candidate set: approved first, then person-validated, then the newest observations, at most
+  `LYST_MEMORY_RECALL_SCAN` entries (default 5,000), and reads the analyses behind them in one query. 20,000 memories
+  recall well under the 2-second ceiling `tests/test_learning.py` holds it to.
+- Retention: agent-observed episodic and task memory older than `LYST_RETENTION_DAYS_MEMORY` (default 365 days, decided
+  2026-11-06; 0 keeps all) is deleted by the daily prune and `lyst prune`. Approved and person-validated memory is
+  never aged out. Dataset versions are all kept, by decision, so any answer can be re-run on the data it used.
+
 ## Limits
 
 - A dispute holds back reuse; it does not make the planner find the right answer. The correction, recalled as context,

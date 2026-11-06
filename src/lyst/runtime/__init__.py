@@ -32,6 +32,7 @@ from .. import observability as obs
 from .. import operations as ops
 from ..analyst.engine import Services
 from ..analyst.registry import Context
+from ..memory import retention_days as memory_retention_days
 from ..security import AccessDenied, Principal
 from ..store import Stores
 
@@ -994,7 +995,7 @@ class TaskRuntime:
                     try:
                         self.stores.prune(event_days=int(os.environ.get("LYST_RETENTION_DAYS_EVENTS", "90")),
                                           audit_days=int(os.environ.get("LYST_RETENTION_DAYS_AUDIT", "400")),
-                                          memory_days=int(os.environ.get("LYST_RETENTION_DAYS_MEMORY", "0")) or None)
+                                          memory_days=memory_retention_days())
                     except Exception:  # noqa: BLE001
                         log.exception("retention prune failed")
                 if not self.run_once():
