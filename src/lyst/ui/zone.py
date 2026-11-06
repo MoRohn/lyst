@@ -178,6 +178,8 @@ def task_card(t: dict, *, editor: bool, progress: tuple[int, int] | None = None)
     label = {"investigation": "Investigation", "scheduled": "Scheduled", "workflow": "Repeated analysis"}.get(kind,
                                                                                                           "Analysis")
     page = "brain" if kind in ("investigation", "scheduled", "workflow") else "home"
+    if t.get("specialist"):  # the discipline Lyst assembled for this task (Universal Analyst Core)
+        label = str(t["specialist"])
     ops: list[dict] = []
     if status in ("queued", "running"):
         col, tone = "working", "run"

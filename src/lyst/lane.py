@@ -45,6 +45,9 @@ def attach(lyst) -> None:
     from .specialists.core import UniversalAnalystCore  # noqa: PLC0415 - specializations lane
 
     lyst.analyst_core = UniversalAnalystCore(lyst)
+    # every task, from any page or activity, gets assembled expertise (same router and permission rules as handle)
+    lyst.runtime.before_submit.append(lyst.analyst_core.enrich)
+    lyst.runtime.after_submit.append(lyst.analyst_core.record)
     if getattr(lyst, "anticipation", None) is not None:  # anticipation looks again soon after relevant events
         lyst.events.subscribers.append(lyst.anticipation.on_event)
     from . import events as _events

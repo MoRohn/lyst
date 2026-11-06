@@ -95,6 +95,11 @@ class TaskRuntime:
         self._clocks: dict[str, float] = {}  # task id -> monotonic start of its accumulated run time
         self.monitors = None  # set by the app; ticked by the worker loop
         self.periodic: list = []  # platform jobs run on the worker tick (asset repairs)
+        # submission hooks: before_submit(actor, ws, question, kind, extra) -> extra adds request keys (the Universal
+        # Analyst Core assembles expertise for every task this way, whatever page or activity submitted it);
+        # after_submit(task_id, request) records what was added. A failing hook never blocks a submission.
+        self.before_submit: list = []
+        self.after_submit: list = []
         self.on_finish: list = []  # callbacks (task_id, state) after a run ends: done, failed or cancelled
         self.harness = None  # the harness service (lane.attach): applies approved harness rules
         self.autonomy = None  # event rules and activities (lane.attach): applies approved rule activations and proposals
@@ -129,6 +134,11 @@ class TaskRuntime:
         quota = ops.quotas(self.db, workspace_id)
         if quota["task_budget_seconds"]:
             budget_seconds = min(budget_seconds, quota["task_budget_seconds"])
+        for hook in self.before_submit:
+            try:
+                extra = hook(actor, workspace_id, question, kind, dict(extra or {})) or extra
+            except Exception:  # noqa: BLE001 - enrichment is best effort; the task itself must still be accepted
+                log.warning("before_submit hook %r failed", hook, exc_info=True)
         stored = {k: v for k, v in (extra or {}).items() if k not in ("question", "workflow")} | {"question": question} \
             | ({"workflow": workflow} if workflow else {})
         contract = harness.build_contract(self.db, workspace_id, question=question, kind=kind, autonomy=autonomy,
@@ -164,6 +174,11 @@ class TaskRuntime:
         if prior := self.db.write(tx):
             return prior
         self.event(tid, "queued", "Task received")
+        for hook in self.after_submit:
+            try:
+                hook(tid, stored)
+            except Exception:  # noqa: BLE001
+                log.warning("after_submit hook %r failed", hook, exc_info=True)
         self.services.guard.audit(actor, workspace_id, "task.create", tid, "ok")
         return tid
 
@@ -257,7 +272,8 @@ class TaskRuntime:
         self.services.guard.require(actor, workspace_id, "workspace.read")
         rows = self.db.query(
             "SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, autonomy, kind, "
-            "created_by, created_at, updated_at, schedule_id, error "
+            "created_by, created_at, updated_at, schedule_id, error, "
+            "json_extract_string(request, '$.expertise.roles[0].name') AS specialist "
             "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, max(1, min(int(limit), 500))])
         active = [r["id"] for r in rows if r["status"] == "running"]
         steps: dict[str, list] = {}

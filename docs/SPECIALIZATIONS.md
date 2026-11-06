@@ -136,6 +136,42 @@ Audit after this slice: see `docs/SPECIALIZATIONS_AUDIT.md`. Most example reques
 they ask about data the demo workspace does not have (CI runs, cloud bills, scanner exports). The honest next step
 per discipline is data, not more profile text.
 
+## Slice 4: baked into every page and activity, and earned across 108 roles
+
+**Every entry point.** Seventeen places submit tasks (the agent bar on every page, the activity board, Home, schedules,
+follow-ups, anticipation, monitors, onboarding, assets, MCP, voice, the tasks API...). Only the core's own endpoint
+used to route. `TaskRuntime` now has `before_submit` / `after_submit` hooks, and the lane attaches
+`UniversalAnalystCore.enrich` / `record`: every task gets assembled expertise (same router, same permission rules) and
+an `expertise` trace event, whatever submitted it. Platform upkeep kinds (`maintenance`, `system`, `sync`, `refresh`)
+are never routed; a submission can opt out with `extra={"expertise": None}`; a failing hook never blocks a task.
+`runtime.list` returns `specialist` (the primary discipline's name) and the activity board shows it on each card.
+Because every task is now routed: an explicit request for a quick answer is never raised to high verification, and
+the fit check only judges bare number answers (value, breakdown, trend), where the audit found wrong-question answers.
+
+**Data and methods so each role can be exercised.**
+- `packs.py`: 55 domain sample packs (cloud billing, GPU fleet, clusters, storage, incidents, service desk, CI,
+  deployments, APIs, product usage, web traffic, SEO, ad spend, subscriptions, pipeline, churn, social, content,
+  video, podcasts, procurement, shipments, inventory, attrition, scrap, sensors, energy, emissions, readmissions,
+  cases, robots, vulnerabilities, posture, access grants, chargebacks, model spend, agent failures, chatbot
+  escalations, RPA exceptions...), each a governed metric with one member planted as the cause of last month's move.
+- `samples.py`: plus A/B and holdout experiments, a clinical trial, recorded predictions and five pass/fail
+  evaluation sets with a planted weakest segment, and 18 short documents (policies, reviews, registers, notes) that
+  each state one checkable fact.
+- New methods: `compare_groups` (two-proportion z-test or Welch, lift with interval, sample-ratio check),
+  `evaluate_predictions` (accuracy, per-class precision/recall, regression error, pass rates by segment) and `brief`
+  (an extractive brief quoting the matching document, chosen by title or passage, role-gated). Model evaluation is now
+  `available`.
+
+**Evidence.** `representative.all_scenarios()` holds a task with a known answer for 112 roles, and all 112 pass. A role is Operational
+only if it is Equipped *and* its task selects it, verifies, and names the planted fact. Result: **108 Operational,
+5 Equipped, 23 Defined**. Four roles have passing tasks but stay below Level 3 because a capability they require is
+only partial: predictive analytics (binary classification only), geospatial (points only), cybersecurity and network
+(tabular logs only).
+
+What "Operational" means here, plainly: the role's representative task runs end to end on controlled sample data and
+finds the right answer. It does not mean the role is validated on real data or that every request in that discipline
+will work: the methods are the ones listed in the library, and a workspace still needs its own data and metrics.
+
 ## Known limitations
 
 - **Routing accuracy is measured on the author's own cases.** 58 of 58 labelled cases route correctly. The 10
@@ -144,7 +180,9 @@ per discipline is data, not more profile text.
 - The assembly changes verification and disclosure, not the computation: the plan's capabilities are still chosen
   by the existing engine, so a specialized request gets the same figures as a plain one, checked harder and
   reported more honestly (slice 2, below). Choosing different methods per discipline is later work.
-- Only 13 disciplines have representative tasks; the rest have none recorded yet.
+- 24 roles have no representative task yet, mostly because a required method is missing or partial (code analysis,
+  web research, raw-log parsing, polygons and routing, graph paths, multi-class models).
+- Document briefs are extractive: they quote the best passage; they do not reason across documents.
 - The engine's metric matching sometimes maps a word to a governed metric loosely (for example "peak demand" to
   support tickets); the fit check catches some of these, not all.
 - Custom workspace profiles, the Foundry hook for gaps, anticipation links and the UI surfaces are later slices.

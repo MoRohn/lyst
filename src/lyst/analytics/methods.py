@@ -336,3 +336,154 @@ def log_patterns(df: pd.DataFrame, *, ts: str, event: str, entity: str | None = 
             "findings": findings, "tables": tables, "metrics": metrics,
             "assumptions": ["Timestamps are normalized to UTC.", "A burst is a bucket at least five robust deviations above that "
                             "entity's own median; it is an observed pattern, not a confirmed threat."]}
+
+
+# -- two-group comparison -----------------------------------------------------------------------------------------
+
+
+def compare_groups(df: pd.DataFrame, group: str, outcome: str) -> dict[str, Any]:
+    """A/B readout: two-proportion z-test for a 0/1 outcome, Welch's t-test otherwise; lift with a 95% interval and a
+    sample-ratio check."""
+    from scipy import stats as sps  # noqa: PLC0415
+
+    d = df[[group, outcome]].dropna()
+    groups = sorted(d[group].astype(str).unique().tolist())
+    if len(groups) != 2:
+        raise MethodError(f"a comparison needs exactly two groups in {group}; found {len(groups)}")
+    control = next((g for g in groups if g.lower() in ("control", "a", "baseline", "holdout", "old")), groups[0])
+    treat = next(g for g in groups if g != control)
+    a = pd.to_numeric(d.loc[d[group].astype(str) == control, outcome], errors="coerce").dropna()
+    b = pd.to_numeric(d.loc[d[group].astype(str) == treat, outcome], errors="coerce").dropna()
+    if min(len(a), len(b)) < 30:
+        raise MethodError("each group needs at least 30 observations")
+    binary = set(pd.concat([a, b]).unique().tolist()) <= {0, 1}
+    if binary:
+        pa, pb = a.mean(), b.mean()
+        pool = (a.sum() + b.sum()) / (len(a) + len(b))
+        se0 = math.sqrt(pool * (1 - pool) * (1 / len(a) + 1 / len(b)))
+        z = (pb - pa) / se0 if se0 else 0.0
+        p = float(2 * (1 - sps.norm.cdf(abs(z))))
+        se = math.sqrt(pa * (1 - pa) / len(a) + pb * (1 - pb) / len(b))
+        test = "two-proportion z-test"
+    else:
+        pa, pb = a.mean(), b.mean()
+        t = sps.ttest_ind(b, a, equal_var=False)
+        p = float(t.pvalue)
+        se = math.sqrt(a.var(ddof=1) / len(a) + b.var(ddof=1) / len(b))
+        test = "Welch's t-test"
+    diff = pb - pa
+    lo, hi = diff - 1.96 * se, diff + 1.96 * se
+    srm = float(sps.chisquare([len(a), len(b)]).pvalue)
+    sig = p < 0.05
+    fmt = (lambda x: f"{x:.2%}") if binary else (lambda x: f"{x:,.3g}")
+    findings = [f"{control}: {fmt(pa)} over {len(a):,}; {treat}: {fmt(pb)} over {len(b):,}.",
+                f"Difference {fmt(diff)} (95% interval {fmt(lo)} to {fmt(hi)}), {test}, p = {p:.3g}."]
+    if srm < 0.01:
+        findings.append(f"Sample ratio mismatch: the groups differ in size more than chance allows (p = {srm:.3g}); "
+                        "check the assignment before trusting the result.")
+    verdict = ("is higher than" if diff > 0 else "is lower than") if sig else "is not distinguishable from"
+    return {"summary": (f"{treat} {verdict} {control} on {outcome}: {fmt(pb)} vs {fmt(pa)}"
+                        + (f" (p = {p:.3g})." if sig else f"; p = {p:.3g}, not significant.")),
+            "findings": findings, "tables": [_table("Groups", pd.DataFrame([
+                {"group": control, "n": len(a), "mean": _r(pa, 4)}, {"group": treat, "n": len(b), "mean": _r(pb, 4)}]))],
+            "metrics": {"difference": _r(diff, 5), "ci_low": _r(lo, 5), "ci_high": _r(hi, 5), "p_value": _r(p, 5),
+                        "srm_p": _r(srm, 5), "significant": bool(sig)},
+            "assumptions": ["Units were randomly assigned and observed once each.",
+                            "A single pre-planned comparison; looking repeatedly or at many metrics needs a correction."]}
+
+
+# -- document briefs ----------------------------------------------------------------------------------------------
+
+
+def brief(passages: list[dict[str, Any]], query: str) -> dict[str, Any]:
+    """An extractive brief: the passages that answer the question, quoted with their source, nothing paraphrased."""
+    if not passages:
+        raise MethodError("no document passage matches this question")
+    docs = []
+    for p in passages:
+        if p["title"] not in docs:
+            docs.append(p["title"])
+    top = passages[0]
+    excerpt = " ".join(str(top["text"]).split())
+    excerpt = excerpt if len(excerpt) <= 320 else excerpt[:319].rsplit(" ", 1)[0] + "…"
+    return {"summary": f"From “{top['title']}”: {excerpt}",
+            "findings": [f"“{p['title']}”, passage {p['passage'] + 1}: " + " ".join(str(p["text"]).split())[:400]
+                         for p in passages[1:4]],
+            "tables": [_table("Sources", pd.DataFrame([{"document": p["title"], "passage": p["passage"] + 1,
+                                                        "relevance": p["score"]} for p in passages]))],
+            "metrics": {"passages": len(passages), "documents": len(docs)},
+            "assumptions": ["Quoted from the workspace's own documents, ranked by relevance; nothing is paraphrased or added.",
+                            "Only documents your role may read were searched."]}
+
+
+# -- model evaluation ---------------------------------------------------------------------------------------------
+
+
+def evaluate_predictions(df: pd.DataFrame, actual: str, predicted: str | None = None, *, segment: str | None = None,
+                         passed: str | None = None) -> dict[str, Any]:
+    """How good are recorded predictions? Classification (accuracy, precision, recall per class), regression (MAE,
+    MAPE, bias) or pass/fail evaluation results, overall and by segment, with the worst segment named."""
+    cols = [c for c in (actual, predicted, segment, passed) if c]
+    d = df[[c for c in dict.fromkeys(cols) if c in df.columns]].dropna()
+    if len(d) < 20:
+        raise MethodError("evaluation needs at least 20 scored rows")
+    if passed:
+        ok = pd.to_numeric(d[passed], errors="coerce").fillna(0).astype(int)
+        by = d.assign(_ok=ok).groupby(segment)["_ok"].agg(["mean", "count"]).rename(columns={"mean": "pass_rate"}) if segment \
+            else None
+        rate = float(ok.mean())
+        lo = rate - 1.96 * math.sqrt(rate * (1 - rate) / len(ok))
+        hi = rate + 1.96 * math.sqrt(rate * (1 - rate) / len(ok))
+        findings = [f"Pass rate {rate:.1%} (95% interval {max(lo, 0):.1%} to {min(hi, 1):.1%}) over {len(ok)} cases."]
+        tables = []
+        worst = None
+        if by is not None:
+            by = by.sort_values("pass_rate").reset_index()
+            worst = by.iloc[0]
+            findings.append(f"Lowest: {worst[segment]} at {worst['pass_rate']:.1%} over {int(worst['count'])} cases.")
+            tables.append(_table(f"Pass rate by {segment}", by.round(4)))
+        return {"summary": f"Overall pass rate {rate:.1%} on {len(ok)} cases" + (f"; {worst[segment]} is weakest "
+                           f"({worst['pass_rate']:.1%})." if worst is not None else "."),
+                "findings": findings, "tables": tables, "metrics": {"pass_rate": _r(rate, 4), "cases": int(len(ok))},
+                "assumptions": ["Each case is scored pass or fail by a recorded check; the cases represent real use."]}
+    a, p = d[actual], d[predicted]
+    numeric = pd.api.types.is_numeric_dtype(a) and pd.api.types.is_numeric_dtype(p) and a.nunique() > 10
+    if numeric:
+        err = (p - a).astype(float)
+        mae, bias = float(err.abs().mean()), float(err.mean())
+        nz = a != 0
+        mape = float((err[nz].abs() / a[nz].abs()).mean()) if nz.any() else float("nan")
+        frame = d.assign(_abs=err.abs())
+        summary = f"Mean absolute error {mae:,.3g} (MAPE {mape:.1%}), bias {bias:+,.3g} over {len(d)} predictions"
+        metrics = {"mae": _r(mae, 4), "mape": _r(mape, 4), "bias": _r(bias, 4), "rows": int(len(d))}
+        key = "_abs"
+        worst_desc = "highest error"
+    else:
+        correct = (a.astype(str) == p.astype(str))
+        acc = float(correct.mean())
+        frame = d.assign(_wrong=(~correct).astype(float))
+        classes = sorted(a.astype(str).unique().tolist())
+        rows = []
+        for c in classes:
+            tp = int(((a.astype(str) == c) & (p.astype(str) == c)).sum())
+            fp = int(((a.astype(str) != c) & (p.astype(str) == c)).sum())
+            fn = int(((a.astype(str) == c) & (p.astype(str) != c)).sum())
+            rows.append({"class": c, "precision": _r(tp / (tp + fp) if tp + fp else 0, 3), "recall": _r(tp / (tp + fn) if tp + fn else 0, 3),
+                         "support": int((a.astype(str) == c).sum())})
+        summary = f"Accuracy {acc:.1%} over {len(d)} predictions across {len(classes)} classes"
+        metrics = {"accuracy": _r(acc, 4), "rows": int(len(d)), "classes": len(classes)}
+        key = "_wrong"
+        worst_desc = "lowest accuracy"
+    tables, findings = [], []
+    if not numeric:
+        tables.append(_table("Per class", pd.DataFrame(rows)))
+    if segment:
+        by = frame.groupby(segment)[key].agg(["mean", "count"]).sort_values("mean", ascending=False).reset_index()
+        worst = by.iloc[0]
+        val = f"{1 - worst['mean']:.1%} accurate" if not numeric else f"MAE {worst['mean']:,.3g}"
+        findings.append(f"{worst[segment]} has the {worst_desc} ({val} over {int(worst['count'])} rows).")
+        summary += f"; {worst[segment]} is the weakest segment"
+        tables.append(_table(f"By {segment}", by.rename(columns={"mean": "error_rate" if not numeric else "mae"}).round(4)))
+    return {"summary": summary + ".", "findings": findings, "tables": tables, "metrics": metrics,
+            "assumptions": ["Predictions were recorded before the outcomes were known (no leakage).",
+                            "Rows are scored once each; the evaluation set represents the population the model serves."]}

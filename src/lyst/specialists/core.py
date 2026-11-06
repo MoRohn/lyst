@@ -78,6 +78,18 @@ class AnalystResponse(BaseModel):
     limitations: list[str]
 
 
+# kinds of task that are not a person's analytical request: platform upkeep is never routed
+UNROUTED_KINDS = {"maintenance", "system", "sync", "refresh"}
+KIND_CHANNEL = {"scheduled": "schedule", "investigation": "api", "followup": "text", "workflow": "schedule"}
+STORED_KEYS = ("primary", "roles", "task_classes", "methods", "verification", "approvals", "sensitivity", "planning_depth",
+               "limitations", "catalog_version", "general", "brief")
+
+
+def stored_expertise(assembly: dict[str, Any]) -> dict[str, Any]:
+    """The part of an assembly kept on the task (``request.expertise``)."""
+    return {k: assembly.get(k) for k in STORED_KEYS}
+
+
 def _say(assembly: dict[str, Any]) -> str:
     if assembly.get("general"):
         return "Lyst will answer this as a general analyst; no specialized discipline was needed."
@@ -126,10 +138,7 @@ class UniversalAnalystCore:
             status = "needs_confirmation"
             message = f'I heard: "{req.text}". Is that right? Nothing has started yet.'
         elif req.submit:
-            extra = {"expertise": {k: assembly.get(k) for k in ("primary", "roles", "task_classes", "methods", "verification",
-                                                              "approvals", "sensitivity", "planning_depth", "limitations",
-                                                              "catalog_version", "general", "brief")},
-                     "channel": req.channel, "analyst_request_id": rid,
+            extra = {"expertise": stored_expertise(assembly), "channel": req.channel, "analyst_request_id": rid,
                      "attachments": [a.model_dump() for a in req.attachments]}
             try:
                 task_id = self.lyst.runtime.submit(actor, req.workspace_id, req.text, autonomy=req.autonomy,
@@ -152,6 +161,36 @@ class UniversalAnalystCore:
             "ms": round((time.perf_counter() - t0) * 1000, 1)})
         return AnalystResponse(request_id=rid, status=status, channel=req.channel, task_id=task_id, message=message,
                                expertise=public, routing=decision.as_dict(), limitations=limitations)
+
+    # -- every other entry point: the runtime's submission hooks ------------------------------------------------
+
+    def enrich(self, actor: Principal, ws: str, question: str, kind: str, extra: dict[str, Any]) -> dict[str, Any]:
+        """``runtime.before_submit``: assemble expertise for a task submitted anywhere other than ``handle`` (the agent
+        bar, the activity board, schedules, follow-ups, anticipation, monitors, MCP, the tasks API). Same router, same
+        permission rules; a task that already carries expertise, or one that is not analysis, is left alone."""
+        if "expertise" in extra or kind in UNROUTED_KINDS or not question.strip() or len(question) > 8000:
+            return extra
+        if not self.lyst.guard.can(actor, ws, "analyst.ask"):
+            return extra
+        decision = route(" ".join(question.split()), can=lambda perm: self.lyst.guard.can(actor, ws, perm),
+                         workspace_domains=self._workspace_domains(actor, ws))
+        assembly = assemble(decision, question)
+        return extra | {"expertise": stored_expertise(assembly),
+                        "channel": extra.get("channel") or KIND_CHANNEL.get(kind, "text"),
+                        "routing": {"ms": round(decision.latency_ms, 2), "task_classes": decision.request_task_classes,
+                                    "general": decision.general}}
+
+    def record(self, task_id: str, request: dict[str, Any]) -> None:
+        """``runtime.after_submit``: the trace event for expertise added by ``enrich`` (``handle`` records its own)."""
+        ex = request.get("expertise")
+        if not ex or request.get("analyst_request_id"):
+            return
+        names = [r["name"] for r in ex.get("roles") or []]
+        self.lyst.runtime.event(task_id, "expertise", _say({**ex, "capabilities": {"missing": []}, "unsupported": []})
+                                if names else "Lyst will answer this as a general analyst.",
+                                {"selected": [r["id"] for r in ex.get("roles") or []], "channel": request.get("channel"),
+                                 "general": bool(ex.get("general")), "catalog_version": ex.get("catalog_version"),
+                                 **(request.get("routing") or {})})
 
     def expertise_for_task(self, actor: Principal, task_id: str) -> dict[str, Any]:
         task = self.lyst.runtime.get(actor, task_id)  # checks the actor may read the task
