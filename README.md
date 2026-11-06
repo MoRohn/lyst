@@ -83,24 +83,35 @@ understanding and wording, never the numbers.
 
 ## A tour of the interface
 
-One navigation with five areas, and one visual language behind every screen: a calm canvas with raised, softly lit
-surfaces, a translucent sidebar, dialogs that rise as sheets, native-style segmented controls and buttons, the
-system typeface, and motion that respects reduced-motion settings, in light and dark. A single set of design
-tokens drives Streamlit's widgets, Lyst's own components and every chart, every screen is checked by an automated
-render with WCAG 2.2 AA accessibility scanning, and text and status colours meet 4.5:1 contrast in both themes.
-The sidebar holds **Search or go to** (⌘K), your four most recent questions with their live status, notifications,
-and a "What these words mean" glossary.
+One navigation with four areas (Home, Data, Brain and Settings), and one visual language behind every screen: a
+calm canvas with raised, softly lit surfaces, a translucent sidebar, dialogs that rise as sheets, native-style
+segmented controls and buttons, the system typeface, and motion that respects reduced-motion settings, in light
+and dark. A single set of design tokens drives Streamlit's widgets, Lyst's own components and every chart, every
+screen is checked by an automated render with WCAG 2.2 AA accessibility scanning, and text and status colours meet
+4.5:1 contrast in both themes. At the top of every page is the **Lyst agent bar**: ask by typing or speaking
+(asked from Data, Brain or Settings, the answer follows in a panel without leaving the page), go anywhere by name
+("go to SQL", "open definitions"), and watch Lyst work: a **Watch** chip for what is running, a **Live** panel
+with each step and the event feed, and an opt-in **Follow Lyst**. Below it, every page has the same **activity
+board**, with Suggested, Needs you, In progress and Done, scoped to the page with an **Everywhere** switch: click
+a card to open it, hold it (or press M) for its actions, or drag it to another column to propose that move, with
+each column saying what a drop would do; the keyboard works too (arrows, and Space to pick up and drop), every
+change asks for confirmation and goes through the usual approvals and permissions, and viewers can only open
+cards. The sidebar holds **Search or go to** (⌘K), your four most recent questions with their live status,
+notifications, and a "What these words mean" glossary.
 
 | Area | What you do there |
 |---|---|
-| **Home** | A workspace, not a dashboard: the composer (with **Speak**), a Get started card that follows the workspace's real set-up state, suggested questions, **Your work** (a shelf of what Lyst has made, each with a preview drawn from its own content) and the conversations to pick up |
-| **Work** | A command center: a live status strip, then what needs you (approvals), what Lyst is doing and finished as a day-by-day timeline or a board, and what runs on its own: watched metrics, scheduled questions and what Lyst noticed. Each task's steps show as a timeline from the engine. **Automatic** shows what event rules started, with why, the flow and any approval inline |
-| **Data** | A library rail of datasets, approved metrics and dashboards beside the workspace; tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. Every dataset card shows its size, freshness, the shape of its columns and what it feeds. **Add data** uploads a file, connects a source, or proposes connections from an API description |
-| **Brain** | What Lyst knows about the business, opening on its **Graph**: a map of everything it knows and how it links, plus graph runs. Then Definitions (each approved metric and term as what it means and how it is built, or a map from data to metrics), Documents it can cite, Memory (with memories waiting for review), and **Specializations**: a searchable catalog of the 136 kinds of analyst work with each one's honest maturity |
+| **Home** | Answer-first: a one-line status ("1 thing needs you · watching 3 metrics · next run in 3 h"), suggested questions, the activity board, then **Latest answers** as cards (the verified answer with a preview; *Why, and what to do* folds open in place) and **Made for you**. Get started and earlier answers fold into one line each |
+| **Data** | Opens with Lyst's read on the data in one line ("1 of 4 datasets needs attention…", with **Review**), then the activity board, a library rail of datasets, approved metrics and dashboards, and tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. **Add data** uploads a file, connects a source, or proposes connections from an API description |
+| **Brain** | What Lyst knows, what it is doing and what it runs on its own, in a band at the top. Its sections: **Work** (needs you, activity with Running, Done, Stopped, Automatic, Decisions and Published, and recurring work: watched metrics, scheduled questions and what Lyst noticed; each task's steps show as a timeline from the engine), **Graph** (the default: a map of everything it knows and how it links, plus graph runs), Definitions, Documents it can cite, Memory (with memories waiting for review), and **Specializations** (the 136 kinds of analyst work with each one's honest maturity) |
 | **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
 
 <p align="center">
-  <img src="docs/images/home.png" alt="Home: the ask box with Speak, the Get started card with its set-up steps, and the first metric tiles" width="80%">
+  <img src="docs/images/home.png" alt="Home: the Lyst agent bar, suggested questions, and the activity board with Suggested, Needs you, In progress and Done" width="80%">
+</p>
+
+<p align="center">
+  <img src="docs/images/agent-bar.png" alt="The Lyst agent bar: typing go to sql offers Data, SQL with Go" width="70%">
 </p>
 
 ### ⌘K: ask or go anywhere
@@ -196,11 +207,11 @@ in what the answer found, each with Run now (or Watch it), Later and Why.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/work.png" alt="Work: needs you, activity and recurring runs"><br><b>Work</b>: needs you, activity and recurring runs</td>
+    <td width="50%"><img src="docs/images/work.png" alt="Brain, Work: needs you, activity filters (Running, Done, Stopped, Automatic, Decisions, Published) and recurring"><br><b>Brain › Work</b>: needs you, activity and recurring runs</td>
     <td width="50%"><img src="docs/images/data.png" alt="Data: datasets with descriptions, rows, freshness and classification"><br><b>Data</b>: datasets, dashboards, saved analyses and SQL</td>
   </tr>
   <tr>
-    <td><img src="docs/images/brain.png" alt="Brain: approved metrics and business terms"><br><b>Brain</b>: definitions, documents and memory</td>
+    <td><img src="docs/images/brain.png" alt="Brain: what Lyst knows, is doing and runs on its own, above the sections and the knowledge graph"><br><b>Brain</b>: what it knows, is doing and runs on its own</td>
     <td><img src="docs/images/saved-analyses.png" alt="Data, Saved analyses: a verified analysis ready to rerun"><br><b>Saved analyses</b>: verified work Lyst reruns for any period</td>
   </tr>
 </table>
@@ -226,7 +237,7 @@ compares options on weighted criteria and constraints under uncertainty, finds w
 change, and allocates budgets with an exact solver. It says "insufficient evidence" or "no clear winner" rather
 than claim one. A **decision record** goes from analyzed to submitted to approved or rejected by a person, who
 may pick a different option, and is later reviewed against what actually happened. Nothing is executed. Editors
-start one with **Compare options** on an answer, and records are listed in Work › Activity › Decisions.
+start one with **Compare options** on an answer, and records are listed in Brain › Work › Activity › Decisions.
 
 <table>
   <tr>
@@ -335,7 +346,7 @@ says a person is needed.
 * **Your notifications, your way.** Mentions, assignments, reviews, decisions and comments on what you own
   arrive in one list with platform notices, and each kind can be switched off per person.
 
-On screen: **Share** and **Discuss** sit on every answer; **Work › Needs you** adds *Assigned to you* (Open, Done)
+On screen: **Share** and **Discuss** sit on every answer; **Brain › Work › Needs you** adds *Assigned to you* (Open, Done)
 and *Reviews waiting* (Open, Approve, Reject), counted in the sidebar; and **Notifications** in the sidebar open
 where they point, with Mark all read and "What to tell me about".
 
@@ -475,8 +486,8 @@ where they point, with Mark all read and "What to tell me about".
   inside the main driver, watch a metric that moved, make a repeated question recurring, extend a review into a
   forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. On
   watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained trend,
-  forecast drift, projected breach), investigates it first, and surfaces a verified warning in Work › Needs you
-  with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Work › Recurring
+  forecast drift, projected breach), investigates it first, and surfaces a verified warning in Brain › Work › Needs you
+  with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Brain › Work › Recurring
   (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for items that
   need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and **Working
   ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The **Why**
@@ -505,18 +516,18 @@ where they point, with Mark all read and "What to tell me about".
   repair. Each rule has a ceiling on how far it may go on its own, a daily cap and quiet periods, can be dry-run
   against recent events first, and anything that changes something waits for approval. Seven templates cover data
   quality, schema changes, broken reports, metric deviations, recoverable failures, definition changes and failing
-  connections. Rules live in Settings › Workspace › **Event rules**, and what they started shows in Work ›
+  connections. Rules live in Settings › Workspace › **Event rules**, and what they started shows in Brain › Work ›
   Activity › **Automatic** ([docs/EVENTS.md](docs/EVENTS.md)).
 * **Knows what can be done with each thing, and by whom.** Every dataset, metric, answer, report, workflow,
   scenario model and decision record knows the actions available on it right now for the person looking, filtered
   by role, data policy and its state, and anything that changes something asks a person first. The server
   re-checks every action when it runs and refuses, and audits, anything not offered. Every task reports one
   status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
-  tied to the event that caused it. Work started from any page lands in Work and records where it began, and its
+  tied to the event that caused it. Work started from any page lands in Brain › Work and records where it began, and its
   verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
   and each repair is verified. On screen, **More** sits beside Brief and Focus on every answer, and on metric
-  definitions, Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
-  approval marked; Work's list and board show each task's lifecycle state and what it is doing now.
+  definitions, Brain › Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
+  approval marked; the activity board and Brain › Work show each task's lifecycle state and what it is doing now.
 * **Runs every task under a contract.** Each task gets a frozen, hashed contract (goal, inputs, output,
   constraints, what done means) checked against the stored records, a cost budget and a cap on retries, and each
   run leaves a change receipt: the context it used, data-policy version, model route, tools, checks, retries,
@@ -543,7 +554,7 @@ where they point, with Mark all read and "What to tell me about".
   after downtime and record what they missed, never double a run still going, and tell the owner when a run
   finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
   admins get an operations report (queues, failures, run times, spend against budget). On screen, Settings ›
-  Workspace › **Usage & limits** shows spend, tokens and tasks against the limits; Work › **Recurring** shows each
+  Workspace › **Usage & limits** shows spend, tokens and tasks against the limits; Brain › Work › **Recurring** shows each
   schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
   [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
@@ -578,7 +589,9 @@ where they point, with Mark all read and "What to tell me about".
   and a planted-defect test proves the gate catches it. Runs report quality by dimension (completion, correctness,
   evidence, efficiency) and by category. Model routing learns from Lyst's own call records: a model that keeps
   failing a kind of work moves behind healthy ones (pinned models are never reordered), and a model registry shows
-  each model's context, prices and reasoning settings beside its measured performance.
+  each model's context, prices and reasoning settings beside its measured performance. Fault-injection tests break
+  things part-way (a commit, an export that runs out of disk, an import, a webhook, a flood of output, corrupt
+  workbooks, PDFs and CSVs) and check that nothing is left half done and the cause is stated.
 
 ### Working with others
 
@@ -622,6 +635,11 @@ where they point, with Mark all read and "What to tell me about".
 
 ### Running it
 
+* **Speaks your locale, and reads well with a screen reader.** Shared helpers format numbers, currency,
+  percentages, compact units and dates for en-US, en-GB, de-DE, fr-FR, es-ES, pt-BR, ja-JP and hi-IN (with lakh
+  grouping), round half up, use a real minus sign so screen readers say "minus", and never show a negative zero
+  (`LYST_LOCALE`). Others check WCAG 2.2 AA contrast and write plain-language descriptions of charts and tables
+  for screen readers and alt text. Raw data is never changed, only how it is shown.
 * **Fits how you deploy.** `LYST_PROFILE` picks `local` (the default), `offline` (a local model only, no catalog
   refresh or telemetry, webhooks to private addresses only), `server` (all interfaces, with OIDC and TLS expected
   at the proxy) or `portable` (a self-contained data folder that moves as a workspace pack). `lyst doctor` checks
