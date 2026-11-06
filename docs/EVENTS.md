@@ -258,8 +258,11 @@ Enough for an analyst team's workspace; still not for a high-volume integration 
    action never holds up the event stream. A process that dies mid-action leaves the activity planned and the next
    pass runs it again; every action is idempotent by its activity id (notice dedupe key, task idempotency key). Two
    Lyst processes would both run a planned activity (see item 5).
-4. **Visual regression.** UI behaviour is covered by AppTest (`tests/test_ui_activity.py`); screenshots were
-   inspected by hand in light and dark, not compared automatically.
+4. **Visual checks have no pixels.** `tests/test_ui_activity_visual.py` runs in CI without a browser: golden markup
+   for the stage timeline and the flow (`tests/golden/activity/`, regenerated with `LYST_UPDATE_GOLDEN=1` after a
+   review), every emitted class styled by the stylesheet every page loads, every colour token defined in both themes,
+   every state mark at 3:1 or better on both backgrounds, and words for every state and stage. Layout (spacing,
+   wrapping on a phone) is still checked by eye from screenshots.
 5. **Single process.** Dispatch, the outbox collector and DuckDB's single writer assume one Lyst process. Running two
    API processes against the same home is not supported; a second process would collect and dispatch twice (the
    inbox would still prevent double handling, but not double collection races on the outbox stamp). A broker is not
