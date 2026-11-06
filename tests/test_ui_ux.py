@@ -60,7 +60,7 @@ def test_trust_line_and_headings():
 def test_an_answer_offers_watch_repeat_and_download(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    rows = [b for b in at.button if b.label == "Open"]
+    rows = [b for b in at.button if (b.key or "").startswith("ans_open_")]  # Home's answer cards
     assert rows
     rows[-1].click().run()  # the verified margin answer from the fixture
     assert not at.exception, [e.value for e in at.exception]
@@ -71,8 +71,9 @@ def test_an_answer_offers_watch_repeat_and_download(ui):  # noqa: F811
 def test_work_speaks_in_business_words(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "recurring"
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "recurring"
     at.run()
     assert not at.exception
     body = _texts(at)
@@ -182,7 +183,8 @@ def test_work_and_the_bell_show_what_colleagues_handed_you(seeded, ui):  # noqa:
     lyst.collab.comment(dana, "northwind", "task", t["id"], "@avery@northwind.test does this match the ledger?")
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     body = _texts(at)
@@ -196,8 +198,9 @@ def test_schedules_read_as_cadence_and_settings_show_usage(seeded, ui):  # noqa:
                                  at="08:00", weekdays=["mon"], timezone="Europe/London")
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "recurring"
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "recurring"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert "Monday at 08:00" in _texts(at)
@@ -299,8 +302,9 @@ def test_work_shows_what_lyst_prepared_ahead(seeded, ui):  # noqa: F811
     assert lyst.anticipation.cycle("northwind")["prepared"] >= 1  # earlier answers may add next steps too
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "recurring"  # ready work waits in Coming up; only what wants a person is in Needs you
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "recurring"  # ready work waits in Coming up; only what wants a person is in Needs you
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     body = _texts(at)
@@ -339,8 +343,9 @@ def test_what_if_and_decisions_are_reachable_where_people_work(seeded, ui):  # n
     rows[0].click().run()
     assert not at.exception, [e.value for e in at.exception]
     assert any("change" in s.label for s in at.slider)  # one slider per driver, in the explorer dialog
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "activity"
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "activity"
     at.run()
     next(g for g in at.get("button_group") if g.key == "act_filter").set_value("Decisions").run()
     assert not at.exception, [e.value for e in at.exception]
@@ -366,7 +371,7 @@ def test_people_can_ask_how_an_answer_was_figured_and_see_data_sensitivity(seede
         ["32.5%: approved operating margin"]
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    rows = [b for b in at.button if b.label == "Open"]
+    rows = [b for b in at.button if (b.key or "").startswith("ans_open_")]  # Home's answer cards
     rows[-1].click().run()
     assert not at.exception, [e.value for e in at.exception]
     assert any("How was this figured?" in str(o) for g in at.get("button_group") for o in g.proto.options)
@@ -611,8 +616,9 @@ def test_a_finished_answer_can_be_published_and_found_in_work(seeded, ui):  # no
     next(b for b in at.button if b.key == f"pub_go_{t['id']}").click().run()
     assert not at.exception, [e.value for e in at.exception]
     assert lyst.publishing.list(owner, "northwind")  # a real publication now exists
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "activity"
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "activity"
     at.run()
     at.button_group(key="act_filter").set_value("Published").run()
     assert not at.exception, [e.value for e in at.exception]

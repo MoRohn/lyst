@@ -116,7 +116,7 @@ existing API endpoints; nothing new in the engine.
 
 ## 8. Part B: decided by Rohn (2026-11-04) and implemented
 
-**B1. Areas named by the job: Home · Work · Data · Brain · Settings.** Intelligence is now **Brain** (definitions,
+**B1. Areas named by the job: Home · Data · Brain · Settings** (Work became Brain › Work in November 2026). Intelligence is now **Brain** (definitions,
 documents, memory). Build is folded into **Data**, which holds what Lyst reads and what it makes from it:
 Datasets (with their Sources), Dashboards, Saved analyses, SQL. The builder tools (skills, the capability list,
 evaluation runs) moved to **Settings › Advanced**. Five areas, one navigation. Watched metrics and scheduled

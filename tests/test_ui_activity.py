@@ -66,8 +66,9 @@ def test_settings_offers_rules_and_work_shows_what_they_did(ui):  # noqa: F811
     lyst.autonomy.work()
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "activity"
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "activity"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     next(g for g in at.get("button_group") if g.key == "act_filter").set_value("Automatic").run()
@@ -94,8 +95,9 @@ def test_a_proposal_shows_its_approval_where_it_happened(ui):  # noqa: F811
     assert act["status"] == "awaiting_approval"
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
-    at.query_params["view"] = "activity"
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
+    at.query_params["work"] = "activity"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     next(g for g in at.get("button_group") if g.key == "act_filter").set_value("Automatic").run()

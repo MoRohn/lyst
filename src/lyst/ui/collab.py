@@ -185,7 +185,9 @@ def bell() -> None:
                 if n.get("object_kind") in ("task", "metric", "dataset", "asset"):
                     open_object(n["object_kind"], n["object_id"])
                 elif n.get("object_kind") == "finding":
-                    st.switch_page("app_pages/work.py", query_params={"view": "recurring"})
+                    from lyst.ui import work  # noqa: PLC0415
+
+                    work.go("recurring")
                 st.rerun()
         if unread and st.button("Mark all read", type="tertiary", key="nt_all"):
             for n in unread:

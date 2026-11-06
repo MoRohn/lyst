@@ -5,7 +5,19 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import anticipate, collab, decisions, governance, kit, onboarding, publish, scenarios, voice
+from lyst.ui import (
+    agent,
+    anticipate,
+    collab,
+    decisions,
+    governance,
+    kit,
+    onboarding,
+    publish,
+    scenarios,
+    voice,
+    work,
+)
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
 
@@ -42,6 +54,7 @@ def submit(q: str) -> None:
         else:
             st.error(str(e), icon=":material/error:")
         return
+    st.session_state.pop("_agent", None)  # the new request shows in what Lyst is doing at once
     open_task(out["task_id"])
 
 
@@ -107,8 +120,8 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
         return
     steps = [("Add your data", "Upload a spreadsheet or connect a database.", bool(datasets), "app_pages/data.py", None),
              ("Ask a first question", "Pick a suggestion below, or type your own.", asked, None, None),
-             ("Keep watch", "From an answer: Watch this metric, or Repeat it weekly.", watching, "app_pages/work.py",
-              {"view": "recurring"})]
+             ("Keep watch", "From an answer: Watch this metric, or Repeat it weekly.", watching, "app_pages/brain.py",
+              {"view": "work", "work": "recurring"})]
     if admin:
         steps.append(("Connect a model (optional)", "Richer explanations. Every number still comes from your data.",
                       model, "app_pages/settings.py", None))
@@ -129,9 +142,68 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
                 st.switch_page(page, query_params=qp)
 
 
+def get_started_folded(datasets: list[dict], metrics: list[dict]) -> None:
+    """Get started stays one line once anything is done: it opens in place, so the page leads with answers."""
+    try:
+        stat = onboarding.status()
+    except APIError:
+        stat = None
+    if stat and (stat["state"] == "complete" or st.session_state.get("hide_get_started")):
+        return
+    steps = (stat or {}).get("steps") or []
+    done = sum(s_["done"] for s_ in steps if not s_["optional"])
+    need = sum(not s_["optional"] for s_ in steps)
+    if stat and done == 0:  # nothing done yet: the guide is the page
+        get_started(datasets, metrics)
+        return
+    label = f"Get started · {done} of {need} done" if stat else "Get started"
+    with st.expander(label, icon=":material/flag:"):
+        get_started(datasets, metrics)
+
+
+def needs_you(recent: list[dict]) -> None:
+    """What waits on this person, most urgent first, each one click from where it is settled."""
+    needs: list[tuple[str, str, str, str]] = []  # (title, meta, action label, id)
+    try:
+        for f in api.get(f"/v1/workspaces/{ws}/inbox"):
+            if f["read_status"] == "unread" and f.get("task_id"):
+                needs.append((f["summary"], f"Found by a monitor · {kit.when(f['created_at'])}", "See why",
+                              f"f:{f['id']}:{f['task_id']}"))
+        if st.session_state.get("role") in ("admin", "owner"):
+            for ap in api.get(f"/v1/workspaces/{ws}/approvals"):
+                needs.append((ap["summary"], f"Waiting for approval · {kit.when(ap['created_at'])}", "Review", "approvals"))
+    except APIError:
+        pass
+    for t in recent:
+        if t.get("outcome") in ("needs_input", "unverified"):
+            needs.append((t["title"], f"{task_state(t['status'], t['outcome'])[0]} · {kit.when(t['created_at'])}",
+                          "Open", f"t:{t['id']}"))
+    if not needs:
+        return
+    kit.label(f"Needs you · {len(needs)}")
+    shown = needs[:5]
+    with kit.card("home_needs"):
+        for i, (title, meta, act, aid) in enumerate(shown):
+            if kit.row(title, meta, actions=[(act, "go")], key=f"need{i}", divider=i < len(shown) - 1):
+                if aid == "approvals":
+                    work.go("needs you")
+                kind, *rest = aid.split(":")
+                if kind == "f":
+                    kit.guarded(lambda r=rest: api.post(f"/v1/workspaces/{ws}/findings/{r[0]}", {"status": "acknowledged"}))
+                    open_task(rest[1])
+                else:
+                    open_task(rest[0])
+                st.rerun()
+    if len(needs) > len(shown):
+        work.link(f"All {len(needs)} in Brain › Work", "needs you")
+
+
 def home() -> None:
+    """Home is a monitor first and a form second: what Lyst is doing, the question box, what waits on you, then the
+    answers themselves. Everything else (how an answer was reached, older work) is one click deeper."""
     kit.header("What should Lyst work on?",
                "Ask in plain words. Lyst works it out from your approved numbers, checks every figure and shows why.")
+    agent.pulse(ws, key="home")
     ask_box(compact=False)
     try:
         metrics = api.get(f"/v1/workspaces/{ws}/metrics")
@@ -139,7 +211,7 @@ def home() -> None:
     except APIError:
         metrics, datasets = [], []
     anticipate.home_line()
-    get_started(datasets, metrics)
+    get_started_folded(datasets, metrics)
     if not datasets:
         if kit.empty(":material/database:", "Connect data to begin",
                      "Lyst answers from data you load or connect. Add a file or a database, and approved metrics on it "
@@ -150,53 +222,25 @@ def home() -> None:
     if pick:
         submit(pick)
         st.rerun()
-    st.caption(f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here ("
-               + ", ".join(m["title"] for m in metrics[:6]) + ("…" if len(metrics) > 6 else "")
-               + "): why they changed, what drove them, a breakdown, a trend or a forecast.")
-
-    needs: list[tuple[str, str, str, str]] = []  # (title, meta, action label, id)
-    try:
-        for f in api.get(f"/v1/workspaces/{ws}/inbox"):
-            if f["read_status"] == "unread" and f.get("task_id"):
-                needs.append((f["summary"], f"Found by a monitor · {kit.when(f['created_at'])}", "See why",
-                              f"f:{f['id']}:{f['task_id']}"))
-        if st.session_state.get("role") in ("admin", "owner"):
-            for ap in api.get(f"/v1/workspaces/{ws}/approvals"):
-                needs.append((ap["summary"], f"Waiting for approval · {kit.when(ap['created_at'])}", "Review", "approvals"))
-        recent = api.get(f"/v1/workspaces/{ws}/tasks")[:30]
-    except APIError:
-        recent = []
-    for t in recent:
-        if t.get("outcome") in ("needs_input", "unverified"):
-            needs.append((t["title"], f"{task_state(t['status'], t['outcome'])[0]} · {kit.when(t['created_at'])}",
-                          "Open", f"t:{t['id']}"))
-    if needs:
-        kit.label(f"Needs you · {len(needs)}")
-        shown = needs[:6]
-        for i, (title, meta, act, aid) in enumerate(shown):
-            if kit.row(title, meta, actions=[(act, "go")], key=f"need{i}", divider=i < len(shown) - 1):
-                if aid == "approvals":
-                    st.switch_page("app_pages/work.py", query_params={"view": "needs you"})
-                kind, *rest = aid.split(":")
-                if kind == "f":
-                    kit.guarded(lambda r=rest: api.post(f"/v1/workspaces/{ws}/findings/{r[0]}", {"status": "acknowledged"}))
-                    open_task(rest[1])
-                else:
-                    open_task(rest[0])
-                st.rerun()
-    # what Lyst has made, as artifacts to open (dashboards, briefings, saved analyses), then the conversations to pick up
+    names = ", ".join(m["title"] for m in metrics[:3]) + (f" and {len(metrics) - 3} more" if len(metrics) > 3 else "")
+    st.caption(f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here ({names}): "
+               "why they changed, what drove them, a breakdown, a trend or a forecast.")
+    recent = agent.state(ws)["tasks"][:30]
+    needs_you(recent)
+    rest = agent.answers(recent, n=3)
+    # what Lyst has made, as artifacts to open (dashboards, briefings, saved analyses)
     from lyst.ui import artifacts  # noqa: PLC0415
 
-    artifacts.shelf(title="Your work", n=6, key="home", exclude=("analysis",))
-    done = [t for t in recent if t.get("outcome") not in ("needs_input", "unverified")][:6]
-    if done:
-        kit.label("Continue where you left off")
-        for i, t in enumerate(done):
-            text, color, _ = task_state(t["status"], t.get("outcome"))
-            if kit.row(t["title"], kit.when(t["created_at"]), status=(text, TONE.get(color, "info")),
-                       actions=[("Open", "open")], key=f"rec{t['id']}", divider=i < len(done) - 1):
-                open_task(t["id"])
-                st.rerun()
+    artifacts.shelf(title="Made for you", n=3, key="home", exclude=("analysis",))
+    earlier = [t for t in rest if t.get("outcome") not in ("needs_input", "unverified")][:8]
+    if earlier:
+        with st.expander(f"Earlier answers · {len(earlier)}", icon=":material/history:"):
+            for i, t in enumerate(earlier):
+                text, color, _ = task_state(t["status"], t.get("outcome"))
+                if kit.row(t["title"], kit.when(t["created_at"]), status=(text, TONE.get(color, "info")),
+                           actions=[("Open", "open")], key=f"rec{t['id']}", divider=i < len(earlier) - 1):
+                    open_task(t["id"])
+                    st.rerun()
 
 
 # ----------------------------------------------------------------------------------------- a task
@@ -222,8 +266,8 @@ def progress(task: str) -> None:
     st.progress(done / max(len(steps), 1), text=f"{label} · {done} of {len(steps)} steps")
     if t["status"] == "awaiting_approval":
         st.info("A step needs an admin's approval before Lyst continues.", icon=":material/approval:")
-        st.page_link("app_pages/work.py", label="Review it in Work", icon=":material/arrow_forward:",
-                     query_params={"view": "needs you"})
+        st.page_link("app_pages/brain.py", label="Review it in Brain › Work", icon=":material/arrow_forward:",
+                     query_params={"view": "work", "work": "needs you"})
     elif st.button("Stop", type="tertiary", icon=":material/stop_circle:", key=f"stop_{task}"):
         kit.guarded(lambda: api.post(f"/v1/tasks/{task}/cancel"), "Stopped")
 

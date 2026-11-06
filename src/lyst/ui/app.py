@@ -56,17 +56,18 @@ approved before use.
 
 
 def make_pages(waiting: int = 0) -> list:
-    """The five areas, in one place: the sidebar. Work carries the count of things waiting on you."""
+    """The four areas, in one place: the sidebar. Home carries the count of things waiting on you; Work lives inside
+    Brain (Brain › Work), and the hidden work page forwards old /work links there."""
     return [
-        st.Page(here / "analyst.py", title="Home", icon=":material/home:", default=True),
-        st.Page(here / "work.py", title=f"Work · {waiting}" if waiting else "Work", icon=":material/view_kanban:",
-                url_path="work"),
+        st.Page(here / "analyst.py", title=f"Home · {waiting}" if waiting else "Home", icon=":material/home:",
+                default=True),
         st.Page(here / "data.py", title="Data", icon=":material/database:"),
         st.Page(here / "brain.py", title="Brain", icon=":material/psychology:"),
         st.Page(here / "settings.py", title="Settings", icon=":material/settings:"),
         # the artifact viewer: reached from wherever an artifact is shown, never a navigation area of its own
         st.Page(here / "artifact.py", title="Artifact", icon=":material/open_in_full:", url_path="artifact",
                 visibility="hidden"),
+        st.Page(here / "work.py", title="Work", icon=":material/view_kanban:", url_path="work", visibility="hidden"),
     ]
 
 
@@ -211,7 +212,9 @@ def _count_waiting(ws: str) -> int:
 
 
 st.session_state.waiting = _waiting(st.session_state.workspace)
-nav = st.navigation(make_pages(st.session_state.waiting), position="sidebar")
+from lyst.ui import agent  # noqa: E402 - what Lyst is doing; Home's count adds answers that wait on the person
+
+nav = st.navigation(make_pages(agent.waiting(agent.state(st.session_state.workspace))), position="sidebar")
 
 
 def _recent(ws: str) -> list[dict]:
