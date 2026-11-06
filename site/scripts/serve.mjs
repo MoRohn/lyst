@@ -1,6 +1,7 @@
 // Minimal static server that behaves like GitHub Pages for tests and Lighthouse:
 // serves a build directory under an optional base path, resolves /dir/ to index.html,
-// returns 404.html for unknown paths, and gzips text responses.
+// returns 404.html for unknown paths, gzips text responses, and answers byte-range requests
+// (Safari will not play a video without them).
 // Usage: node scripts/serve.mjs <dir> <port> [basePath]
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
@@ -20,6 +21,10 @@ const types = {
   '.txt': 'text/plain; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
   '.woff2': 'font/woff2',
 };
 
@@ -49,6 +54,18 @@ createServer(async (req, res) => {
   found ??= (await file(join(root, '404.html'))) ?? { body: Buffer.from('Not found'), type: 'text/plain' };
   const headers = { 'Content-Type': found.type, 'Cache-Control': 'max-age=600' };
   let body = found.body;
+  const range = status === 200 && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
+  if (range) {
+    const size = body.length;
+    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+    const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start > end || start >= size) {
+      res.writeHead(416, { 'Content-Range': `bytes */${size}` });
+      return res.end();
+    }
+    res.writeHead(206, { ...headers, 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+    return res.end(req.method === 'HEAD' ? undefined : body.subarray(start, end + 1));
+  }
   if (/text|json|xml|svg|javascript/.test(found.type) && /gzip/.test(req.headers['accept-encoding'] ?? '')) {
     body = gzipSync(body);
     headers['Content-Encoding'] = 'gzip';
