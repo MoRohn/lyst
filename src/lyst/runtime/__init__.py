@@ -314,6 +314,15 @@ class TaskRuntime:
                 r["step"] = rec if rec in by_seq else step_at(r["occurred_at"])
                 if r["step"] is not None:
                     by_seq[r["step"]][field] += 1
+        # tokens per step, from the model calls attributed to it; None (not 0) when no call reported any,
+        # so a step without model work, or whose only call was refused, reads as "nothing" rather than zero
+        for s in steps:
+            mine = [c for c in calls if c["step"] == s["seq"]]
+            for k in ("input_tokens", "output_tokens"):
+                vals = [c[k] for c in mine if c[k] is not None]
+                s[k] = sum(vals) if vals else None
+            s["tokens"] = (None if s["input_tokens"] is None and s["output_tokens"] is None
+                           else (s["input_tokens"] or 0) + (s["output_tokens"] or 0))
         first = min((s["started_at"] for s in steps if s["started_at"]), default=None)
         last = max((s["finished_at"] for s in steps if s["finished_at"]), default=None)
         summary = {
