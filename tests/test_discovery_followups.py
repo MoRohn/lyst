@@ -90,6 +90,7 @@ def test_follow_up_phrases_resolve_against_the_earlier_answer():
     s = r("Schedule this every Monday at 9am")
     assert s["action"] == "schedule" and s["schedule"] == {"at": "09:00", "weekdays": ["mon"]}
     assert r("What about Q1 2026?")["question"] == "What was revenue Q1 2026?"
+    assert r("What about last year?")["question"] == "What was revenue last year?"  # a new period, not a comparison
     assert r("Exclude unusual transactions")["action"] == "unsupported"  # never silently drops rows
     assert r("Test whether the difference is significant")["action"] == "unsupported"
     assert r("hmm")["action"] == "unsupported"
@@ -143,3 +144,69 @@ def test_follow_ups_need_a_metric_answer(seeded, text):
 
     with pytest.raises(ValueError):
         FollowUps(lyst.runtime, lyst.semantic).apply(owner, first["id"], text)
+
+
+SUGGESTED = ["break that down by region", "compare it to last year", "why?", "make this a dashboard", "schedule this every Monday"]
+
+
+@pytest.mark.parametrize("text", [
+    *SUGGESTED,
+    *(f"“{t}”" for t in SUGGESTED),  # typed as the placeholder shows them, quotes and all
+    *(f'"{t}"' for t in SUGGESTED),
+    *(f"Change it: “{t}”" for t in SUGGESTED),
+    *(t.capitalize() + "." for t in SUGGESTED),
+])
+def test_every_suggested_refinement_resolves_however_it_is_typed(text):
+    parent = {"understand": {"question": "Forecast cogs ratio for the next 2 quarters", "filters": [], "by": None},
+              "period_label": None}
+    out = resolve(parent, text, ["region", "product_line"], "cogs ratio")
+    assert out["action"] in ("task", "schedule"), out
+
+
+@pytest.mark.parametrize(("text", "want"), [
+    ("compare to last year", "same period a year earlier"),
+    ("how does it compare with last year?", "same period a year earlier"),
+    ("versus last year", "same period a year earlier"),
+    ("compare with the previous quarter", "previous period"),
+    ("region", "by region"),
+    ("regions please", "by region"),
+    ("for each product line", "by product line"),
+    ("what is driving this", "Why did"),
+    ("explain", "Why did"),
+    ("turn this into a dashboard", "Build a dashboard of cogs ratio"),
+    ("dashboard by region", "Build a dashboard of cogs ratio by region"),
+])
+def test_common_wordings_of_the_suggestions(text, want):
+    parent = {"understand": {"question": "What was cogs ratio last quarter?", "filters": [], "by": None}, "period_label": "Q3 2026"}
+    out = resolve(parent, text, ["region", "product_line"], "cogs ratio")
+    assert out["action"] == "task" and want in out["question"], out
+
+
+@pytest.mark.parametrize("text", ["schedule every Monday", "every Monday", "send me this every Monday", "schedule it weekly"])
+def test_schedule_wordings(text):
+    parent = {"understand": {"question": "What was cogs ratio last quarter?", "filters": [], "by": None}, "period_label": None}
+    out = resolve(parent, text, ["region"], "cogs ratio")
+    assert out["action"] == "schedule" and out["schedule"]["weekdays"] == ["mon"], out
+
+
+def test_a_schedule_with_no_time_asks_when_and_monthly_alone_is_a_trend():
+    parent = {"understand": {"question": "What was cogs ratio last quarter?", "filters": [], "by": None}, "period_label": None}
+    assert "Say when" in resolve(parent, "schedule this", ["region"], "cogs ratio")["message"]
+    assert resolve(parent, "show it monthly", ["region"], "cogs ratio")["changed"] == {"intent": "trend"}
+
+
+@pytest.mark.parametrize("text", SUGGESTED)
+def test_refine_a_forecast_chart_through_the_api(seeded, text):
+    """The case from the artifact viewer: a forecast chart refined with each suggested phrase, quotes and all."""
+    lyst, owner = seeded
+    first = ask(lyst, owner, "Forecast cogs ratio for the next 2 quarters")
+    h = {"Authorization": f"Bearer {lyst.guard.issue_token(owner)}"}
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        r = c.post(f"/v1/tasks/{first['id']}/follow-up", headers=h, json={"text": f"“{text}”", "timezone": "UTC"})
+        assert r.status_code == 202, r.text
+        out = r.json()
+    assert out["action"] in ("task", "schedule"), out
+    if out["action"] == "task":
+        lyst.runtime.drain()
+        child = lyst.runtime.get(owner, out["task_id"])
+        assert child["status"] == "done" and child["request"]["derived_from"]["task_id"] == first["id"]
