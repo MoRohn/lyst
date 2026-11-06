@@ -1,6 +1,6 @@
 {
  "workspace": "northwind",
- "catalog_version": "5ec2a4aa9538a3a8",
+ "catalog_version": "c4bfb5e739556c0a",
  "rows": [
   {
    "id": "data_analyst",
@@ -78,19 +78,19 @@
    "id": "analytics_engineer",
    "name": "Analytics Engineer",
    "domain": "data_analytics",
-   "level": 1,
+   "level": 3,
    "example": "Create a cleaned orders table deduplicated by order id.",
    "routed_to_self": true,
    "primary": "analytics_engineer",
-   "outcome": "declined",
-   "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
+   "outcome": "answered",
+   "reason": null,
+   "answer": "Wrote order_events_clean v1: 320 rows in, 320 out. order_events itself is unchanged."
   },
   {
    "id": "analytics_engineer",
    "name": "Analytics Engineer",
    "domain": "data_analytics",
-   "level": 1,
+   "level": 3,
    "example": "Write a data contract for the invoices dataset.",
    "routed_to_self": false,
    "primary": "document_intelligence_analyst",
@@ -144,7 +144,7 @@
    "primary": "data_quality_analyst",
    "outcome": "declined",
    "reason": "no dataset named",
-   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clinical_trial, cloud_billing, c"
+   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, app_repo, app_repo_history, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clin"
   },
   {
    "id": "data_governance_analyst",
@@ -486,19 +486,19 @@
    "id": "quantitative_research_analyst",
    "name": "Quantitative Research Analyst",
    "domain": "statistics_advanced",
-   "level": 2,
+   "level": 3,
    "example": "Measure the volatility regimes in this return series.",
    "routed_to_self": true,
    "primary": "quantitative_research_analyst",
-   "outcome": "declined",
-   "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
+   "outcome": "answered",
+   "reason": null,
+   "answer": "4 regime(s) in 300 observations. Volatility changed on 2026-06-08: 0.006269 before, 0.01889 after (3.0x)."
   },
   {
    "id": "quantitative_research_analyst",
    "name": "Quantitative Research Analyst",
    "domain": "statistics_advanced",
-   "level": 2,
+   "level": 3,
    "example": "Is this signal's performance robust out of sample?",
    "routed_to_self": true,
    "primary": "quantitative_research_analyst",
@@ -534,7 +534,7 @@
    "id": "geospatial_analyst",
    "name": "Geospatial Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "Which stores are more than 50 km from a warehouse?",
    "routed_to_self": true,
    "primary": "geospatial_analyst",
@@ -546,7 +546,7 @@
    "id": "geospatial_analyst",
    "name": "Geospatial Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "Where are our customers concentrated?",
    "routed_to_self": true,
    "primary": "geospatial_analyst",
@@ -966,7 +966,7 @@
    "id": "software_systems_analyst",
    "name": "Software Systems Analyst",
    "domain": "software_digital_products",
-   "level": 1,
+   "level": 3,
    "example": "Analyze this repository for architecture risks, test failures and performance bottlenecks.",
    "routed_to_self": true,
    "primary": "software_systems_analyst",
@@ -978,7 +978,7 @@
    "id": "software_systems_analyst",
    "name": "Software Systems Analyst",
    "domain": "software_digital_products",
-   "level": 1,
+   "level": 3,
    "example": "Which components cause most incidents?",
    "routed_to_self": true,
    "primary": "software_systems_analyst",
@@ -1182,7 +1182,7 @@
    "id": "technical_debt_analyst",
    "name": "Technical Debt Analyst",
    "domain": "software_digital_products",
-   "level": 1,
+   "level": 3,
    "example": "Where is our technical debt costing us the most?",
    "routed_to_self": true,
    "primary": "technical_debt_analyst",
@@ -1194,7 +1194,7 @@
    "id": "technical_debt_analyst",
    "name": "Technical Debt Analyst",
    "domain": "software_digital_products",
-   "level": 1,
+   "level": 3,
    "example": "Which modules change most and break most?",
    "routed_to_self": true,
    "primary": "technical_debt_analyst",
@@ -1686,7 +1686,7 @@
    "id": "application_security_analyst",
    "name": "Application Security Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Which of our applications have open injection findings?",
    "routed_to_self": true,
    "primary": "application_security_analyst",
@@ -1698,7 +1698,7 @@
    "id": "application_security_analyst",
    "name": "Application Security Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Threat model the new payments API.",
    "routed_to_self": true,
    "primary": "application_security_analyst",
@@ -2148,7 +2148,7 @@
    "primary": "risk_controls_analyst",
    "outcome": "declined",
    "reason": "no dataset named",
-   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clinical_trial, cloud_billing, c"
+   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, app_repo, app_repo_history, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clin"
   },
   {
    "id": "risk_controls_analyst",
@@ -2424,7 +2424,7 @@
    "primary": "crm_analyst",
    "outcome": "declined",
    "reason": "no dataset named",
-   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clinical_trial, cloud_billing, c"
+   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, app_repo, app_repo_history, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clin"
   },
   {
    "id": "subscription_monetization_analyst",
@@ -2958,7 +2958,7 @@
    "id": "transportation_mobility_analyst",
    "name": "Transportation & Mobility Analyst",
    "domain": "scientific_industrial",
-   "level": 1,
+   "level": 3,
    "example": "Which routes have the worst on-time performance?",
    "routed_to_self": true,
    "primary": "transportation_mobility_analyst",
@@ -2970,7 +2970,7 @@
    "id": "transportation_mobility_analyst",
    "name": "Transportation & Mobility Analyst",
    "domain": "scientific_industrial",
-   "level": 1,
+   "level": 3,
    "example": "How well utilized is our delivery fleet?",
    "routed_to_self": true,
    "primary": "transportation_mobility_analyst",
@@ -3078,7 +3078,7 @@
    "id": "smart_contract_security_analyst",
    "name": "Smart Contract Security Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Summarize the high-severity findings in our contract audits.",
    "routed_to_self": true,
    "primary": "smart_contract_security_analyst",
@@ -3090,7 +3090,7 @@
    "id": "smart_contract_security_analyst",
    "name": "Smart Contract Security Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Which contracts hold the most value with open findings?",
    "routed_to_self": true,
    "primary": "smart_contract_security_analyst",
@@ -3222,7 +3222,7 @@
    "id": "digital_forensics_osint_analyst",
    "name": "Digital Forensics & OSINT Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Compile what our ingested sources say about this supplier's ownership.",
    "routed_to_self": true,
    "primary": "digital_forensics_osint_analyst",
@@ -3234,7 +3234,7 @@
    "id": "digital_forensics_osint_analyst",
    "name": "Digital Forensics & OSINT Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Verify the claims in this due diligence file.",
    "routed_to_self": true,
    "primary": "digital_forensics_osint_analyst",
@@ -3272,12 +3272,12 @@
   "roles": 136,
   "routing_self": 265,
   "outcomes": {
-   "answered": 43,
-   "declined": 214,
+   "answered": 45,
+   "declined": 212,
    "flagged": 15
   },
   "reasons": {
-   "no approved metric covers it": 198,
+   "no approved metric covers it": 196,
    "no dataset named": 3,
    "answer would not address the question": 14,
    "causal claim without a causal design": 11,
@@ -3285,8 +3285,8 @@
    "other": 1
   },
   "roles_by_verdict": {
-   "answers on this data": 38,
-   "flags or declines on this data": 98
+   "answers on this data": 40,
+   "flags or declines on this data": 96
   }
  }
 }

@@ -19,6 +19,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import pandas as pd
+
 from ..analyst.registry import REGISTRY, Context, capability
 from ..analytics import methods as M
 from .router import tokens
@@ -190,7 +192,71 @@ def _fit_eval(ds, text):
     return {"actual": actual, "predicted": predicted, "segment": segment} if actual and predicted else None
 
 
+def _fit_code(ds, text):
+    cols = _cols(ds)
+    path = _find(cols, r"^(path|file|filename|file_path)$", numeric=False)
+    source = _find(cols, r"^(source|content|code|text|body)$", numeric=False, exclude={path})
+    if not (path and source):
+        return None
+    focus = ("security" if re.search(r"\b(secur\w*|vulnerab\w*|audit|exploit|injection|appsec)\b", text, re.I)
+             else "maintainability" if re.search(r"\b(debt|hotspot\w*|maintainab\w*|refactor\w*)\b", text, re.I) else "all")
+    run = bool(re.search(r"\b(tests?|failing|failures?)\b", text, re.I))
+    return {"path": path, "source": source, "focus": focus, "run_tests": run}
+
+
+def _fit_regions_pair(points, polygons, text):
+    pc, gc = _cols(points), _cols(polygons)
+    lat, lon = _find(pc, r"^(lat|latitude)$|_lat$"), _find(pc, r"^(lon|lng|long|longitude)$|_(lon|lng)$")
+    geom = _find(gc, r"^(geometry|geojson|polygon|boundary|shape|wkt)$", numeric=False)
+    region = _find(gc, r"(region|name|area|zone|district|territory)$", numeric=False, exclude={geom})
+    if not (lat and lon and geom and region):
+        return None
+    return {"lat": lat, "lon": lon, "geometry": geom, "region": region,
+            "label": _find(pc, r"(name|label|store|site|id)$", numeric=False)}
+
+
+def _fit_network(ds, text):
+    cols = _cols(ds)
+    src = _find(cols, r"^(from|from_node|source|origin|start|a)(_.*)?$", numeric=False)
+    dst = _find(cols, r"^(to|to_node|target|destination|end|b)(_.*)?$", numeric=False, exclude={src})
+    cost = _find(cols, r"(minutes|mins|hours|time|travel_time|duration|distance|km|cost)$", numeric=True)
+    if not (src and dst and cost):
+        return None
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|km|kilomet\w*|miles?)", text, re.I)
+    origin = re.search(r"\bfrom (?:the |our )?([A-Za-z][\w -]{1,30}?)(?: to | over |\?|,|\.|$)", text, re.I)
+    return {"src": src, "dst": dst, "cost": cost, "within": float(m.group(1)) if m else None,
+            "origin": origin.group(1).strip() if origin else None}
+
+
+def _fit_clean(ds, text):
+    cols = _cols(ds)
+    name = _find(cols, r"(name|company|supplier|vendor|customer|account)(_name)?$", numeric=False)
+    key = _find(cols, _ID.pattern)
+    return {"name": name, "key": key}
+
+
+def _fit_regimes(ds, text):
+    cols = _cols(ds)
+    date = _time_col(cols)
+    value = _find(cols, r"(return|returns|daily_return|value|price|rate|spread|yield|level)$", numeric=True)
+    return {"date": date, "value": value} if date and value else None
+
+
 METHODS: dict[str, dict[str, Any]] = {
+    "regimes": {"title": "regime analysis", "task_classes": {"trend_analysis", "statistical_testing", "risk_assessment"},
+                "arity": 1, "fit": _fit_regimes,
+                "words": r"\b(regimes?|volatility|structural break\w*|change points?)\b"},
+    "clean": {"title": "data cleaning", "task_classes": {"data_quality", "data_modeling"}, "arity": 1, "fit": _fit_clean,
+              "words": r"\b(clean\w*|dedupe|de-?duplicat\w*|standardi[sz]e|impute|tidy|fix the data)\b"},
+    "regions": {"title": "region analysis", "task_classes": {"geospatial_analysis"}, "arity": 2, "fit": _fit_regions_pair,
+                "words": r"\b(regions?|polygons?|territor\w*|zones?|districts?|inside|contain\w*|boundar\w*)\b"},
+    "travel": {"title": "network travel time", "task_classes": {"geospatial_analysis", "capacity_planning", "optimization"},
+               "arity": 1, "fit": _fit_network,
+               "words": r"\b(travel|route|routing|road network|how long|minutes away|reach|drive|shortest path)\b"},
+    "code": {"title": "source code analysis", "task_classes": {"code_analysis", "security_investigation", "risk_assessment"},
+             "arity": 1, "fit": _fit_code,
+             "words": r"\b(code|codebase|repo|repository|source|smart contracts?|solidity|vulnerab\w*|technical debt|hotspots?|"
+                      r"complex\w*|tests?)\b"},
     "optimize": {"title": "optimization", "task_classes": {"optimization", "capacity_planning", "recommendation"}, "arity": 1,
                  "fit": _fit_optimize, "words": r"\b(optimi[sz]\w*|allocat\w*|best (split|mix|allocation)|maximi[sz]e|budget)\b"},
     "text_themes": {"title": "text analytics", "task_classes": {"text_analytics", "research_synthesis"}, "arity": 1,
@@ -248,6 +314,12 @@ def _named(text: str, datasets: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def choose(text: str, task_classes: list[str], datasets: list[dict[str, Any]]) -> dict[str, Any] | None:
     """The method and inputs for a routed request, or None when no method fits the request and the data."""
+    from .research import URL  # noqa: PLC0415
+
+    if URL.search(text) and re.search(r"\b(verify|research|osint|sources?|check|according|claims?|what do|say|investigat\w*)\b",
+                                      text, re.I):
+        return {"method": "research", "title": "source-cited research", "datasets": [], "params": {"query": text},
+                "task_classes": ["research_synthesis", "security_investigation", "compliance_review"]}
     asked = set(task_classes)
     named = _named(text, datasets)
     order = sorted(METHODS, key=lambda m: (not (METHODS[m]["task_classes"] & asked), not re.search(METHODS[m]["words"], text, re.I)))
@@ -260,8 +332,14 @@ def choose(text: str, task_classes: list[str], datasets: list[dict[str, Any]]) -
             fits = [(d, p) for d, p in fits if p]
             if fits:
                 d, params = fits[0]
-                return {"method": name, "title": spec["title"], "datasets": [d["name"]], "params": params,
+                pick = {"method": name, "title": spec["title"], "datasets": [d["name"]], "params": params,
                         "task_classes": sorted(spec["task_classes"])}
+                if name == "code":  # a named change history (path + changes) ranks hotspots
+                    hist = [h["name"] for h in named if h is not d and _find(_cols(h), r"^(path|file)$")
+                            and _find(_cols(h), r"(changes|commits|churn)$", numeric=True)]
+                    if hist:
+                        pick["history"] = hist[:1]
+                return pick
         else:
             for i, a in enumerate(named):
                 for b in named[i + 1:]:
@@ -325,7 +403,7 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     from ..analyst.engine import _evidence  # noqa: PLC0415
 
     name, datasets, params = args["method"], args["datasets"], dict(args.get("params") or {})
-    if name not in METHODS and name != "brief":
+    if name not in METHODS and name not in ("brief", "research"):
         raise ValueError(f"unknown method {name}")
     frames, evidence = [], []
     for ds in datasets:
@@ -354,6 +432,42 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             out = M.segment(frames[0], params["features"], entity=params.get("entity"))
         elif name == "classify":
             out = M.classify(frames[0], params["target"], params["features"], order_by=params.get("order_by"))
+        elif name == "code":
+            from ..analytics import code as code_analysis  # noqa: PLC0415
+
+            history = None
+            for extra_ds in args.get("history") or []:
+                r = ctx.services.data.query(ctx.actor, ctx.workspace_id, f'SELECT * FROM "{extra_ds}"', task_id=ctx.task_id,
+                                            max_rows=MAX_ROWS)
+                evidence.append(_evidence(r, "change history"))
+                history = r.frame()
+            out = code_analysis.analyze(frames[0], path=params["path"], source=params["source"], history=history,
+                                        focus=params.get("focus", "all"))
+            if params.get("run_tests"):
+                try:
+                    t = code_analysis.run_tests(frames[0], path=params["path"], source=params["source"])
+                    out["findings"].insert(0, t["summary"])
+                    out["summary"] += " " + t["summary"]
+                    out["tables"].append(M._table("Tests run in the sandbox", pd.DataFrame(t["tests"])))
+                except M.MethodError as exc:
+                    out["findings"].append(f"Tests were not run: {exc}.")
+        elif name == "regions":
+            out = M.regions(frames[0], frames[1], lat=params["lat"], lon=params["lon"], region=params["region"],
+                            geometry=params["geometry"], label=params.get("label"))
+        elif name == "travel":
+            nodes = set(frames[0][params["src"]].astype(str)) | set(frames[0][params["dst"]].astype(str))
+            origin = next((n for n in nodes if n.lower() == (params.get("origin") or "").lower()), None) \
+                or next((n for n in sorted(nodes, key=len, reverse=True) if n.lower() in ctx.request.get("question", "").lower()), None)
+            if not origin:
+                raise M.MethodError("name the starting place (one of the network's nodes)")
+            out = M.travel_times(frames[0], src=params["src"], dst=params["dst"], cost=params["cost"], origin=origin,
+                                 within=params.get("within"))
+        elif name == "research":
+            from .research import research  # noqa: PLC0415
+
+            out = research(params["query"], fetcher=getattr(ctx.services, "research_fetcher", None))
+        elif name == "regimes":
+            out = M.regimes(frames[0], date=params["date"], value=params["value"])
         elif name == "evaluate":
             out = M.evaluate_predictions(frames[0], params["actual"], params.get("predicted"), segment=params.get("segment"),
                                          passed=params.get("passed"))
@@ -375,5 +489,41 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                               label=params.get("label"), tlabel=params.get("tlabel"), within_km=params.get("within_km"))
     except M.MethodError as exc:
         return {"method": name, "datasets": datasets, "params": params, "error": str(exc), "evidence": evidence}
-    title = METHODS[name]["title"] if name in METHODS else BRIEF["title"]
+    title = METHODS[name]["title"] if name in METHODS else (BRIEF["title"] if name == "brief" else "source-cited research")
     return {"method": name, "title": title, "datasets": datasets, "params": params, "output": out, "evidence": evidence}
+
+
+@capability(REGISTRY, "clean_dataset", agent="analytics_engineer", phase="execute", permission="data.ingest", mutating=True,
+            description="Write a cleaned copy of a dataset (<name>_clean): trimmed, typed, exact and near-duplicate rows "
+                        "merged, missing numbers filled with flags. The source dataset is never changed.")
+def clean_dataset(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    from ..analyst.engine import _evidence  # noqa: PLC0415
+    from ..demo import csv_bytes  # noqa: PLC0415
+
+    ds, params = args["datasets"][0], dict(args.get("params") or {})
+    r = ctx.services.data.query(ctx.actor, ctx.workspace_id, f'SELECT * FROM "{ds}"', task_id=ctx.task_id, max_rows=MAX_ROWS)
+    cleaned, rep = M.clean_frame(r.frame(), key=params.get("key"), name=params.get("name"))
+    cls = next((d.get("classification") for d in ctx.services.data.catalog(ctx.actor, ctx.workspace_id) if d["name"] == ds),
+               None) or "internal"  # the copy keeps the source's classification
+    target = f"{ds}_clean"
+    ver = ctx.services.data.ingest(ctx.actor, ctx.workspace_id, target, csv_bytes(cleaned), filename=f"{target}.csv",
+                                   title=f"{ds} (cleaned)", description=f"Cleaned copy of {ds} by Lyst (task {ctx.task_id}).",
+                                   classification=cls)
+    findings = [f"{rep['exact_duplicates']} exact duplicate row(s) removed."]
+    if rep["merged_names"]:
+        m0 = rep["merged_names"][0]
+        findings.append(f"{len(rep['merged_names'])} near-duplicate name(s) merged, e.g. \u201c{m0['merged']}\u201d into "
+                        f"\u201c{m0['kept']}\u201d (similarity {m0['similarity']:.2f}).")
+    if rep["imputed"]:
+        findings.append("Missing values filled with the median: " + ", ".join(f"{c} ({n})" for c, n in rep["imputed"].items())
+                        + "; each has an _imputed flag column.")
+    out = {"summary": f"Wrote {target} v{ver.get('version', '?')}: {rep['rows_in']} rows in, {rep['rows_out']} out. "
+                      f"{ds} itself is unchanged.",
+           "findings": findings + ([f"{rep['trimmed_cells']} cell(s) had extra whitespace trimmed."] if rep["trimmed_cells"] else []),
+           "tables": ([M._table("Merged names", pd.DataFrame(rep["merged_names"]))] if rep["merged_names"] else []),
+           "metrics": {k: v for k, v in rep.items() if k != "merged_names"} | {"merged": len(rep["merged_names"])},
+           "assumptions": ["Near-duplicates are names at least 92% similar after removing case, punctuation and company "
+                           "suffixes; the first record is kept. Review the merged list before relying on it.",
+                           "Medians fill missing numbers; analyses can exclude imputed rows with the flag columns."]}
+    return {"method": "clean", "title": "data cleaning", "datasets": [ds], "params": params, "output": out,
+            "evidence": [_evidence(r, "data cleaning input")], "wrote": target}

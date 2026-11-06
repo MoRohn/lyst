@@ -284,7 +284,9 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 text, asked, lambda q: s.knowledge.search(ctx.actor, ctx.workspace_id, q, limit=5),
                 lambda: s.knowledge.documents(ctx.actor, ctx.workspace_id))
 
-        if specialist_methods.asks_about_documents(text):
+        from ..specialists.research import URL as _URL  # noqa: PLC0415
+
+        if specialist_methods.asks_about_documents(text) and not _URL.search(text):
             specialist = docs() or specialist_methods.choose(text, asked, s.data.catalog(ctx.actor, ctx.workspace_id))
         else:
             specialist = specialist_methods.choose(text, asked, s.data.catalog(ctx.actor, ctx.workspace_id)) or docs()
@@ -452,7 +454,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         # these read an approved metric too: a definition on a changed schema blocks them like a plain value
         blockers.extend(drift_blockers)
     elif u["intent"] == "method":
-        add("run_method", "method", **{k: u["specialist_method"][k] for k in ("method", "datasets", "params")})
+        sm_ = u["specialist_method"]
+        if sm_["method"] == "clean" and not ctx.services.guard.can(ctx.actor, ctx.workspace_id, "data.ingest"):
+            blockers.append("Writing a cleaned copy of a dataset needs the editor role or above; ask an editor to request it.")
+        else:  # cleaning writes a new dataset (a mutating step); every other method only reads
+            add("clean_dataset" if sm_["method"] == "clean" else "run_method", "method",
+                **{k: sm_[k] for k in ("method", "datasets", "params", "history") if k in sm_})
     elif u["intent"] == "causal_unsupported":
         blockers.append("Lyst cannot establish causation from this request. It can estimate an effect with an interrupted time "
                         "series if you name the intervention and its start month (\"impact of X since July 2026\"), compare a "
