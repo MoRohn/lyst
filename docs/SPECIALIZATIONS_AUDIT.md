@@ -42,20 +42,20 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Data Observability Analyst | 3 | What dashboards are affected by the schema change in orders? | yes | declined | no approved metric covers it |
 | Statistical Analyst | 3 | Is the difference in conversion between regions significant? | yes | declined | no approved metric covers it |
 | Statistical Analyst | 3 | Test whether average order value changed after the price update. | yes | declined | no approved metric covers it |
-| Predictive Analytics Analyst | 1 | Which customers are likely to churn next quarter? | yes | answered |  |
-| Predictive Analytics Analyst | 1 | Predict next month's demand by product. | yes | answered |  |
+| Predictive Analytics Analyst | 3 | Which customers are likely to churn next quarter? | yes | answered |  |
+| Predictive Analytics Analyst | 3 | Predict next month's demand by product. | yes | answered |  |
 | Forecasting Analyst | 3 | Forecast revenue for the next two quarters. | yes | answered |  |
 | Forecasting Analyst | 3 | How accurate were last year's demand forecasts? | yes | flagged | answer would not address the question |
-| Causal Inference Analyst | 2 | What effect did the March price change have on orders? | yes | declined | no approved metric covers it |
-| Causal Inference Analyst | 2 | Did the new onboarding flow cause higher retention? | yes | declined | causal claim without a causal design |
+| Causal Inference Analyst | 3 | What effect did the March price change have on orders? | yes | declined | no approved metric covers it |
+| Causal Inference Analyst | 3 | Did the new onboarding flow cause higher retention? | yes | declined | causal claim without a causal design |
 | Experimentation Analyst | 3 | Did variant B improve checkout conversion? | yes | declined | no approved metric covers it |
 | Experimentation Analyst | 3 | How many users do we need to detect a 2% lift? | yes | declined | no approved metric covers it |
-| Operations Research Analyst | 1 | How many agents do we need per shift to meet service levels? | yes | declined | no approved metric covers it |
-| Operations Research Analyst | 1 | Allocate the budget across channels for the best return. | no: optimization_analyst | declined | no approved metric covers it |
+| Operations Research Analyst | 3 | How many agents do we need per shift to meet service levels? | yes | declined | no approved metric covers it |
+| Operations Research Analyst | 3 | Allocate the budget across channels for the best return. | no: optimization_analyst | declined | no approved metric covers it |
 | Simulation Analyst | 3 | What is the range of next year's profit if volume and price vary? | yes | declined | no approved metric covers it |
 | Simulation Analyst | 3 | Simulate staffing shortfall risk for the holiday peak. | yes | declined | no approved metric covers it |
-| Optimization Analyst | 1 | What is the best split of a $2M budget across five channels? | yes | declined | no approved metric covers it |
-| Optimization Analyst | 1 | Minimize cost while keeping service level above 90%. | yes | declined | no approved metric covers it |
+| Optimization Analyst | 3 | What is the best split of a $2M budget across five channels? | yes | declined | no approved metric covers it |
+| Optimization Analyst | 3 | Minimize cost while keeping service level above 90%. | yes | declined | no approved metric covers it |
 | Quantitative Research Analyst | 2 | Measure the volatility regimes in this return series. | yes | declined | no approved metric covers it |
 | Quantitative Research Analyst | 2 | Is this signal's performance robust out of sample? | yes | declined | no approved metric covers it |
 | Decision Intelligence Analyst | 3 | Should we expand to the west region given cost and demand uncertainty? | yes | flagged | answer would not address the question |
@@ -66,8 +66,8 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Time-Series Analyst | 3 | Is this month's dip seasonal or unusual? | yes | declined | no approved metric covers it |
 | AI Systems Analyst | 3 | Assess the risks in our support chatbot's architecture. | yes | answered |  |
 | AI Systems Analyst | 3 | Where does our document-classification pipeline fail most? | yes | flagged | answer would not address the question |
-| Machine Learning Analyst | 1 | Evaluate this churn classifier's precision and recall by segment. | yes | declined | no approved metric covers it |
-| Machine Learning Analyst | 1 | Cluster customers by purchasing behaviour. | yes | answered |  |
+| Machine Learning Analyst | 3 | Evaluate this churn classifier's precision and recall by segment. | yes | declined | no approved metric covers it |
+| Machine Learning Analyst | 3 | Cluster customers by purchasing behaviour. | yes | answered |  |
 | Generative AI Analyst | 3 | Which of our generative AI use cases has the best cost-to-value ratio? | yes | answered |  |
 | Generative AI Analyst | 3 | How often do our summaries contain unsupported claims? | yes | declined | no approved metric covers it |
 | Agentic AI Analyst | 3 | Evaluate our agent workflow's task completion, tool selection and inference cost. | yes | declined | no approved metric covers it |
@@ -82,8 +82,8 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | AI Safety & Alignment Analyst | 3 | Measure unsafe output rates across these test categories. | yes | declined | no approved metric covers it |
 | AI Governance Analyst | 3 | Which of our AI systems lack an impact assessment? | yes | declined | no approved metric covers it |
 | AI Governance Analyst | 3 | Map our model usage to the EU AI Act risk categories. | yes | declined | no approved metric covers it |
-| MLOps Analyst | 2 | Is our demand model drifting? | yes | flagged | answer would not address the question |
-| MLOps Analyst | 2 | Which models have not been retrained in six months? | yes | declined | no approved metric covers it |
+| MLOps Analyst | 3 | Is our demand model drifting? | yes | flagged | answer would not address the question |
+| MLOps Analyst | 3 | Which models have not been retrained in six months? | yes | declined | no approved metric covers it |
 | Model Performance Analyst | 3 | How has our forecast's error changed this year? | yes | declined | no approved metric covers it |
 | Model Performance Analyst | 3 | Which segments does the model predict worst? | no: predictive_analytics_analyst | declined | no approved metric covers it |
 | Multimodal AI Analyst | 3 | How accurate is our invoice image extraction? | yes | declined | no approved metric covers it |
@@ -130,8 +130,8 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Cloud FinOps Analyst | 3 | What will this month's cloud spend be? | yes | answered |  |
 | Infrastructure Performance Analyst | 3 | Which hosts are CPU saturated during peak? | yes | declined | no approved metric covers it |
 | Infrastructure Performance Analyst | 3 | Is disk latency behind the slow nightly batch? | yes | flagged | answer would not address the question |
-| Network Analyst | 1 | Which links will exceed 80% utilization next quarter? | yes | declined | no approved metric covers it |
-| Network Analyst | 1 | What caused the packet loss on Tuesday? | yes | declined | causal claim without a causal design |
+| Network Analyst | 3 | Which links will exceed 80% utilization next quarter? | yes | declined | no approved metric covers it |
+| Network Analyst | 3 | What caused the packet loss on Tuesday? | yes | declined | causal claim without a causal design |
 | Systems Operations Analyst | 3 | Which alerts are noisy and never actioned? | yes | declined | no approved metric covers it |
 | Systems Operations Analyst | 3 | Which batch jobs fail most often? | yes | declined | no approved metric covers it |
 | Capacity Planning Analyst | 3 | When will our database storage run out? | yes | declined | no approved metric covers it |
@@ -144,14 +144,14 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Kubernetes & Container Analyst | 3 | What does each team's namespace cost? | yes | declined | no approved metric covers it |
 | GPU Computing Analyst | 3 | How much of our GPU fleet sits idle? | yes | declined | no approved metric covers it |
 | GPU Computing Analyst | 3 | Which training jobs underuse their GPUs? | yes | declined | no approved metric covers it |
-| Distributed Systems Analyst | 1 | Reconstruct how the payment outage cascaded across services. | yes | declined | no approved metric covers it |
-| Distributed Systems Analyst | 1 | Where do retries amplify load? | yes | declined | no approved metric covers it |
+| Distributed Systems Analyst | 3 | Reconstruct how the payment outage cascaded across services. | yes | declined | no approved metric covers it |
+| Distributed Systems Analyst | 3 | Where do retries amplify load? | yes | declined | no approved metric covers it |
 | IT Service Management Analyst | 3 | Which categories breach SLA most often? | yes | declined | no approved metric covers it |
 | IT Service Management Analyst | 3 | Forecast service desk volume for next month. | yes | declined | no approved metric covers it |
-| Cybersecurity Analyst | 1 | Analyze authorized security telemetry and identify suspicious patterns without exposing restricted data. | yes | declined | no approved metric covers it |
-| Cybersecurity Analyst | 1 | Which accounts logged in from unusual countries? | yes | declined | no approved metric covers it |
-| Security Operations Center Analyst | 1 | Summarize today's high-severity alerts and which look like true positives. | yes | declined | no approved metric covers it |
-| Security Operations Center Analyst | 1 | Which detection rules produce the most false positives? | yes | declined | no approved metric covers it |
+| Cybersecurity Analyst | 3 | Analyze authorized security telemetry and identify suspicious patterns without exposing restricted data. | yes | declined | no approved metric covers it |
+| Cybersecurity Analyst | 3 | Which accounts logged in from unusual countries? | yes | declined | no approved metric covers it |
+| Security Operations Center Analyst | 3 | Summarize today's high-severity alerts and which look like true positives. | yes | declined | no approved metric covers it |
+| Security Operations Center Analyst | 3 | Which detection rules produce the most false positives? | yes | declined | no approved metric covers it |
 | Threat Intelligence Analyst | 3 | Do any indicators from this report appear in our logs? | yes | declined | no approved metric covers it |
 | Threat Intelligence Analyst | 3 | Which ATT&CK techniques matter most for our sector? | yes | declined | no approved metric covers it |
 | Vulnerability Analyst | 3 | Which internet-facing assets have critical vulnerabilities past SLA? | yes | answered |  |
@@ -166,8 +166,8 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Security Compliance Analyst | 3 | Map our access policy to ISO 27001 controls. | yes | answered |  |
 | Privacy & Data Protection Analyst | 3 | Which datasets contain personal data without a classification? | yes | declined | no approved metric covers it |
 | Privacy & Data Protection Analyst | 3 | Draft a privacy impact assessment for the new CRM integration. | yes | answered |  |
-| Digital Forensics Analyst | 1 | Build a timeline of activity on host X between 2am and 4am. | yes | declined | no approved metric covers it |
-| Digital Forensics Analyst | 1 | Which accounts touched the affected files? | yes | declined | no approved metric covers it |
+| Digital Forensics Analyst | 3 | Build a timeline of activity on host X between 2am and 4am. | yes | declined | no approved metric covers it |
+| Digital Forensics Analyst | 3 | Which accounts touched the affected files? | yes | declined | no approved metric covers it |
 | Fraud Detection Analyst | 3 | Which accounts show unusual transaction velocity this week? | yes | declined | no approved metric covers it |
 | Fraud Detection Analyst | 3 | How precise are our current fraud rules? | yes | declined | no approved metric covers it |
 | Security Risk Analyst | 3 | Quantify the annual loss range from ransomware for our business. | yes | declined | no approved metric covers it |
@@ -240,8 +240,8 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Audio & Podcast Analyst | 3 | Is our listener base growing? | yes | declined | no approved metric covers it |
 | Document Intelligence Analyst | 3 | Extract the tables from these supplier contracts into a dataset. | yes | declined | no approved metric covers it |
 | Document Intelligence Analyst | 3 | What do our policy documents say about data retention? | yes | answered |  |
-| Bioinformatics Analyst | 1 | Which genes are differentially expressed between conditions? | yes | declined | no approved metric covers it |
-| Bioinformatics Analyst | 1 | Is there a batch effect in these samples? | yes | declined | no approved metric covers it |
+| Bioinformatics Analyst | 3 | Which genes are differentially expressed between conditions? | yes | declined | no approved metric covers it |
+| Bioinformatics Analyst | 3 | Is there a batch effect in these samples? | yes | declined | no approved metric covers it |
 | Clinical Data Analyst | 3 | Which subjects have missing visit data? | yes | declined | no approved metric covers it |
 | Clinical Data Analyst | 3 | Summarize adverse events by treatment arm. | yes | declined | no approved metric covers it |
 | Health Informatics Analyst | 3 | What is our 30-day readmission rate by unit? | yes | declined | no approved metric covers it |
@@ -250,14 +250,14 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Epidemiological Data Analyst | 3 | Compare incidence rates across regions. | yes | answered |  |
 | Scientific Computing Analyst | 3 | Perform a reproducible statistical investigation on this research dataset. | yes | declined | no approved metric covers it |
 | Scientific Computing Analyst | 3 | Is this simulation result stable across seeds? | yes | declined | no approved metric covers it |
-| Engineering Simulation Analyst | 2 | How well does the simulation match the test rig data? | yes | declined | no approved metric covers it |
-| Engineering Simulation Analyst | 2 | Which parameters most affect peak stress? | yes | declined | no approved metric covers it |
+| Engineering Simulation Analyst | 3 | How well does the simulation match the test rig data? | yes | declined | no approved metric covers it |
+| Engineering Simulation Analyst | 3 | Which parameters most affect peak stress? | yes | declined | no approved metric covers it |
 | Manufacturing Analytics Analyst | 3 | Why did OEE on line 3 drop last week? | yes | declined | no approved metric covers it |
 | Manufacturing Analytics Analyst | 3 | What are the top causes of scrap? | yes | declined | causal claim without a causal design |
 | Industrial IoT Analyst | 3 | Which pumps show unusual vibration this month? | yes | declined | no approved metric covers it |
 | Industrial IoT Analyst | 3 | When did the temperature pattern on chiller 2 change? | yes | declined | no approved metric covers it |
-| Predictive Maintenance Analyst | 1 | Which assets are most likely to fail next month? | yes | declined | no approved metric covers it |
-| Predictive Maintenance Analyst | 1 | What is the MTBF of our conveyor motors? | yes | declined | no approved metric covers it |
+| Predictive Maintenance Analyst | 3 | Which assets are most likely to fail next month? | yes | declined | no approved metric covers it |
+| Predictive Maintenance Analyst | 3 | What is the MTBF of our conveyor motors? | yes | declined | no approved metric covers it |
 | Energy Analytics Analyst | 3 | Which sites use the most energy per square metre? | yes | declined | no approved metric covers it |
 | Energy Analytics Analyst | 3 | Forecast next winter's peak demand. | yes | answered |  |
 | Environmental Data Analyst | 3 | Calculate our scope 2 emissions for last year. | yes | flagged | other |
@@ -268,22 +268,22 @@ Reading it: *answered* means the pipeline produced a verified answer on this dat
 | Digital Transformation Analyst | 3 | Where is adoption of the new system lagging? | yes | declined | no approved metric covers it |
 | Automation & RPA Analyst | 3 | Which processes are the best automation candidates? | yes | declined | no approved metric covers it |
 | Automation & RPA Analyst | 3 | Why are invoice bots failing more often? | yes | declined | no approved metric covers it |
-| Digital Twin Analyst | 2 | How closely does the twin track the plant's real output? | yes | declined | no approved metric covers it |
-| Digital Twin Analyst | 2 | Simulate throughput if one line goes down. | yes | declined | no approved metric covers it |
-| Blockchain Analytics Analyst | 1 | Trace where funds from this address went in the last 30 days. | yes | declined | no approved metric covers it |
-| Blockchain Analytics Analyst | 1 | How has activity on our protocol changed? | yes | declined | no approved metric covers it |
+| Digital Twin Analyst | 3 | How closely does the twin track the plant's real output? | yes | declined | no approved metric covers it |
+| Digital Twin Analyst | 3 | Simulate throughput if one line goes down. | yes | declined | no approved metric covers it |
+| Blockchain Analytics Analyst | 3 | Trace where funds from this address went in the last 30 days. | yes | declined | no approved metric covers it |
+| Blockchain Analytics Analyst | 3 | How has activity on our protocol changed? | yes | declined | no approved metric covers it |
 | Smart Contract Security Analyst | 1 | Summarize the high-severity findings in our contract audits. | yes | declined | no approved metric covers it |
 | Smart Contract Security Analyst | 1 | Which contracts hold the most value with open findings? | yes | declined | no approved metric covers it |
 | Quantum Computing Analyst | 3 | Which of our systems use cryptography vulnerable to quantum attacks? | yes | answered |  |
 | Quantum Computing Analyst | 3 | Is quantum optimization relevant to our logistics problem yet? | yes | declined | no approved metric covers it |
 | Robotics & Autonomous Systems Analyst | 3 | Under what conditions do our warehouse robots need human help? | yes | declined | no approved metric covers it |
 | Robotics & Autonomous Systems Analyst | 3 | Is the intervention rate improving release over release? | yes | declined | no approved metric covers it |
-| Computer Vision Analyst | 1 | How accurate is our defect detector per defect type? | yes | declined | no approved metric covers it |
-| Computer Vision Analyst | 1 | Which camera conditions cause the most missed detections? | yes | declined | causal claim without a causal design |
-| NLP & Text Analytics Analyst | 1 | What are customers complaining about most in support tickets this quarter? | yes | flagged | answer would not address the question |
-| NLP & Text Analytics Analyst | 1 | Which suppliers are mentioned in these reports? | no: procurement_analyst | declined | no approved metric covers it |
-| Knowledge Graph Analyst | 1 | Model how customers, contracts and products relate across our datasets. | yes | declined | no approved metric covers it |
-| Knowledge Graph Analyst | 1 | Which suppliers are connected to multiple risk events? | no: procurement_analyst | answered |  |
+| Computer Vision Analyst | 3 | How accurate is our defect detector per defect type? | yes | declined | no approved metric covers it |
+| Computer Vision Analyst | 3 | Which camera conditions cause the most missed detections? | yes | declined | causal claim without a causal design |
+| NLP & Text Analytics Analyst | 3 | What are customers complaining about most in support tickets this quarter? | yes | flagged | answer would not address the question |
+| NLP & Text Analytics Analyst | 3 | Which suppliers are mentioned in these reports? | no: procurement_analyst | declined | no approved metric covers it |
+| Knowledge Graph Analyst | 3 | Model how customers, contracts and products relate across our datasets. | yes | declined | no approved metric covers it |
+| Knowledge Graph Analyst | 3 | Which suppliers are connected to multiple risk events? | no: procurement_analyst | answered |  |
 | Digital Forensics & OSINT Analyst | 1 | Compile what our ingested sources say about this supplier's ownership. | yes | declined | no approved metric covers it |
 | Digital Forensics & OSINT Analyst | 1 | Verify the claims in this due diligence file. | yes | declined | no approved metric covers it |
 | Technology Research Analyst | 3 | Compare three vector databases for our use case. | yes | declined | no approved metric covers it |

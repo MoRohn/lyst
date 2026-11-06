@@ -113,7 +113,7 @@ def test_maturity_is_computed_not_claimed():
     for pid, lvl in levels.items():
         if lvl == 3:
             assert pid in ev  # Level 3 only with recorded representative tasks
-    assert levels["data_analyst"] == 3 and levels["soc_analyst"] == 1  # soc needs fuller log analysis
+    assert levels["data_analyst"] == 3 and levels["software_systems_analyst"] == 1  # needs code analysis Lyst lacks
     # recorded evidence does not lift a profile whose required capabilities are only partly there
     m = assess(cat.get("geospatial_analyst"))
     assert "geospatial_analyst" in ev and m["level"] == 1 and m["partial"] == ["geospatial_analysis"]

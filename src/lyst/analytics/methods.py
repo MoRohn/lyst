@@ -109,8 +109,10 @@ def classify(df: pd.DataFrame, target: str, features: list[str], *, order_by: st
     d = df[[target, *features] + ([order_by] if order_by and order_by not in features else [])].copy()
     y_raw = d[target]
     vals = sorted(y_raw.dropna().unique().tolist(), key=str)
+    if len(vals) > 2:
+        return _classify_multi(df, target, features, order_by=order_by)
     if len(vals) != 2:
-        raise MethodError(f"classification needs a two-valued target; {target} has {len(vals)} distinct values")
+        raise MethodError(f"classification needs a target with at least two values; {target} has {len(vals)}")
     positive = next((v for v in vals if str(v).lower() in ("1", "true", "yes", "churned", "fraud", "failed", "positive")), vals[-1])
     d["_y"] = (y_raw == positive).astype(float)
     x = d[features].apply(pd.to_numeric, errors="coerce")
@@ -156,6 +158,49 @@ def classify(df: pd.DataFrame, target: str, features: list[str], *, order_by: st
             "assumptions": ["Logistic regression assumes a roughly linear relationship between features and log-odds.",
                             "The last 30% of rows " + (f"by {order_by} " if order_by else "") + "are held out; no tuning on them.",
                             "Coefficients describe association, not cause."]}
+
+
+def _classify_multi(df: pd.DataFrame, target: str, features: list[str], *, order_by: str | None = None) -> dict[str, Any]:
+    import statsmodels.api as sm  # noqa: PLC0415
+
+    d = df[[target, *features] + ([order_by] if order_by and order_by not in features else [])].dropna().copy()
+    if order_by:
+        d = d.sort_values(order_by)
+    classes = sorted(d[target].astype(str).unique().tolist())
+    if len(classes) > 12:
+        raise MethodError(f"{target} has {len(classes)} classes; at most 12 are supported")
+    counts = d[target].astype(str).value_counts()
+    if len(d) < 20 * len(classes) or counts.min() < 5:
+        raise MethodError("multi-class classification needs at least 20 rows per class and 5 of the rarest")
+    y = pd.Categorical(d[target].astype(str), categories=classes).codes
+    x = d[features].apply(pd.to_numeric, errors="coerce")
+    cut = int(len(d) * 0.7)
+    mu, sd = x.iloc[:cut].mean(), x.iloc[:cut].std(ddof=0).replace(0, 1)
+    xs = sm.add_constant((x - mu) / sd, has_constant="add")
+    try:
+        model = sm.MNLogit(y[:cut], xs.iloc[:cut]).fit(disp=0, maxiter=300)
+    except Exception as exc:  # noqa: BLE001
+        raise MethodError(f"the model could not be fitted ({type(exc).__name__})") from None
+    pred = np.asarray(model.predict(xs.iloc[cut:])).argmax(axis=1)
+    yt = y[cut:]
+    acc = float((pred == yt).mean())
+    base = float(pd.Series(y[:cut]).value_counts(normalize=True).max())
+    rows = []
+    for k, c in enumerate(classes):
+        tp = int(((pred == k) & (yt == k)).sum())
+        fp = int(((pred == k) & (yt != k)).sum())
+        fn = int(((pred != k) & (yt == k)).sum())
+        rows.append({"class": c, "precision": _r(tp / (tp + fp) if tp + fp else 0, 3), "recall": _r(tp / (tp + fn) if tp + fn else 0, 3),
+                     "support": int((yt == k).sum())})
+    per = pd.DataFrame(rows).sort_values("recall")
+    weakest = per.iloc[0]
+    return {"summary": f"A multinomial logistic model predicts {target} across {len(classes)} classes with accuracy {acc:.0%} on the "
+                       f"held-out {len(yt)} rows (against {base:.0%} for always guessing the commonest class).",
+            "findings": [f"Hardest class: {weakest['class']} (recall {weakest['recall']:.0%})."],
+            "tables": [_table("Per class (held out)", per)],
+            "metrics": {"accuracy": _r(acc), "baseline": _r(base), "classes": len(classes), "test_rows": int(len(yt))},
+            "assumptions": ["Multinomial logistic regression: linear decision boundaries in the standardized features.",
+                            "The last 30% of rows " + (f"by {order_by} " if order_by else "") + "are held out."]}
 
 
 # -- process mining -----------------------------------------------------------------------------------------------
@@ -269,7 +314,7 @@ def reconcile(left: pd.DataFrame, right: pd.DataFrame, *, key: str, value: str, 
 # -- graphs -------------------------------------------------------------------------------------------------------
 
 
-def graph(edges: pd.DataFrame, src: str, dst: str) -> dict[str, Any]:
+def graph(edges: pd.DataFrame, src: str, dst: str, *, query: str | None = None) -> dict[str, Any]:
     e = edges[[src, dst]].dropna().astype(str)
     if e.empty:
         raise MethodError("graph analysis needs an edge list (two columns naming connected entities)")
@@ -291,15 +336,29 @@ def graph(edges: pd.DataFrame, src: str, dst: str) -> dict[str, Any]:
         seen |= comp
         comps.append(comp)
     comps.sort(key=len, reverse=True)
-    deg = pd.DataFrame([{"node": n, "connections": len(v)} for n, v in adj.items()]).sort_values(
-        ["connections", "node"], ascending=[False, True])
+    bc = betweenness(adj) if len(adj) <= 2000 else {}
+    comm = communities(adj)
+    deg = pd.DataFrame([{"node": n, "connections": len(v), "betweenness": _r(bc.get(n, 0.0), 4), "community": comm[n]}
+                        for n, v in adj.items()]).sort_values(["connections", "betweenness", "node"], ascending=[False, False, True])
+    broker = max(bc, key=lambda v: (bc[v], v)) if bc else None
+    found = [n for n in adj if n.lower() in (query or "").lower()]
+    path = shortest_path(adj, found[0], found[1]) if len(found) >= 2 else None
+    findings = [f"{sum(1 for c in comps if len(c) == 1)} entities are isolated." if any(len(c) == 1 for c in comps)
+                else "Every entity has at least one link."]
+    if broker is not None and bc[broker] > 0:
+        findings.append(f"{broker} sits on the most shortest paths between others (betweenness {bc[broker]:.2f}): "
+                        "removing it would disconnect the most pairs.")
+    findings.append(f"{len(set(comm.values()))} communities by label propagation.")
+    if path:
+        findings.append("Shortest path: " + " → ".join(path) + f" ({len(path) - 1} links).")
     return {"summary": f"{len(adj)} entities and {len(e)} links form {len(comps)} connected group(s); the largest has "
-                       f"{len(comps[0])} entities, and {deg.iloc[0]['node']} is the most connected ({deg.iloc[0]['connections']} links).",
-            "findings": [f"{sum(1 for c in comps if len(c) == 1)} entities are isolated." if any(len(c) == 1 for c in comps)
-                         else "Every entity has at least one link."],
+                       f"{len(comps[0])} entities, and {deg.iloc[0]['node']} is the most connected ({deg.iloc[0]['connections']} links)"
+                       + (f"; {broker} is the main broker between them." if broker is not None and bc[broker] > 0 else "."),
+            "findings": findings,
             "tables": [_table("Most connected entities", deg)],
             "metrics": {"nodes": len(adj), "edges": int(len(e)), "components": len(comps), "largest": len(comps[0])},
-            "assumptions": ["Links are treated as undirected and unweighted."]}
+            "assumptions": ["Links are treated as undirected and unweighted.",
+                            "Betweenness by Brandes' algorithm; communities by deterministic label propagation."]}
 
 
 # -- event logs ---------------------------------------------------------------------------------------------------
@@ -332,7 +391,18 @@ def log_patterns(df: pd.DataFrame, *, ts: str, event: str, entity: str | None = 
                         if len(bursts) else f"No {entity} shows a burst far above its own usual rate.")
         if len(bursts):
             tables.append(_table(f"Bursts by {entity} (robust score)", bursts.round(2)))
-    return {"summary": f"{len(d)} events from {d[ts].min():%Y-%m-%d %H:%M} to {d[ts].max():%Y-%m-%d %H:%M} UTC. " + findings[-1],
+        seq = failure_then_success(d, ts=ts, event=event, entity=entity)
+        metrics["failure_then_success"] = int(len(seq))
+        if len(seq):
+            findings.append(f"{len(seq)} {entity} value(s) succeeded after repeated failures, for example "
+                            f"{seq.iloc[0]['entity']} ({seq.iloc[0]['failures']} failures, then a success at "
+                            f"{seq.iloc[0]['success_at'][:16]}): an observed sequence, not a confirmed compromise.")
+            tables.append(_table("Failures followed by a success", seq))
+            worst = seq.iloc[0]["entity"]
+            tl = d[d[entity].astype(str) == str(worst)].sort_values(ts).tail(15)
+            tables.append(_table(f"Timeline for {worst}", tl[[ts, event]].astype(str)))
+    lead = next((f for f in findings if "succeeded after repeated failures" in f), findings[-1])
+    return {"summary": f"{len(d)} events from {d[ts].min():%Y-%m-%d %H:%M} to {d[ts].max():%Y-%m-%d %H:%M} UTC. " + lead,
             "findings": findings, "tables": tables, "metrics": metrics,
             "assumptions": ["Timestamps are normalized to UTC.", "A burst is a bucket at least five robust deviations above that "
                             "entity's own median; it is an observed pattern, not a confirmed threat."]}
@@ -487,3 +557,247 @@ def evaluate_predictions(df: pd.DataFrame, actual: str, predicted: str | None = 
     return {"summary": summary + ".", "findings": findings, "tables": tables, "metrics": metrics,
             "assumptions": ["Predictions were recorded before the outcomes were known (no leakage).",
                             "Rows are scored once each; the evaluation set represents the population the model serves."]}
+
+
+# -- raw log parsing ----------------------------------------------------------------------------------------------
+
+import json as _json  # noqa: E402
+import re as _re  # noqa: E402
+
+_KV = _re.compile(r'(\w[\w.-]*)=("[^"]*"|\S+)')
+_ACCESS = _re.compile(r'^(?P<ip>\S+) \S+ (?P<user>\S+) \[(?P<ts>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+)[^"]*" (?P<status>\d{3})')
+_SYSLOG = _re.compile(r"^(?P<ts>[A-Z][a-z]{2}\s+\d{1,2} \d\d:\d\d:\d\d) (?P<host>\S+) (?P<prog>[\w./-]+)(?:\[\d+\])?: (?P<msg>.*)$")
+_ISO = _re.compile(r"\d{4}-\d\d-\d\d[T ]\d\d:\d\d(:\d\d)?(\.\d+)?(Z|[+-]\d\d:?\d\d)?")
+_ENTITY_KEYS = ("user", "username", "account", "src", "src_ip", "ip", "client", "host", "source", "service")
+_EVENT_KEYS = ("event", "action", "status", "outcome", "type", "msg", "message")
+
+
+def parse_logs(lines: pd.Series, *, year: int = 2026) -> pd.DataFrame:
+    """Raw log lines in the common formats (JSON lines, key=value, web access logs, syslog) to events with a timestamp,
+    an event name and the entity it concerns. Lines that match no format are counted, not guessed."""
+    rows = []
+    for raw in lines.dropna().astype(str):
+        line = raw.strip()
+        rec: dict[str, Any] = {}
+        if line.startswith("{"):
+            try:
+                rec = {str(k).lower(): v for k, v in _json.loads(line).items()}
+            except ValueError:
+                rec = {}
+        if not rec and (m := _ACCESS.match(line)):
+            rec = {"ts": pd.to_datetime(m["ts"], format="%d/%b/%Y:%H:%M:%S %z", errors="coerce"), "ip": m["ip"],
+                   "user": None if m["user"] == "-" else m["user"], "event": f"http_{m['status']}", "path": m["path"]}
+        if not rec and (m := _SYSLOG.match(line)):
+            msg = m["msg"]
+            kv = {k.lower(): v.strip('"') for k, v in _KV.findall(msg)}
+            word = ("failed" if _re.search(r"\bfail\w*|invalid|denied\b", msg, _re.I)
+                    else "accepted" if _re.search(r"\baccepted|success\w*\b", msg, _re.I) else m["prog"])
+            rec = {"ts": pd.to_datetime(f"{year} {m['ts']}", format="%Y %b %d %H:%M:%S", errors="coerce"), "host": m["host"],
+                   "event": word, **kv}
+            if "user" not in rec and (u := _re.search(r"for (?:invalid user )?(\w+)", msg)):
+                rec["user"] = u.group(1)
+            if "ip" not in rec and (ip := _re.search(r"from (\d+\.\d+\.\d+\.\d+)", msg)):
+                rec["ip"] = ip.group(1)
+        if not rec:
+            kv = {k.lower(): v.strip('"') for k, v in _KV.findall(line)}
+            if kv:
+                rec = kv
+                if "ts" not in rec and (iso := _ISO.search(line)):
+                    rec["ts"] = iso.group(0)
+        if not rec:
+            rows.append({"_unparsed": True})
+            continue
+        ts = rec.get("ts") or rec.get("time") or rec.get("timestamp") or rec.get("@timestamp")
+        entity = next((rec[k] for k in _ENTITY_KEYS if rec.get(k)), None)
+        event = next((rec[k] for k in _EVENT_KEYS if rec.get(k)), None)
+        rows.append({"ts": pd.to_datetime(ts, errors="coerce", utc=True), "event": str(event) if event is not None else None,
+                     "entity": str(entity) if entity is not None else None, "_unparsed": False})
+    out = pd.DataFrame(rows)
+    if out.empty or "ts" not in out:
+        raise MethodError("no line matched a known log format (JSON lines, key=value, web access log, syslog)")
+    return out
+
+
+_FAIL = _re.compile(r"fail|denied|invalid|error|reject|http_401|http_403", _re.I)
+_OK = _re.compile(r"success|accepted|ok\b|login_success|http_200", _re.I)
+
+
+def failure_then_success(d: pd.DataFrame, *, ts: str, event: str, entity: str, threshold: int = 5,
+                         window: str = "30min") -> pd.DataFrame:
+    """Entities with at least ``threshold`` failures followed by a success within ``window``: the classic pattern of a
+    guessed password, reported as an observed sequence (not a confirmed compromise)."""
+    hits = []
+    span = pd.Timedelta(window)
+    for ent, g in d.sort_values(ts).groupby(entity):
+        fails: list[pd.Timestamp] = []
+        for t, ev in zip(g[ts], g[event].astype(str), strict=True):
+            if _FAIL.search(ev):
+                fails.append(t)
+                fails = [f for f in fails if t - f <= span]
+            elif _OK.search(ev) and len(fails) >= threshold:
+                hits.append({"entity": ent, "failures": len(fails), "first_failure": str(fails[0]), "success_at": str(t)})
+                fails = []
+    return pd.DataFrame(hits)
+
+
+# -- graph paths, centrality and communities ----------------------------------------------------------------------
+
+
+def _adjacency(e: pd.DataFrame) -> dict[str, set[str]]:
+    adj: dict[str, set[str]] = defaultdict(set)
+    for a, b in e.itertuples(index=False):
+        adj[a].add(b)
+        adj[b].add(a)
+    return adj
+
+
+def betweenness(adj: dict[str, set[str]]) -> dict[str, float]:
+    """Brandes' algorithm, unweighted, normalized to 0..1."""
+    nodes = sorted(adj)
+    bc = dict.fromkeys(nodes, 0.0)
+    for s in nodes:
+        stack, pred = [], {v: [] for v in nodes}
+        sigma = dict.fromkeys(nodes, 0.0)
+        dist = dict.fromkeys(nodes, -1)
+        sigma[s], dist[s] = 1.0, 0
+        queue = [s]
+        while queue:
+            v = queue.pop(0)
+            stack.append(v)
+            for w in sorted(adj[v]):
+                if dist[w] < 0:
+                    dist[w] = dist[v] + 1
+                    queue.append(w)
+                if dist[w] == dist[v] + 1:
+                    sigma[w] += sigma[v]
+                    pred[w].append(v)
+        delta = dict.fromkeys(nodes, 0.0)
+        while stack:
+            w = stack.pop()
+            for v in pred[w]:
+                delta[v] += sigma[v] / sigma[w] * (1 + delta[w])
+            if w != s:
+                bc[w] += delta[w]
+    n = len(nodes)
+    scale = 1 / ((n - 1) * (n - 2)) if n > 2 else 1.0
+    return {v: bc[v] * scale for v in nodes}
+
+
+def communities(adj: dict[str, set[str]], *, rounds: int = 20) -> dict[str, str]:
+    """Deterministic label propagation: each node takes its neighbours' most common label (ties: smallest)."""
+    label = {v: v for v in adj}
+    for _ in range(rounds):
+        changed = False
+        for v in sorted(adj):
+            if not adj[v]:
+                continue
+            counts = Counter(label[w] for w in adj[v])
+            best = min((-c, lab) for lab, c in counts.items())[1]
+            if label[v] != best:
+                label[v], changed = best, True
+        if not changed:
+            break
+    return label
+
+
+def shortest_path(adj: dict[str, set[str]], a: str, b: str) -> list[str] | None:
+    prev, queue, seen = {a: None}, [a], {a}
+    while queue:
+        v = queue.pop(0)
+        if v == b:
+            path = []
+            while v is not None:
+                path.append(v)
+                v = prev[v]
+            return path[::-1]
+        for w in sorted(adj[v]):
+            if w not in seen:
+                seen.add(w)
+                prev[w] = v
+                queue.append(w)
+    return None
+
+
+# -- optimization -------------------------------------------------------------------------------------------------
+
+
+def optimize_allocation(df: pd.DataFrame, *, option: str, cost: str, value: str, budget: float,
+                        max_units: str | None = None, min_units: str | None = None, integer: bool = True) -> dict[str, Any]:
+    """Maximize total value subject to a budget and per-option limits: a linear (or integer) program solved exactly
+    with SciPy's HiGHS solver."""
+    from scipy.optimize import Bounds, LinearConstraint, milp  # noqa: PLC0415
+
+    d = df[[c for c in (option, cost, value, max_units, min_units) if c]].dropna(subset=[option, cost, value]).copy()
+    if d.empty or budget <= 0:
+        raise MethodError("optimization needs options with a cost and a value per unit, and a positive budget")
+    c = -d[value].astype(float).to_numpy()
+    a = d[cost].astype(float).to_numpy()[None, :]
+    lo = d[min_units].astype(float).to_numpy() if min_units else np.zeros(len(d))
+    hi = d[max_units].astype(float).to_numpy() if max_units else np.full(len(d), np.inf)
+    res = milp(c, constraints=LinearConstraint(a, -np.inf, budget), bounds=Bounds(lo, hi),
+               integrality=np.ones(len(d)) if integer else np.zeros(len(d)))
+    if not res.success:
+        raise MethodError(f"no feasible allocation within the budget ({res.message})")
+    d["units"] = np.round(res.x, 4)
+    d["spend"] = d["units"] * d[cost]
+    d["expected_value"] = d["units"] * d[value]
+    plan = d[[option, "units", "spend", "expected_value"]].sort_values("expected_value", ascending=False)
+    top = plan.iloc[0]
+    binding = [str(r[option]) for _, r in d.iterrows() if max_units and abs(r["units"] - r[max_units]) < 1e-6]
+    total_v, total_s = float(d["expected_value"].sum()), float(d["spend"].sum())
+    return {"summary": f"Best allocation of a {budget:,.0f} budget: {top[option]} gets the most ({top['units']:,.0f} units); "
+                       f"expected value {total_v:,.0f} for {total_s:,.0f} spent.",
+            "findings": ([f"Options at their limit: {', '.join(binding)}; raising those limits would add value."] if binding else [])
+            + [f"{(d['units'] == 0).sum()} option(s) get nothing at this budget."],
+            "tables": [_table("Allocation", plan.round(2))],
+            "metrics": {"expected_value": _r(total_v, 2), "spend": _r(total_s, 2), "budget": _r(budget, 2)},
+            "assumptions": ["Value per unit is constant (no diminishing returns) and options are independent.",
+                            "Solved exactly as an integer program (HiGHS)." if integer else "Solved as a linear program (HiGHS)."]}
+
+
+# -- text analytics -----------------------------------------------------------------------------------------------
+
+_POS = {"great", "good", "love", "excellent", "fast", "helpful", "easy", "happy", "thanks", "resolved", "perfect"}
+_NEG = {"bad", "slow", "broken", "refund", "angry", "terrible", "late", "missing", "wrong", "cancel", "worst", "issue",
+        "problem", "frustrated", "charged", "error"}
+_TEXT_STOP = set("a an the and or to of in on for is are was were be it this that with my i we you our your me at by from "
+                 "not no but have has had do does did can could will would just very so as if they them their its".split())
+
+
+def text_themes(df: pd.DataFrame, text: str, *, group: str | None = None, top: int = 8) -> dict[str, Any]:
+    """Themes (terms that stand out, TF-IDF across rows), lexicon sentiment and simple entities (emails, amounts,
+    order numbers) in a text column."""
+    d = df.dropna(subset=[text]).copy()
+    if len(d) < 10:
+        raise MethodError("text analysis needs at least 10 rows of text")
+    docs = [[w for w in _re.findall(r"[a-z][a-z'-]+", s.lower()) if w not in _TEXT_STOP and len(w) > 2] for s in d[text].astype(str)]
+    df_count = Counter(w for doc in docs for w in set(doc))
+    n = len(docs)
+    score: Counter = Counter()
+    for doc in docs:
+        tf = Counter(doc)
+        for w, c in tf.items():
+            score[w] += c / max(len(doc), 1) * math.log(1 + n / df_count[w])
+    themes = [(w, df_count[w]) for w, _ in score.most_common(top * 3) if df_count[w] >= max(2, int(0.03 * n))][:top]
+    sent = [sum(w in _POS for w in doc) - sum(w in _NEG for w in doc) for doc in docs]
+    d["_sent"] = np.sign(sent)
+    share_neg = float((d["_sent"] < 0).mean())
+    ents = Counter()
+    for s in d[text].astype(str):
+        ents.update(_re.findall(r"\b[\w.+-]+@[\w-]+\.[\w.]+\b", s) and ["email address"] or [])
+        ents.update(["money amount"] * len(_re.findall(r"[$€£]\s?\d[\d,.]*", s)))
+        ents.update(["order number"] * len(_re.findall(r"\b(?:order|ord)[ #-]?\d{3,}\b", s, _re.I)))
+    tables = [_table("Themes (rows mentioning)", pd.DataFrame(themes, columns=["theme", "rows"]))]
+    findings = [f"{share_neg:.0%} of rows read as negative, {(d['_sent'] > 0).mean():.0%} as positive (lexicon-based)."]
+    if group:
+        by = d.groupby(group)["_sent"].apply(lambda s: float((s < 0).mean())).sort_values(ascending=False)
+        findings.append(f"Most negative {group}: {by.index[0]} ({by.iloc[0]:.0%} negative).")
+        tables.append(_table(f"Negative share by {group}", by.rename("negative_share").reset_index().round(3)))
+    if ents:
+        findings.append("Entities mentioned: " + ", ".join(f"{k} ({v})" for k, v in ents.most_common(3)) + ".")
+    lead = ", ".join(t for t, _ in themes[:3]) or "no recurring terms"
+    return {"summary": f"Across {n} rows the leading themes are {lead}; {share_neg:.0%} of rows are negative.",
+            "findings": findings, "tables": tables,
+            "metrics": {"rows": n, "negative_share": _r(share_neg, 3), "themes": len(themes)},
+            "assumptions": ["Themes are distinctive terms (TF-IDF), not a trained topic model.",
+                            "Sentiment uses a small word list; sarcasm and negation are not handled."]}

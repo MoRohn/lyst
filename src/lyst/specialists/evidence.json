@@ -98,6 +98,24 @@
    ]
   }
  },
+ "bioinformatics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Classify condition from the gene expression samples"
+   ]
+  }
+ },
+ "blockchain_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Trace the wallet transfers network: which wallet connects the most?"
+   ]
+  }
+ },
  "business_analyst": {
   "operational": {
    "recorded": "2026-11-06",
@@ -122,6 +140,15 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Forecast GPU hours capacity for the next two quarters"
+   ]
+  }
+ },
+ "causal_inference_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What was the causal impact of the March 2026 price change on revenue? Estimate the effect since March 2026"
    ]
   }
  },
@@ -167,6 +194,15 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "What did the staff communications survey say about the internal newsletter?"
+   ]
+  }
+ },
+ "computer_vision_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the detection results accuracy by class group"
    ]
   }
  },
@@ -342,6 +378,15 @@
    ]
   }
  },
+ "digital_forensics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Reconstruct a timeline from the raw auth logs for the account that was guessed"
+   ]
+  }
+ },
  "digital_marketing_analyst": {
   "operational": {
    "recorded": "2026-11-06",
@@ -369,6 +414,24 @@
    ]
   }
  },
+ "digital_twin_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the twin vs sensor results: where does the digital twin diverge from measurements?"
+   ]
+  }
+ },
+ "distributed_systems_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Analyze the service logs: which service had a failure burst?"
+   ]
+  }
+ },
  "document_intelligence_analyst": {
   "operational": {
    "recorded": "2026-11-06",
@@ -393,6 +456,15 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Why did energy consumption rise last month? Which site?"
+   ]
+  }
+ },
+ "engineering_simulation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the rig tests: how well do simulation predictions match measured results by load case?"
    ]
   }
  },
@@ -567,6 +639,15 @@
    ]
   }
  },
+ "knowledge_graph_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which entity is the main broker in the service dependencies graph?"
+   ]
+  }
+ },
  "kubernetes_container_analyst": {
   "operational": {
    "recorded": "2026-11-06",
@@ -582,6 +663,15 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Evaluate the llm eval results pass rate by model"
+   ]
+  }
+ },
+ "machine_learning_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Train a classifier on the customers dataset to predict churned"
    ]
   }
  },
@@ -621,6 +711,15 @@
    ]
   }
  },
+ "mlops_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "MLOps model monitoring: evaluate the deployed model predictions for drift by segment"
+   ]
+  }
+ },
  "model_performance_analyst": {
   "operational": {
    "recorded": "2026-11-06",
@@ -644,7 +743,7 @@
    "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
-    "Which suppliers are connected in the supplier links network?"
+    "Analyze the firewall logs for unusual traffic bursts by source"
    ]
   }
  },
@@ -654,6 +753,33 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Brief me on what our documents say about the Data Act regulation"
+   ]
+  }
+ },
+ "nlp_text_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What are the main themes and sentiment in the ticket comments?"
+   ]
+  }
+ },
+ "operations_research_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Operations research: allocate a budget of 100k across the channel options to maximize return"
+   ]
+  }
+ },
+ "optimization_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Optimize our budget of 100,000 across the channel options for the best return"
    ]
   }
  },
@@ -681,6 +807,15 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Which customers are likely to churn?"
+   ]
+  }
+ },
+ "predictive_maintenance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Predict the failure mode from the maintenance history: classify failure_mode"
    ]
   }
  },
@@ -843,6 +978,15 @@
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Why did incidents increase last month? Which service hurt our SLO?"
+   ]
+  }
+ },
+ "soc_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Triage the raw auth logs: any brute force or suspicious logins?"
    ]
   }
  },
