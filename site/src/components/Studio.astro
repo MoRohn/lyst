@@ -29,21 +29,20 @@ type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata;
 const views: View[] = [
   {
     id: 'home', tab: 'Home', img: homeLight, dark: homeDark,
-    alt: 'Lyst Home: a plain-language question box with Ask Lyst and Speak, suggested questions from the approved metrics, and Your work: a saved analysis shown as a preview card with a “Newer data” flag.',
+    alt: 'Lyst Home: the Lyst agent bar at the top (ask anything, speak, or go to a page; 2 need you), suggested questions, and an activity board with Suggested, Needs you, In progress and Done columns, holding next steps such as “Look inside EMEA by product line” and a finished analysis.',
     callouts: [
-      { icon: 'Mic', text: 'Type or speak', x: '33%', y: '30.5%' },
-      { icon: 'LayoutGrid', text: 'Your work, previewed from its own content', x: '49%', y: '64%' },
-      { icon: 'RefreshCcw', text: 'Knows it has newer data', x: '46%', y: '85%' },
+      { icon: 'Mic', text: 'One bar to ask, speak or go anywhere', x: '55%', y: '11.5%' },
+      { icon: 'KanbanSquare', text: 'An activity board on every page', x: '40%', y: '40.3%' },
+      { icon: 'MousePointerClick', text: 'Next steps, one click away', x: '42%', y: '56%' },
     ],
   },
   {
     id: 'answer', tab: 'Answer', img: answerLight, dark: answerDark,
-    alt: 'Lyst answering “Why did operating margin change last quarter?” as a canvas: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend, what it means and what to do, with Summary, Detail and Method views, a Brief and Focus, and an evidence rail listing the checks passed, the data and version used, assumptions and method.',
+    alt: 'Lyst answering “Why did operating margin change last quarter?” as a canvas under the agent bar, which shows the task’s live progress: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend, what it means and what to do, with Summary, Detail and Method views, a Brief, Focus and More, and an evidence rail listing the checks passed, the data and version used, assumptions and method.',
     callouts: [
-      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '34%', y: '18.5%' },
-      { icon: 'BellRing', text: 'Live: it tells you when work finishes', x: '72.5%', y: '19%' },
-      { icon: 'PanelRight', text: 'Evidence rail: checks, data, assumptions', x: '72%', y: '64.5%' },
-      { icon: 'ListChecks', text: 'What it means, what to do', x: '63%', y: '86%' },
+      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '42%', y: '35.8%' },
+      { icon: 'PanelRight', text: 'Evidence rail: checks, data, assumptions', x: '70%', y: '69%' },
+      { icon: 'ListChecks', text: 'What it means, what to do', x: '63%', y: '91.5%' },
     ],
   },
   {
@@ -57,9 +56,9 @@ const views: View[] = [
   },
   {
     id: 'data', tab: 'Data', img: dataLight, dark: dataDark,
-    alt: 'Lyst Data: a library of datasets and approved metrics, one source working, and a map of how the five datasets connect through the columns they share, such as month, region and product line.',
+    alt: 'Lyst Data: an answer-first header noting what needs attention, the activity strip, a library of datasets and approved metrics, and a map of how the five datasets connect through the columns they share, such as month, region and product line.',
     callouts: [
-      { icon: 'Network', text: 'How datasets connect, through shared columns', x: '47%', y: '79.5%' },
+      { icon: 'Network', text: 'How datasets connect, through shared columns', x: '50%', y: '81.5%' },
     ],
   },
   {
@@ -78,27 +77,27 @@ const views: View[] = [
     ],
   },
   {
-    id: 'team', tab: 'Needs you', img: needsLight, dark: needsDark,
-    alt: 'Lyst Work › Needs you: an answer assigned by Sam Ortiz, “Check the EMEA cost lines before Friday’s board pack”, due 2026-11-06, and a review waiting with Approve and Reject.',
+    id: 'team', tab: 'Brain · Work', img: needsLight, dark: needsDark,
+    alt: 'Lyst Brain: what Lyst knows (6 approved metrics, 5 datasets, memories and terms), what it is doing (2 need you, 4 finished this week) and what it runs on its own, then Work › Needs you: an answer Sam Ortiz assigned with a due date, and a review waiting with Approve and Reject.',
     callouts: [
-      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '54%', y: '62%' },
-      { icon: 'UserCheck', text: 'A review before anyone relies on it', x: '52%', y: '83.5%' },
+      { icon: 'Brain', text: 'What it knows, what it is doing, what runs on its own', x: '30%', y: '46%' },
+      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '52%', y: '74.5%' },
     ],
   },
   {
-    id: 'graph', tab: 'Brain', img: graphLight, dark: graphDark,
-    alt: 'Lyst Brain › Graph: an interactive map of 16 nodes and 28 links joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
+    id: 'graph', tab: 'Graph', img: graphLight, dark: graphDark,
+    alt: 'Lyst Brain › Graph: an interactive map joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
     callouts: [
-      { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '36%', y: '84%' },
-      { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '27%', y: '45%' },
+      { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '30%', y: '80%' },
+      { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '28%', y: '33%' },
     ],
   },
   {
     id: 'specs', tab: 'Specialists', img: specsLight, dark: specsDark,
-    alt: 'Lyst Brain › Specializations: “136 kinds of analyst work across 11 areas. You don’t pick one: describe the work on Home and Lyst brings the right expertise. 30 defined, 98 equipped, 8 operational.” A search box, an area filter, “What Lyst can’t do yet · 10”, and a list of specializations such as Data Analyst and Business Intelligence Analyst (Operational) and Analytics Engineer (Defined), each with its maturity.',
+    alt: 'Lyst Brain › Specializations: 136 kinds of analyst work across 11 areas, 30 defined, 98 equipped and 8 operational, with a search box, an area filter, “What Lyst can’t do yet · 10”, and specializations such as Data Analyst and Business Intelligence Analyst (Operational), each with its maturity.',
     callouts: [
-      { icon: 'GraduationCap', text: '136 kinds of analyst work', x: '58%', y: '14%' },
-      { icon: 'BadgeCheck', text: 'Honest maturity, and what is missing', x: '50%', y: '30%' },
+      { icon: 'BadgeCheck', text: 'Honest maturity, and what is missing', x: '40%', y: '23.5%' },
+      { icon: 'GraduationCap', text: '136 kinds of analyst work', x: '50%', y: '29.5%' },
     ],
   },
   {
