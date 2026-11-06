@@ -5,6 +5,7 @@ open, Open shows the full artifact), Data leads with Lyst's read on the data, an
 knows, does and runs on its own, with Work as one of its sections."""
 
 import base64
+import json
 import re
 
 from streamlit.testing.v1 import AppTest
@@ -12,6 +13,21 @@ from streamlit.testing.v1 import AppTest
 from lyst.ui import agent, tokens
 
 from .test_ui_pages import _texts, ui  # noqa: F401  (fixture)
+
+
+def _bar(at) -> dict:
+    """The agent bar's data, as Python sent it to the page."""
+    found = []
+
+    def walk(node):
+        for ch in (getattr(node, "children", None) or {}).values():
+            if getattr(ch, "type", None) == "bidi_component" and ch.proto.component_name.endswith("lyst_agent_bar"):
+                found.append(json.loads(ch.proto.json))
+            walk(ch)
+
+    walk(at._tree)
+    assert len(found) == 1, f"{len(found)} agent bars"
+    return found[0]
 
 
 def _state(*tasks: dict, monitors=(), schedules=()) -> dict:
@@ -42,8 +58,8 @@ def test_home_leads_with_status_and_answer_cards_whose_details_fold_open(ui):  #
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     assert not at.exception, [e.value for e in at.exception]
-    html = " ".join(str(h.value) for h in at.get("html"))
-    assert 'class="lyst-pulse"' in html and "need" in html  # the live line: something waits on the person
+    bar = _bar(at)
+    assert bar["need"] and "need" in bar["head"] + " ".join(bar["parts"])  # the agent bar: something waits on you
     assert any((b.key or "").startswith("ans_open_") for b in at.button)  # answers, each opening its full artifact
     assert any(e.label == "Why, and what to do" for e in at.expander)  # details folded under the answer
     assert "Latest answers" in _texts(at)

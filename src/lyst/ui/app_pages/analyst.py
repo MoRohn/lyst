@@ -75,7 +75,6 @@ def ask_box(compact: bool) -> None:
                 and q.strip():
             submit(q.strip())
             st.rerun()
-    voice.mic(open_task)
 
 
 # ----------------------------------------------------------------------------------------- home
@@ -165,9 +164,8 @@ def home() -> None:
     """Home is a monitor first and a form second: what Lyst is doing, the question box, what waits on you, then the
     answers themselves. Everything else (how an answer was reached, older work) is one click deeper."""
     kit.header("What should Lyst work on?",
-               "Ask in plain words. Lyst works it out from your approved numbers, checks every figure and shows why.")
-    agent.pulse(ws, key="home")
-    ask_box(compact=False)
+               "Ask in the bar above, in plain words or out loud. Lyst works it out from your approved numbers, "
+               "checks every figure and shows why.")
     try:
         metrics = api.get(f"/v1/workspaces/{ws}/metrics")
         datasets = api.get(f"/v1/workspaces/{ws}/datasets")

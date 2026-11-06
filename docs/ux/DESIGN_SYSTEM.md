@@ -61,6 +61,21 @@ The visual language, inspired by the craft of native apps without imitating them
   over a drawing made from those same counts (decorative, with the counts as its alt text).
   Brain › Work › Activity is the full history as a day-grouped list; the board view of the same work is the
   activity zone below. Task details show a progress meter and a step timeline (`visuals.steps`).
+* **Lyst agent bar (`lyst.ui.agent_bar`).** One sticky line at the top of every page (not the artifact viewer), and
+  the one place to talk to Lyst: its state (a mark that turns while it works and goes amber when something waits on
+  you), one field to type or speak into, what is running now with **Watch**, how many things need you, and a chevron
+  that opens the panel. **/** focuses the field from anywhere, **↓** opens the panel, **Esc** closes it. The field
+  suggests places as you type (the command palette's places, so the two always agree) with "Ask Lyst …" beside them;
+  "go to SQL", "open definitions" or a section's name goes there, "follow Lyst" / "stop following" switch Follow, and
+  anything else is a question for the governed analyst. A question asked on Data, Brain or Settings starts and is
+  followed in the panel without leaving the page; on Home it opens the answer, as the old ask box did. The panel is
+  **Conversation** (this session's questions, each with its live status and the answer's brief, "Open answer") and
+  **Live** (what is running with the engine's step count, then what Lyst did in this workspace from the event
+  stream, newest first, each with **Go** to the page and section where it happened). **Follow Lyst** is off until
+  you turn it on; then the page moves to where something new happened, at most once every 12 seconds. The mic is
+  push-to-talk (the button or Alt+M) and keeps the voice rules in docs/VOICE.md. Home's big ask box and status line
+  are gone: the bar replaced them. What the field understands (`agent_bar.interpret`) and Live (`agent_bar.feed`)
+  are pure and tested (`tests/test_ui_agent_bar.py`).
 * **Activity zone (`lyst.ui.zone`).** The same Kanban board on every page, under the page's header: **Suggested ·
   Needs you · In progress · Done** (the last seven days), always in that order. A page opens on its own cards (Home:
   your questions and what Lyst suggests next; Data: datasets and sources; Brain: metrics, monitors, schedules,

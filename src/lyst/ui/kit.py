@@ -177,13 +177,13 @@ _SURFACES = """<script>
 
 def style() -> None:
     """The stylesheet, with the token block for the active theme (light or dark)."""
-    from lyst.ui import agent, artifacts, tokens, visuals, zone  # noqa: PLC0415
+    from lyst.ui import agent, agent_bar, artifacts, tokens, visuals, zone  # noqa: PLC0415
 
     try:
         mode = st.context.theme.type or "light"
     except Exception:  # noqa: BLE001 - outside a browser session
         mode = "light"
-    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS + artifacts.CSS + agent.CSS + zone.CSS, 1))
+    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS + artifacts.CSS + agent.CSS + zone.CSS + agent_bar.CSS, 1))
     st.html(_SURFACES, unsafe_allow_javascript=True)
 
 
