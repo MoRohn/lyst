@@ -167,14 +167,16 @@ def needs_you_lists() -> None:
 
 
 def bell() -> None:
-    """Notifications in the sidebar: what was said to or about me, with preferences for what to hear about."""
+    """Notifications in the sidebar foot: what was said to or about me, with preferences for what to hear about."""
     api, ws = _ctx()
     try:
         unread = api.get(f"/v1/workspaces/{ws}/notifications", unread=True)
     except APIError:
         return
     label = f"Notifications · {len(unread)}" if unread else "Notifications"
-    with st.popover(label, icon=":material/notifications:", width="stretch"):
+    # an icon in the sidebar foot; the container's key lets the stylesheet show a dot while something is unread
+    with st.container(key="lyst_side_bell_new" if unread else "lyst_side_bell"), \
+            st.popover(label, icon=":material/notifications:", help=label):
         if not unread:
             st.caption("Nothing new.")
         for n in unread[:12]:

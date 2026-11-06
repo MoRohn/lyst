@@ -146,11 +146,68 @@ div[class*="st-key-act_"] button {justify-content: flex-start; min-height: 0; pa
 div[class*="st-key-lyst_pane_on_"] button {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);
   font-weight: var(--lyst-weight-strong);}
 div[class*="st-key-lyst_pane_on_"] button [data-testid="stIconMaterial"] {color: var(--lyst-accent);}
-/* sidebar: recent work as quiet one-line links */
-div[class*="st-key-lyst_recent_"] button {min-height: 0; padding: .22rem .6rem; justify-content: flex-start;
+/* ---------------------------------------------------------------- the sidebar
+   Calm by construction: the four areas lead, Pinned and Recent are quiet collapsible lists, and everything about who
+   and where (workspace, account, search, notifications, glossary) lives in one compact foot at the bottom. */
+[data-testid="stSidebarContent"] {display: flex; flex-direction: column;}
+[data-testid="stSidebarNav"] {padding-top: .25rem;}
+[data-testid="stSidebarNavLink"] span {font-size: var(--lyst-size-md, .95rem);}
+[data-testid="stSidebarNavSeparator"] {display: none;}
+[data-testid="stSidebarUserContent"] {flex: 1 0 auto; display: flex; flex-direction: column; padding-bottom: .75rem !important;
+  padding-top: .5rem !important;}
+[data-testid="stSidebarUserContent"] > div, [data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlock"] {
+  flex: 1 0 auto; display: flex; flex-direction: column;}
+/* Pinned and Recent: a small quiet heading that folds, rows as muted one-line links */
+div[class*="st-key-lyst_side_list_"] [data-testid="stExpander"] details {background: transparent !important;
+  border: none !important; box-shadow: none !important;}
+div[class*="st-key-lyst_side_list_"] [data-testid="stExpander"] summary {padding: .25rem .6rem; min-height: 0;
+  background: transparent !important; border: none !important; box-shadow: none !important;
+  font-size: var(--lyst-size-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--lyst-text-muted);
+  font-weight: var(--lyst-weight-medium);}
+div[class*="st-key-lyst_side_list_"] [data-testid="stExpander"] summary:hover {color: var(--lyst-text);}
+div[class*="st-key-lyst_side_list_"] [data-testid="stExpander"] summary [data-testid="stIconMaterial"] {font-size: 1rem;}
+div[class*="st-key-lyst_side_list_"] [data-testid="stExpanderDetails"] {padding: 0 0 .25rem 0 !important;
+  border: none !important;}
+div[class*="st-key-lyst_side_list_"] [data-testid="stExpanderDetails"] [data-testid="stVerticalBlock"] {gap: 0;}
+div[class*="st-key-lyst_recent_"] button {min-height: 0; padding: .3rem .6rem; justify-content: flex-start;
   text-align: left; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); border-radius: var(--lyst-radius-md);}
 div[class*="st-key-lyst_recent_"] button:hover {background: var(--lyst-raised); color: var(--lyst-text);}
 div[class*="st-key-lyst_recent_"] button p {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+div[class*="st-key-lyst_recent_"] button [data-testid="stIconMaterial"] {font-size: 1rem;}
+/* the foot: pinned to the bottom, one menu for workspace and account, then three quiet icons */
+[data-testid="stSidebarUserContent"] [data-testid="stLayoutWrapper"]:has(> .st-key-lyst_side_foot),
+.st-key-lyst_side_foot {margin-top: auto;}
+/* a hairline drawn as a shadow, so the surface observer does not raise the foot into a card */
+.st-key-lyst_side_foot {gap: .2rem; padding-top: .6rem; box-shadow: inset 0 1px 0 var(--lyst-edge);}
+.st-key-lyst_side_foot [data-testid="stPopoverButton"], .st-key-lyst_side_foot [data-testid^="stBaseButton"] {
+  background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+  min-height: 2.25rem; border-radius: var(--lyst-radius-md);}
+.st-key-lyst_side_foot [data-testid="stPopoverButton"]:hover, .st-key-lyst_side_foot [data-testid^="stBaseButton"]:hover {
+  background: var(--lyst-raised) !important; box-shadow: var(--lyst-shadow-1) !important;}
+.st-key-lyst_side_account [data-testid="stPopoverButton"] {justify-content: flex-start; padding: .35rem .6rem;}
+.st-key-lyst_side_account [data-testid="stPopoverButton"] div {justify-content: flex-start; min-width: 0;}
+.st-key-lyst_side_account [data-testid="stPopoverButton"] > div {width: 100%;}
+.st-key-lyst_side_account [data-testid="stPopoverButton"] div[aria-hidden="true"] {margin-left: auto;
+  color: var(--lyst-text-muted);}
+.st-key-lyst_side_account [data-testid="stPopoverButton"] p {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: var(--lyst-weight-medium);}
+/* icons only for the eye: the words stay in the accessible name (visually hidden, not removed) */
+.st-key-lyst_side_icons {justify-content: flex-start; gap: .25rem;}
+.st-key-lyst_side_icons > [data-testid="stLayoutWrapper"] {width: auto !important; flex: 0 0 auto;}
+.st-key-lyst_side_icons [data-testid="stPopoverButton"] div[aria-hidden="true"] {display: none;}
+.st-key-lyst_side_icons [data-testid="stPopoverButton"], .st-key-lyst_side_icons [data-testid^="stBaseButton"] {
+  width: 2.25rem; min-width: 2.25rem; padding: 0; justify-content: center; color: var(--lyst-text-muted); position: relative;}
+.st-key-lyst_side_icons [data-testid="stPopoverButton"]:hover, .st-key-lyst_side_icons [data-testid^="stBaseButton"]:hover {
+  color: var(--lyst-text);}
+.st-key-lyst_side_icons [data-testid="stIconMaterial"] {font-size: 1.15rem;}
+.st-key-lyst_side_icons [data-testid="stMarkdownContainer"], .st-key-lyst_side_icons kbd,
+.st-key-lyst_side_icons [data-testid="stPopoverButton"] > div > span:last-child:not(:first-child) {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}
+.st-key-lyst_side_bell_new [data-testid="stPopoverButton"]::after {content: ""; position: absolute; top: .45rem; right: .5rem;
+  width: .45rem; height: .45rem; border-radius: 50%; background: var(--lyst-accent);
+  box-shadow: 0 0 0 2px var(--lyst-surface, transparent);}
+p.lyst-side-who {margin: 0 0 .5rem 0; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); line-height: 1.45;}
+p.lyst-side-who b {color: var(--lyst-text); font-weight: var(--lyst-weight-strong);}
 /* quiet chrome */
 [data-testid="stToolbar"] {opacity: .55;}
 footer {visibility: hidden;}
