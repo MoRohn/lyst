@@ -87,8 +87,9 @@ def score(case: EvalCase, task: dict[str, Any], seconds: float, outputs: dict[st
     return checks
 
 
-def run(lyst, actor, workspace_id: str, cases: list[EvalCase], *, label: str = "") -> dict[str, Any]:
-    """Run every case through the real runtime and store the scored run."""
+def run(lyst, actor, workspace_id: str, cases: list[EvalCase], *, label: str = "", learning: bool = False) -> dict[str, Any]:
+    """Run every case through the real runtime and store the scored run. ``learning`` adds the scripted learning
+    scenarios (``learning_rows``) after the bank, on questions the bank never asks."""
     run_id = "ev_" + uuid.uuid4().hex[:10]
     rows = []
     for case in cases:
@@ -109,6 +110,8 @@ def run(lyst, actor, workspace_id: str, cases: list[EvalCase], *, label: str = "
                      "passed": all(c.passed for c in checks), "checks": [asdict(c) for c in checks],
                      "human_baseline_minutes": case.human_baseline_minutes, "supervision_minutes": case.supervision_minutes,
                      "productivity_gain": round(gain, 1) if gain else None})
+    if learning:
+        rows += learning_rows(lyst, actor, workspace_id)
     passed = sum(r["passed"] for r in rows)
     gains = [r["productivity_gain"] for r in rows if r["productivity_gain"] and r["passed"]]
     summary = {"run_id": run_id, "label": label, "cases": len(rows), "passed": passed,
@@ -139,7 +142,105 @@ def _usage(lyst, workspace_id: str, task_id: str) -> dict[str, Any]:
 
 # Which checks measure which quality dimension (prompt section 5.1)
 DIMENSION_OF = {"finished": "completion", "status": "completion", "metric": "correctness", "value": "correctness",
-                "driver": "correctness", "validation": "evidence", "latency": "efficiency"}
+                "driver": "correctness", "validation": "evidence", "latency": "efficiency",
+                "reused": "learning", "skipped_reading": "learning", "no_more_queries": "learning", "compiled": "learning", "not_reused": "learning",
+                "not_recalled": "learning", "not_cited": "learning", "not_recompiled": "learning",
+                "reused_again": "learning"}
+
+
+# ------------------------------------------------------------------------------ learning scenarios
+
+LEARNING_QUESTION = "What was operating income in {period}?"  # a pattern the demo bank never asks
+LEARNING_CASES = ("learning-reuse", "learning-dispute", "learning-withdraw")
+
+
+def _ask_scored(lyst, actor, ws: str, question: str) -> tuple[dict[str, Any], dict[str, Any], float]:
+    start = time.perf_counter()
+    tid = lyst.runtime.submit(actor, ws, question)
+    while lyst.runtime.run_once():
+        pass
+    seconds = time.perf_counter() - start
+    return lyst.runtime.get(actor, tid), _outputs(lyst, tid), seconds
+
+
+def learning_rows(lyst, actor, ws: str) -> list[dict[str, Any]]:
+    """Does Lyst learn, and unlearn? Three scripted scenarios on the demo, each a row scored like a bank case:
+
+    - ``learning-reuse``: a verified answer compiles a workflow; the same question for another quarter reuses it, gives
+      the independently computed value, reads the request without re-planning and runs no more queries than
+      planning did.
+    - ``learning-dispute``: a person marks that answer incorrect; asked again, the question is planned afresh (not
+      reused), the wrong answer is neither recalled nor cited, the same steps are not recompiled, and the value is
+      still the independently computed one.
+    - ``learning-withdraw``: the verdict is withdrawn; the workflow is reused again.
+    """
+    from . import demo
+
+    df = demo.pnl()
+    m = pd.to_datetime(df["month"])
+
+    def oi(a, b):
+        return float(df[(m >= a) & (m < b)].operating_income.sum())
+
+    want = {"Q2 2026": oi("2026-04-01", "2026-07-01"), "Q1 2026": oi("2026-01-01", "2026-04-01"),
+            "Q4 2025": oi("2025-10-01", "2026-01-01")}
+
+    def base(period, task, outputs, seconds):
+        r = task.get("result") or {}
+        cur = (outputs.get("current") or {}).get("value")
+        ok = cur is not None and abs(cur - want[period]) <= abs(want[period]) * 1e-6 + 1e-9
+        return r, [CheckResult("finished", task["status"] == "done", f"task {task['status']}"),
+                   CheckResult("status", r.get("status") == "complete", f"answer status {r.get('status')}"),
+                   CheckResult("value", ok, f"expected {want[period]:.6g}; current {cur}")]
+
+    def row(case, question, task, checks, seconds):
+        return {"case": case, "category": "learning", **_usage(lyst, ws, task["id"]), "question": question,
+                "task_id": task["id"], "seconds": round(seconds, 3), "passed": all(c.passed for c in checks),
+                "checks": [asdict(c) for c in checks], "human_baseline_minutes": None, "supervision_minutes": 0.0,
+                "productivity_gain": None}
+
+    rows = []
+    q1 = LEARNING_QUESTION.format(period="Q2 2026")
+    t1, o1, _ = _ask_scored(lyst, actor, ws, q1)
+    wf1 = ((t1.get("result") or {}).get("supporting") or {}).get("workflow") or {}
+    compiled = wf1.get("compiled") or {}
+    q2 = LEARNING_QUESTION.format(period="Q1 2026")
+    t2, o2, s2 = _ask_scored(lyst, actor, ws, q2)
+    r2, checks = base("Q1 2026", t2, o2, s2)
+    used = ((r2.get("supporting") or {}).get("workflow") or {}).get("used") or {}
+    planned_q, reused_q = _usage(lyst, ws, t1["id"])["queries"], _usage(lyst, ws, t2["id"])["queries"]
+    method = (o2.get("understand") or {}).get("method")
+    checks += [CheckResult("compiled", bool(compiled.get("id")), f"first answer compiled {compiled or None}"),
+               CheckResult("reused", bool(used) and used.get("id") == compiled.get("id"), f"used {used or None}"),
+               CheckResult("skipped_reading", method == "workflow", f"request read by {method}"),
+               CheckResult("no_more_queries", reused_q <= planned_q, f"{reused_q} queries, planned {planned_q}")]
+    rows.append(row("learning-reuse", q2, t2, checks, s2))
+
+    aid = "a_" + t2["id"]
+    mem = lyst.stores.workspace(ws).scalar("SELECT id FROM memory WHERE layer = 'episodic' AND "
+                                           "provenance->>'analysis_id' = ?", [aid])
+    fb = lyst.feedback.give(actor, ws, aid, "incorrect", note="evaluation: a scripted dispute")
+    t3, o3, s3 = _ask_scored(lyst, actor, ws, q2)  # the very question whose answer was disputed
+    r3, checks = base("Q1 2026", t3, o3, s3)
+    wf3 = (r3.get("supporting") or {}).get("workflow") or {}
+    ctx = o3.get("contextualize") or {}
+    checks += [CheckResult("not_reused", wf3.get("used") is None, f"used {wf3.get('used')}"),
+               CheckResult("not_recalled", mem is not None and mem not in {x["id"] for x in ctx.get("memory", [])},
+                           f"disputed memory {mem}"),
+               CheckResult("not_cited", aid not in {p["analysis_id"] for p in ctx.get("prior_answers", [])},
+                           f"disputed analysis {aid}"),
+               CheckResult("not_recompiled", bool((wf3.get("compiled") or {}).get("blocked")),
+                           f"compiled {wf3.get('compiled')}")]
+    rows.append(row("learning-dispute", q2, t3, checks, s3))
+
+    lyst.feedback.withdraw(actor, ws, fb["id"])
+    q4 = LEARNING_QUESTION.format(period="Q4 2025")
+    t4, o4, s4 = _ask_scored(lyst, actor, ws, q4)
+    r4, checks = base("Q4 2025", t4, o4, s4)
+    used = ((r4.get("supporting") or {}).get("workflow") or {}).get("used") or {}
+    checks.append(CheckResult("reused_again", used.get("id") == compiled.get("id"), f"used {used or None}"))
+    rows.append(row("learning-withdraw", q4, t4, checks, s4))
+    return rows
 
 
 def dimensions(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

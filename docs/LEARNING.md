@@ -67,6 +67,20 @@ crash in between) is asked for on the next failure.
 | `harness` | Rules in force, working and ineffective, with each rule's effect |
 | `memory` | What context can recall, by trust, and what is held back as disputed |
 
+## The gate measures learning
+
+`uv run lyst eval --baseline docs/quality/eval-baseline.json` (run in CI) adds three scripted scenarios after the
+question bank, in the `learning` category and dimension (`lyst.evals.learning_rows`), on a question the bank never asks:
+
+| Case | What must hold |
+|---|---|
+| `learning-reuse` | A verified answer compiles a workflow; the same question for another quarter reuses it, reads the request without re-planning, runs no more queries, and gives the value computed independently with pandas |
+| `learning-dispute` | After a person marks that answer incorrect, the same question is planned afresh, the wrong answer is neither recalled nor cited, the same steps are not recompiled, and the value is still right |
+| `learning-withdraw` | After the verdict is withdrawn, the workflow is reused again |
+
+They are in the baseline, so a change that breaks the loop fails CI as a regression. `tests/test_learning.py` injects
+the fault (a verdict whose effects never apply) and checks that the gate reports it.
+
 ## Limits
 
 - A dispute holds back reuse; it does not make the planner find the right answer. The correction, recalled as context,

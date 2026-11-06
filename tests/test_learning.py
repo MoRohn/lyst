@@ -258,3 +258,34 @@ def test_the_learning_report_over_http(seeded):
     assert r["answers"]["verdicts"]["incorrect"] == 1 and r["answers"]["analyses"]["disputed"] == 1
     assert r["workflows"]["held_back"] == {"disputed by a person": 1}
     assert r["memory"]["held_back_disputed"] == 1 and r["harness"]["in_force"] == 0
+
+
+# -- the evaluation gate measures learning (phase 3) -----------------------------------------------------------------
+
+
+def test_the_learning_scenarios_pass_and_catch_a_broken_loop(seeded, monkeypatch):
+    from lyst import evals
+
+    lyst, owner = seeded
+    rows = evals.learning_rows(lyst, owner, "northwind")
+    assert [r["case"] for r in rows] == ["learning-reuse", "learning-dispute", "learning-withdraw"]
+    assert all(r["passed"] for r in rows), [c for r in rows for c in r["checks"] if not c["passed"]]
+    assert evals.dimensions(rows)["learning"]["passed"] == evals.dimensions(rows)["learning"]["checks"]
+
+
+def test_the_gate_fails_when_a_dispute_stops_holding_anything_back(lyst, monkeypatch):
+    """Fault injection: a verdict is recorded but its effects never apply. The gate must see it."""
+    from lyst import demo, evals
+
+    owner = lyst.guard.create_user("avery@northwind.test", "Avery")
+    demo.seed(lyst, owner)
+    monkeypatch.setattr(lyst.feedback, "reconcile", lambda *a, **k: {"status": "open", "workflows": [], "changed": []})
+    rows = {r["case"]: r for r in evals.learning_rows(lyst, owner, "northwind")}
+    failed = {c["name"] for c in rows["learning-dispute"]["checks"] if not c["passed"]}
+    assert {"not_reused", "not_recalled", "not_cited", "not_recompiled"} <= failed
+    import json  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+
+    base = json.loads((Path(__file__).parents[1] / "docs/quality/eval-baseline.json").read_text())
+    cmp_ = evals.compare({"results": list(rows.values())}, base)
+    assert not cmp_["ok"] and any(r["case"] == "learning-dispute" for r in cmp_["regressions"])

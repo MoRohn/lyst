@@ -667,7 +667,7 @@ def run_eval(label: str, *, baseline: str | None = None, write_baseline: str | N
         try:
             owner = lyst.guard.create_user("eval@lyst.local", "Evaluator")
             demo.seed(lyst, owner)
-            s = evals.run(lyst, owner, "northwind", evals.demo_bank(), label=label)
+            s = evals.run(lyst, owner, "northwind", evals.demo_bank(), label=label, learning=True)
             for r in s["results"]:
                 bad = [c["name"] for c in r["checks"] if not c["passed"]]
                 print(f"{'PASS' if r['passed'] else 'FAIL'}  {r['seconds']:>5.2f}s  {r['case']}" + (f"  ({', '.join(bad)})" if bad else ""))

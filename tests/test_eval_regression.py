@@ -21,7 +21,7 @@ def _bank(ids):
 
 def test_checked_in_baseline_covers_the_whole_bank():
     base = json.loads(BASELINE.read_text())
-    assert set(base["cases"]) == {c.id for c in evals.demo_bank()}
+    assert set(base["cases"]) == {c.id for c in evals.demo_bank()} | set(evals.LEARNING_CASES)
     assert all(c["passed"] for c in base["cases"].values())
 
 
