@@ -59,8 +59,36 @@ The visual language, inspired by the craft of native apps without imitating them
   folded underneath, **Open** for the full artifact). Data opens with Lyst's read on the data, each flagged dataset
   one click from its record. Brain opens on a band (`agent.hero`) of what Lyst knows, is doing and runs on its own,
   over a drawing made from those same counts (decorative, with the counts as its alt text).
-  Activity shows as a day-grouped list or a **board** (In progress, Needs you, Done, Stopped), where a running card
-  shows its real step progress. Task details show a progress meter and a step timeline (`visuals.steps`).
+  Brain › Work › Activity is the full history as a day-grouped list; the board view of the same work is the
+  activity zone below. Task details show a progress meter and a step timeline (`visuals.steps`).
+* **Lyst agent bar (`lyst.ui.agent_bar`).** One sticky line at the top of every page (not the artifact viewer), and
+  the one place to talk to Lyst: its state (a mark that turns while it works and goes amber when something waits on
+  you), one field to type or speak into, what is running now with **Watch**, how many things need you, and a chevron
+  that opens the panel. **/** focuses the field from anywhere, **↓** opens the panel, **Esc** closes it. The field
+  suggests places as you type (the command palette's places, so the two always agree) with "Ask Lyst …" beside them;
+  "go to SQL", "open definitions" or a section's name goes there, "follow Lyst" / "stop following" switch Follow, and
+  anything else is a question for the governed analyst. A question asked on Data, Brain or Settings starts and is
+  followed in the panel without leaving the page; on Home it opens the answer, as the old ask box did. The panel is
+  **Conversation** (this session's questions, each with its live status and the answer's brief, "Open answer") and
+  **Live** (what is running with the engine's step count, then what Lyst did in this workspace from the event
+  stream, newest first, each with **Go** to the page and section where it happened). **Follow Lyst** is off until
+  you turn it on; then the page moves to where something new happened, at most once every 12 seconds. The mic is
+  push-to-talk (the button or Alt+M) and keeps the voice rules in docs/VOICE.md. Home's big ask box and status line
+  are gone: the bar replaced them. What the field understands (`agent_bar.interpret`) and Live (`agent_bar.feed`)
+  are pure and tested (`tests/test_ui_agent_bar.py`).
+* **Activity zone (`lyst.ui.zone`).** The same Kanban board on every page, under the page's header: **Suggested ·
+  Needs you · In progress · Done** (the last seven days), always in that order. A page opens on its own cards (Home:
+  your questions and what Lyst suggests next; Data: datasets and sources; Brain: metrics, monitors, schedules,
+  investigations; Settings: rules, skills, credentials) and one switch shows **Everywhere**, each card then tagged
+  with its page. Cards are engine records (tasks, automatic activities, approvals, monitor findings, anticipations),
+  built and tested in Python (`zone.build`); a running card shows the engine's own step count. Gestures: **click**
+  opens a card where it lives; **drag** it to another column, and each column says what a drop does ("Drop to
+  approve") while the ones it cannot go to stand back; **press and hold**, the ⋯ button or **M** opens its actions;
+  on the keyboard, arrows move between cards, **Space** picks one up, arrows choose a column and Space drops it.
+  Nothing runs from a gesture: anything that changes something opens a confirmation (the card, where it moves, what
+  happens, how it is governed) and only Confirm calls the API, which keeps its own approvals and permissions. A
+  viewer's cards only open. The board is a `st.components.v2` component (`zone_component/`): in the page, no iframe,
+  no library, drawn with the page's tokens in both themes, refreshed every 8 seconds while something is in progress.
 * **Settings.** A native two-pane screen (`kit.panes`): panes listed on the left, the chosen pane on the right,
   kept in `?view=`. Workspace settings sit in titled, raised groups (`kit.group`).
 

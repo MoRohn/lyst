@@ -33,6 +33,12 @@ Voice control (page) ──► Audio gateway ──► speech engine: browser | 
   rewritten for the ear only ("-$292.1K (-3.4%)" is read as "minus 292.1 thousand dollars (minus 3.4 percent)"); the
   exact text stays on screen. "What did I miss?" reads back verified answers finished since the person's last voice
   session, and how many approvals wait for them.
+* **The agent bar is the voice control.** On every page the mic sits in the Lyst agent bar (`lyst.ui.agent_bar`):
+  it listens only after the person presses it (the button or Alt+M) and stops when
+  they pause or press again; the words appear in the field as they are heard. Moving around the app ("go to SQL",
+  "follow Lyst") is handled in the page and changes nothing; every other utterance is a turn to the voice engine
+  above, so the rules here apply unchanged. A spoken "approve" is answered in the bar with "Voice can't approve or
+  run this. Confirm it on screen.", and "Did you say …?" waits for **Ask this**.
 * **Audio is ephemeral by default.** It is transcribed and dropped. An administrator may turn on `retain_audio`;
   turning it off removes stored audio at the next retention pass. Transcripts are redacted before storage and pruned
   after `transcript_days` (default 30). Idle sessions close after 30 minutes.

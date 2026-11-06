@@ -177,13 +177,13 @@ _SURFACES = """<script>
 
 def style() -> None:
     """The stylesheet, with the token block for the active theme (light or dark)."""
-    from lyst.ui import agent, artifacts, tokens, visuals  # noqa: PLC0415
+    from lyst.ui import agent, agent_bar, artifacts, tokens, visuals, zone  # noqa: PLC0415
 
     try:
         mode = st.context.theme.type or "light"
     except Exception:  # noqa: BLE001 - outside a browser session
         mode = "light"
-    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS + artifacts.CSS + agent.CSS, 1))
+    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS + artifacts.CSS + agent.CSS + zone.CSS + agent_bar.CSS, 1))
     st.html(_SURFACES, unsafe_allow_javascript=True)
 
 
@@ -321,6 +321,7 @@ def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":mater
     st.session_state.pop("_waiting", None)  # something changed: recount what waits on this person
     st.session_state.pop("_recent", None)
     st.session_state.pop("_agent", None)  # and what Lyst is doing (agent.state)
+    st.session_state.pop("_zone", None)  # and the activity zone's cards
     if ok:
         st.toast(ok, icon=icon)
     return out
