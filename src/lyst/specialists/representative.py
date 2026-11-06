@@ -38,7 +38,8 @@ SCENARIOS: dict[str, list[tuple[str, list[str]]]] = {
     "crm_analyst": [("Segment our customers into groups", ["3 segments", "support_tickets"])],
     "predictive_analytics_analyst": [("Which customers are likely to churn?", ["AUC", "support_tickets"])],
     "cybersecurity_analyst": [("Analyze the login events for suspicious patterns", ["1 of 12", "user07"])],
-    "geospatial_analyst": [("Which stores are more than 300 km from a warehouse?", ["2 of 6", "Freiburg", "Munich"])],
+    "geospatial_analyst": [("Which stores are more than 300 km from a warehouse?", ["2 of 6", "Freiburg", "Munich"]),
+                           ("Geospatial: map the stores to the territory polygons; which territory contains the most stores?", ["North"])],
     # experiments on the samples
     "experimentation_analyst": [("Did variant B of the checkout experiment improve conversion?", ["B is higher than A", "p ="])],
     "digital_experimentation_analyst": [("Read out the checkout experiment A/B test: did the variant win?", ["B is higher than A"])],
@@ -88,6 +89,22 @@ SCENARIOS: dict[str, list[tuple[str, list[str]]]] = {
     "mlops_analyst": [("MLOps model monitoring: evaluate the deployed model predictions for drift by segment", ["Enterprise"])],
     "causal_inference_analyst": [("What was the causal impact of the March 2026 price change on revenue? Estimate the effect "
                                   "since March 2026", ["pre-event trend", "95% interval"])],
+    # the final nine
+    "software_systems_analyst": [("Analyze the app repo source code for architecture risks, failing tests and complexity",
+                                  ["reconcile_invoices", "B602"])],  # test runs need the OS sandbox, checked separately
+    "technical_debt_analyst": [("Where is the technical debt in the app repo? Use the app repo history for hotspots",
+                                ["billing.py", "hotspot"])],
+    "application_security_analyst": [("Security review of the app repo source code: which vulnerabilities?", ["B602", "B608"])],
+    "smart_contract_security_analyst": [("Audit the contracts repo smart contracts for vulnerabilities",
+                                         ["reentrancy", "tx.origin"])],
+    "transportation_mobility_analyst": [("Which stops are more than 30 minutes from the Depot over the road network?",
+                                         ["Stop F", "1 of 6"])],
+    "analytics_engineer": [("Build a cleaned derived table from the supplier master dataset: dedupe and impute", ["supplier_master_clean", "Globex"])],
+    "quantitative_research_analyst": [("Quant: test the returns series for volatility regimes and structural breaks",
+                                       ["Volatility changed", "Levene"])],
+    "digital_forensics_osint_analyst": [("OSINT: verify who owns Acme Holdings according to https://registry.example.org/acme-holdings "
+                                         "and https://news.example.com/acme-ownership and https://blog.example.net/rumours",
+                                         ["Northpoint Capital", "Corroborated", "not an approved research source"])],
     # existing analysis paths on the demo data and the packs
     "time_series_analyst": [("When did the trend in revenue change over time? Any anomalies?", ["anomaly"])],
     "fpa_analyst": [("Build a rolling forecast of operating income for the FP&A plan, next two quarters", ["80% interval"])],

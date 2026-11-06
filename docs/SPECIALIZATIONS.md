@@ -197,6 +197,28 @@ sets, each with a planted answer. Nineteen more representative tasks pass.
 - Digital forensics and OSINT: needs external research, which Lyst does not do by design.
 - Quantitative research: Equipped, but no representative task yet that tests regimes rather than reporting a change.
 
+## Slice 6: the final nine
+
+Researched against established open-source practice (Bandit and Slither rule sets, McCabe/radon complexity), built
+in-house on the standard library, NumPy and SciPy (no new dependencies):
+- **Code analysis** (`analytics/code.py`): Python syntax-tree analysis (complexity above 10, length, nesting, eleven
+  Bandit-style security rules), seven Slither-style Solidity rules including reentrancy and `tx.origin`, duplicated
+  blocks and TODOs in any language, change hotspots (changes x complexity), and the files' Python tests run inside
+  Lyst's OS sandbox with tracebacks. Source is read as data (path, source); nothing runs in the engine process.
+- **Spatial**: point-in-polygon regions (GeoJSON or coordinate rings) and Dijkstra travel time over a supplied network.
+- **Data cleaning** (capability `clean_dataset`, editor role, mutating): writes `<name>_clean` with whitespace and
+  types fixed, exact and near-duplicate names merged, missing numbers filled with `_imputed` flags; the source is never
+  changed and the copy keeps its classification.
+- **Regimes**: level and volatility breaks, per-regime mean and volatility, Welch and Levene tests.
+- **Research** (`specialists/research.py`): fetches only https URLs a request names, on hosts an installation
+  administrator approved (`LYST_RESEARCH_ALLOWED_HOSTS`), no redirects, private addresses refused, size and time
+  limits; quotes passages with URL, retrieval time and checksum and marks corroboration. No search engine.
+
+Library: 32 available, 2 partial (regression, concentration), 0 missing. **Maturity: all 136 Operational** (computed;
+every one has a representative task with a known answer that the test suite re-runs). None is Validated or
+Production qualified: that needs domain benchmarks, adversarial tests and real-data validation, which is the next level
+of work, not a claim made here.
+
 ## Known limitations
 
 - **Routing accuracy is measured on the author's own cases.** 58 of 58 labelled cases route correctly. The 10
@@ -205,7 +227,11 @@ sets, each with a planted answer. Nineteen more representative tasks pass.
 - The assembly changes verification and disclosure, not the computation: the plan's capabilities are still chosen
   by the existing engine, so a specialized request gets the same figures as a plain one, checked harder and
   reported more honestly (slice 2, below). Choosing different methods per discipline is later work.
-- 9 roles are below Operational (listed in slice 5) because a required method is missing or partial.
+- Operational means a representative task on controlled sample data passes. It does not mean validated on real data;
+  Level 4 (benchmarks plus adversarial tests) is not claimed for any role.
+- Code analysis rules are deep for Python and Solidity only; test runs need the OS sandbox (macOS sandbox-exec
+  verified; Linux bubblewrap written to its documented flags).
+- Research reads named pages on approved hosts only; it cannot search.
 - Document briefs are extractive: they quote the best passage; they do not reason across documents.
 - The engine's metric matching sometimes maps a word to a governed metric loosely (for example "peak demand" to
   support tickets); the fit check catches some of these, not all.

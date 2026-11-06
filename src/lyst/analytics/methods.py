@@ -801,3 +801,215 @@ def text_themes(df: pd.DataFrame, text: str, *, group: str | None = None, top: i
             "metrics": {"rows": n, "negative_share": _r(share_neg, 3), "themes": len(themes)},
             "assumptions": ["Themes are distinctive terms (TF-IDF), not a trained topic model.",
                             "Sentiment uses a small word list; sarcasm and negation are not handled."]}
+
+
+# -- polygons and network travel ----------------------------------------------------------------------------------
+
+
+def _ring(geometry: Any) -> list[tuple[float, float]]:
+    """A polygon's outer ring as (lon, lat) pairs, from GeoJSON (Polygon or MultiPolygon's first part) or
+    "lon lat; lon lat; ..." text."""
+    g = geometry
+    if isinstance(g, str) and g.strip().startswith("{"):
+        g = _json.loads(g)
+    if isinstance(g, dict):
+        coords = g.get("coordinates") or []
+        if g.get("type") == "MultiPolygon":
+            coords = coords[0] if coords else []
+        return [(float(x), float(y)) for x, y, *_ in (coords[0] if coords else [])]
+    pts = []
+    for part in str(g).split(";"):
+        nums = _re.findall(r"-?\d+(?:\.\d+)?", part)
+        if len(nums) >= 2:
+            pts.append((float(nums[0]), float(nums[1])))
+    return pts
+
+
+def point_in_polygon(lon: float, lat: float, ring: list[tuple[float, float]]) -> bool:
+    """Ray casting (even-odd rule); points on an edge count as inside."""
+    inside = False
+    n = len(ring)
+    for i in range(n):
+        x1, y1 = ring[i]
+        x2, y2 = ring[(i + 1) % n]
+        if (y1 > lat) != (y2 > lat):
+            x = x1 + (lat - y1) * (x2 - x1) / (y2 - y1)
+            if lon <= x:
+                inside = not inside
+    return inside
+
+
+def regions(points: pd.DataFrame, polygons: pd.DataFrame, *, lat: str, lon: str, region: str, geometry: str,
+            label: str | None = None) -> dict[str, Any]:
+    rings = [(str(r[region]), _ring(r[geometry])) for _, r in polygons.iterrows()]
+    rings = [(name, ring) for name, ring in rings if len(ring) >= 3]
+    if not rings:
+        raise MethodError("no polygon could be read (GeoJSON Polygon/MultiPolygon or 'lon lat; lon lat; ...' rings)")
+    p = points.dropna(subset=[lat, lon]).copy()
+    p["region"] = [next((name for name, ring in rings if point_in_polygon(x, y, ring)), None) for x, y in zip(p[lon], p[lat], strict=True)]
+    counts = p["region"].value_counts().rename_axis("region").reset_index(name="points")
+    outside = int(p["region"].isna().sum())
+    top = counts.iloc[0] if len(counts) else None
+    return {"summary": (f"{top['region']} contains the most points ({int(top['points'])} of {len(p)})" if top is not None else
+                        "No point falls inside any region") + (f"; {outside} fall outside every region." if outside else "."),
+            "findings": [f"{len(rings)} regions read; {len(counts)} contain at least one point."],
+            "tables": [_table("Points per region", counts),
+                       _table("Points and their region", p[[c for c in (label, lat, lon, "region") if c]].astype(str))],
+            "metrics": {"regions": len(rings), "points": int(len(p)), "outside": outside},
+            "assumptions": ["Point-in-polygon by ray casting on longitude/latitude (no projection); holes are ignored."]}
+
+
+def travel_times(edges: pd.DataFrame, *, src: str, dst: str, cost: str, origin: str, within: float | None = None,
+                 directed: bool = False) -> dict[str, Any]:
+    """Dijkstra shortest travel cost from ``origin`` to every node of a supplied network."""
+    import heapq  # noqa: PLC0415
+
+    adj: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    for a, b, c in edges[[src, dst, cost]].dropna().itertuples(index=False):
+        if float(c) < 0:
+            raise MethodError("travel costs must not be negative")
+        adj[str(a)].append((str(b), float(c)))
+        if not directed:
+            adj[str(b)].append((str(a), float(c)))
+    if origin not in adj:
+        raise MethodError(f"{origin} is not a node of the network")
+    dist, prev, heap = {origin: 0.0}, {origin: None}, [(0.0, origin)]
+    while heap:
+        d, v = heapq.heappop(heap)
+        if d > dist.get(v, math.inf):
+            continue
+        for w, c in adj[v]:
+            if d + c < dist.get(w, math.inf):
+                dist[w], prev[w] = d + c, v
+                heapq.heappush(heap, (d + c, w))
+    nodes = sorted(set(adj))
+    rows = []
+    for n in nodes:
+        if n == origin:
+            continue
+        path, v = [], n
+        while v is not None and n in dist:
+            path.append(v)
+            v = prev[v]
+        rows.append({"node": n, "travel": _r(dist[n], 2) if n in dist else None, "via": " → ".join(reversed(path)) if n in dist else ""})
+    t = pd.DataFrame(rows).sort_values("travel", ascending=False, na_position="first")
+    unreachable = int(t["travel"].isna().sum())
+    beyond = t[t["travel"] > within] if within is not None else t.iloc[0:0]
+    far = t.dropna().iloc[0] if t["travel"].notna().any() else None
+    summary = (f"{len(beyond)} of {len(t)} places are more than {within:g} from {origin}" if within is not None
+               else f"The farthest place from {origin} is {far['node']} ({far['travel']:g})" if far is not None else
+               f"Nothing is reachable from {origin}")
+    findings = [f"Farthest: {far['node']} at {far['travel']:g} via {far['via']}."] if far is not None else []
+    if len(beyond):
+        findings.insert(0, "Beyond the limit: " + ", ".join(beyond["node"].astype(str).tolist()[:8]) + ".")
+    if unreachable:
+        findings.append(f"{unreachable} place(s) cannot be reached on this network.")
+    return {"summary": summary + ".", "findings": findings, "tables": [_table(f"Travel from {origin}", t)],
+            "metrics": {"nodes": len(nodes), "beyond": int(len(beyond)), "unreachable": unreachable},
+            "assumptions": ["Shortest paths by Dijkstra on the supplied network and its travel costs; no live traffic.",
+                            "Links are two-way unless the network is marked directed."]}
+
+
+# -- data cleaning ------------------------------------------------------------------------------------------------
+
+
+def _norm_name(s: str) -> str:
+    s = _re.sub(r"[^a-z0-9 ]", " ", str(s).lower())
+    s = _re.sub(r"\b(inc|incorporated|ltd|limited|llc|gmbh|corp|corporation|co|company|plc|the)\b", " ", s)
+    return " ".join(s.split())
+
+
+def clean_frame(df: pd.DataFrame, *, key: str | None = None, name: str | None = None,
+                threshold: float = 0.92) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """A cleaned copy and what changed: whitespace trimmed, numbers stored as text converted, exact duplicate rows
+    dropped, near-duplicate names merged (``difflib`` ratio >= ``threshold`` within a blocking letter, the first
+    record surviving), and missing numbers filled with the column median with an ``_imputed`` flag beside them."""
+    from difflib import SequenceMatcher  # noqa: PLC0415
+
+    d = df.copy()
+    trimmed = 0
+    for c in d.columns:
+        if d[c].dtype == object or pd.api.types.is_string_dtype(d[c]):
+            before = d[c]
+            d[c] = d[c].map(lambda v: " ".join(v.split()) if isinstance(v, str) else v)
+            trimmed += int((before.fillna("") != d[c].fillna("")).sum())
+            conv = pd.to_numeric(d[c], errors="coerce")
+            if d[c].notna().sum() and conv.notna().sum() == d[c].notna().sum():
+                d[c] = conv
+    n0 = len(d)
+    d = d.drop_duplicates()
+    exact = n0 - len(d)
+    merged: list[dict[str, Any]] = []
+    if name and name in d.columns:
+        keep, seen = [], {}
+        for idx, v in d[name].items():
+            nv = _norm_name(v)
+            block = nv[:1]
+            match = next((o for o in seen.get(block, []) if SequenceMatcher(None, nv, o[1]).ratio() >= threshold), None)
+            if match:
+                merged.append({"kept": str(d.at[match[0], name]), "merged": str(v),
+                               "similarity": _r(SequenceMatcher(None, nv, match[1]).ratio(), 3)})
+            else:
+                keep.append(idx)
+                seen.setdefault(block, []).append((idx, nv))
+        d = d.loc[keep]
+    imputed = {}
+    for c in d.columns:
+        if c == key or not pd.api.types.is_numeric_dtype(d[c]):
+            continue
+        miss = d[c].isna()
+        if miss.any() and miss.mean() < 0.5:
+            d[f"{c}_imputed"] = miss
+            d[c] = d[c].fillna(d[c].median())
+            imputed[c] = int(miss.sum())
+    report = {"rows_in": n0, "rows_out": int(len(d)), "exact_duplicates": int(exact), "merged_names": merged,
+              "imputed": imputed, "trimmed_cells": trimmed}
+    return d.reset_index(drop=True), report
+
+
+# -- regimes ------------------------------------------------------------------------------------------------------
+
+
+def regimes(df: pd.DataFrame, *, date: str, value: str) -> dict[str, Any]:
+    """Regimes in a series: level shifts and volatility shifts (penalized change points on the values and on their
+    absolute deviations), each regime's mean and volatility, and a Welch test between the last two regimes."""
+    from scipy import stats as sps  # noqa: PLC0415
+
+    from .changepoint import change_points  # noqa: PLC0415
+
+    d = df[[date, value]].dropna().copy()
+    d[date] = pd.to_datetime(d[date], errors="coerce")
+    d = d.dropna().sort_values(date)
+    if len(d) < 30:
+        raise MethodError("regime analysis needs at least 30 observations")
+    x = d[value].astype(float).to_numpy()
+    level = change_points(x, min_segment=10, max_breaks=3)
+    dev = np.abs(x - np.median(x))
+    vol = change_points(dev, min_segment=10, max_breaks=3)
+    cuts = sorted({b.index for b in level} | {b.index for b in vol})
+    bounds = [0, *cuts, len(x)]
+    rows = []
+    for a, b in zip(bounds, bounds[1:], strict=False):
+        seg = x[a:b]
+        rows.append({"from": str(d[date].iloc[a].date()), "to": str(d[date].iloc[b - 1].date()), "observations": int(len(seg)),
+                     "mean": _r(seg.mean(), 6), "volatility": _r(seg.std(ddof=1), 6)})
+    t = pd.DataFrame(rows)
+    findings = []
+    for b in vol:
+        when = str(d[date].iloc[b.index].date())
+        before, after = x[:b.index].std(ddof=1), x[b.index:].std(ddof=1)
+        findings.append(f"Volatility changed on {when}: {before:.4g} before, {after:.4g} after ({after / before:.1f}x).")
+    for b in level:
+        findings.append(f"Level shifted on {str(d[date].iloc[b.index].date())}: mean {b.before:.4g} to {b.after:.4g}.")
+    if len(rows) >= 2:
+        a_seg, b_seg = x[bounds[-3]:bounds[-2]], x[bounds[-2]:]
+        test = sps.ttest_ind(b_seg, a_seg, equal_var=False)
+        lev = sps.levene(a_seg, b_seg)
+        findings.append(f"Last two regimes: difference in means p = {test.pvalue:.3g} (Welch); difference in variance "
+                        f"p = {lev.pvalue:.3g} (Levene).")
+    lead = findings[0] if findings else "No regime change was found: the series is consistent with one regime."
+    return {"summary": f"{len(rows)} regime(s) in {len(x)} observations. " + lead, "findings": findings,
+            "tables": [_table("Regimes", t)],
+            "metrics": {"regimes": len(rows), "level_breaks": len(level), "volatility_breaks": len(vol)},
+            "assumptions": ["Breaks are penalized least-squares change points (at least 10 observations per regime).",
+                            "Past regimes describe the data; they do not forecast the next change."]}

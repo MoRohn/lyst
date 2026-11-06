@@ -52,12 +52,12 @@ LIBRARY: dict[str, LibraryCapability] = {c.id: c for c in [
        "a profile with per-column statistics and issues", ["the dataset fits in memory for profiling"],
        ["profiles a sample-free full read; very wide tables are capped at a correlation subset"], permission="data.read",
        task_classes=["data_profiling"]),
-    _c("data_cleaning", "Data cleaning and derivation", "Governed SQL transforms that derive cleaned datasets with lineage.",
-       "partial", ["mod:lyst.transforms:TransformService", "mod:lyst.transforms:lint"], "SQL over workspace datasets",
-       "a derived, versioned dataset", ["cleaning rules can be expressed in SQL"],
-       ["no automatic imputation or entity resolution; rules are written, reviewed and versioned"],
-       coverage="rule-based SQL transforms; no fuzzy matching or imputation models", permission="data.ingest",
-       task_classes=["data_quality"]),
+    _c("data_cleaning", "Data cleaning and derivation", "Governed SQL transforms, and cleaned copies: whitespace and types fixed, "
+       "exact and near-duplicate names merged (difflib similarity with blocking), missing numbers filled with flags.",
+       "available", ["cap:clean_dataset", "mod:lyst.analytics.methods:clean_frame", "mod:lyst.transforms:TransformService"],
+       "a dataset", "a new <name>_clean dataset version and a report of every change", ["the first of near-duplicates is the record to keep"],
+       ["near-duplicate merging is name similarity only; it never edits the source dataset"],
+       permission="data.ingest", task_classes=["data_quality"]),
     _c("schema_validation", "Schema and contract validation", "Versioned data contracts checked on every ingest.",
        "available", ["mod:lyst.contracts:ContractService"], "a dataset and its contract", "pass/fail per rule with the breaking change",
        ["the contract states the expected columns, types and rules"], ["checks run at ingest, not continuously on sources"],
@@ -125,12 +125,13 @@ LIBRARY: dict[str, LibraryCapability] = {c.id: c for c in [
        "available", ["cap:what_if", "mod:lyst.scenarios:sensitivity", "mod:lyst.scenarios:cases"], "an approved driver model",
        "scenario outcomes and sensitivities", ["the model's formulas describe the business"], ["models are defined by people, not learned"],
        task_classes=["simulation", "recommendation"]),
-    _c("geospatial_analysis", "Geospatial analysis", "Great-circle distances, nearest neighbour and threshold counts between point sets.",
-       "partial", ["cap:run_method", "mod:lyst.analytics.methods:distances"], "two datasets with latitude and longitude",
-       "nearest target and distance per point", ["decimal-degree coordinates (WGS84)"],
-       ["points only: no polygons, regions, spatial joins or travel-time routing"], coverage="point distances",
+    _c("geospatial_analysis", "Geospatial analysis", "Great-circle distances and nearest neighbours, point-in-polygon regions "
+       "(GeoJSON or coordinate rings) and shortest travel time over a supplied road or route network (Dijkstra).",
+       "available", ["cap:run_method", "mod:lyst.analytics.methods:distances", "mod:lyst.analytics.methods:regions",
+                     "mod:lyst.analytics.methods:travel_times"], "points with coordinates, region polygons, or a network of links",
+       "nearest targets, points per region, travel time and route from an origin", ["decimal-degree coordinates (WGS84)"],
+       ["no map projections or rendering, polygon holes are ignored; travel times come from the network supplied, not live traffic"],
        task_classes=["geospatial_analysis"]),
-
     _c("text_analytics", "Text analytics", "Themes (TF-IDF), lexicon sentiment and simple entities in a text column, and "
        "passage retrieval over governed documents.", "available",
        ["cap:run_method", "mod:lyst.analytics.methods:text_themes", "mod:lyst.knowledge:KnowledgeService"], "a text column or documents",
@@ -185,9 +186,15 @@ LIBRARY: dict[str, LibraryCapability] = {c.id: c for c in [
     _c("artifact_generation", "Artifact generation", "PDF, PPTX, spreadsheet and Markdown deliverables with provenance.", "available",
        ["mod:lyst.deliverables:ArtifactService"], "a finished task", "a versioned artifact", ["the task is verified"],
        ["export is subject to the data policy"], permission="data.read", task_classes=["descriptive_reporting"]),
-    _c("code_analysis", "Source code analysis", "Static analysis, test execution and trace evidence over a repository.", "missing", [],
-       "a repository", "findings with file and line evidence", ["the repository is reachable by an approved connection"],
-       ["not implemented: Lyst has no repository connector or code execution sandbox for third-party code"],
+    _c("code_analysis", "Source code analysis", "Python syntax-tree analysis (McCabe complexity, length, nesting, Bandit-style "
+       "security rules), Slither-style Solidity rules, duplicated blocks and TODOs in any language, change hotspots, and the "
+       "files' Python tests run in Lyst's OS sandbox with failure tracebacks.", "available",
+       ["cap:run_method", "mod:lyst.analytics.code:analyze", "mod:lyst.analytics.code:run_tests"],
+       "source files as rows (path, source) and optionally a change history (path, changes)",
+       "findings with file and line, complex functions, hotspots, test outcomes",
+       ["the files are the code under review", "the sandbox is available on the host for test runs"],
+       ["deep rules for Python and Solidity only; other languages get size, duplication and marker metrics",
+        "pattern matches, not data-flow proofs: review each finding", "tests run only where the OS sandbox is available"],
        task_classes=["code_analysis"]),
     _c("log_analysis", "Log and telemetry analysis", "Raw lines in common formats (JSON, key=value, web access, syslog) or "
        "tabular events: event mix, rare events, per-entity bursts, repeated-failures-then-success sequences and timelines.",
@@ -203,10 +210,11 @@ LIBRARY: dict[str, LibraryCapability] = {c.id: c for c in [
        ["undirected and unweighted; exact betweenness up to about 2,000 entities"],
        task_classes=["segmentation", "research_synthesis", "data_modeling"]),
 
-    _c("web_research", "External research", "Search and read external sources with citations.", "missing", [],
-       "a research question", "cited findings", ["external access is approved"],
-       ["not implemented: Lyst does not browse the web; research uses workspace knowledge only"],
-       task_classes=["research_synthesis"]),
+    _c("web_research", "External research", "Fetch https pages a request names, from hosts an administrator approved, and quote "
+       "what they say with URL, time and checksum; corroboration across sources.", "available",
+       ["cap:run_method", "mod:lyst.specialists.research:research"], "https URLs in the request",
+       "quotes per source, corroborated or single-source", ["the approved hosts are the right sources"],
+       ["no search engine and no logins: only named pages on approved hosts are read"], task_classes=["research_synthesis"]),
 ]}
 
 

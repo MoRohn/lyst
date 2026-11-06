@@ -277,6 +277,144 @@ def regression_results(name: str, segment: str, segments: list[str], worst: str,
     return pd.DataFrame(rows)
 
 
+APP_REPO = {
+    "app/billing.py": """import subprocess
+import sqlite3
+
+
+def reconcile_invoices(rows, ledger, mode):
+    total = 0
+    for r in rows:
+        if r["status"] == "open":
+            if r["amount"] > 0:
+                if mode == "strict":
+                    for l in ledger:
+                        if l["id"] == r["id"] and l["amount"] != r["amount"]:
+                            total += 1
+                        elif l["id"] == r["id"]:
+                            continue
+                elif mode == "loose" and r.get("flag"):
+                    total += 2
+                else:
+                    total += 0
+            elif r["amount"] < 0 or r.get("refund"):
+                total -= 1
+        elif r["status"] == "void" and r.get("note"):
+            total += 0
+    return total
+
+
+def export(path):
+    subprocess.run("tar czf " + path + " /data", shell=True)
+
+
+def find_customer(conn, name):
+    return conn.execute(f"SELECT * FROM customers WHERE name = '{name}'").fetchall()
+""",
+    "app/pricing.py": """def net_price(price, discount):
+    return price - price * discount
+
+
+def gross_price(price, tax):
+    return price + price * tax
+""",
+    "app/test_pricing.py": """from pricing import net_price, gross_price
+
+
+def test_net_price():
+    assert net_price(100, 0.1) == 90
+
+
+def test_gross_price():
+    assert gross_price(100, 0.2) == 125
+""",
+}
+
+VAULT_SOL = """pragma solidity ^0.8.0;
+
+contract Vault {
+    mapping(address => uint256) public balances;
+    address public owner;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw(uint256 amount) external {
+        require(balances[msg.sender] >= amount);
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok);
+        balances[msg.sender] -= amount;
+    }
+
+    function sweep(address to) external {
+        require(tx.origin == owner);
+        payable(to).transfer(address(this).balance);
+    }
+}
+"""
+
+
+def code_frames() -> dict[str, pd.DataFrame]:
+    return {"app_repo": pd.DataFrame([{"path": k, "source": v} for k, v in APP_REPO.items()]),
+            "app_repo_history": pd.DataFrame([{"path": "app/billing.py", "changes": 48, "defects": 9},
+                                              {"path": "app/pricing.py", "changes": 6, "defects": 1}]),
+            "contracts_repo": pd.DataFrame([{"path": "contracts/Vault.sol", "source": VAULT_SOL}])}
+
+
+def sales_regions() -> pd.DataFrame:
+    def box(w, s, e, n):
+        return {"type": "Polygon", "coordinates": [[[w, s], [e, s], [e, n], [w, n], [w, s]]]}
+
+    import json  # noqa: PLC0415
+
+    return pd.DataFrame([{"region": "North", "geometry": json.dumps(box(8.0, 52.0, 15.0, 55.0))},
+                         {"region": "Central", "geometry": json.dumps(box(9.0, 50.5, 15.0, 52.0))},
+                         {"region": "South", "geometry": json.dumps(box(6.0, 47.0, 14.0, 50.5))}])
+
+
+def road_network() -> pd.DataFrame:
+    edges = [("Depot", "Stop A", 8), ("Stop A", "Stop B", 7), ("Stop B", "Stop C", 9), ("Depot", "Stop D", 12),
+             ("Stop D", "Stop E", 15), ("Stop E", "Stop F", 14), ("Stop C", "Stop F", 30), ("Stop A", "Stop D", 6)]
+    return pd.DataFrame(edges, columns=["from_node", "to_node", "minutes"])
+
+
+def supplier_master() -> pd.DataFrame:
+    rows = [{"supplier_id": "S1", "supplier_name": "Globex Corporation", "annual_spend": 120000.0},
+            {"supplier_id": "S2", "supplier_name": "  Globex Corp. ", "annual_spend": 30000.0},
+            {"supplier_id": "S3", "supplier_name": "Initech", "annual_spend": None},
+            {"supplier_id": "S4", "supplier_name": "Umbrella Ltd", "annual_spend": 54000.0},
+            {"supplier_id": "S4", "supplier_name": "Umbrella Ltd", "annual_spend": 54000.0},
+            {"supplier_id": "S5", "supplier_name": "Stark Industries", "annual_spend": 81000.0}]
+    return pd.DataFrame(rows)
+
+
+def returns_series(n: int = 300) -> pd.DataFrame:
+    rng = np.random.default_rng(53)
+    dates = pd.bdate_range("2025-09-01", periods=n)
+    vol = np.where(np.arange(n) < 200, 0.006, 0.02)  # planted: volatility more than triples on the 201st day
+    return pd.DataFrame({"date": dates.date, "daily_return": np.round(rng.normal(0.0004, vol), 6)})
+
+
+RESEARCH_PAGES = {
+    "https://registry.example.org/acme-holdings": "<h1>Company registry: Acme Holdings</h1><p>Acme Holdings Ltd is "
+        "owned by Northpoint Capital since 2024. The registered office moved to Dublin in March 2025.</p>",
+    "https://news.example.com/acme-ownership": "<h1>Acme changes hands</h1><p>Investment firm Northpoint Capital "
+        "completed its purchase of Acme Holdings, which is now owned by Northpoint Capital. Staff were told on Monday.</p>",
+    "https://blog.example.net/rumours": "<h1>Rumours</h1><p>Some say Acme Holdings is owned by a sovereign fund.</p>",
+}
+
+
+class FixtureFetcher:
+    """Serves RESEARCH_PAGES instead of the internet, for tests and evidence (controlled conditions)."""
+    allowed_hosts = ["example.org", "example.com"]  # blog.example.net is deliberately not approved
+
+    def __call__(self, url: str) -> bytes:
+        if url not in RESEARCH_PAGES:
+            raise ValueError(f"{url} returned 404")
+        return RESEARCH_PAGES[url].encode()
+
+
 # title -> text. Each document plants one fact the matching discipline's representative request must surface.
 DOCUMENTS: dict[str, str] = {
     "Data Retention Policy": "Customer records are retained for seven years after the end of the relationship. "
@@ -332,6 +470,8 @@ def load_all(lyst, actor, workspace_id: str) -> list[str]:
               "ticket_comments": ticket_comments(), "channel_options": channel_options(),
               "maintenance_history": maintenance_history(), "gene_expression": gene_expression(),
               "detection_results": predictions_cv(),
+              **code_frames(), "territory_polygons": sales_regions(), "road_network": road_network(),
+              "supplier_master": supplier_master(), "returns_series": returns_series(),
               "rig_tests": regression_results("rig_tests", "load_case", ["bending", "torsion", "thermal"], "torsion"),
               "twin_vs_sensor": regression_results("twin_vs_sensor", "asset", ["Pump 7", "Chiller 2", "Boiler 1"], "Chiller 2"),
               **{name: eval_results(name, *spec) for name, spec in EVALS.items()},
@@ -339,6 +479,7 @@ def load_all(lyst, actor, workspace_id: str) -> list[str]:
                                           outcome="purchased")}
     for name, df in frames.items():
         lyst.data.ingest(actor, workspace_id, name, csv_bytes(df), filename=f"{name}.csv", title=name.replace("_", " ").title())
+    lyst.services.research_fetcher = FixtureFetcher()  # this instance only: research reads the fixture pages
     if getattr(lyst, "knowledge", None) is not None:
         for title, text in DOCUMENTS.items():
             lyst.knowledge.add_document(actor, workspace_id, text.encode(), filename=title.lower().replace(" ", "_") + ".md",

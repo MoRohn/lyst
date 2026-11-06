@@ -1342,7 +1342,12 @@
     "on-time performance",
     "ridership",
     "shipping",
-    "delivery times"
+    "delivery times",
+    "road network",
+    "stops",
+    "depot",
+    "travel time",
+    "minutes from"
    ],
    "provenance.revisions": [
     "1.0.0: initial catalog definition; description from the Lyst Analyst Role Catalog (docs/analyst_catalog.txt, entry 124)"
