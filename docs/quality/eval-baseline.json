@@ -109,6 +109,54 @@
    "steps": 7,
    "tokens": 0
   },
+  "learning-dispute": {
+   "checks": {
+    "finished": true,
+    "not_cited": true,
+    "not_recalled": true,
+    "not_recompiled": true,
+    "not_reused": true,
+    "status": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 11,
+   "seconds": 0.428,
+   "steps": 9,
+   "tokens": 0
+  },
+  "learning-reuse": {
+   "checks": {
+    "compiled": true,
+    "finished": true,
+    "no_more_queries": true,
+    "reused": true,
+    "skipped_reading": true,
+    "status": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 9,
+   "seconds": 0.445,
+   "steps": 9,
+   "tokens": 0
+  },
+  "learning-withdraw": {
+   "checks": {
+    "finished": true,
+    "reused_again": true,
+    "status": true,
+    "value": true
+   },
+   "model_calls": 0,
+   "passed": true,
+   "queries": 9,
+   "seconds": 0.496,
+   "steps": 9,
+   "tokens": 0
+  },
   "margin-synonym": {
    "checks": {
     "driver": true,

@@ -258,3 +258,114 @@ def test_the_learning_report_over_http(seeded):
     assert r["answers"]["verdicts"]["incorrect"] == 1 and r["answers"]["analyses"]["disputed"] == 1
     assert r["workflows"]["held_back"] == {"disputed by a person": 1}
     assert r["memory"]["held_back_disputed"] == 1 and r["harness"]["in_force"] == 0
+
+
+# -- the evaluation gate measures learning (phase 3) -----------------------------------------------------------------
+
+
+def test_the_learning_scenarios_pass_and_catch_a_broken_loop(seeded, monkeypatch):
+    from lyst import evals
+
+    lyst, owner = seeded
+    rows = evals.learning_rows(lyst, owner, "northwind")
+    assert [r["case"] for r in rows] == ["learning-reuse", "learning-dispute", "learning-withdraw"]
+    assert all(r["passed"] for r in rows), [c for r in rows for c in r["checks"] if not c["passed"]]
+    assert evals.dimensions(rows)["learning"]["passed"] == evals.dimensions(rows)["learning"]["checks"]
+
+
+def test_the_gate_fails_when_a_dispute_stops_holding_anything_back(lyst, monkeypatch):
+    """Fault injection: a verdict is recorded but its effects never apply. The gate must see it."""
+    from lyst import demo, evals
+
+    owner = lyst.guard.create_user("avery@northwind.test", "Avery")
+    demo.seed(lyst, owner)
+    monkeypatch.setattr(lyst.feedback, "reconcile", lambda *a, **k: {"status": "open", "workflows": [], "changed": []})
+    rows = {r["case"]: r for r in evals.learning_rows(lyst, owner, "northwind")}
+    failed = {c["name"] for c in rows["learning-dispute"]["checks"] if not c["passed"]}
+    assert {"not_reused", "not_recalled", "not_cited", "not_recompiled"} <= failed
+    import json  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+
+    base = json.loads((Path(__file__).parents[1] / "docs/quality/eval-baseline.json").read_text())
+    cmp_ = evals.compare({"results": list(rows.values())}, base)
+    assert not cmp_["ok"] and any(r["case"] == "learning-dispute" for r in cmp_["regressions"])
+
+
+# -- memory governance and scale (phase 4) ---------------------------------------------------------------------------
+
+
+def _member(lyst, owner, email, role):
+    u = lyst.guard.create_user(email, email.split("@")[0])
+    lyst.guard.add_member(owner, "northwind", u.user_id, role)
+    return u
+
+
+def test_only_an_admin_takes_back_approved_memory_and_private_memory_stays_its_owners(seeded):
+    lyst, owner = seeded
+    mem = lyst.memory
+    editor = _member(lyst, owner, "ed@northwind.test", "editor")
+    approved = mem.remember(owner, "northwind", "organization", "Fiscal year starts in April", provenance={},
+                            trust="approved")
+    with pytest.raises(PermissionError):
+        mem.revoke(editor, "northwind", approved)
+    private = mem.remember(owner, "northwind", "user", "I prefer charts in EUR", provenance={})
+    with pytest.raises(PermissionError):
+        mem.revoke(editor, "northwind", private)
+    with pytest.raises(PermissionError):  # nor can an admin publish someone else's private note
+        mem.promote(_member(lyst, owner, "ad@northwind.test", "admin"), "northwind", private)
+    team = mem.remember(editor, "northwind", "team", "Region names follow the 2026 reorganisation", provenance={})
+    mem.revoke(editor, "northwind", team)  # what an editor may write, an editor may take back
+    mem.revoke(owner, "northwind", approved)
+    with pytest.raises(KeyError):  # a revoked or unknown memory is not silently "promoted"
+        mem.promote(owner, "northwind", approved)
+    with pytest.raises(KeyError):
+        mem.revoke(owner, "northwind", "m_missing")
+
+
+def test_list_hides_expired_memory_like_recall_does(seeded):
+    lyst, owner = seeded
+    mid = lyst.memory.remember(owner, "northwind", "team", "Temporary freeze on hiring", provenance={})
+    lyst.stores.workspace("northwind").execute("UPDATE memory SET expires_at = now() - INTERVAL 1 DAY WHERE id = ?", [mid])
+    assert mid not in {m["id"] for m in lyst.memory.list(owner, "northwind")}
+    assert mid not in {m["id"] for m in lyst.memory.recall(owner, "northwind", "freeze on hiring")}
+
+
+def test_recall_scores_a_bounded_set_with_approved_knowledge_first(seeded, monkeypatch):
+    lyst, owner = seeded
+    monkeypatch.setenv("LYST_MEMORY_RECALL_SCAN", "100")
+    db = lyst.stores.workspace("northwind")
+    db.execute("INSERT INTO memory (id, layer, scope, owner, content, provenance, trust, created_at) "
+               "SELECT 'm_bulk' || i, 'episodic', 'northwind', ?, 'Q: freight cost ' || i || ' A: noted', '{}', "
+               "'observed', now() - to_seconds(CAST(i AS BIGINT)) FROM range(20000) t(i)", [owner.user_id])
+    approved = lyst.memory.remember(owner, "northwind", "organization", "Freight cost is booked under COGS",
+                                    provenance={}, trust="approved")
+    old = db.scalar("SELECT id FROM memory WHERE id = 'm_bulk19999'")
+    import time  # noqa: PLC0415
+
+    start = time.perf_counter()
+    hits = lyst.memory.recall(owner, "northwind", "freight cost", limit=5)
+    took = time.perf_counter() - start
+    assert hits[0]["id"] == approved and old not in {h["id"] for h in hits}
+    assert took < 2.0, f"recall over 20,000 memories took {took:.2f}s"
+
+
+def test_agent_observed_memory_ages_out_after_365_days_by_default(seeded, monkeypatch):
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    from lyst.memory import retention_days  # noqa: PLC0415
+
+    monkeypatch.delenv("LYST_RETENTION_DAYS_MEMORY", raising=False)
+    assert retention_days() == 365
+    monkeypatch.setenv("LYST_RETENTION_DAYS_MEMORY", "0")
+    assert retention_days() is None  # an operator can still keep everything
+    lyst, owner = seeded
+    db = lyst.stores.workspace("northwind")
+    old = lyst.memory.remember(owner, "northwind", "episodic", "an old observation", provenance={})
+    young = lyst.memory.remember(owner, "northwind", "episodic", "a recent observation", provenance={})
+    kept = lyst.memory.remember(owner, "northwind", "episodic", "validated long ago", provenance={},
+                                trust="user_validated")
+    db.execute("UPDATE memory SET created_at = ? WHERE id IN (?, ?)", [datetime.now(UTC) - timedelta(days=400), old, kept])
+    monkeypatch.delenv("LYST_RETENTION_DAYS_MEMORY")
+    lyst.stores.prune(memory_days=retention_days())
+    left = {r["id"] for r in db.query("SELECT id FROM memory")}
+    assert old not in left and young in left and kept in left

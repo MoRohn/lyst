@@ -29,6 +29,18 @@ def stale_days() -> int:
 TRUST = ("observed", "user_validated", "approved")
 
 
+def retention_days() -> int | None:
+    """Agent-observed episodic and task memory older than this is deleted by the daily prune; approved and
+    person-validated memory never is. ``LYST_RETENTION_DAYS_MEMORY``, default 365 (decided 2026-11-06); 0 keeps all."""
+    return int(os.environ.get("LYST_RETENTION_DAYS_MEMORY", "365")) or None
+
+
+def recall_scan() -> int:
+    """At most this many memory entries are scored per recall: approved first, then newest. Bounds question latency
+    however much episodic memory a workspace collects."""
+    return max(100, int(os.environ.get("LYST_MEMORY_RECALL_SCAN", "5000")))
+
+
 class MemoryService:
     def __init__(self, stores: Stores, guard: Guard, llm=None) -> None:
         self.stores = stores
@@ -66,8 +78,19 @@ class MemoryService:
         self.guard.audit(actor, workspace_id, "memory.write", mid, "ok", {"layer": layer, "trust": trust})
         return mid
 
+    def _entry(self, workspace_id: str, memory_id: str) -> dict[str, Any]:
+        rows = self.stores.workspace(workspace_id).query(
+            "SELECT id, layer, scope, owner, trust, revoked_at FROM memory WHERE id = ?", [memory_id])
+        if not rows or rows[0]["revoked_at"] is not None:
+            raise KeyError(f"no memory {memory_id}")
+        return rows[0]
+
     def promote(self, actor: Principal, workspace_id: str, memory_id: str) -> None:
         self.guard.require(actor, workspace_id, "memory.promote", memory_id)
+        m = self._entry(workspace_id, memory_id)
+        if m["layer"] == "user" and m["scope"] != actor.user_id:
+            # someone's private memory becomes organizational knowledge only by their own hand
+            raise PermissionError("only its owner can share a private memory")
         self.stores.workspace(workspace_id).execute(
             "UPDATE memory SET trust = 'approved', layer = 'organization' WHERE id = ? AND revoked_at IS NULL",
             [memory_id],
@@ -76,6 +99,12 @@ class MemoryService:
 
     def revoke(self, actor: Principal, workspace_id: str, memory_id: str) -> None:
         self.guard.require(actor, workspace_id, "memory.write", memory_id)
+        m = self._entry(workspace_id, memory_id)
+        if m["layer"] == "user" and m["scope"] != actor.user_id:
+            raise PermissionError("a private memory can only be removed by its owner")
+        if m["trust"] == "approved" or m["layer"] == "organization":
+            # what only an admin may approve, only an admin may take back
+            self.guard.require(actor, workspace_id, "memory.promote", memory_id)
         self.stores.workspace(workspace_id).execute(
             "UPDATE memory SET revoked_at = now() WHERE id = ?", [memory_id])
         self.guard.audit(actor, workspace_id, "memory.revoke", memory_id, "ok")
@@ -85,11 +114,13 @@ class MemoryService:
         shared layer. Approved organizational entries rank first."""
         self.guard.require(actor, workspace_id, "workspace.read")
         words = {w for w in re.findall(r"[a-z0-9]{3,}", text.lower())}
+        # a bounded candidate set: approved knowledge first, then validated, then the newest observations
         rows = self.stores.workspace(workspace_id).query(
             "SELECT id, layer, scope, owner, content, provenance, trust, occurred_at FROM ("
             "SELECT *, created_at AS occurred_at FROM memory) WHERE revoked_at IS NULL AND disputed_at IS NULL "
-            "AND (expires_at IS NULL OR expires_at > now()) AND (layer <> 'user' OR scope = ?)",
-            [actor.user_id],
+            "AND (expires_at IS NULL OR expires_at > now()) AND (layer <> 'user' OR scope = ?) "
+            "ORDER BY CASE trust WHEN 'approved' THEN 0 WHEN 'user_validated' THEN 1 ELSE 2 END, created_at DESC LIMIT ?",
+            [actor.user_id, recall_scan()],
         )
         scored = []
         rank = {"approved": 2, "user_validated": 1, "observed": 0}
@@ -126,13 +157,19 @@ class MemoryService:
         metric_now = {r["name"]: r["current_version"] for r in db.query("SELECT name, current_version FROM metrics")}
         out: dict[str, dict[str, Any]] = {}
         now = datetime.now(UTC)
+        provs = {r["id"]: (r["provenance"] if isinstance(r["provenance"], dict) else json.loads(r["provenance"] or "{}"))
+                 for r in rows}
+        aids = sorted({p["analysis_id"] for p in provs.values() if p.get("analysis_id")})
+        evidence: dict[str, Any] = {}
+        if aids:  # one query for every analysis the memories came from, not one per memory
+            evidence = {a["id"]: a["evidence"] for a in db.query(
+                f"SELECT id, evidence FROM analyses WHERE id IN ({', '.join('?' * len(aids))})", aids)}
         for r in rows:
-            prov = r["provenance"] if isinstance(r["provenance"], dict) else json.loads(r["provenance"] or "{}")
+            prov = provs[r["id"]]
             sources, metric = list(prov.get("sources") or []), prov.get("metric")
             if prov.get("analysis_id"):
-                a = db.query("SELECT evidence FROM analyses WHERE id = ?", [prov["analysis_id"]])
-                if a:
-                    ev = json.loads(a[0]["evidence"])
+                if prov["analysis_id"] in evidence:
+                    ev = json.loads(evidence[prov["analysis_id"]])
                     sources += ev.get("sources", [])
                     m = (ev.get("metric") or {}).get("spec", {}).get("name")
                     if m and ev.get("metric_version"):
@@ -170,8 +207,8 @@ class MemoryService:
 
     def list(self, actor: Principal, workspace_id: str, layer: str | None = None) -> list[dict[str, Any]]:
         self.guard.require(actor, workspace_id, "workspace.read")
-        sql = ("SELECT id, layer, scope, owner, content, trust, created_at FROM memory WHERE revoked_at IS NULL "
-               "AND (layer <> 'user' OR scope = ?)")
+        sql = ("SELECT id, layer, scope, owner, content, trust, created_at, disputed_at FROM memory WHERE revoked_at IS NULL "
+               "AND (expires_at IS NULL OR expires_at > now()) AND (layer <> 'user' OR scope = ?)")
         params: list[Any] = [actor.user_id]
         if layer:
             sql += " AND layer = ?"
