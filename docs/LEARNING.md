@@ -40,6 +40,33 @@ definitions before any reuse, as always.
 step at a time, so a crash between the verdict and its effects is repaired by the next verdict, withdrawal or reconcile,
 and reconciling twice changes nothing (`tests/test_learning.py`).
 
+## Workflows that keep failing
+
+A compiled run that does not pass verification is counted on its version. When a version reaches
+`LYST_WORKFLOW_FAIL_LIMIT` failures (default 2) and they are at least half of its runs, it is held back as stale with the
+reason. The next question is planned afresh, and a verified run compiles a new version with fresh counts. Among
+workflows matching a question, the one with the most verified runs net of failures is chosen.
+
+## Whether a harness rule worked
+
+Each harness rule in force carries an `effect` (`GET /v1/workspaces/{ws}/harness/rules`): runs of its job and the
+failures with its signature before and after a person approved it, and a verdict. Once `LYST_HARNESS_EFFECT_MIN_RUNS`
+runs (default 5) ran under the rule and the rate did not fall, it reads `ineffective`, and when that failure happens
+again a person is notified once. Retiring or rewording the rule stays their decision. Proposing a rule checks and
+inserts in one transaction, so two workers cannot propose it twice; a proposal whose approval was never requested (a
+crash in between) is asked for on the next failure.
+
+## The learning report
+
+`GET /v1/workspaces/{ws}/learning?days=90`, counted from stored records only:
+
+| Part | What it counts |
+|---|---|
+| `answers` | Standing verdicts by kind, the judged-correct rate, analyses confirmed, disputed and open |
+| `workflows` | Active workflows, held-back ones by reason (disputed, failing verification, data changed), compiled runs and how many passed verification, and the share of analyses that reused a workflow |
+| `harness` | Rules in force, working and ineffective, with each rule's effect |
+| `memory` | What context can recall, by trust, and what is held back as disputed |
+
 ## Limits
 
 - A dispute holds back reuse; it does not make the planner find the right answer. The correction, recalled as context,

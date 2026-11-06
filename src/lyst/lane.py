@@ -79,3 +79,6 @@ def attach(lyst) -> None:
     from .feedback import FeedbackService  # noqa: PLC0415 - learning lane
 
     lyst.feedback = FeedbackService(lyst.stores, lyst.guard, lyst.memory)
+    from .learning import LearningService  # noqa: PLC0415 - learning lane
+
+    lyst.learning = LearningService(lyst.stores, lyst.guard, lyst.feedback)
