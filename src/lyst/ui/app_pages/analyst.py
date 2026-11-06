@@ -349,6 +349,36 @@ def explore_row(task: str, t: dict, r: dict) -> None:
         decisions.detail(did)
 
 
+KIND_WORDS = {"dashboard": "Dashboard", "report": "Report", "workbook": "Workbook", "presentation": "Presentation",
+              "briefing": "Briefing", "data_model": "Data model", "dataset": "Dataset", "metric": "Metric", "rule": "Rule",
+              "monitor": "Watch", "workflow": "Repeatable analysis", "scenario": "Scenario model"}
+
+
+def reply_view(task: str, r: dict) -> None:
+    """A conversational reply: what Lyst said, the real things it found, and what it offers to do next. No Verified
+    badge, evidence or exports, because nothing was computed."""
+    talk = r.get("conversation") or {}
+    with st.container(border=True):
+        st.markdown("##### " + md(r.get("answer") or ""))
+        for note in r.get("actions") or []:
+            st.caption(f":material/info: {md(note)}")
+        items = talk.get("items") or []
+        if items:
+            kit.label("In this workspace")
+            for i, it in enumerate(items):
+                kit.row(it.get("title") or it.get("id") or "", " · ".join(x for x in (KIND_WORDS.get(it.get("kind"), ""),
+                                                                                    str(it.get("note") or "")) if x),
+                        key=f"talk_item_{task}_{i}", divider=i < len(items) - 1)
+        st.caption(":material/chat: A reply from what's in this workspace. Nothing was computed, so there was nothing to verify.")
+    offers = talk.get("suggestions") or []
+    if offers:
+        kit.label("Want me to")
+        nxt = st.pills("Want me to", offers, label_visibility="collapsed", key=f"offer_{task}")
+        if nxt:
+            submit(nxt)
+            st.rerun()
+
+
 def task_view(task: str) -> None:
     top = st.columns([6, 1.4], vertical_alignment="center")
     if top[1].button("New question", icon=":material/add:", type="tertiary", width="stretch"):
@@ -382,6 +412,9 @@ def task_view(task: str) -> None:
             st.rerun()
         if b[1].button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
             how_it_ran(task)
+    elif t["result"] and t["result"].get("mode") == "conversation":
+        voice.read_back(task)
+        reply_view(task, t["result"])
     elif t["result"]:
         r = t["result"]
         voice.read_back(task)

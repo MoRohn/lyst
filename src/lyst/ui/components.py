@@ -302,6 +302,8 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
         head.markdown("#### " + md(r["brief"] if exec_ and r.get("brief") else r["answer"]))
         if r["status"] == "needs_input":
             bar[0].badge("Needs your input", color="orange", icon=":material/help:")
+        elif r.get("mode") == "conversation":  # a reply computed nothing, so it is never shown as verified
+            bar[0].badge("Reply", color="blue", icon=":material/chat:")
         elif level == "verified":
             bar[0].badge("Verified", color="green", icon=":material/verified:")
         elif level:

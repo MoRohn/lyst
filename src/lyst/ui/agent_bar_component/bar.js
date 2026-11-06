@@ -121,9 +121,10 @@ class Bar {
     this.followEl.addEventListener("change", () => this.emit({ type: "follow", on: this.followEl.checked }));
     this.el.querySelector(".b-clear").addEventListener("click", () => this.emit({ type: "clear" }));
     this.el.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-go],[data-open],[data-heard],[data-watch],[data-need]");
+      const b = e.target.closest("[data-go],[data-open],[data-heard],[data-watch],[data-need],[data-ask]");
       if (!b) return;
-      if (b.dataset.go) this.emit({ type: "go", go: JSON.parse(b.dataset.go) });
+      if (b.dataset.ask) this.emit({ type: "submit", text: b.dataset.ask });
+      else if (b.dataset.go) this.emit({ type: "go", go: JSON.parse(b.dataset.go) });
       else if (b.dataset.open) this.emit({ type: "open", task: b.dataset.open });
       else if (b.dataset.heard) this.emit({ type: "heard", yes: b.dataset.heard === "yes" });
       else if (b.dataset.watch !== undefined) { this.toggle(true); this.runEl.querySelector("button")?.focus(); }
@@ -338,10 +339,11 @@ class Bar {
       const status = t.status ? `<span class="b-tag ${esc(t.tone)}">${esc(t.status)}</span>` : "";
       const body = t.answer ? `<p class="b-ans">${esc(t.answer)}</p>`
         : t.reply ? `<p class="b-ans">${esc(t.reply)}</p>` : t.note ? `<p class="b-note">${esc(t.note)}</p>` : "";
-      const open = t.task ? `<button type="button" class="b-link" data-open="${esc(t.task)}">${t.done ? "Open answer" : "Watch it"}${svg("go")}</button>` : "";
+      const offers = (t.suggest || []).map((x) => `<button type="button" class="b-pill b-offer" data-ask="${esc(x)}">${esc(x)}</button>`).join("");
+      const open = t.task && !t.talk ? `<button type="button" class="b-link" data-open="${esc(t.task)}">${t.done ? "Open answer" : "Watch it"}${svg("go")}</button>` : "";
       return `<li class="b-turn"><div class="b-q-line"><span class="b-via" title="${t.via === "voice" ? "Spoken" : "Typed"}">${svg(t.via === "voice" ? "mic" : "keys")}</span>
         <span class="b-said">${esc(t.q)}</span><span class="b-when">${esc(t.when)}</span></div>
-        <div class="b-a-line">${status}${body}${open}</div></li>`;
+        <div class="b-a-line">${status}${body}${open}</div>${offers ? `<div class="b-offers">${offers}</div>` : ""}</li>`;
     }).join("") : `<li class="b-empty">Ask a question, say “go to SQL”, or press the mic and speak. Lyst answers here while you keep working.</li>`;
     if (this.turnsEl.innerHTML !== html) {
       this.turnsEl.innerHTML = html;

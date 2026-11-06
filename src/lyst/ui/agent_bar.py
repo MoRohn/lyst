@@ -232,6 +232,10 @@ def conversation(tasks: dict[str, dict]) -> list[dict[str, Any]]:
             if status == "done":
                 r = artifacts.result(t["task"]) or {}
                 item["answer"] = str(r.get("brief") or r.get("answer") or "")[:420]
+                if r.get("mode") == "conversation":  # a reply, not an analysis: no Done badge, and its offers to act on
+                    talk = r.get("conversation") or {}
+                    item |= {"status": None, "talk": True, "answer": str(r.get("answer") or "")[:700],
+                             "suggest": [str(x)[:200] for x in (talk.get("suggestions") or [])][:3]}
         out.append(item)
     return out
 
