@@ -635,11 +635,12 @@ where they point, with Mark all read and "What to tell me about".
 
 ### Running it
 
-* **Speaks your locale, and reads well with a screen reader.** Shared helpers format numbers, currency,
+* **Locale and accessibility helpers, ready for the interface.** `src/lyst/i18n.py` formats numbers, currency,
   percentages, compact units and dates for en-US, en-GB, de-DE, fr-FR, es-ES, pt-BR, ja-JP and hi-IN (with lakh
-  grouping), round half up, use a real minus sign so screen readers say "minus", and never show a negative zero
-  (`LYST_LOCALE`). Others check WCAG 2.2 AA contrast and write plain-language descriptions of charts and tables
-  for screen readers and alt text. Raw data is never changed, only how it is shown.
+  grouping), rounds half up, uses a real minus sign so screen readers say "minus", and never shows a negative zero
+  (`LYST_LOCALE`). It also checks WCAG 2.2 AA contrast and writes plain-language descriptions of charts and tables
+  for screen readers and alt text. The helpers are tested but the interface does not use them yet; raw data is
+  never changed by them, only how it is shown.
 * **Fits how you deploy.** `LYST_PROFILE` picks `local` (the default), `offline` (a local model only, no catalog
   refresh or telemetry, webhooks to private addresses only), `server` (all interfaces, with OIDC and TLS expected
   at the proxy) or `portable` (a self-contained data folder that moves as a workspace pack). `lyst doctor` checks
