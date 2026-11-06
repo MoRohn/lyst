@@ -39,12 +39,14 @@ TABS = {"Datasets": ":material/table_chart:", "Sources": ":material/cable:",
 _CSS = """<style>
 .block-container:has(.lyst-data) {max-width: var(--lyst-canvas-max);}
 /* header: the sources' status as a pill with a coloured dot, beside the primary action */
-div[class*="st-key-data_status_"] button {border-radius: var(--lyst-radius-pill); border: 1px solid var(--lyst-border);
-  background: var(--lyst-raised); min-height: var(--lyst-touch-target); padding: 0 .9rem; color: var(--lyst-text-muted);
+div[class*="st-key-data_status_"] button {border-radius: var(--lyst-radius-pill); border: 1px solid transparent;
+  background: transparent; min-height: 2rem; padding: 0 .7rem; color: var(--lyst-text-muted);
   font-size: var(--lyst-size-sm); white-space: nowrap;}
-div[class*="st-key-data_status_"] button:hover {border-color: var(--lyst-text-muted); color: var(--lyst-text);}
+div[class*="st-key-data_status_"] button:hover {border-color: var(--lyst-border); background: var(--lyst-raised); color: var(--lyst-text);}
+div.st-key-data_review button {border-radius: var(--lyst-radius-pill); min-height: 2rem; font-size: var(--lyst-size-sm);
+  color: var(--lyst-warn); border-color: color-mix(in srgb, var(--lyst-warn) 45%, transparent) !important;}
 div[class*="st-key-data_status_"] [data-testid="stIconMaterial"] {font-size: .7rem;}
-div.st-key-data_status_ok button {border-color: color-mix(in srgb, var(--lyst-good) 40%, transparent); color: var(--lyst-good);}
+div.st-key-data_status_ok button {color: var(--lyst-text-muted);}
 div.st-key-data_status_ok [data-testid="stIconMaterial"] {color: var(--lyst-good);}
 div.st-key-data_status_warn button {border-color: color-mix(in srgb, var(--lyst-warn) 45%, transparent); color: var(--lyst-warn);}
 div.st-key-data_status_warn [data-testid="stIconMaterial"] {color: var(--lyst-warn);}
@@ -703,35 +705,29 @@ def data_map(full: list[dict]) -> None:
                    "List shows every relationship; open a dataset to see its evidence.")
 
 
-def read(full: list[dict], src: dict) -> None:
-    """Lyst's answer about the data, before any list: can I rely on it, how fresh is it, and what needs attention.
-    Each dataset that needs attention is one click from its full record (the dataset viewer)."""
+def read(full: list[dict], src: dict) -> tuple[str, str, list[tuple[dict, tuple[str, str]]]]:
+    """Lyst's one-line answer about the data: (tone, sentence, datasets that need attention)."""
     if not full:
-        return
+        return "off", "No data yet. Add a file or connect a source to begin.", []
     latest = max(((c.get("freshness") or {}).get("latest") or "" for c in full), default="")
     flagged = [(c, h) for c in full if (h := health(c)) and h[1] in ("bad", "warn")]
     rows = sum(int(c.get("rows") or c.get("row_count") or 0) for c in full)
-    src_text, src_tone = status_pill(src)
-    if flagged:
-        head = (f"{len(flagged)} of {len(full)} datasets need{'s' * (len(flagged) == 1)} attention before you rely on "
-                f"{'it' if len(flagged) == 1 else 'them'}")
-        tone = "bad" if any(h[1] == "bad" for _, h in flagged) else "warn"
-    elif src_tone in ("bad", "warn"):
-        head, tone = f"Your data is ready, but {src_text.lower()}", src_tone
-    else:
-        head, tone = "Your data is ready to answer from", "ok"
     facts = " · ".join(x for x in (f"{len(full)} dataset{'s' * (len(full) != 1)}", f"{rows:,} rows",
-                                   f"data through {latest}" if latest else None, src_text) if x)
-    with kit.card("data_read"):
-        st.html(f'<div class="lyst-pulse" role="status"><span class="lyst-pulse-dot {"ok" if tone == "ok" else "wait"}" '
-                f'aria-hidden="true"></span><span><b>{kit._esc(head)}</b></span></div>'
-                f'<div class="lyst-card-meta" style="margin:.2rem 0 .1rem 1.15rem">{kit._esc(facts)}</div>')
-        for i, (c, h) in enumerate(flagged[:3]):
+                                   f"data through {latest}" if latest else None) if x)
+    if flagged:
+        names = ", ".join(c["title"] for c, _ in flagged[:2]) + (" and more" if len(flagged) > 2 else "")
+        return "wait", f"{len(flagged)} of {len(full)} need{'s' * (len(flagged) == 1)} attention ({names}) · {facts}", flagged
+    return "ok", f"Ready to answer from · {facts}", []
+
+
+def attention(flagged: list[tuple[dict, tuple[str, str]]]) -> None:
+    """What needs attention, folded behind one button; each dataset one click from its full record."""
+    with st.popover("Review", icon=":material/rule:", key="data_review", width="stretch"):
+        for i, (c, h) in enumerate(flagged[:6]):
             risks = c.get("risks") or {}
-            why = " · ".join(x for x in (c.get("description"), f"{risks.get('high', 0)} high, {risks.get('medium', 0)} "
-                                         "medium findings" if risks else None) if x)
+            why = f"{risks.get('high', 0)} high, {risks.get('medium', 0)} medium findings" if risks else ""
             if kit.row(c["title"], why, status=h, actions=[("Open", "open")], key=f"read_{c['name']}",
-                       divider=i < min(len(flagged), 3) - 1) == "open":
+                       divider=i < min(len(flagged), 6) - 1) == "open":
                 st.query_params["dataset"] = c["name"]
                 st.query_params["view"] = "datasets"
                 st.session_state.pop("sec_data_view", None)
@@ -1098,22 +1094,27 @@ def tabs() -> str:
     return pick
 
 
-def header(src: dict) -> None:
-    """Title and purpose; on the right, the sources' status as a pill (it opens Sources) and the one primary action."""
-    cols = st.columns([4.4, 2.6], vertical_alignment="bottom")
-    cols[0].html('<div class="lyst-data"></div><h1 class="lyst-title">Data</h1><p class="lyst-sub">What Lyst answers '
-                 'from, where it comes from, and what Lyst makes from it.</p>')
-    with cols[1]:
-        right = st.columns([1.5, 1] if editor else [1], vertical_alignment="center")
-        text, tone = status_pill(src)
-        if right[0].button(text, key=f"data_status_{tone}", icon=":material/fiber_manual_record:", width="stretch",
-                           help="Open Sources"):
-            st.query_params["view"] = "sources"
-            st.session_state.pop("sec_data_view", None)
-            st.rerun()
-        if editor and right[1].button("Add data", type="primary", icon=":material/add:", key="data_add", width="stretch"):
-            st.session_state["add_how_pick"] = "Upload a file"
-            add_data()
+def header(src: dict, every: list[dict]) -> None:
+    """One calm starting point: the title and the one action, then a single line on whether the data can be relied
+    on. Sources and anything that needs attention sit behind small buttons on that line, not on the page."""
+    cols = st.columns([5, 1.4], vertical_alignment="bottom")
+    cols[0].html('<div class="lyst-data"></div><h1 class="lyst-title">Data</h1>')
+    if editor and cols[1].button("Add data", type="primary", icon=":material/add:", key="data_add", width="stretch"):
+        st.session_state["add_how_pick"] = "Upload a file"
+        add_data()
+    tone, sentence, flagged = read(every, src)
+    line = st.columns([5, 1, 1.6] if flagged else [5.9, 1.6], vertical_alignment="center")
+    line[0].html(f'<div class="lyst-pulse" role="status"><span class="lyst-pulse-dot {tone}" aria-hidden="true"></span>'
+                 f'<span>{kit._esc(sentence)}</span></div>')
+    if flagged:
+        with line[1]:
+            attention(flagged)
+    text, stone = status_pill(src)
+    if line[-1].button(text, key=f"data_status_{stone}", icon=":material/fiber_manual_record:", width="stretch",
+                       type="tertiary", help="Where the data comes from: open Sources"):
+        st.query_params["view"] = "sources"
+        st.session_state.pop("sec_data_view", None)
+        st.rerun()
 
 
 ASK_STARTERS = ("What changed in the latest data?", "Which dataset should I trust for revenue?",
@@ -1138,8 +1139,7 @@ try:
     catalog = api.get(f"/v1/workspaces/{ws}/datasets")
     every = enrich(catalog)
     src = sources_state()
-    header(src)
-    read(every, src)
+    header(src, every)
     row = st.columns([5.4, 1.6], vertical_alignment="center")
     with row[0]:
         view = tabs()

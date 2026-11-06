@@ -56,7 +56,7 @@ def test_data_opens_with_lyst_reading_its_data(ui):  # noqa: F811
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     html = " ".join(str(h.value) for h in at.get("html"))
-    assert "need" in html and "attention" in html  # the demo's ledger copy has a high-risk finding
+    assert "need" in html and "attention" in html and "Ready" not in html  # the ledger copy has a high-risk finding
     hit = next(b for b in at.button if b.key == "read_pnl_ledger_open")
     hit.click().run()  # one click to the dataset's full record
     assert not at.exception, [e.value for e in at.exception]
