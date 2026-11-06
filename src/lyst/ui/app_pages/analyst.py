@@ -55,6 +55,9 @@ def submit(q: str) -> None:
             st.error(str(e), icon=":material/error:")
         return
     st.session_state.pop("_agent", None)  # the new request shows in what Lyst is doing at once
+    from lyst.ui.agent_bar import _settle  # noqa: PLC0415
+
+    _settle(api, out["task_id"])  # a quick reply opens finished, not on a progress screen
     open_task(out["task_id"])
 
 

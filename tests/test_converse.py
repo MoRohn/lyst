@@ -173,3 +173,51 @@ def test_a_model_can_call_a_request_conversation_and_word_the_reply(seeded, monk
     monkeypatch.setattr(llm, "chat", lambda *a, **k: "Revenue was 4.2 million last quarter, so you are fine.")
     r2 = ask(lyst, owner, "Our board wants something they can glance at before meetings")["result"]
     assert "4.2" not in r2["answer"] and "dropped" in r2["supporting"]["narrative_by"]
+
+
+# -- follow-ups: "yes" takes up the offer ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,index", [
+    ("yes", 0), ("Yes please!", 0), ("sure", 0), ("go ahead", 0), ("do it, thanks", 0), ("ok", 0),
+    ("the second one", 1), ("2", 1), ("the last one", 2), ("Offer C", 2),
+    ("yes, but by product line", None), ("What was revenue last quarter?", None),
+])
+def test_a_short_yes_takes_up_an_offer(text, index):
+    assert converse.offer_index(text, ["Offer A", "Offer B", "Offer C"]) == index
+
+
+@pytest.mark.parametrize("text", ["no", "No thanks", "not now", "maybe later", "never mind"])
+def test_a_no_is_a_reply_too(text):
+    assert converse.route(text) == {"kind": "decline", "topic": "general"}
+    r = converse.compose(text, converse.route(text), _inv())
+    assert r["answer"].startswith("No problem") and not r["suggestions"]
+
+
+def test_yes_runs_the_offer_as_written_over_http(seeded):
+    from fastapi.testclient import TestClient
+
+    from lyst.api import create_app
+
+    lyst, owner = seeded
+    h = {"Authorization": f"Bearer {lyst.guard.issue_token(owner)}"}
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        first = c.post("/v1/workspaces/northwind/tasks", json={"question": ASKED}, headers=h).json()["task_id"]
+        lyst.runtime.drain()
+        offer = lyst.runtime.get(owner, first)["result"]["conversation"]["suggestions"][0]
+        tid = c.post("/v1/workspaces/northwind/tasks", json={"question": "yes please"}, headers=h).json()["task_id"]
+        t = lyst.runtime.get(owner, tid)
+        assert t["request"]["question"] == offer
+        assert t["request"]["in_reply_to"] == first and t["request"]["said"] == "yes please"
+        # a yes with no offer before it is just a line on its own: nothing is run on its behalf
+        other = lyst.guard.create_user("m@n.test", "M")
+        lyst.guard.add_member(owner, "northwind", other.user_id, "editor")
+        ho = {"Authorization": f"Bearer {lyst.guard.issue_token(other)}"}
+        tid2 = c.post("/v1/workspaces/northwind/tasks", json={"question": "yes"}, headers=ho).json()["task_id"]
+        assert lyst.runtime.get(other, tid2)["request"]["question"] == "yes"
+
+
+def test_an_unknown_metric_names_the_ones_that_exist(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What was EBITDA last quarter?")["result"]
+    assert r["status"] == "needs_input" and "No approved metric" in r["answer"]
+    assert "Revenue" in r["answer"] and "Operating income" in r["answer"]
