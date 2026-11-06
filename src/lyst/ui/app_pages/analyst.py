@@ -239,6 +239,13 @@ def _secs(ms: int | None) -> str:
     return f"{ms} ms" if ms < 1000 else f"{ms / 1000:.1f} s"
 
 
+def _tokens(step: dict) -> str:
+    """A step's tokens as "155 (95 in, 60 out)", or a dash when none of its model calls reported any."""
+    if step.get("tokens") is None:
+        return "—"
+    return f"{step['tokens']:,} ({step.get('input_tokens') or 0:,} in, {step.get('output_tokens') or 0:,} out)"
+
+
 @st.dialog("How this ran", width="large")
 def how_it_ran(task: str) -> None:
     """Where the time, model calls and queries went, step by step: the trail from this answer back to the engine."""
@@ -261,15 +268,20 @@ def how_it_ran(task: str) -> None:
         st.caption(f"Slowest step: {md(s['slowest_step'].replace('_', ' '))}.")
     st.dataframe(pd.DataFrame([{"Step": f"{x['seq'] + 1}. {PHASES.get(x['phase'], x['phase'])}", "Capability": x["capability"],
                                 "Status": x["status"], "Time": _secs(x["ms"]), "Model calls": x["model_calls"],
-                                "Queries": x["queries"], "Error": x["error"] or ""} for x in tr["steps"]]),
-                 hide_index=True, width="stretch")
+                                "Tokens": _tokens(x), "Queries": x["queries"], "Error": x["error"] or ""}
+                               for x in tr["steps"]]),
+                 hide_index=True, width="stretch",
+                 column_config={"Tokens": st.column_config.TextColumn(
+                     "Tokens", help="Tokens in and out across the model calls matched to this step.")})
     if tr["model_calls"]:
         st.markdown("**Model calls**")
         st.dataframe(pd.DataFrame([{"Purpose": c["purpose"], "Model": c["model"], "Level": c["tier"] or "", "Outcome": c["outcome"],
                                     "Time": _secs(c["latency_ms"]), "Tokens in": c["input_tokens"], "Tokens out": c["output_tokens"],
                                     "Cost": c["cost_usd"]} for c in tr["model_calls"]]),
-                     hide_index=True, width="stretch",
-                     column_config={"Cost": st.column_config.NumberColumn("Cost", format="$%.5f")})
+                     hide_index=True, width="stretch", placeholder="—",
+                     column_config={"Tokens in": st.column_config.NumberColumn("Tokens in", format="%d"),
+                                    "Tokens out": st.column_config.NumberColumn("Tokens out", format="%d"),
+                                    "Cost": st.column_config.NumberColumn("Cost", format="$%.5f")})
     st.caption(f"Task {task}. Model calls and queries are matched to a step when exactly one step was running at the time.")
 
 
