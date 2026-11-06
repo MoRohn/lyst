@@ -13,7 +13,6 @@ from .conftest import ask
 
 PAGES = {
     "app_pages/analyst.py": "What should Lyst work on?",
-    "app_pages/work.py": "Work",
     "app_pages/data.py": "Data",
     "app_pages/brain.py": "Brain",
     "app_pages/settings.py": "Settings",
@@ -59,10 +58,24 @@ def test_home_shows_what_needs_you_and_suggestions_from_metrics(ui):
     assert pills and any("operating margin" in str(o).lower() for p in pills for o in p.proto.options)
 
 
-def test_work_lands_on_needs_you_when_something_waits(ui):
+def test_brain_work_lands_on_needs_you_when_something_waits(ui):
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    at.switch_page("app_pages/work.py")
+    at.switch_page("app_pages/brain.py")  # Work lives in Brain
+    at.query_params["view"] = "work"
     at.run()
     assert not at.exception
     assert "Waiting on you" in _texts(at)
+
+
+def test_old_work_links_land_in_brain_work(ui):
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    assert not at.exception
+    at.switch_page("app_pages/work.py")  # an old /work?view=recurring link or bookmark
+    at.query_params["view"] = "recurring"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    body = _texts(at)
+    assert "Scheduled questions" in body and "Watched metrics" in body  # Brain › Work › Recurring
+    assert any("Brain" in str(h.value) for h in at.get("html"))

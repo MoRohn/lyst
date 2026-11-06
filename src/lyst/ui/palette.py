@@ -28,13 +28,14 @@ from lyst.ui.components import task_state
 # (area, section, page, query) — every place a person can go, searchable by its words
 PLACES: list[tuple[str, str | None, str, dict[str, str]]] = [
     ("Home", None, "app_pages/analyst.py", {}),
-    ("Work", "Needs you", "app_pages/work.py", {"view": "needs you"}),
-    ("Work", "Activity", "app_pages/work.py", {"view": "activity"}),
-    ("Work", "Recurring", "app_pages/work.py", {"view": "recurring"}),
+    ("Brain", "Needs you", "app_pages/brain.py", {"view": "work", "work": "needs you"}),
+    ("Brain", "Activity", "app_pages/brain.py", {"view": "work", "work": "activity"}),
+    ("Brain", "Recurring", "app_pages/brain.py", {"view": "work", "work": "recurring"}),
     ("Data", "Datasets", "app_pages/data.py", {"view": "datasets"}),
     ("Data", "Dashboards", "app_pages/data.py", {"view": "dashboards"}),
     ("Data", "Saved analyses", "app_pages/data.py", {"view": "saved analyses"}),
     ("Data", "SQL", "app_pages/data.py", {"view": "sql"}),
+    ("Brain", "Graph", "app_pages/brain.py", {"view": "graph"}),
     ("Brain", "Definitions", "app_pages/brain.py", {"view": "definitions"}),
     ("Brain", "Documents", "app_pages/brain.py", {"view": "documents"}),
     ("Brain", "Memory", "app_pages/brain.py", {"view": "memory"}),
@@ -44,8 +45,9 @@ PLACES: list[tuple[str, str | None, str, dict[str, str]]] = [
     ("Settings", "Advanced", "app_pages/settings.py", {"view": "advanced"}),
 ]
 # extra words people use for a place, so "approvals" finds Needs you and "voice" finds Settings
-ALIASES = {"Needs you": "approvals reviews inbox assigned questions", "Activity": "tasks history runs",
-           "Recurring": "schedules monitors watch repeat", "Datasets": "tables sources upload connect add data",
+ALIASES = {"Needs you": "approvals reviews inbox assigned questions", "Activity": "tasks history runs work board",
+           "Recurring": "schedules monitors watch repeat work",
+           "Graph": "map knowledge runs harness", "Datasets": "tables sources upload connect add data",
            "SQL": "query workbench", "Definitions": "metrics measures terms glossary",
            "Models": "openrouter llm model key", "Workspace": "voice audio usage limits webhooks members",
            "Advanced": "skills capabilities evals", "Connections": "credentials secrets"}

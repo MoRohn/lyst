@@ -39,7 +39,7 @@ PREFIX_ICON = {"profile": ":material/fact_check:", "impact": ":material/account_
                "open": ":material/open_in_full:"}
 STATE_TONE = {"Preparing": "run", "Investigating": "run", "Executing": "run", "Verifying": "run",
               "Awaiting Approval": "wait", "Completed": "verified", "Needs Attention": "warn"}
-PAGE = {"": "app_pages/analyst.py", "work": "app_pages/work.py", "data": "app_pages/data.py",
+PAGE = {"": "app_pages/analyst.py", "work": "app_pages/brain.py", "data": "app_pages/data.py",
         "brain": "app_pages/brain.py", "settings": "app_pages/settings.py", "artifact": "app_pages/artifact.py"}
 
 
@@ -72,6 +72,9 @@ def go(href: str) -> None:
     u = urlparse(href)
     page = PAGE.get(u.path.strip("/"), "app_pages/analyst.py")
     qp = dict(parse_qsl(u.query))
+    if u.path.strip("/") == "work":  # Work lives in Brain now: /work?view=x becomes Brain › Work › x
+        sub = qp.pop("view", None)
+        qp = {"view": "work", **({"work": sub} if sub else {}), **qp}
     if page.endswith("artifact.py") and "asset" in qp:
         qp = {"kind": "asset", "id": qp["asset"]} | ({"view": qp["view"]} if "view" in qp else {})
     if "task" in qp:

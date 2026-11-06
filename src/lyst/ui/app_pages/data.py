@@ -514,7 +514,16 @@ def sync(conn: dict) -> None:
                 st.rerun()
 
 
-def datasets(catalog: list[dict]) -> None:
+def enrich(catalog: list[dict]) -> list[dict]:
+    """Each dataset with its catalog entry (freshness, contract, risks, authority), read once per run."""
+    try:
+        info = {c["name"]: c for c in api.get(f"/v1/workspaces/{ws}/catalog")}
+    except APIError:
+        info = {}
+    return [{**d, **info.get(d["name"], {})} for d in catalog]
+
+
+def datasets(catalog: list[dict], every: list[dict]) -> None:
     """The data workspace: a library rail of everything here (datasets, approved metrics, dashboards) beside a canvas
     that shows the datasets as cards, as a map of how they connect, or as a plain list."""
     if not catalog:
@@ -523,11 +532,6 @@ def datasets(catalog: list[dict]) -> None:
                        action="Add data" if editor else None):
             add_data()
         return
-    try:
-        info = {c["name"]: c for c in api.get(f"/v1/workspaces/{ws}/catalog")}
-    except APIError:
-        info = {}
-    every = [{**d, **info.get(d["name"], {})} for d in catalog]
     by = _metrics_by_dataset()
     rail, canvas = st.columns([1, 3.2], gap="medium")
     with rail:
@@ -535,7 +539,6 @@ def datasets(catalog: list[dict]) -> None:
     shown = [d for d in every if not q or q.lower() in (d["title"] + d["name"] + (d.get("description") or "")).lower()]
     asked = st.query_params.get("dataset")
     with canvas:
-        st.html(overview(every, by))
         with st.container(key="data_canvas_ds"):
             bar = st.columns([4, 1.4], vertical_alignment="center")
             layout = bar[1].segmented_control("Layout", ["Cards", "Map", "List"], default="Cards", key="ds_layout",
@@ -700,47 +703,67 @@ def data_map(full: list[dict]) -> None:
                    "List shows every relationship; open a dataset to see its evidence.")
 
 
-def overview(full: list[dict], by: dict[str, list[dict]]) -> str:
-    """The workspace's data at a glance: how much, how fresh, how much needs attention."""
+def read(full: list[dict], src: dict) -> None:
+    """Lyst's answer about the data, before any list: can I rely on it, how fresh is it, and what needs attention.
+    Each dataset that needs attention is one click from its full record (the dataset viewer)."""
+    if not full:
+        return
     latest = max(((c.get("freshness") or {}).get("latest") or "" for c in full), default="")
-    tones = [(health(c) or ("", "ok"))[1] for c in full]
-    attention = sum(1 for t in tones if t in ("bad", "warn"))
-    return glance([
-        ("Datasets", len(full), None),
-        ("Rows", f"{sum(int(c.get('rows') or c.get('row_count') or 0) for c in full):,}", None),
-        ("Approved metrics", sum(len(v) for v in by.values()), None),
-        ("Latest data", latest or "—", None),
-        ("Need attention", attention, ("bad" if "bad" in tones else "warn") if attention else None),
-    ])
+    flagged = [(c, h) for c in full if (h := health(c)) and h[1] in ("bad", "warn")]
+    rows = sum(int(c.get("rows") or c.get("row_count") or 0) for c in full)
+    src_text, src_tone = status_pill(src)
+    if flagged:
+        head = (f"{len(flagged)} of {len(full)} datasets need{'s' * (len(flagged) == 1)} attention before you rely on "
+                f"{'it' if len(flagged) == 1 else 'them'}")
+        tone = "bad" if any(h[1] == "bad" for _, h in flagged) else "warn"
+    elif src_tone in ("bad", "warn"):
+        head, tone = f"Your data is ready, but {src_text.lower()}", src_tone
+    else:
+        head, tone = "Your data is ready to answer from", "ok"
+    facts = " · ".join(x for x in (f"{len(full)} dataset{'s' * (len(full) != 1)}", f"{rows:,} rows",
+                                   f"data through {latest}" if latest else None, src_text) if x)
+    with kit.card("data_read"):
+        st.html(f'<div class="lyst-pulse" role="status"><span class="lyst-pulse-dot {"ok" if tone == "ok" else "wait"}" '
+                f'aria-hidden="true"></span><span><b>{kit._esc(head)}</b></span></div>'
+                f'<div class="lyst-card-meta" style="margin:.2rem 0 .1rem 1.15rem">{kit._esc(facts)}</div>')
+        for i, (c, h) in enumerate(flagged[:3]):
+            risks = c.get("risks") or {}
+            why = " · ".join(x for x in (c.get("description"), f"{risks.get('high', 0)} high, {risks.get('medium', 0)} "
+                                         "medium findings" if risks else None) if x)
+            if kit.row(c["title"], why, status=h, actions=[("Open", "open")], key=f"read_{c['name']}",
+                       divider=i < min(len(flagged), 3) - 1) == "open":
+                st.query_params["dataset"] = c["name"]
+                st.query_params["view"] = "datasets"
+                st.session_state.pop("sec_data_view", None)
+                st.rerun()
 
 
 def dataset_card(c: dict, feeds: list[dict]) -> bool:
-    """One dataset as a card: what it is, its shape, how fresh it is, and the headline measure it feeds."""
+    """One dataset as a quiet card: what it is, whether to rely on it, its shape in one line and one bar. The full
+    record (profile, contract, lineage, activity) opens in the dataset viewer."""
     fresh = c.get("freshness") or {}
     schema = c.get("schema") or []
     roles = _roles(schema)
     top = st.columns([4, 1.6], vertical_alignment="top")
     top[0].html(f'<div class="lyst-card-kicker">{kit._esc(str(c.get("classification", "")).capitalize())} · '
-                f'v{c.get("version", 1)} · {kit._esc(c["name"])}</div>'
+                f'v{c.get("version", 1)}</div>'
                 f'<div class="lyst-card-title">{kit._esc(c["title"])}</div>')
     if h := health(c):
         kit.chip(h[0], h[1], top[1])
     grain = " × ".join(g.replace("_", " ") for g in c.get("grain") or [])
-    st.html(f'<div class="lyst-card-meta">{kit._esc(c.get("description") or "")}</div>'
-            + visuals.stats([("rows", f"{int(c.get('rows') or c.get('row_count') or 0):,}", None),
-                             ("columns", f"{len(schema)}", None),
-                             ("data through", fresh.get("latest") or "—",
-                              f"{fresh['age_days']} days ago" if fresh.get("age_days") is not None else None)],
-                            compact=True)
+    shape = " · ".join(x for x in (f"{int(c.get('rows') or c.get('row_count') or 0):,} rows", f"{len(schema)} columns",
+                                   f"one row per {grain}" if grain else None,
+                                   f"through {fresh['latest']}" if fresh.get("latest") else None) if x)
+    st.html(f'<div class="lyst-card-meta lyst-clamp" style="margin:.15rem 0 .35rem 0">'
+            f'{kit._esc(c.get("description") or "")}</div>'
+            f'<div class="lyst-card-meta lyst-num" style="margin-bottom:.45rem">{kit._esc(shape)}</div>'
             + visuals.stacked([(f"{ROLE_TONE[k][0]} {v}", v, ROLE_TONE[k][1]) for k, v in roles.items()],
-                              label=f"{c['title']} columns by role")
-            + (f'<div class="lyst-card-meta" style="margin-top:.4rem">One row per {kit._esc(grain)}</div>'
-               if grain else ""))
+                              label=f"{c['title']} columns by role"))
     if feeds:
-        st.caption(f"Feeds {len(feeds)} approved metric{'s' * (len(feeds) != 1)}: "
-                   + ", ".join(m["title"] for m in feeds[:4]) + ("…" if len(feeds) > 4 else ""))
+        st.caption(f"Feeds {', '.join(m['title'] for m in feeds[:3])}" + (f" and {len(feeds) - 3} more" if len(feeds) > 3
+                                                                           else ""))
     b = st.columns([1, 1, 2.5])
-    opened = b[0].button("Open", key=f"d{c['name']}_open", type="tertiary", icon=":material/arrow_outward:")
+    opened = b[0].button("Open", key=f"d{c['name']}_open", type="tertiary", icon=":material/open_in_full:")
     if b[1].button("Ask", key=f"d{c['name']}_ask", type="tertiary", icon=":material/chat:",
                    help=f"Ask Lyst what is in {c['title']}"):
         ask(f"Summarise {c['name']}: what does it contain and what stands out?")
@@ -1113,14 +1136,16 @@ def ask_dock() -> None:
 try:
     st.html(_CSS)
     catalog = api.get(f"/v1/workspaces/{ws}/datasets")
+    every = enrich(catalog)
     src = sources_state()
     header(src)
+    read(every, src)
     row = st.columns([5.4, 1.6], vertical_alignment="center")
     with row[0]:
         view = tabs()
     with row[1]:
         ask_dock()
-    {"Datasets": lambda: (datasets(catalog), onboarding.data_suggestions()),
+    {"Datasets": lambda: (datasets(catalog, every), onboarding.data_suggestions()),
      "Sources": lambda: sources_view(src),
      "Dashboards": dashboards_view,
      "Saved analyses": saved_view,

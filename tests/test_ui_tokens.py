@@ -60,7 +60,7 @@ def test_chart_alt_text_describes_the_data():
 
 
 def test_palette_finds_places_by_name_and_by_the_words_people_use():
-    assert ("Work", "Needs you") in {(a, s) for a, s, _, _ in palette.places("approvals")}
+    assert ("Brain", "Needs you") in {(a, s) for a, s, _, _ in palette.places("approvals")}
     assert ("Data", "SQL") in {(a, s) for a, s, _, _ in palette.places("query")}
     assert {(a, s) for a, s, _, _ in palette.places("settings voice")} == {("Settings", "Workspace")}
     assert palette.places("") == []
@@ -69,9 +69,11 @@ def test_palette_finds_places_by_name_and_by_the_words_people_use():
 def test_every_palette_place_is_a_real_page_and_section():
     for area, section, page, qp in palette.PLACES:
         src = (UI / page).read_text()
+        if qp.get("view") == "work":  # Brain › Work: its views live in the work module Brain draws
+            src = (UI / "work.py").read_text()
         if section:
             assert f'"{section}"' in src, (area, section)
-            assert qp["view"] == section.lower()
+            assert qp.get("work", qp["view"]) == section.lower()
 
 
 def test_visuals_carry_a_text_equivalent_and_no_raw_svg():

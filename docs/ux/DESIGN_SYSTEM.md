@@ -52,7 +52,13 @@ The visual language, inspired by the craft of native apps without imitating them
   the data and version it came from, the expertise applied with each rule's outcome, assumptions, the method's size).
   **Focus** hides the rail. Home's tiles are `visuals.metric_tile` cards (value, a change coloured by whether it is
   good for that measure, a sparkline with alt text) instead of `st.metric`'s Vega chart.
-* **Work command center.** A strip of what is in progress, waiting on you, and finished or stopped this week.
+* **Four areas: Home · Data · Brain · Settings.** Work is a section of Brain (Brain › Work: running now, Needs you,
+  Activity, Recurring); the hidden `work` page forwards old `/work?view=…` links there.
+* **Agentic layer (`lyst.ui.agent`).** One live status line (`agent.pulse`) says what Lyst is doing now; Home leads
+  with it, what needs you, and answer-first cards (the answer, a preview from its own numbers, *Why, and what to do*
+  folded underneath, **Open** for the full artifact). Data opens with Lyst's read on the data, each flagged dataset
+  one click from its record. Brain opens on a band (`agent.hero`) of what Lyst knows, is doing and runs on its own,
+  over a drawing made from those same counts (decorative, with the counts as its alt text).
   Activity shows as a day-grouped list or a **board** (In progress, Needs you, Done, Stopped), where a running card
   shows its real step progress. Task details show a progress meter and a step timeline (`visuals.steps`).
 * **Settings.** A native two-pane screen (`kit.panes`): panes listed on the left, the chosen pane on the right,
@@ -136,13 +142,13 @@ Autonomy is not a page. Every object offers what Lyst can do with it, where the 
 * `kit.row`: one list item. Rows with actions reserve a status slot even when they have no status, so actions line
   up down a list (before: a row with a chip pushed its Open button right). On phones the empty slot collapses.
 * `kit.guarded`: every API action answers with a toast or an inline error, and drops the cached "waiting" count so
-  the Work badge is never stale after the person acts.
+  the Home badge is never stale after the person acts.
 * `components.chart`: brand accent for the measure, muted history, dotted forecast in a shaded interval, latest point
   marked; transparent background in both themes; `alt` text with range and last value for screen readers.
 * `components.table`: words for headings, percent/compact number formats, `—` for missing values, fixed height past
   12 rows (the grid's own sort, search, column resize, copy and CSV export remain).
 * Command palette (`palette.py`): Ctrl/⌘+K or the sidebar's **Search or go to** button. Ask Lyst, jump to any
-  area/section (with the words people use: "approvals" finds Work › Needs you), recent questions with engine status,
+  area/section (with the words people use: "approvals" finds Brain › Work › Needs you), recent questions with engine status,
   catalog results, matching Analyst specializations with their measured maturity label (catalog entries are not
   presented as proof of capability), and workspace switching. Everything is fetched for the current workspace when
   the palette opens.

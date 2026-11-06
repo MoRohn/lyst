@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Brain: what Lyst knows about this business. Definitions, documents and memory, each with provenance."""
+"""Brain: what Lyst knows about this business and what it is doing with it. Work (running work, what needs you,
+what repeats), the graph, definitions, documents, memory and specializations, each with provenance."""
 
 import pandas as pd
 import streamlit as st
 
 from lyst.semantic import MetricSpec, value_expr
-from lyst.ui import brain_graph, kit, specialists, visuals
+from lyst.ui import agent, brain_graph, kit, specialists, visuals, work
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -310,14 +311,36 @@ def memory() -> None:
                         st.rerun()
 
 
+SECTIONS = {"Work": ":material/view_kanban:", "Graph": ":material/hub:", "Definitions": ":material/menu_book:",
+            "Documents": ":material/description:", "Memory": ":material/neurology:",
+            "Specializations": ":material/badge:"}
+
+
+def tabs(default: str) -> str:
+    """Brain's sections as icon pills, kept in the URL (?view=) so links, reloads and old /work links land on them."""
+    names = list(SECTIONS)
+    asked = (st.query_params.get("view") or "").lower()
+    pick = next((n for n in names if n.lower() == asked), default)
+    waiting = agent.waiting(agent.state(ws))
+    with st.container(key="brain_nav"):
+        pick = st.segmented_control("view", names, default=pick, key="sec_view", label_visibility="collapsed",
+                                    format_func=lambda n: f"{SECTIONS[n]} {n}" + (f" · {waiting}" if n == "Work" and
+                                                                                  waiting else "")) or pick
+    if st.query_params.get("view") != pick.lower():
+        st.query_params["view"] = pick.lower()
+    return pick
+
+
 try:
-    kit.header("Brain", "What Lyst knows about this business, where it came from, and how much to trust it.")
-    # one entry per section; Specializations (the Analyst catalog) is added here as its own section
-    if st.query_params.get("metric") and st.query_params.get("view") in (None, "graph"):
+    agent.hero(ws)
+    if st.query_params.get("metric") and st.query_params.get("view") in (None, "graph", "work"):
         st.query_params["view"] = "definitions"  # a link to a metric opens its definition, wherever Brain was
         st.session_state.pop("sec_view", None)
-    SECTIONS = {"Graph": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory,
-                "Specializations": specialists.catalog}
-    SECTIONS[kit.sections(list(SECTIONS), key="view")]()
+    view = tabs("Graph")
+    if view == "Work":  # what Lyst is doing with what it knows: running work, what needs you, what repeats
+        work.section(agent.state(ws)["tasks"], agent.waiting(agent.state(ws)))
+    else:
+        {"Graph": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory,
+         "Specializations": specialists.catalog}[view]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")
