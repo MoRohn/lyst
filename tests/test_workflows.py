@@ -71,7 +71,9 @@ def test_a_repeat_needs_no_model_to_read_the_request(seeded):
     def handler(request: httpx.Request):
         body = json.loads(request.content)
         calls.append("classify" if body.get("response_format") else "narrative")
-        text = json.dumps({"metrics": ["operating_margin"], "intent": "explain"}) if body.get("response_format") else "ok"
+        # the model quotes the request's words for the metric it picked (a pick without them is dropped as off topic)
+        text = (json.dumps({"metrics": ["operating_margin"], "phrase": "profitability", "intent": "explain"})
+                if body.get("response_format") else "ok")
         return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})
 
     lyst.services.llm = LLMClient(LLMSettings("http://localhost:11434/v1", "local"), lyst.stores,
