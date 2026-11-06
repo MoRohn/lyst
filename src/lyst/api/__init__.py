@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from .. import decisions as decision_mod
 from .. import observability as obs
 from .. import operations
+from ..analyst import converse as converse_mod
 from ..app import Lyst
 from ..connectors import ConnectorError, manifests
 from ..contracts import ContractSpec
@@ -1164,8 +1165,14 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.post("/v1/workspaces/{ws}/tasks", status_code=202)
     def ask(request: Request, ws: str, body: Ask, user: User):
         # Idempotency-Key: a retried or double-submitted request returns the first task instead of a second run
-        return {"task_id": L(request).runtime.submit(user, ws, body.question, autonomy=body.autonomy,
-                                                     idempotency_key=request.headers.get("idempotency-key"))}
+        lyst = L(request)
+        question, extra = body.question, None
+        # "yes" (or "the second one") to the offer in this person's latest conversational reply runs that offer,
+        # as written, through the same pipeline and checks as if they had typed it
+        if took := converse_mod.follow_up(lyst.runtime.db, user, ws, body.question):
+            question, extra = took["question"], {"in_reply_to": took["task_id"], "said": body.question[:200]}
+        return {"task_id": lyst.runtime.submit(user, ws, question, autonomy=body.autonomy, extra=extra,
+                                               idempotency_key=request.headers.get("idempotency-key"))}
 
     @app.get("/v1/workspaces/{ws}/workflows")
     def workflows(request: Request, ws: str, user: User, history: bool = False):

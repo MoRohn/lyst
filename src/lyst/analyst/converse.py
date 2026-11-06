@@ -60,6 +60,57 @@ _ACTION = re.compile(r"\b(show|tell|give|calculate|compute|forecast|predict|brea
 _USAGE = re.compile(r"\b(add|upload|import|connect|create|build|define|set\s+up|setup|share|export|download|find|use|invite|"
                     r"schedule|change|edit|rename|delete|remove|approve|ask|start|get\s+started|navigate|open|save|publish|"
                     r"lyst|you)\b", re.I)
+# A short yes or no to an offer Lyst just made ("Want me to?"). Only short lines count, so "yes, but by product line"
+# is a request of its own.
+_AFFIRM = re.compile(r"^(yes|yeah|yep|yup|sure|ok(ay)?|please|please do|do it|go ahead|go for it|build it|make it|run it|"
+                     r"let'?s do (it|that)|sounds good|yes please|sure thing|why not|perfect|great|absolutely|definitely|"
+                     r"that one|the (first|second|third|1st|2nd|3rd|last) one|(option|number|#)?\s*[123])"
+                     r"(,?\s*(please|thanks|thank you|go ahead|do it|lyst))*[\s!.]*$", re.I)
+_DECLINE = re.compile(r"^(no|nope|nah|not now|not yet|maybe later|later|never ?mind|no thanks|no thank you|skip it|"
+                      r"don'?t|leave it|cancel that)[\s!.,]*(thanks|thank you)?[\s!.]*$", re.I)
+_ORDINAL = {"first": 0, "1st": 0, "1": 0, "second": 1, "2nd": 1, "2": 1, "third": 2, "3rd": 2, "3": 2, "last": -1}
+
+
+def offer_index(text: str, offers: list[str]) -> int | None:
+    """Which of the offers a short reply takes up: the first for a plain yes, another when it is named by number
+    ("the second one") or repeated word for word. None when the reply takes up none of them."""
+    t = " ".join((text or "").split()).strip()
+    if not offers or not t:
+        return None
+    for i, o in enumerate(offers):
+        if t.lower().strip(" .!?") == o.lower().strip(" .!?"):
+            return i
+    if not _AFFIRM.match(t):
+        return None
+    m = re.search(r"\b(first|second|third|last|1st|2nd|3rd|[123])\b", t, re.I)
+    i = _ORDINAL[m.group(1).lower()] if m else 0
+    i = len(offers) - 1 if i < 0 else i
+    return i if i < len(offers) else None
+
+
+def follow_up(db: Any, actor: Any, ws: str, text: str, *, minutes: int = 15) -> dict[str, Any] | None:
+    """A short yes to the offer in this person's latest reply, as the request it accepts: {"question", "task_id"}.
+
+    Only the asker's own most recent finished task counts, only if it was a conversational reply with offers and
+    finished in the last ``minutes``. Anything else is None and the line is read on its own."""
+    if len((text or "").split()) > 8:
+        return None
+    rows = db.query("SELECT id, result FROM tasks WHERE workspace_id = ? AND created_by = ? AND status = 'done' "
+                    f"AND updated_at > now() - INTERVAL {int(minutes)} MINUTE ORDER BY created_at DESC LIMIT 1",
+                    [ws, actor.user_id])
+    if not rows:
+        return None
+    import json  # noqa: PLC0415
+
+    res = rows[0]["result"]
+    res = json.loads(res) if isinstance(res, str) else (res or {})
+    if res.get("mode") != "conversation":
+        return None
+    offers = [str(o) for o in ((res.get("conversation") or {}).get("suggestions") or [])]
+    i = offer_index(text, offers)
+    return {"question": offers[i], "task_id": rows[0]["id"]} if i is not None else None
+
+
 _GREETING = re.compile(r"^(hi|hello|hey|hiya|yo|good\s+(morning|afternoon|evening)|thanks|thank\s+you|thx|cheers|ok(ay)?|"
                        r"great|cool|nice|perfect|got\s+it|sounds\s+good)\b[\s!.,]*", re.I)
 _DISCUSS = re.compile(r"^(what\s+do\s+you\s+think|do\s+you\s+think|should\s+(we|i)\b|what\s+should\s+(we|i)\b|any\s+(thoughts|ideas|"
@@ -89,6 +140,8 @@ def route(text: str, *, metrics_named: bool = False) -> dict[str, str] | None:
     if re.match(r"^\s*(refresh dashboard|sync connection)\b", t, re.I):
         return None
     words = len(t.split())
+    if _DECLINE.match(t):
+        return {"kind": "decline", "topic": "general"}
     if _GREETING.match(t) and words <= 8 and not (metrics_named and _ACTION.search(t)):
         return {"kind": "greeting", "topic": "general"}
     if _CAPABILITY.match(t):
@@ -263,7 +316,9 @@ def compose(question: str, route_: dict[str, str], inv: dict[str, Any], *, named
               [{"kind": a["kind"], "id": a["id"], "title": a["title"], "note": a.get("health")} for a in inv["assets"]]
     build = build_suggestion(inv, question)
 
-    if kind == "greeting":
+    if kind == "decline":
+        parts.append("No problem, I'll leave it there. Ask whenever you want it, or ask me something else.")
+    elif kind == "greeting":
         thanks = re.match(r"^\s*(thanks|thank\s+you|thx|cheers)", question, re.I)
         parts.append("You're welcome." if thanks else "Hi.")
         parts.append("Ask me about any approved metric, or what's in this workspace, and I'll take it from there.")
@@ -404,6 +459,19 @@ def compose(question: str, route_: dict[str, str], inv: dict[str, Any], *, named
     suggestions = [x for x in suggestions if x and not (x in seen or seen.add(x))][:3]
     return {"answer": " ".join(parts), "items": items[:12], "suggestions": suggestions, "notes": notes,
             "kind": kind, "topic": topic}
+
+
+def recent_turns(db: Any, actor: Any, ws: str, task_id: str | None, *, limit: int = 3, minutes: int = 30) -> list[dict[str, str]]:
+    """This person's last few finished questions and answers in this workspace, oldest first, so a reply can follow
+    the conversation ("what about by region?" after an answer about revenue). Only answers that finished."""
+    try:
+        rows = db.query("SELECT id, request->>'$.question' AS q, result->>'$.answer' AS a FROM tasks WHERE workspace_id = ? "
+                        "AND created_by = ? AND status = 'done' AND id <> ? "
+                        f"AND updated_at > now() - INTERVAL {int(minutes)} MINUTE ORDER BY created_at DESC LIMIT ?",
+                        [ws, actor.user_id, task_id or "", int(limit)])
+    except Exception:  # noqa: BLE001 - context only improves the wording; a reply never fails for lack of it
+        return []
+    return [{"question": str(r["q"] or "")[:300], "answer": str(r["a"] or "")[:500]} for r in reversed(rows)]
 
 
 def counts(inv: dict[str, Any]) -> list[float]:

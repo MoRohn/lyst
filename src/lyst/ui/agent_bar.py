@@ -35,6 +35,8 @@ from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
 LIVE = 6  # seconds between refreshes while Lyst works or the person follows it
+QUICK = 2  # seconds between refreshes just after a question, while its answer is most likely to land
+SETTLE = 2.0  # seconds a question waits for a quick answer before the page redraws
 TURNS = 12  # conversation turns kept in this browser session
 FEED = 14  # events shown in Live
 PAGE_OF = {"": "home", "analyst": "home", "data": "data", "brain": "brain", "settings": "settings", "work": "brain",
@@ -285,13 +287,28 @@ def _go(target: dict | None) -> None:
         st.switch_page(target["page"], query_params=target.get("params") or {})
 
 
+def _settle(api: Any, task_id: str, seconds: float = SETTLE) -> bool:
+    """Wait briefly for a quick answer (a conversational reply takes well under a second), so it shows in the bar on
+    this redraw instead of on the next refresh. Longer work keeps running and is followed live as before."""
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        try:
+            if api.get(f"/v1/tasks/{task_id}")["status"] in ("done", "failed", "cancelled"):
+                return True
+        except APIError:
+            return False
+        time.sleep(0.15)
+    return False
+
+
 def _ask(q: str, page: str, *, via: str = "typed") -> None:
     api, ws = client(), workspace()
     out = kit.guarded(lambda: api.ask(ws, q))
     if not out:
         return
     _remember(q, via=via, task=out.get("task_id"))
-    st.toast("Lyst is on it", icon=":material/bolt:")
+    if not _settle(api, out["task_id"]):  # a reply is usually back before the page redraws: no toast needed then
+        st.toast("Lyst is on it", icon=":material/bolt:")
     if page == "home":  # Home is where answers are read: open it there, as the ask box did
         st.session_state.task_id = out["task_id"]
         st.switch_page("app_pages/analyst.py", query_params={"task": out["task_id"]})
@@ -419,6 +436,11 @@ def _live(page: str) -> None:
     _draw(page)
 
 
+@st.fragment(run_every=QUICK)
+def _quick(page: str) -> None:
+    _draw(page)
+
+
 @st.fragment
 def _still(page: str) -> None:
     _draw(page)
@@ -440,7 +462,8 @@ def bar(page: str) -> None:
         return
     busy = any(t["status"] in agent.ACTIVE for t in s["tasks"]) or bool(st.session_state.get("_bar_follow")) or \
         bool(st.session_state.get("voice_wait"))
-    (_live if busy else _still)(page)
+    fresh = any(t.get("task") and time.time() - t["at"] < 30 for t in _turns()[-1:])
+    (_quick if busy and fresh else _live if busy else _still)(page)
 
 
 CSS = """
