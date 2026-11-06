@@ -60,6 +60,8 @@ def test_migration_versions_are_unique_and_lanes_stay_in_range():
             assert 100 <= v <= 109
         if "event_outbox" in sql or "event_inbox" in sql:
             assert 110 <= v <= 119
+        if "answer_feedback" in sql:
+            assert 120 <= v <= 129
 
 
 def test_the_run_loop_ends_tasks_only_through_fail_and_finish():

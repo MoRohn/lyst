@@ -76,3 +76,6 @@ def attach(lyst) -> None:
     lyst.runtime.autonomy = lyst.autonomy
     _events.EMITTED.update({"activity.opened": "a rule matched an event and opened an activity",
                             "activity.changed": "an activity moved to another lifecycle state"})
+    from .feedback import FeedbackService  # noqa: PLC0415 - learning lane
+
+    lyst.feedback = FeedbackService(lyst.stores, lyst.guard, lyst.memory)

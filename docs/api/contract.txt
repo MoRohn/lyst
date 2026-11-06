@@ -50,6 +50,7 @@ GET /v1/tasks/{task_id}/trace | query: - | body: -
 GET /v1/workspaces/{ws}/activities | query: - | body: -
 GET /v1/workspaces/{ws}/activities/{aid} | query: - | body: -
 GET /v1/workspaces/{ws}/analyses | query: - | body: -
+GET /v1/workspaces/{ws}/analyses/{analysis_id}/feedback | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/quality | query: - | body: -
 GET /v1/workspaces/{ws}/anticipation/settings | query: - | body: -
 GET /v1/workspaces/{ws}/anticipations | query: - | body: -
@@ -110,6 +111,7 @@ GET /v1/workspaces/{ws}/experiments/{eid} | query: - | body: -
 GET /v1/workspaces/{ws}/experiments/{eid}/comparison | query: - | body: -
 GET /v1/workspaces/{ws}/exports | query: - | body: -
 GET /v1/workspaces/{ws}/exports/{eid}/download | query: - | body: -
+GET /v1/workspaces/{ws}/feedback/summary | query: - | body: -
 GET /v1/workspaces/{ws}/findings | query: - | body: -
 GET /v1/workspaces/{ws}/glossary | query: - | body: -
 GET /v1/workspaces/{ws}/graph-runs | query: - | body: -
@@ -208,6 +210,7 @@ POST /v1/tasks/{task_id}/follow-up | query: - | body: text
 POST /v1/tasks/{task_id}/{action} | query: - | body: -
 POST /v1/workspaces/{ws}/activities/{aid}/dismiss | query: - | body: -
 POST /v1/workspaces/{ws}/activities/{aid}/run | query: - | body: -
+POST /v1/workspaces/{ws}/analyses/{analysis_id}/feedback | query: - | body: verdict
 POST /v1/workspaces/{ws}/analyst/requests | query: - | body: text,workspace_id
 POST /v1/workspaces/{ws}/anticipations/refresh | query: - | body: -
 POST /v1/workspaces/{ws}/anticipations/{aid}/act | query: - | body: action
@@ -247,6 +250,7 @@ POST /v1/workspaces/{ws}/experiments | query: - | body: name
 POST /v1/workspaces/{ws}/experiments/{eid}/decision | query: - | body: choice
 POST /v1/workspaces/{ws}/experiments/{eid}/run | query: - | body: -
 POST /v1/workspaces/{ws}/exports | query: - | body: -
+POST /v1/workspaces/{ws}/feedback/{feedback_id}/withdraw | query: - | body: -
 POST /v1/workspaces/{ws}/findings/{finding_id} | query: - | body: status
 POST /v1/workspaces/{ws}/glossary | query: - | body: definition,term
 POST /v1/workspaces/{ws}/graph-runs | query: - | body: goal

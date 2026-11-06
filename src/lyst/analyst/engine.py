@@ -1861,7 +1861,7 @@ def learn(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     db = ctx.services.semantic.stores.workspace(ctx.workspace_id)
     if db.scalar("SELECT count(*) FROM analyses WHERE id = ?", [aid]):
         return {"analysis_id": aid, "memory_id": db.scalar(
-            "SELECT id FROM memory WHERE provenance->>'analysis_id' = ?", [aid])}
+            "SELECT id FROM memory WHERE layer = 'episodic' AND provenance->>'analysis_id' = ?", [aid])}
     db.execute(
         "INSERT INTO analyses (id, task_id, question, answer, evidence, created_by) VALUES (?, ?, ?, ?, ?, ?)",
         [aid, ctx.task_id, d["question"], json.dumps({k: d[k] for k in ("status", "answer", "evidence",
