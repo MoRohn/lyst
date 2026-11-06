@@ -87,7 +87,7 @@ class MemoryService:
         words = {w for w in re.findall(r"[a-z0-9]{3,}", text.lower())}
         rows = self.stores.workspace(workspace_id).query(
             "SELECT id, layer, scope, owner, content, provenance, trust, occurred_at FROM ("
-            "SELECT *, created_at AS occurred_at FROM memory) WHERE revoked_at IS NULL "
+            "SELECT *, created_at AS occurred_at FROM memory) WHERE revoked_at IS NULL AND disputed_at IS NULL "
             "AND (expires_at IS NULL OR expires_at > now()) AND (layer <> 'user' OR scope = ?)",
             [actor.user_id],
         )

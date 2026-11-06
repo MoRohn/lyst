@@ -347,7 +347,9 @@ class KnowledgeService:
         self.guard.require(actor, ws, "workspace.read")
         key = _question_key(question)
         rows = self._db(ws).query(
-            "SELECT id, task_id, question, answer, evidence, created_at FROM analyses ORDER BY created_at DESC LIMIT 200")
+            "SELECT id, task_id, question, answer, evidence, created_at FROM analyses "
+            # an answer a person marked incorrect is never cited again (lyst.feedback)
+            "WHERE coalesce(status, 'open') <> 'disputed' ORDER BY created_at DESC LIMIT 200")
         out = []
         for r in rows:
             if _question_key(r["question"]) == key:

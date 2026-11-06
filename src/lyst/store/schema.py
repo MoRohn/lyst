@@ -1680,3 +1680,29 @@ WORKSPACE.append((
     CREATE INDEX rule_evaluations_by_rule ON rule_evaluations (rule_id, id)
     """,
 ))
+
+# Learning lane (120-129). A person's verdict on an answer (lyst.feedback): the analysis carries its standing status
+# (open, confirmed, disputed), a disputed answer's episodic memory leaves recall (disputed_at), and every verdict is
+# kept with who gave it, whether it governs reuse (editor or above), and when it was withdrawn.
+WORKSPACE.append((
+    120,
+    """
+    ALTER TABLE analyses ADD COLUMN status VARCHAR DEFAULT 'open';
+    ALTER TABLE memory ADD COLUMN disputed_at TIMESTAMPTZ;
+    CREATE TABLE answer_feedback (
+        id VARCHAR PRIMARY KEY,
+        analysis_id VARCHAR NOT NULL,
+        task_id VARCHAR,
+        verdict VARCHAR NOT NULL,
+        note VARCHAR,
+        correction VARCHAR,
+        correction_memory_id VARCHAR,
+        governs BOOLEAN NOT NULL,
+        given_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        withdrawn_at TIMESTAMPTZ,
+        withdrawn_by VARCHAR
+    );
+    CREATE INDEX answer_feedback_by_analysis ON answer_feedback (analysis_id, withdrawn_at)
+    """,
+))

@@ -1492,7 +1492,8 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         lyst = L(request)
         lyst.guard.require(user, ws, "workspace.read")
         return lyst.stores.workspace(ws).query(
-            "SELECT id, task_id, question, answer, created_by, created_at FROM analyses ORDER BY created_at DESC LIMIT 100")
+            "SELECT id, task_id, question, answer, coalesce(status, 'open') AS status, created_by, created_at FROM analyses "
+            "ORDER BY created_at DESC LIMIT 100")
 
     @app.get("/v1/workspaces/{ws}/evals")
     def eval_runs(request: Request, ws: str, user: User):
@@ -1760,6 +1761,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .events import routes as event_routes  # noqa: PLC0415
 
     event_routes(app, L, User)
+
+    # -- learning lane: a person's verdict on an answer, and what Lyst stops or starts reusing because of it ---------
+    from .learning import routes as learning_routes  # noqa: PLC0415
+
+    learning_routes(app, L, User)
 
     return app
 

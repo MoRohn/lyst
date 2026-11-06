@@ -36,6 +36,7 @@ import re
 import uuid
 from typing import Any
 
+from .feedback import DISPUTED
 from .security import Guard, Principal
 
 log = logging.getLogger("lyst.workflows")
@@ -297,8 +298,11 @@ class WorkflowService:
             if row:
                 cur = self._row(dict(zip(cols, row, strict=True)))
                 patterns = sorted(set(cur["patterns"]) | {pat})
-                if (cur["status"] == "active" and json.dumps(cur["definition"]["steps"], sort_keys=True) == steps_json
-                        and cur["deps"] == deps):
+                same = json.dumps(cur["definition"]["steps"], sort_keys=True) == steps_json and cur["deps"] == deps
+                if same and cur["status"] == "stale" and (cur.get("invalid_reason") or "").startswith(DISPUTED):
+                    # a person said this exact plan on this exact data gave a wrong answer: never recompile it as is
+                    return cur["id"], cur["version"], None
+                if cur["status"] == "active" and same:
                     c.execute("UPDATE workflows SET patterns = ?, verified_runs = verified_runs + 1, last_verified_at = now(), "
                               "last_verified_task = ? WHERE id = ? AND version = ?",
                               [patterns, task_id, cur["id"], cur["version"]])
@@ -316,6 +320,9 @@ class WorkflowService:
             return wf_id, version, True
 
         wf_id, version, created = db.write(tx)
+        if created is None:
+            return {"id": wf_id, "version": version, "created": False,
+                    "blocked": "a person marked an answer from these same steps incorrect"}
         if not created:
             return {"id": wf_id, "version": version, "created": False}
         self.guard.audit(actor, ws, "workflow.compile", f"{wf_id}:v{version}", "ok")
