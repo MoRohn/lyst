@@ -24,7 +24,7 @@
    "primary": "data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "business_intelligence_analyst",
@@ -48,7 +48,7 @@
    "primary": "business_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "business_analyst",
@@ -72,7 +72,7 @@
    "primary": "business_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "analytics_engineer",
@@ -84,7 +84,7 @@
    "primary": "analytics_engineer",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "analytics_engineer",
@@ -96,7 +96,7 @@
    "primary": "document_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "reporting_analyst",
@@ -120,7 +120,7 @@
    "primary": "reporting_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_quality_analyst",
@@ -132,7 +132,7 @@
    "primary": "data_quality_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_quality_analyst",
@@ -144,7 +144,7 @@
    "primary": "data_quality_analyst",
    "outcome": "declined",
    "reason": "no dataset named",
-   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, checkout_experiment, ci_runs, clinical_trial, cloud_billing, cloud_posture, clu"
+   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clinical_trial, cloud_billing, c"
   },
   {
    "id": "data_governance_analyst",
@@ -156,7 +156,7 @@
    "primary": "data_governance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_governance_analyst",
@@ -180,7 +180,7 @@
    "primary": "data_modeling_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_modeling_analyst",
@@ -192,7 +192,7 @@
    "primary": "data_modeling_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "master_data_analyst",
@@ -204,7 +204,7 @@
    "primary": "master_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "master_data_analyst",
@@ -216,7 +216,7 @@
    "primary": "master_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_integration_analyst",
@@ -228,7 +228,7 @@
    "primary": "data_integration_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_integration_analyst",
@@ -240,7 +240,7 @@
    "primary": "data_integration_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_warehouse_analyst",
@@ -252,7 +252,7 @@
    "primary": "data_warehouse_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_warehouse_analyst",
@@ -264,7 +264,7 @@
    "primary": "database_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_observability_analyst",
@@ -276,7 +276,7 @@
    "primary": "data_observability_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "data_observability_analyst",
@@ -288,7 +288,7 @@
    "primary": "data_observability_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "statistical_analyst",
@@ -300,7 +300,7 @@
    "primary": "statistical_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "statistical_analyst",
@@ -312,13 +312,13 @@
    "primary": "statistical_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "predictive_analytics_analyst",
    "name": "Predictive Analytics Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "Which customers are likely to churn next quarter?",
    "routed_to_self": true,
    "primary": "predictive_analytics_analyst",
@@ -330,7 +330,7 @@
    "id": "predictive_analytics_analyst",
    "name": "Predictive Analytics Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "Predict next month's demand by product.",
    "routed_to_self": true,
    "primary": "forecasting_analyst",
@@ -366,19 +366,19 @@
    "id": "causal_inference_analyst",
    "name": "Causal Inference Analyst",
    "domain": "statistics_advanced",
-   "level": 2,
+   "level": 3,
    "example": "What effect did the March price change have on orders?",
    "routed_to_self": true,
    "primary": "causal_inference_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "causal_inference_analyst",
    "name": "Causal Inference Analyst",
    "domain": "statistics_advanced",
-   "level": 2,
+   "level": 3,
    "example": "Did the new onboarding flow cause higher retention?",
    "routed_to_self": true,
    "primary": "causal_inference_analyst",
@@ -396,7 +396,7 @@
    "primary": "digital_experimentation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "experimentation_analyst",
@@ -408,31 +408,31 @@
    "primary": "experimentation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "operations_research_analyst",
    "name": "Operations Research Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "How many agents do we need per shift to meet service levels?",
    "routed_to_self": true,
    "primary": "operations_research_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "operations_research_analyst",
    "name": "Operations Research Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "Allocate the budget across channels for the best return.",
    "routed_to_self": false,
    "primary": "optimization_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "simulation_analyst",
@@ -444,7 +444,7 @@
    "primary": "simulation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "simulation_analyst",
@@ -456,31 +456,31 @@
    "primary": "simulation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "optimization_analyst",
    "name": "Optimization Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "What is the best split of a $2M budget across five channels?",
    "routed_to_self": true,
    "primary": "optimization_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "optimization_analyst",
    "name": "Optimization Analyst",
    "domain": "statistics_advanced",
-   "level": 1,
+   "level": 3,
    "example": "Minimize cost while keeping service level above 90%.",
    "routed_to_self": true,
    "primary": "optimization_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "quantitative_research_analyst",
@@ -492,7 +492,7 @@
    "primary": "quantitative_research_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "quantitative_research_analyst",
@@ -504,7 +504,7 @@
    "primary": "quantitative_research_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "decision_intelligence_analyst",
@@ -528,7 +528,7 @@
    "primary": "decision_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "geospatial_analyst",
@@ -552,7 +552,7 @@
    "primary": "geospatial_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "time_series_analyst",
@@ -564,7 +564,7 @@
    "primary": "time_series_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "time_series_analyst",
@@ -576,7 +576,7 @@
    "primary": "time_series_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "ai_systems_analyst",
@@ -606,19 +606,19 @@
    "id": "machine_learning_analyst",
    "name": "Machine Learning Analyst",
    "domain": "ai_ml_agentic",
-   "level": 1,
+   "level": 3,
    "example": "Evaluate this churn classifier's precision and recall by segment.",
    "routed_to_self": true,
    "primary": "machine_learning_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "machine_learning_analyst",
    "name": "Machine Learning Analyst",
    "domain": "ai_ml_agentic",
-   "level": 1,
+   "level": 3,
    "example": "Cluster customers by purchasing behaviour.",
    "routed_to_self": true,
    "primary": "machine_learning_analyst",
@@ -648,7 +648,7 @@
    "primary": "generative_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "agentic_ai_analyst",
@@ -660,7 +660,7 @@
    "primary": "agentic_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "agentic_ai_analyst",
@@ -672,7 +672,7 @@
    "primary": "agentic_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "llm_evaluation_analyst",
@@ -696,7 +696,7 @@
    "primary": "llm_evaluation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "prompt_context_analyst",
@@ -708,7 +708,7 @@
    "primary": "prompt_context_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "prompt_context_analyst",
@@ -720,7 +720,7 @@
    "primary": "prompt_context_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "rag_retrieval_analyst",
@@ -732,7 +732,7 @@
    "primary": "rag_retrieval_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "rag_retrieval_analyst",
@@ -744,7 +744,7 @@
    "primary": "rag_retrieval_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "ai_safety_alignment_analyst",
@@ -756,7 +756,7 @@
    "primary": "ai_safety_alignment_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "ai_safety_alignment_analyst",
@@ -768,7 +768,7 @@
    "primary": "ai_safety_alignment_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "ai_governance_analyst",
@@ -780,7 +780,7 @@
    "primary": "ai_governance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "ai_governance_analyst",
@@ -792,13 +792,13 @@
    "primary": "ai_governance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "mlops_analyst",
    "name": "MLOps Analyst",
    "domain": "ai_ml_agentic",
-   "level": 2,
+   "level": 3,
    "example": "Is our demand model drifting?",
    "routed_to_self": true,
    "primary": "mlops_analyst",
@@ -810,13 +810,13 @@
    "id": "mlops_analyst",
    "name": "MLOps Analyst",
    "domain": "ai_ml_agentic",
-   "level": 2,
+   "level": 3,
    "example": "Which models have not been retrained in six months?",
    "routed_to_self": true,
    "primary": "mlops_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "model_performance_analyst",
@@ -828,7 +828,7 @@
    "primary": "model_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "model_performance_analyst",
@@ -840,7 +840,7 @@
    "primary": "predictive_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "multimodal_ai_analyst",
@@ -852,7 +852,7 @@
    "primary": "multimodal_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "multimodal_ai_analyst",
@@ -864,7 +864,7 @@
    "primary": "speech_audio_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "conversational_ai_analyst",
@@ -876,7 +876,7 @@
    "primary": "conversational_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "conversational_ai_analyst",
@@ -888,7 +888,7 @@
    "primary": "conversational_ai_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "speech_audio_ai_analyst",
@@ -936,7 +936,7 @@
    "primary": "ai_cost_inference_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "agent_reliability_analyst",
@@ -948,7 +948,7 @@
    "primary": "agent_reliability_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "agent_reliability_analyst",
@@ -996,7 +996,7 @@
    "primary": "application_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "application_analyst",
@@ -1044,7 +1044,7 @@
    "primary": "test_automation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "test_automation_analyst",
@@ -1068,7 +1068,7 @@
    "primary": "software_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "software_performance_analyst",
@@ -1080,7 +1080,7 @@
    "primary": "software_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "api_integration_analyst",
@@ -1104,7 +1104,7 @@
    "primary": "api_integration_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "devops_analyst",
@@ -1116,7 +1116,7 @@
    "primary": "devops_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "devops_analyst",
@@ -1140,7 +1140,7 @@
    "primary": "site_reliability_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "site_reliability_analyst",
@@ -1164,7 +1164,7 @@
    "primary": "platform_engineering_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "platform_engineering_analyst",
@@ -1176,7 +1176,7 @@
    "primary": "platform_engineering_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "technical_debt_analyst",
@@ -1188,7 +1188,7 @@
    "primary": "technical_debt_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "technical_debt_analyst",
@@ -1200,7 +1200,7 @@
    "primary": "technical_debt_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "developer_productivity_analyst",
@@ -1212,7 +1212,7 @@
    "primary": "developer_productivity_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "developer_productivity_analyst",
@@ -1236,7 +1236,7 @@
    "primary": "product_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "product_analyst",
@@ -1248,7 +1248,7 @@
    "primary": "product_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "user_experience_analyst",
@@ -1260,7 +1260,7 @@
    "primary": "user_experience_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "user_experience_analyst",
@@ -1296,7 +1296,7 @@
    "primary": "digital_accessibility_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cloud_infrastructure_analyst",
@@ -1308,7 +1308,7 @@
    "primary": "cloud_infrastructure_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cloud_infrastructure_analyst",
@@ -1320,7 +1320,7 @@
    "primary": "cloud_infrastructure_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cloud_finops_analyst",
@@ -1356,7 +1356,7 @@
    "primary": "infrastructure_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "infrastructure_performance_analyst",
@@ -1374,19 +1374,19 @@
    "id": "network_analyst",
    "name": "Network Analyst",
    "domain": "cloud_infrastructure",
-   "level": 1,
+   "level": 3,
    "example": "Which links will exceed 80% utilization next quarter?",
    "routed_to_self": true,
    "primary": "network_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "network_analyst",
    "name": "Network Analyst",
    "domain": "cloud_infrastructure",
-   "level": 1,
+   "level": 3,
    "example": "What caused the packet loss on Tuesday?",
    "routed_to_self": true,
    "primary": "network_analyst",
@@ -1404,7 +1404,7 @@
    "primary": "systems_operations_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "systems_operations_analyst",
@@ -1416,7 +1416,7 @@
    "primary": "systems_operations_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "capacity_planning_analyst",
@@ -1428,7 +1428,7 @@
    "primary": "capacity_planning_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "capacity_planning_analyst",
@@ -1440,7 +1440,7 @@
    "primary": "capacity_planning_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "database_performance_analyst",
@@ -1452,7 +1452,7 @@
    "primary": "database_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "database_performance_analyst",
@@ -1464,7 +1464,7 @@
    "primary": "database_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "storage_data_infrastructure_analyst",
@@ -1476,7 +1476,7 @@
    "primary": "storage_data_infrastructure_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "storage_data_infrastructure_analyst",
@@ -1488,7 +1488,7 @@
    "primary": "storage_data_infrastructure_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "kubernetes_container_analyst",
@@ -1500,7 +1500,7 @@
    "primary": "kubernetes_container_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "kubernetes_container_analyst",
@@ -1512,7 +1512,7 @@
    "primary": "kubernetes_container_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "gpu_computing_analyst",
@@ -1524,7 +1524,7 @@
    "primary": "gpu_computing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "gpu_computing_analyst",
@@ -1536,31 +1536,31 @@
    "primary": "gpu_computing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "distributed_systems_analyst",
    "name": "Distributed Systems Analyst",
    "domain": "cloud_infrastructure",
-   "level": 1,
+   "level": 3,
    "example": "Reconstruct how the payment outage cascaded across services.",
    "routed_to_self": true,
    "primary": "distributed_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "distributed_systems_analyst",
    "name": "Distributed Systems Analyst",
    "domain": "cloud_infrastructure",
-   "level": 1,
+   "level": 3,
    "example": "Where do retries amplify load?",
    "routed_to_self": true,
    "primary": "distributed_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "it_service_management_analyst",
@@ -1572,7 +1572,7 @@
    "primary": "it_service_management_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "it_service_management_analyst",
@@ -1584,55 +1584,55 @@
    "primary": "it_service_management_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cybersecurity_analyst",
    "name": "Cybersecurity Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Analyze authorized security telemetry and identify suspicious patterns without exposing restricted data.",
    "routed_to_self": true,
    "primary": "cybersecurity_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cybersecurity_analyst",
    "name": "Cybersecurity Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Which accounts logged in from unusual countries?",
    "routed_to_self": true,
    "primary": "cybersecurity_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "soc_analyst",
    "name": "Security Operations Center Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Summarize today's high-severity alerts and which look like true positives.",
    "routed_to_self": true,
    "primary": "soc_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "soc_analyst",
    "name": "Security Operations Center Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Which detection rules produce the most false positives?",
    "routed_to_self": true,
    "primary": "soc_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "threat_intelligence_analyst",
@@ -1644,7 +1644,7 @@
    "primary": "threat_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "threat_intelligence_analyst",
@@ -1656,7 +1656,7 @@
    "primary": "threat_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "vulnerability_analyst",
@@ -1680,7 +1680,7 @@
    "primary": "vulnerability_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "application_security_analyst",
@@ -1692,7 +1692,7 @@
    "primary": "application_security_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "application_security_analyst",
@@ -1704,7 +1704,7 @@
    "primary": "application_security_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cloud_security_analyst",
@@ -1716,7 +1716,7 @@
    "primary": "cloud_security_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "cloud_security_analyst",
@@ -1728,7 +1728,7 @@
    "primary": "cloud_security_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "iam_analyst",
@@ -1752,7 +1752,7 @@
    "primary": "iam_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "security_compliance_analyst",
@@ -1788,7 +1788,7 @@
    "primary": "privacy_data_protection_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "privacy_data_protection_analyst",
@@ -1806,25 +1806,25 @@
    "id": "digital_forensics_analyst",
    "name": "Digital Forensics Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Build a timeline of activity on host X between 2am and 4am.",
    "routed_to_self": true,
    "primary": "digital_forensics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_forensics_analyst",
    "name": "Digital Forensics Analyst",
    "domain": "security_risk_compliance",
-   "level": 1,
+   "level": 3,
    "example": "Which accounts touched the affected files?",
    "routed_to_self": true,
    "primary": "digital_forensics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "fraud_detection_analyst",
@@ -1836,7 +1836,7 @@
    "primary": "fraud_detection_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "fraud_detection_analyst",
@@ -1848,7 +1848,7 @@
    "primary": "fraud_detection_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "security_risk_analyst",
@@ -1860,7 +1860,7 @@
    "primary": "security_risk_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "security_risk_analyst",
@@ -1896,7 +1896,7 @@
    "primary": "financial_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "fpa_analyst",
@@ -1908,7 +1908,7 @@
    "primary": "fpa_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "fpa_analyst",
@@ -1920,7 +1920,7 @@
    "primary": "fpa_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "financial_systems_analyst",
@@ -1932,7 +1932,7 @@
    "primary": "financial_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "financial_systems_analyst",
@@ -1944,7 +1944,7 @@
    "primary": "financial_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "revenue_operations_analyst",
@@ -1968,7 +1968,7 @@
    "primary": "revenue_operations_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "pricing_analyst",
@@ -2016,7 +2016,7 @@
    "primary": "procurement_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "supply_chain_analyst",
@@ -2028,7 +2028,7 @@
    "primary": "supply_chain_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "supply_chain_analyst",
@@ -2040,7 +2040,7 @@
    "primary": "supply_chain_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "inventory_analyst",
@@ -2052,7 +2052,7 @@
    "primary": "inventory_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "inventory_analyst",
@@ -2064,7 +2064,7 @@
    "primary": "inventory_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "workforce_analytics_analyst",
@@ -2088,7 +2088,7 @@
    "primary": "workforce_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "process_mining_analyst",
@@ -2100,7 +2100,7 @@
    "primary": "process_mining_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "process_mining_analyst",
@@ -2124,7 +2124,7 @@
    "primary": "erp_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "erp_systems_analyst",
@@ -2136,7 +2136,7 @@
    "primary": "erp_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "risk_controls_analyst",
@@ -2148,7 +2148,7 @@
    "primary": "risk_controls_analyst",
    "outcome": "declined",
    "reason": "no dataset named",
-   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, checkout_experiment, ci_runs, clinical_trial, cloud_billing, cloud_posture, clu"
+   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clinical_trial, cloud_billing, c"
   },
   {
    "id": "risk_controls_analyst",
@@ -2160,7 +2160,7 @@
    "primary": "risk_controls_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_marketing_analyst",
@@ -2172,7 +2172,7 @@
    "primary": "digital_marketing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_marketing_analyst",
@@ -2184,7 +2184,7 @@
    "primary": "digital_marketing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "web_analytics_analyst",
@@ -2196,7 +2196,7 @@
    "primary": "web_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "web_analytics_analyst",
@@ -2208,7 +2208,7 @@
    "primary": "web_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "growth_analyst",
@@ -2220,7 +2220,7 @@
    "primary": "growth_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "growth_analyst",
@@ -2232,7 +2232,7 @@
    "primary": "growth_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "customer_insights_analyst",
@@ -2244,7 +2244,7 @@
    "primary": "customer_insights_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "customer_insights_analyst",
@@ -2268,7 +2268,7 @@
    "primary": "customer_lifecycle_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "customer_lifecycle_analyst",
@@ -2280,7 +2280,7 @@
    "primary": "customer_lifecycle_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "marketing_attribution_analyst",
@@ -2292,7 +2292,7 @@
    "primary": "marketing_attribution_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "marketing_attribution_analyst",
@@ -2316,7 +2316,7 @@
    "primary": "search_seo_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "search_seo_analyst",
@@ -2328,7 +2328,7 @@
    "primary": "search_seo_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "paid_media_analyst",
@@ -2340,7 +2340,7 @@
    "primary": "paid_media_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "paid_media_analyst",
@@ -2352,7 +2352,7 @@
    "primary": "paid_media_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "ecommerce_analyst",
@@ -2388,7 +2388,7 @@
    "primary": "digital_experimentation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_experimentation_analyst",
@@ -2400,7 +2400,7 @@
    "primary": "digital_experimentation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "crm_analyst",
@@ -2424,7 +2424,7 @@
    "primary": "crm_analyst",
    "outcome": "declined",
    "reason": "no dataset named",
-   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, checkout_experiment, ci_runs, clinical_trial, cloud_billing, cloud_posture, clu"
+   "answer": "Name the dataset to profile. Available: access_grants, ad_spend, agent_runs, api_gateway, app_issues, app_latency, bot_sessions, campaign_results, case_reports, channel_options, checkout_experiment, ci_runs, clinical_trial, cloud_billing, c"
   },
   {
    "id": "subscription_monetization_analyst",
@@ -2436,7 +2436,7 @@
    "primary": "subscription_monetization_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "subscription_monetization_analyst",
@@ -2460,7 +2460,7 @@
    "primary": "digital_media_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_media_analyst",
@@ -2472,7 +2472,7 @@
    "primary": "digital_media_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "content_performance_analyst",
@@ -2496,7 +2496,7 @@
    "primary": "content_performance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "social_media_analyst",
@@ -2520,7 +2520,7 @@
    "primary": "social_media_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "audience_intelligence_analyst",
@@ -2532,7 +2532,7 @@
    "primary": "audience_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "audience_intelligence_analyst",
@@ -2544,7 +2544,7 @@
    "primary": "audience_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "news_information_analyst",
@@ -2556,7 +2556,7 @@
    "primary": "news_information_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "news_information_analyst",
@@ -2568,7 +2568,7 @@
    "primary": "news_information_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "media_monitoring_analyst",
@@ -2604,7 +2604,7 @@
    "primary": "communications_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "communications_analyst",
@@ -2616,7 +2616,7 @@
    "primary": "communications_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "video_analytics_analyst",
@@ -2628,7 +2628,7 @@
    "primary": "video_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "video_analytics_analyst",
@@ -2640,7 +2640,7 @@
    "primary": "video_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "audio_podcast_analyst",
@@ -2652,7 +2652,7 @@
    "primary": "audio_podcast_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "audio_podcast_analyst",
@@ -2664,7 +2664,7 @@
    "primary": "audio_podcast_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "document_intelligence_analyst",
@@ -2676,7 +2676,7 @@
    "primary": "document_intelligence_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "document_intelligence_analyst",
@@ -2694,25 +2694,25 @@
    "id": "bioinformatics_analyst",
    "name": "Bioinformatics Analyst",
    "domain": "scientific_industrial",
-   "level": 1,
+   "level": 3,
    "example": "Which genes are differentially expressed between conditions?",
    "routed_to_self": true,
    "primary": "bioinformatics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "bioinformatics_analyst",
    "name": "Bioinformatics Analyst",
    "domain": "scientific_industrial",
-   "level": 1,
+   "level": 3,
    "example": "Is there a batch effect in these samples?",
    "routed_to_self": true,
    "primary": "bioinformatics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "clinical_data_analyst",
@@ -2724,7 +2724,7 @@
    "primary": "clinical_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "clinical_data_analyst",
@@ -2736,7 +2736,7 @@
    "primary": "clinical_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "health_informatics_analyst",
@@ -2748,7 +2748,7 @@
    "primary": "health_informatics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "health_informatics_analyst",
@@ -2760,7 +2760,7 @@
    "primary": "health_informatics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "epidemiological_data_analyst",
@@ -2772,7 +2772,7 @@
    "primary": "epidemiological_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "epidemiological_data_analyst",
@@ -2796,7 +2796,7 @@
    "primary": "scientific_computing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "scientific_computing_analyst",
@@ -2808,31 +2808,31 @@
    "primary": "scientific_computing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "engineering_simulation_analyst",
    "name": "Engineering Simulation Analyst",
    "domain": "scientific_industrial",
-   "level": 2,
+   "level": 3,
    "example": "How well does the simulation match the test rig data?",
    "routed_to_self": true,
    "primary": "engineering_simulation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "engineering_simulation_analyst",
    "name": "Engineering Simulation Analyst",
    "domain": "scientific_industrial",
-   "level": 2,
+   "level": 3,
    "example": "Which parameters most affect peak stress?",
    "routed_to_self": true,
    "primary": "engineering_simulation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "manufacturing_analytics_analyst",
@@ -2844,7 +2844,7 @@
    "primary": "manufacturing_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "manufacturing_analytics_analyst",
@@ -2868,7 +2868,7 @@
    "primary": "industrial_iot_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "industrial_iot_analyst",
@@ -2880,31 +2880,31 @@
    "primary": "industrial_iot_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "predictive_maintenance_analyst",
    "name": "Predictive Maintenance Analyst",
    "domain": "scientific_industrial",
-   "level": 1,
+   "level": 3,
    "example": "Which assets are most likely to fail next month?",
    "routed_to_self": true,
    "primary": "predictive_maintenance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "predictive_maintenance_analyst",
    "name": "Predictive Maintenance Analyst",
    "domain": "scientific_industrial",
-   "level": 1,
+   "level": 3,
    "example": "What is the MTBF of our conveyor motors?",
    "routed_to_self": true,
    "primary": "predictive_maintenance_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "energy_analytics_analyst",
@@ -2916,7 +2916,7 @@
    "primary": "energy_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "energy_analytics_analyst",
@@ -2952,7 +2952,7 @@
    "primary": "environmental_data_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "transportation_mobility_analyst",
@@ -2964,7 +2964,7 @@
    "primary": "transportation_mobility_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "transportation_mobility_analyst",
@@ -2976,7 +2976,7 @@
    "primary": "transportation_mobility_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_transformation_analyst",
@@ -3000,7 +3000,7 @@
    "primary": "digital_transformation_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "automation_rpa_analyst",
@@ -3012,7 +3012,7 @@
    "primary": "automation_rpa_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "automation_rpa_analyst",
@@ -3024,55 +3024,55 @@
    "primary": "automation_rpa_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_twin_analyst",
    "name": "Digital Twin Analyst",
    "domain": "emerging_technology",
-   "level": 2,
+   "level": 3,
    "example": "How closely does the twin track the plant's real output?",
    "routed_to_self": true,
    "primary": "digital_twin_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_twin_analyst",
    "name": "Digital Twin Analyst",
    "domain": "emerging_technology",
-   "level": 2,
+   "level": 3,
    "example": "Simulate throughput if one line goes down.",
    "routed_to_self": true,
    "primary": "digital_twin_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "blockchain_analytics_analyst",
    "name": "Blockchain Analytics Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Trace where funds from this address went in the last 30 days.",
    "routed_to_self": true,
    "primary": "blockchain_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "blockchain_analytics_analyst",
    "name": "Blockchain Analytics Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "How has activity on our protocol changed?",
    "routed_to_self": true,
    "primary": "blockchain_analytics_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "smart_contract_security_analyst",
@@ -3084,7 +3084,7 @@
    "primary": "smart_contract_security_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "smart_contract_security_analyst",
@@ -3096,7 +3096,7 @@
    "primary": "smart_contract_security_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "quantum_computing_analyst",
@@ -3120,7 +3120,7 @@
    "primary": "quantum_computing_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "robotics_autonomous_systems_analyst",
@@ -3132,7 +3132,7 @@
    "primary": "robotics_autonomous_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "robotics_autonomous_systems_analyst",
@@ -3144,25 +3144,25 @@
    "primary": "robotics_autonomous_systems_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "computer_vision_analyst",
    "name": "Computer Vision Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "How accurate is our defect detector per defect type?",
    "routed_to_self": true,
    "primary": "computer_vision_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "computer_vision_analyst",
    "name": "Computer Vision Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Which camera conditions cause the most missed detections?",
    "routed_to_self": true,
    "primary": "computer_vision_analyst",
@@ -3174,7 +3174,7 @@
    "id": "nlp_text_analytics_analyst",
    "name": "NLP & Text Analytics Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "What are customers complaining about most in support tickets this quarter?",
    "routed_to_self": true,
    "primary": "nlp_text_analytics_analyst",
@@ -3186,37 +3186,37 @@
    "id": "nlp_text_analytics_analyst",
    "name": "NLP & Text Analytics Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Which suppliers are mentioned in these reports?",
    "routed_to_self": false,
    "primary": "procurement_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "knowledge_graph_analyst",
    "name": "Knowledge Graph Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Model how customers, contracts and products relate across our datasets.",
    "routed_to_self": true,
    "primary": "knowledge_graph_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "knowledge_graph_analyst",
    "name": "Knowledge Graph Analyst",
    "domain": "emerging_technology",
-   "level": 1,
+   "level": 3,
    "example": "Which suppliers are connected to multiple risk events?",
    "routed_to_self": false,
    "primary": "procurement_analyst",
    "outcome": "answered",
    "reason": null,
-   "answer": "7 entities and 7 links form 2 connected group(s); the largest has 4 entities, and Acme is the most connected (3 links)."
+   "answer": "7 entities and 7 links form 2 connected group(s); the largest has 4 entities, and Acme is the most connected (3 links); Flux is the main broker between them."
   },
   {
    "id": "digital_forensics_osint_analyst",
@@ -3228,7 +3228,7 @@
    "primary": "digital_forensics_osint_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "digital_forensics_osint_analyst",
@@ -3240,7 +3240,7 @@
    "primary": "digital_forensics_osint_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "technology_research_analyst",
@@ -3252,7 +3252,7 @@
    "primary": "technology_research_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   },
   {
    "id": "technology_research_analyst",
@@ -3264,7 +3264,7 @@
    "primary": "technology_research_analyst",
    "outcome": "declined",
    "reason": "no approved metric covers it",
-   "answer": "No approved metric matches this request. Approved metrics are listed in Intelligence; an admin can add one or map a term in the glossary."
+   "answer": "No approved metric matches this request. The ones defined here are Active users, Agent task failures, API errors, Application issues, Bot exceptions, Campaign conversions, Chargebacks, Chatbot escalations and 50 more; name one and ask again"
   }
  ],
  "summary": {

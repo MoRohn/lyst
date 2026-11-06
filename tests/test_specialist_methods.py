@@ -127,3 +127,53 @@ def test_representative_scenarios_still_pass_and_match_recorded_evidence(sampled
               for pid, r in results.items() if not r["passed"]}
     assert not failed, failed
     assert set(evidence()) == {pid for pid, r in results.items() if r["passed"]}
+
+
+def test_raw_logs_in_four_formats_parse_and_the_guessed_account_is_found():
+    parsed = M.parse_logs(samples.raw_auth_logs()["line"])
+    assert int(parsed["_unparsed"].sum()) == 1  # the garbage line is counted, not guessed
+    seq = M.failure_then_success(parsed.dropna(subset=["ts"]), ts="ts", event="event", entity="entity")
+    assert list(seq["entity"]) == ["admin"] and int(seq.iloc[0]["failures"]) == 8
+    fw = M.parse_logs(samples.firewall_logs()["line"])
+    out = M.log_patterns(fw, ts="ts", event="event", entity="entity")
+    assert out["tables"][1]["rows"][0][0] == "10.0.0.66"
+
+
+def test_graph_finds_the_broker_communities_and_a_path():
+    out = M.graph(samples.service_dependencies(), "source", "target", query="path from web to ledger")
+    assert "auth-service is the main broker" in out["summary"]
+    assert any("Shortest path: web → auth-service → checkout → payments → ledger" in f for f in out["findings"])
+    adj = M._adjacency(samples.wallet_transfers())
+    bc = M.betweenness(adj)
+    assert max(bc, key=bc.get) == "0xHUB"
+
+
+def test_optimization_is_exact_and_respects_limits():
+    out = M.optimize_allocation(samples.channel_options(), option="channel", cost="cost_per_unit", value="return_per_unit",
+                                budget=100_000, max_units="max_units")
+    plan = {r[0]: r[1] for r in out["tables"][0]["rows"]}
+    assert plan["Search"] == 600 and plan["Email"] == 2000  # best returns per cost first, at their limits
+    assert out["metrics"]["spend"] <= 100_000
+    with pytest.raises(M.MethodError):
+        M.optimize_allocation(samples.channel_options(), option="channel", cost="cost_per_unit", value="return_per_unit", budget=0)
+
+
+def test_text_themes_find_the_planted_theme_and_negative_share():
+    out = M.text_themes(samples.ticket_comments(), "comment", group="channel")
+    assert "refund" in out["summary"] and out["metrics"]["negative_share"] > 0.3
+    assert any("order number" in f for f in out["findings"])
+
+
+def test_multiclass_classification_beats_the_baseline():
+    out = M.classify(samples.maintenance_history(), "failure_mode", ["vibration", "temperature", "current_amps"],
+                     order_by="recorded_at")
+    assert out["metrics"]["classes"] == 3 and out["metrics"]["accuracy"] > out["metrics"]["baseline"] + 0.2
+
+
+def test_evaluate_names_the_weakest_segment():
+    out = M.evaluate_predictions(samples.regression_results("rig_tests", "load_case", ["bending", "torsion", "thermal"],
+                                                            "torsion"), "actual", "predicted", segment="load_case")
+    assert "torsion is the weakest segment" in out["summary"]
+    ev = M.evaluate_predictions(samples.eval_results("llm_eval_results", "model", ["model-a", "model-b", "model-c"], "model-b"),
+                                "passed", passed="passed", segment="model")
+    assert "model-b is weakest" in ev["summary"]

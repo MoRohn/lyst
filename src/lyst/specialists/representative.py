@@ -39,7 +39,6 @@ SCENARIOS: dict[str, list[tuple[str, list[str]]]] = {
     "predictive_analytics_analyst": [("Which customers are likely to churn?", ["AUC", "support_tickets"])],
     "cybersecurity_analyst": [("Analyze the login events for suspicious patterns", ["1 of 12", "user07"])],
     "geospatial_analyst": [("Which stores are more than 300 km from a warehouse?", ["2 of 6", "Freiburg", "Munich"])],
-    "network_analyst": [("Which suppliers are connected in the supplier links network?", ["2 connected group", "Acme"])],
     # experiments on the samples
     "experimentation_analyst": [("Did variant B of the checkout experiment improve conversion?", ["B is higher than A", "p ="])],
     "digital_experimentation_analyst": [("Read out the checkout experiment A/B test: did the variant win?", ["B is higher than A"])],
@@ -65,6 +64,30 @@ SCENARIOS: dict[str, list[tuple[str, list[str]]]] = {
     "data_observability_analyst": [("Profile the api_gateway dataset freshness and data quality", ["api_gateway has", "rows"])],
     "reporting_analyst": [("Produce this month's management report of revenue by region", ["North America", "EMEA"])],
     "audience_intelligence_analyst": [("Which audience segments do we have? Segment our customers", ["3 segments"])],
+    # logs, graphs, text, optimization and classification on the samples
+    "soc_analyst": [("Triage the raw auth logs: any brute force or suspicious logins?", ["admin", "8 failures"])],
+    "digital_forensics_analyst": [("Reconstruct a timeline from the raw auth logs for the account that was guessed",
+                                   ["admin", "8 failures"])],
+    "network_analyst": [("Analyze the firewall logs for unusual traffic bursts by source", ["10.0.0.66"])],
+    "distributed_systems_analyst": [("Analyze the service logs: which service had a failure burst?", ["payments"])],
+    "blockchain_analytics_analyst": [("Trace the wallet transfers network: which wallet connects the most?", ["0xHUB"])],
+    "knowledge_graph_analyst": [("Which entity is the main broker in the service dependencies graph?", ["auth-service"])],
+    "nlp_text_analytics_analyst": [("What are the main themes and sentiment in the ticket comments?", ["refund"])],
+    "optimization_analyst": [("Optimize our budget of 100,000 across the channel options for the best return", ["Search"])],
+    "operations_research_analyst": [("Operations research: allocate a budget of 100k across the channel options to maximize "
+                                     "return", ["Search"])],
+    "machine_learning_analyst": [("Train a classifier on the customers dataset to predict churned", ["AUC", "support_tickets"])],
+    "predictive_maintenance_analyst": [("Predict the failure mode from the maintenance history: classify failure_mode",
+                                        ["3 classes", "accuracy"])],
+    "bioinformatics_analyst": [("Classify condition from the gene expression samples", ["gene_brca1"])],
+    "computer_vision_analyst": [("Evaluate the detection results accuracy by class group", ["pedestrian"])],
+    "engineering_simulation_analyst": [("Evaluate the rig tests: how well do simulation predictions match measured results by "
+                                        "load case?", ["torsion"])],
+    "digital_twin_analyst": [("Evaluate the twin vs sensor results: where does the digital twin diverge from measurements?",
+                              ["Chiller 2"])],
+    "mlops_analyst": [("MLOps model monitoring: evaluate the deployed model predictions for drift by segment", ["Enterprise"])],
+    "causal_inference_analyst": [("What was the causal impact of the March 2026 price change on revenue? Estimate the effect "
+                                  "since March 2026", ["pre-event trend", "95% interval"])],
     # existing analysis paths on the demo data and the packs
     "time_series_analyst": [("When did the trend in revenue change over time? Any anomalies?", ["anomaly"])],
     "fpa_analyst": [("Build a rolling forecast of operating income for the FP&A plan, next two quarters", ["80% interval"])],

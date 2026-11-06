@@ -70,9 +70,13 @@ def _fit_process(ds, text):
 
 def _fit_log(ds, text):
     cols = _cols(ds)
+    raw = _find(cols, r"^(line|raw|raw_line|log|log_line|message|entry)$", numeric=False)
+    if raw and len(cols) <= 3:  # a dataset of raw log lines: parsed first (JSON, key=value, web access, syslog)
+        return {"raw": raw}
     ts = _time_col(cols)
     ev = _find(cols, r"(event|action|event_type|type|activity|outcome|result)$", numeric=False, exclude={ts})
-    ent = _find(cols, r"(user|account|host|ip|device|entity|source|username|principal)(_?(id|name|address))?$", exclude={ts, ev})
+    ent = _find(cols, r"(user|account|host|ip|device|entity|source|username|principal|service|src)(_?(id|name|address|ip))?$",
+                exclude={ts, ev})
     return {"ts": ts, "event": ev, "entity": ent} if ts and ev else None
 
 
@@ -80,7 +84,37 @@ def _fit_graph(ds, text):
     cols = _cols(ds)
     src = _find(cols, r"^(source|src|from|parent|caller|sender|a)(_.*)?$", numeric=False)
     dst = _find(cols, r"^(target|dst|to|child|callee|receiver|b|dependency|depends_on)(_.*)?$", numeric=False, exclude={src})
-    return {"src": src, "dst": dst} if src and dst else None
+    return {"src": src, "dst": dst, "query": text[:500]} if src and dst else None
+
+
+def _budget(text: str) -> float | None:
+    m = re.search(r"budget (?:of )?[$€£]?\s?(\d[\d,]*(?:\.\d+)?)\s*(k|m|million|thousand)?", text, re.I) \
+        or re.search(r"[$€£]\s?(\d[\d,]*(?:\.\d+)?)\s*(k|m|million|thousand)?\s*budget", text, re.I)
+    if not m:
+        return None
+    v = float(m.group(1).replace(",", ""))
+    unit = (m.group(2) or "").lower()
+    return v * (1e3 if unit in ("k", "thousand") else 1e6 if unit in ("m", "million") else 1)
+
+
+def _fit_optimize(ds, text):
+    cols = _cols(ds)
+    budget = _budget(text)
+    option = _find(cols, r"(option|channel|project|product|item|name|site|campaign)$", numeric=False)
+    cost = _find(cols, r"(cost|price|cost_per_unit|unit_cost)$", numeric=True)
+    value = _find(cols, r"(value|return|return_per_unit|profit|margin|revenue_per_unit|benefit)$", numeric=True, exclude={cost})
+    mx = _find(cols, r"(max_units|max|capacity|limit|upper)$", numeric=True, exclude={cost, value})
+    mn = _find(cols, r"(min_units|min|floor|lower)$", numeric=True, exclude={cost, value, mx})
+    if not (budget and option and cost and value):
+        return None
+    return {"option": option, "cost": cost, "value": value, "max_units": mx, "min_units": mn, "budget": budget}
+
+
+def _fit_text(ds, text):
+    cols = _cols(ds)
+    col = _find(cols, r"(comments?|text|feedback|description|body|message|notes?|review|transcript)$", numeric=False)
+    group = _find(cols, r"(channel|category|product|segment|team|source)$", numeric=False, exclude={col})
+    return {"text": col, "group": group} if col else None
 
 
 _TARGET = r"(churn\w*|fraud\w*|default\w*|converted|conversion|label|target|outcome|failed|failure|is_\w+|has_\w+|cancel\w*)$"
@@ -101,7 +135,10 @@ def _fit_segment(ds, text):
 def _fit_classify(ds, text):
     cols = _cols(ds)
     named = [c["name"] for c in cols if re.search(rf"\b{re.escape(c['name'].replace('_', ' '))}\b", text.lower().replace("_", " "))]
-    target = next((n for n in named if re.search(_TARGET, n, re.I)), None) or _find(cols, _TARGET)
+    by = {c["name"]: c for c in cols}
+    target = (next((n for n in named if re.search(_TARGET, n, re.I)), None)
+              or next((n for n in named if not _numeric(by[n]) and not _ID.search(n) and not _TIME.search(n)), None)
+              or _find(cols, _TARGET))
     if not target:
         return None
     ts = _time_col(cols)
@@ -145,7 +182,8 @@ def _fit_eval(ds, text):
     passed = _find(cols, r"^(passed|correct|pass|success|is_correct)$")
     actual = _find(cols, r"^(actual|label|truth|y_true|true_label|observed)$")
     predicted = _find(cols, r"^(predicted|prediction|y_pred|predicted_label|forecast)$")
-    segment = _find(cols, r"(segment|model|category|query_type|accent|modality|harm_category|class_group|region|type)$",
+    segment = _find(cols, r"(segment|model|category|query_type|accent|modality|harm_category|class_group|region|type|case|"
+                          r"asset|component|scenario|site)$",
                     numeric=False, exclude={actual, predicted, passed})
     if passed:
         return {"actual": passed, "passed": passed, "segment": segment}
@@ -153,6 +191,11 @@ def _fit_eval(ds, text):
 
 
 METHODS: dict[str, dict[str, Any]] = {
+    "optimize": {"title": "optimization", "task_classes": {"optimization", "capacity_planning", "recommendation"}, "arity": 1,
+                 "fit": _fit_optimize, "words": r"\b(optimi[sz]\w*|allocat\w*|best (split|mix|allocation)|maximi[sz]e|budget)\b"},
+    "text_themes": {"title": "text analytics", "task_classes": {"text_analytics", "research_synthesis"}, "arity": 1,
+                    "fit": _fit_text, "words": r"\b(themes?|topics?|complain\w*|sentiment|comments|feedback|reviews|what .{0,30}"
+                                               r"(say|saying))\b"},
     "evaluate": {"title": "model evaluation", "task_classes": {"model_evaluation", "statistical_testing"}, "arity": 1,
                  "fit": _fit_eval, "words": r"\b(evaluat\w*|accuracy|pass rate|precision|recall|how good|benchmark\w*|eval)\b"},
     "compare_groups": {"title": "two-group comparison", "task_classes": {"experiment_analysis", "statistical_testing", "causal_estimation"},
@@ -292,10 +335,21 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     try:
         if name == "process_map":
             out = M.process_map(frames[0], params["case"], params["activity"], params["ts"])
+        elif name == "log_patterns" and params.get("raw"):
+            parsed = M.parse_logs(frames[0][params["raw"]])
+            out = M.log_patterns(parsed, ts="ts", event="event", entity="entity")
+            out["findings"].insert(0, f"Parsed {int((~parsed['_unparsed']).sum())} of {len(parsed)} lines "
+                                      "(JSON, key=value, web access and syslog formats).")
         elif name == "log_patterns":
             out = M.log_patterns(frames[0], ts=params["ts"], event=params["event"], entity=params.get("entity"))
         elif name == "graph":
-            out = M.graph(frames[0], params["src"], params["dst"])
+            out = M.graph(frames[0], params["src"], params["dst"], query=params.get("query"))
+        elif name == "optimize":
+            out = M.optimize_allocation(frames[0], option=params["option"], cost=params["cost"], value=params["value"],
+                                        budget=params["budget"], max_units=params.get("max_units"),
+                                        min_units=params.get("min_units"))
+        elif name == "text_themes":
+            out = M.text_themes(frames[0], params["text"], group=params.get("group"))
         elif name == "segment":
             out = M.segment(frames[0], params["features"], entity=params.get("entity"))
         elif name == "classify":

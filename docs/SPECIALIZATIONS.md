@@ -172,6 +172,31 @@ What "Operational" means here, plainly: the role's representative task runs end 
 finds the right answer. It does not mean the role is validated on real data or that every request in that discipline
 will work: the methods are the ones listed in the library, and a workspace still needs its own data and metrics.
 
+## Slice 5: the remaining roles
+
+New methods, each in `analytics/methods.py` behind `run_method`:
+- **Raw logs**: `parse_logs` reads JSON lines, key=value, web access and syslog formats (unmatched lines are counted,
+  never guessed); `log_patterns` adds repeated-failures-then-success sequences and a timeline for the entity.
+- **Graphs**: Brandes betweenness (brokers), deterministic label-propagation communities and shortest paths named in
+  the request.
+- **Classification**: multinomial logistic regression for 3 to 12 classes, per-class precision and recall.
+- **Optimization**: exact integer or linear programs for budget allocation (SciPy HiGHS `milp`), budget read from the
+  request, binding limits reported.
+- **Text**: TF-IDF themes, word-list sentiment by group, simple entities.
+
+Library: 28 available, 4 partial (data cleaning, regression, geospatial, concentration), 2 missing (code analysis,
+web research). Samples add raw auth and firewall logs, service logs, wallet transfers, service dependencies, ticket
+comments, channel options, maintenance history, gene expression, detection results and two predicted-vs-measured
+sets, each with a planted answer. Nineteen more representative tasks pass.
+
+**Maturity now: 127 Operational, 1 Equipped, 8 Defined.** What is left and why:
+- Software systems, technical debt, application security, smart contract security: need source-code analysis that
+  runs tests and reads traces; Lyst has none, so they stay Defined.
+- Geospatial and transportation: point distances only; no polygons, regions or travel-time routing.
+- Analytics engineer: cleaning is SQL transforms only; no imputation or fuzzy matching that writes a cleaned dataset.
+- Digital forensics and OSINT: needs external research, which Lyst does not do by design.
+- Quantitative research: Equipped, but no representative task yet that tests regimes rather than reporting a change.
+
 ## Known limitations
 
 - **Routing accuracy is measured on the author's own cases.** 58 of 58 labelled cases route correctly. The 10
@@ -180,8 +205,7 @@ will work: the methods are the ones listed in the library, and a workspace still
 - The assembly changes verification and disclosure, not the computation: the plan's capabilities are still chosen
   by the existing engine, so a specialized request gets the same figures as a plain one, checked harder and
   reported more honestly (slice 2, below). Choosing different methods per discipline is later work.
-- 24 roles have no representative task yet, mostly because a required method is missing or partial (code analysis,
-  web research, raw-log parsing, polygons and routing, graph paths, multi-class models).
+- 9 roles are below Operational (listed in slice 5) because a required method is missing or partial.
 - Document briefs are extractive: they quote the best passage; they do not reason across documents.
 - The engine's metric matching sometimes maps a word to a governed metric loosely (for example "peak demand" to
   support tickets); the fit check catches some of these, not all.
