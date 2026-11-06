@@ -5,7 +5,7 @@
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import advanced, anticipate, governance, integrations, kit, onboarding, packs, voice
+from lyst.ui import advanced, anticipate, governance, integrations, kit, onboarding, packs, voice, zone
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -536,6 +536,7 @@ def workspace_section() -> None:
     st.dataframe(df, hide_index=True, width="stretch", height=min(38 + 35 * len(df), 420))
 
 
+zone.board("settings")
 SECTIONS = ["Models"] + (["Connections"] if owner else []) + ["Workspace", "Voice", "Advanced"]
 _pane, _body = kit.panes(SECTIONS, key="view")
 with _body:

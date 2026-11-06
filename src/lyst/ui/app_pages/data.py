@@ -20,6 +20,7 @@ from lyst.ui import (
     transforms,
     visuals,
     workbench,
+    zone,
 )
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
@@ -1140,6 +1141,7 @@ try:
     every = enrich(catalog)
     src = sources_state()
     header(src, every)
+    zone.board("data")
     row = st.columns([5.4, 1.6], vertical_alignment="center")
     with row[0]:
         view = tabs()

@@ -16,7 +16,7 @@ from lyst.ui import (
     publish,
     scenarios,
     voice,
-    work,
+    zone,
 )
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import answer, md, task_state
@@ -161,43 +161,6 @@ def get_started_folded(datasets: list[dict], metrics: list[dict]) -> None:
         get_started(datasets, metrics)
 
 
-def needs_you(recent: list[dict]) -> None:
-    """What waits on this person, most urgent first, each one click from where it is settled."""
-    needs: list[tuple[str, str, str, str]] = []  # (title, meta, action label, id)
-    try:
-        for f in api.get(f"/v1/workspaces/{ws}/inbox"):
-            if f["read_status"] == "unread" and f.get("task_id"):
-                needs.append((f["summary"], f"Found by a monitor · {kit.when(f['created_at'])}", "See why",
-                              f"f:{f['id']}:{f['task_id']}"))
-        if st.session_state.get("role") in ("admin", "owner"):
-            for ap in api.get(f"/v1/workspaces/{ws}/approvals"):
-                needs.append((ap["summary"], f"Waiting for approval · {kit.when(ap['created_at'])}", "Review", "approvals"))
-    except APIError:
-        pass
-    for t in recent:
-        if t.get("outcome") in ("needs_input", "unverified"):
-            needs.append((t["title"], f"{task_state(t['status'], t['outcome'])[0]} · {kit.when(t['created_at'])}",
-                          "Open", f"t:{t['id']}"))
-    if not needs:
-        return
-    kit.label(f"Needs you · {len(needs)}")
-    shown = needs[:5]
-    with kit.card("home_needs"):
-        for i, (title, meta, act, aid) in enumerate(shown):
-            if kit.row(title, meta, actions=[(act, "go")], key=f"need{i}", divider=i < len(shown) - 1):
-                if aid == "approvals":
-                    work.go("needs you")
-                kind, *rest = aid.split(":")
-                if kind == "f":
-                    kit.guarded(lambda r=rest: api.post(f"/v1/workspaces/{ws}/findings/{r[0]}", {"status": "acknowledged"}))
-                    open_task(rest[1])
-                else:
-                    open_task(rest[0])
-                st.rerun()
-    if len(needs) > len(shown):
-        work.link(f"All {len(needs)} in Brain › Work", "needs you")
-
-
 def home() -> None:
     """Home is a monitor first and a form second: what Lyst is doing, the question box, what waits on you, then the
     answers themselves. Everything else (how an answer was reached, older work) is one click deeper."""
@@ -226,7 +189,7 @@ def home() -> None:
     st.caption(f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here ({names}): "
                "why they changed, what drove them, a breakdown, a trend or a forecast.")
     recent = agent.state(ws)["tasks"][:30]
-    needs_you(recent)
+    zone.board("home")  # what Lyst suggests, what waits on you, what it is doing and what it finished
     rest = agent.answers(recent, n=3)
     # what Lyst has made, as artifacts to open (dashboards, briefings, saved analyses)
     from lyst.ui import artifacts  # noqa: PLC0415

@@ -288,6 +288,7 @@ def live() -> None:
     if any(e["type"].startswith(("activity.", "task.", "asset.", "dataset.")) for e in fresh):
         _drop()
         st.session_state.pop("_actions", None)
+        st.session_state.pop("_zone", None)  # the activity zone re-reads on its next refresh
     me = st.session_state.get("me_id")
     said: set[str] = set()
     for e in fresh:

@@ -75,6 +75,7 @@
 | Memory | Layers, trust, promotion, revocation, corrections | Built, partly tested | `memory.py`; promotion path untested |
 | Memory | Memory knows when it may no longer apply (newer data version, changed definition, age), ranks current memory first, flags stale memory in answers, admin review list, retention for agent observations | Tested | `test_memory_continuity.py`, docs/OPERATIONS.md ME1-ME3 |
 | UI | Six-area Streamlit app with live progress, light and dark themes | Checked by hand with Playwright screenshots | `docs/images/` |
+| UI | Activity zone: one Kanban board (Suggested, Needs you, In progress, Done) on Home, Data, Brain and Settings, page-scoped by default with an Everywhere switch; click to open, drag between columns, press and hold or M for actions, a keyboard pick-up-and-drop; every change confirmed first and sent through the API's approvals and permissions; viewers can only open | Tested (cards, moves, permissions, confirm-then-approve, golden markup, tokens); gestures checked in Chromium with Playwright | `test_ui_zone.py`, `src/lyst/ui/zone.py` |
 | API | Versioned FastAPI endpoints | Tested | `test_api.py` |
 | Identity | OIDC sign-in (code flow + PKCE, JWKS verification, domain allow-list, expiring sessions, logout), member management | Tested against a stub provider | `test_auth.py` |
 | Ops | JSON logs with request and task ids, Prometheus `/metrics`, `/health` | Tested | `test_auth.py::test_metrics_and_request_ids` |

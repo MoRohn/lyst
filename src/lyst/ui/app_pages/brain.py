@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from lyst.semantic import MetricSpec, value_expr
-from lyst.ui import agent, brain_graph, kit, specialists, visuals, work
+from lyst.ui import agent, brain_graph, kit, specialists, visuals, work, zone
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -333,6 +333,7 @@ def tabs(default: str) -> str:
 
 try:
     agent.hero(ws)
+    zone.board("brain")
     if st.query_params.get("metric") and st.query_params.get("view") in (None, "graph", "work"):
         st.query_params["view"] = "definitions"  # a link to a metric opens its definition, wherever Brain was
         st.session_state.pop("sec_view", None)

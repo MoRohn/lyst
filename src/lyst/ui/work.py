@@ -149,11 +149,8 @@ def activity() -> None:
     groups = {"All": None, "Running": {"queued", "running", "paused", "awaiting_approval"}, "Done": {"done"},
               "Stopped": {"failed", "cancelled"}, "Automatic": "automatic", "Decisions": "decisions",
               "Published": "published"}
-    top = st.columns([4, 1.3], vertical_alignment="center")
-    with top[0]:
-        pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
-    top[1].segmented_control("Layout", ["List", "Board"], default="List", key="act_layout",
-                             label_visibility="collapsed", width="stretch")
+    # the board view of this work is the activity zone above Brain's sections; this is the full history as a list
+    pick = st.pills("Show", list(groups), default="All", label_visibility="collapsed", key="act_filter") or "All"
     if pick == "Decisions":
         decisions.activity_rows()
         return
@@ -164,10 +161,6 @@ def activity() -> None:
         auto.workspace_list(admin=admin)
         return
     shown = [t for t in tasks if groups[pick] is None or t["status"] in groups[pick]][:60]
-    layout = st.session_state.get("act_layout", "List")
-    if layout == "Board":
-        board(shown)
-        return
     last = None
     for i, t in enumerate(shown):
         day = _day(t["created_at"])
@@ -193,47 +186,6 @@ def _day(ts: str) -> str:
         return "Earlier"
     today = datetime.datetime.now().astimezone().date()
     return "Today" if d == today else ("Yesterday" if (today - d).days == 1 else d.strftime("%-d %B"))
-
-
-LANES = (("In progress", {"queued", "running", "paused", "awaiting_approval"}), ("Needs you", None),
-         ("Done", {"done"}), ("Stopped", {"failed", "cancelled"}))
-
-
-def board(tasks: list[dict]) -> None:
-    """The same tasks as a board: what is moving, what waits on someone, what finished, what stopped. A running
-    card shows its real step progress from the engine; nothing moves on its own."""
-    api = client()
-    def lane(t: dict) -> str:
-        if t.get("outcome") in ("needs_input", "unverified") or t["status"] == "awaiting_approval":
-            return "Needs you"
-        return next((n for n, st_ in LANES if st_ and t["status"] in st_), "Done")
-
-    cols = st.columns(len(LANES), gap="small")
-    for col, (name, _) in zip(cols, LANES, strict=True):
-        items = [t for t in tasks if lane(t) == name]
-        with col:
-            st.html(f'<div class="lyst-col-head"><span class="lyst-card-kicker">{name}</span>'
-                    f'<span class="lyst-card-meta lyst-num">{len(items)}</span></div>')
-            for t in items[:12]:
-                with kit.card(f"b_{t['id']}"):
-                    text, color, _ = task_state(t["status"], t.get("outcome"))
-                    lc = t.get("lifecycle") or {}
-                    now = lc.get("detail") if lc.get("state") not in (None, "Completed") else None
-                    st.html(f'<div class="lyst-card-title" style="font-size:.92rem">{kit._esc(t["title"])}</div>'
-                            f'<div class="lyst-card-meta">{kit._esc(lc.get("state") or text)} · '
-                            f'{kit._esc(kit.when(t["created_at"]))}</div>'
-                            + (f'<div class="lyst-card-meta">{kit._esc(now)}</div>' if now else ""))
-                    if t["status"] in ("running", "paused"):
-                        full = kit.guarded(lambda x=t: api.get(f"/v1/tasks/{x['id']}")) or {}
-                        sts = full.get("steps") or []
-                        if sts:
-                            n = sum(x["status"] == "done" for x in sts)
-                            st.html(visuals.meter(n / len(sts), label="Steps done", tone="info",
-                                                  text=f"{n} of {len(sts)} steps"))
-                    if st.button("Details", key=f"bd_{t['id']}", type="tertiary"):
-                        details(t["id"])
-            if not items:
-                st.caption("Nothing here.")
 
 
 @st.fragment
