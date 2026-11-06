@@ -268,6 +268,16 @@ class KnowledgeService:
         rows = self._db(ws).query("SELECT id, title, filename, classification, min_role, passages, added_by, added_at FROM documents ORDER BY added_at DESC")
         return [r for r in rows if RANK[role] >= RANK[r["min_role"]]]
 
+    def document_passages(self, actor: Principal, ws: str, document_id: str, *, limit: int = 20) -> list[dict[str, Any]]:
+        """A readable document's passages in order (same shape as ``search`` results, score 1.0)."""
+        docs = {d["id"]: d for d in self.documents(actor, ws)}  # role-gated
+        if document_id not in docs:
+            raise KeyError(f"no document {document_id} you may read")
+        rows = self._db(ws).query("SELECT document_id, seq, text FROM passages WHERE document_id = ? ORDER BY seq LIMIT ?",
+                                  [document_id, limit])
+        return [{"document_id": r["document_id"], "title": docs[document_id]["title"], "passage": r["seq"], "text": r["text"],
+                 "score": 1.0, "semantic": False} for r in rows]
+
     def search(self, actor: Principal, ws: str, query: str, *, limit: int = 5) -> list[dict[str, Any]]:
         """TF-IDF over passages the caller may read; returns passages with their document and a score."""
         role = self.guard.require(actor, ws, "workspace.read")

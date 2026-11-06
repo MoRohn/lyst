@@ -245,7 +245,7 @@ def test_api_catalog_and_entry_point(seeded):
         lib = c.get("/v1/specializations/library", headers=h).json()
         assert lib["capabilities"] and lib["verification_rules"]
         fit = c.get("/v1/workspaces/northwind/specializations/data_integration_analyst", headers=hv).json()
-        assert fit["access"]["full_use"] is False and fit["maturity"]["level"] in (1, 2)
+        assert fit["access"]["full_use"] is False and fit["maturity"]["level"] in (1, 2, 3)
         r = c.post("/v1/workspaces/northwind/analyst/requests", headers=hv,
                    json={"workspace_id": "northwind", "text": "Why did operating margin decline last quarter?"})
         assert r.status_code == 200 and r.json()["status"] == "queued", r.text
@@ -258,12 +258,12 @@ def test_api_catalog_and_entry_point(seeded):
 def test_assembled_expertise_tightens_verification_and_is_disclosed(seeded):
     lyst, owner = seeded
     q = "Why did operating margin decline last quarter?"
-    plain = lyst.runtime.submit(owner, "northwind", q)
+    plain = lyst.runtime.submit(owner, "northwind", q, extra={"expertise": None})  # explicit opt-out
     routed = lyst.analyst_core.handle(owner, AnalystRequest(workspace_id="northwind", text=q)).task_id
     lyst.runtime.drain()
     a, b = lyst.runtime.get(owner, plain), lyst.runtime.get(owner, routed)
     assert a["status"] == b["status"] == "done"
-    assert "expertise" not in (a["request"] or {}) and a["result"]["supporting"].get("expertise") is None
+    assert (a["request"] or {}).get("expertise") is None and a["result"]["supporting"].get("expertise") is None
     plan_b = b["plan"]["steps"]
     assert next(s for s in plan_b if s["capability"] == "validate")["args"]["intensity"] == "high"
     ex = b["result"]["supporting"]["expertise"]
@@ -321,9 +321,13 @@ def test_an_answer_to_a_different_question_is_not_verified(seeded):
     ok = lyst.analyst_core.handle(owner, AnalystRequest(workspace_id="northwind", text="Why did revenue fall last quarter?"))
     lyst.runtime.drain()
     assert lyst.runtime.get(owner, ok.task_id)["outcome"] == "complete"
-    plain = lyst.runtime.submit(owner, "northwind", "Is our demand model drifting?")  # not routed: unchanged behaviour
+    # routing is baked into the runtime: a task submitted anywhere else is checked the same way
+    anywhere = lyst.runtime.submit(owner, "northwind", "Is our demand model drifting?")
     lyst.runtime.drain()
-    assert not [c for c in lyst.runtime.get(owner, plain)["result"]["confidence"]["checks"] if c["name"] == "fits_request"]
+    assert lyst.runtime.get(owner, anywhere)["outcome"] == "unverified"
+    opted_out = lyst.runtime.submit(owner, "northwind", "Is our demand model drifting?", extra={"expertise": None})
+    lyst.runtime.drain()
+    assert not [c for c in lyst.runtime.get(owner, opted_out)["result"]["confidence"]["checks"] if c["name"] == "fits_request"]
 
 
 def test_audit_runs_examples_end_to_end(seeded):
@@ -378,3 +382,40 @@ def test_a_malformed_evidence_file_does_not_break_assessment(monkeypatch):
         assert maturity.evidence() == {}
     finally:
         maturity.evidence.cache_clear()
+
+
+def test_every_entry_point_gets_assembled_expertise(seeded):
+    """The runtime's submission hook routes tasks from any page or activity, not only the core's entry point."""
+    lyst, owner = seeded
+    tid = lyst.runtime.submit(owner, "northwind", "Why did operating margin decline last quarter?")
+    sched = lyst.runtime.submit(owner, "northwind", "Forecast revenue for the next two quarters", kind="scheduled")
+    upkeep = lyst.runtime.submit(owner, "northwind", "Why did operating margin decline last quarter?", kind="maintenance")
+    t, s, m = (lyst.runtime.get(owner, x) for x in (tid, sched, upkeep))
+    assert t["request"]["expertise"]["primary"] == "financial_data_analyst" and t["request"]["channel"] == "text"
+    assert any(e["kind"] == "expertise" for e in t["events"])
+    assert s["request"]["expertise"]["primary"] == "forecasting_analyst" and s["request"]["channel"] == "schedule"
+    assert "expertise" not in m["request"]  # platform upkeep is never routed
+    rows = {r["id"]: r for r in lyst.runtime.list(owner, "northwind")}
+    assert rows[tid]["specialist"] == "Financial Data Analyst"
+    lyst.runtime.drain()
+    assert lyst.runtime.get(owner, tid)["outcome"] == "complete"
+
+
+def test_a_failing_submission_hook_never_blocks_a_task(seeded):
+    lyst, owner = seeded
+
+    def broken(*a, **k):
+        raise RuntimeError("boom")
+
+    lyst.runtime.before_submit.insert(0, broken)
+    try:
+        tid = lyst.runtime.submit(owner, "northwind", "What is our revenue by region last quarter?")
+    finally:
+        lyst.runtime.before_submit.remove(broken)
+    assert lyst.runtime.get(owner, tid)["request"]["expertise"]["roles"]  # the core's hook still ran
+
+
+def test_routing_never_runs_for_people_who_cannot_ask(seeded):
+    lyst, owner = seeded
+    out = lyst.analyst_core.enrich(lyst.guard.create_user("x@y.test", "X"), "northwind", "Why did revenue fall?", "analysis", {})
+    assert "expertise" not in out

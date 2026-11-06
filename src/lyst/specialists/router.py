@@ -48,7 +48,7 @@ _STOP = set("a an the of to for in on and or our we my me i is are was were be b
             "us you your please give show tell".split())
 
 TASK_RULES: list[tuple[str, re.Pattern]] = [(k, re.compile(p, re.I)) for k, p in [
-    ("variance_explanation", r"\b(why (did|has|is|are|have)|explain\w*|variance|what drove|drivers? of|bridge|versus (budget|plan)|vs\.? (budget|plan)|increased?|decreased?|rose|fell|dropp?ed)\b"),
+    ("variance_explanation", r"\b(why (did|has|is|are|have)|explain\w*|variance|what drove|drivers? of|bridge|versus (budget|plan)|vs\.? (budget|plan)|increased?|decreased?|rose|fell|dropp?ed|declin\w*|contributing factors?)\b"),
     ("forecasting", r"\b(forecast\w*|predict\w*|projection|next (month|quarter|year)|outlook|will (be|we))\b"),
     ("trend_analysis", r"\b(trend\w*|over time|seasonal\w*|year over year|month over month|growth rate)\b"),
     ("anomaly_detection", r"\b(anomal\w*|unusual|spike\w*|outlier\w*|suspicious|abnormal|drift\w*)\b"),
@@ -61,7 +61,7 @@ TASK_RULES: list[tuple[str, re.Pattern]] = [(k, re.compile(p, re.I)) for k, p in
     ("experiment_analysis", r"\b(a/?b test\w*|experiment\w*|variant\w*|control group|holdout|split test)\b"),
     ("causal_estimation", r"\b(causal\w*|effect of|impact of|incremental\w*|counterfactual|did .{0,40} (work|cause)|beyond (normal|baseline|expected)|uplift)\b"),
     ("optimization", r"\b(optimi[sz]\w*|best (allocation|split|mix)|maximi[sz]e|minimi[sz]e|allocate)\b"),
-    ("simulation", r"\b(simulat\w*|monte carlo|what if|scenario\w*|range of outcomes)\b"),
+    ("simulation", r"\b(simulat\w*|monte carlo|what if|what happens (to|if)|what would happen|scenario\w*|range of outcomes)\b"),
     ("segmentation", r"\b(segment\w*|cohorts?|cluster\w*|personas?|tiers?)\b"),
     ("attribution", r"\b(attribut\w*|which channel|credit for|touchpoints?)\b"),
     ("reconciliation", r"\b(reconcil\w*|tie out|agree with|match(es)? the ledger|two sources|multiple sources)\b"),
@@ -72,12 +72,12 @@ TASK_RULES: list[tuple[str, re.Pattern]] = [(k, re.compile(p, re.I)) for k, p in
     ("compliance_review", r"\b(complian\w*|regulat\w*|audit\w*|policy|policies|gdpr|soc 2|wcag|sox|definitions? .{0,30}conflict\w*|conflicting definitions?)\b"),
     ("code_analysis", r"\b(code|codebase|repository|repo|tests? fail\w*|technical debt|architecture risks?|pull requests?)\b"),
     ("performance_analysis", r"\b(latency|throughput|slow(er)? (quer(y|ies)|requests?|pages?|responses?|endpoints?|jobs?|builds?)|performance|utili[sz]ation|bottleneck\w*|reliab\w*)\b"),
-    ("model_evaluation", r"\b(evaluat\w* (the |our |a )?(model|agent|llm|classifier|workflow)|benchmark\w*|accuracy|precision|recall|model performance|tool selection)\b"),
+    ("model_evaluation", r"\b(evaluat\w* .{0,40}(model|agent|llm|classifier|workflow|eval\w*|results|predictions|retrieval)|benchmark\w*|accuracy|precision|recall|pass rate|model performance|tool selection)\b"),
     ("document_extraction", r"\b(extract\w*|pdf|contracts?|invoices?|documents?)\b"),
     ("text_analytics", r"\b(themes?|comments|feedback|tickets? text|sentiment|topics?|mentions|complain\w*|what (do|are) (people|customers|users) say\w*)\b"),
     ("geospatial_analysis", r"\b(map|maps|geospatial|location\w*|distance|km|miles|latitude|region map)\b"),
     ("process_analysis", r"\b(process\w*|workflow\w*|cycle time|bottleneck\w*|handoffs?|funnel)\b"),
-    ("research_synthesis", r"\b(research|brief(ing)?|summari[sz]e (what|the)|what do (our|the) (documents|reports) say|compare (vendors|tools|options))\b"),
+    ("research_synthesis", r"\b(research|brief me|summari[sz]e (what|the)|what do (our|the) (documents|reports) say|compare (vendors|tools|options))\b"),
     ("dashboard_design", r"\b(dashboard\w*|scorecard|kpi pack|recurring report)\b"),
     ("recommendation", r"\b(recommend\w*|should we|what should|corrective actions?|next steps?|options?)\b"),
     ("descriptive_reporting", r"\b(report\w*|how (much|many)|what (is|was|were) (our|the)|total|summary)\b"),
@@ -327,7 +327,7 @@ def route(text: str, *, can=None, prefer: list[str] | None = None, workspace_dom
         overlap = [c for c in classes if c in p.analytics.task_classes]
         if r <= 0 and not hits and pid not in requested:
             continue
-        score = r + 1.5 * len(hits) + 0.8 * len(overlap)
+        score = r + 4.0 * len(hits) + 0.8 * len(overlap)
         reasons = []
         if hits:
             reasons.append("the request uses its vocabulary: " + ", ".join(f'"{h}"' for h in hits[:3]))

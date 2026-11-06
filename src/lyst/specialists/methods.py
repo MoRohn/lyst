@@ -132,7 +132,33 @@ def _fit_reconcile_pair(a, b, text):
     return {"key": key, "value": va, "rvalue": vb} if key and va and vb else None
 
 
+def _fit_compare(ds, text):
+    cols = _cols(ds)
+    group = _find(cols, r"(variant|group|arm|cohort|treatment|bucket|test_group)$", numeric=False)
+    outcome = _find(cols, r"(converted|conversion|clicked|purchased|retained|outcome|revenue|value|score|signed_up|adverse_event|readmitted|responded)$",
+                    exclude={group})
+    return {"group": group, "outcome": outcome} if group and outcome else None
+
+
+def _fit_eval(ds, text):
+    cols = _cols(ds)
+    passed = _find(cols, r"^(passed|correct|pass|success|is_correct)$")
+    actual = _find(cols, r"^(actual|label|truth|y_true|true_label|observed)$")
+    predicted = _find(cols, r"^(predicted|prediction|y_pred|predicted_label|forecast)$")
+    segment = _find(cols, r"(segment|model|category|query_type|accent|modality|harm_category|class_group|region|type)$",
+                    numeric=False, exclude={actual, predicted, passed})
+    if passed:
+        return {"actual": passed, "passed": passed, "segment": segment}
+    return {"actual": actual, "predicted": predicted, "segment": segment} if actual and predicted else None
+
+
 METHODS: dict[str, dict[str, Any]] = {
+    "evaluate": {"title": "model evaluation", "task_classes": {"model_evaluation", "statistical_testing"}, "arity": 1,
+                 "fit": _fit_eval, "words": r"\b(evaluat\w*|accuracy|pass rate|precision|recall|how good|benchmark\w*|eval)\b"},
+    "compare_groups": {"title": "two-group comparison", "task_classes": {"experiment_analysis", "statistical_testing", "causal_estimation"},
+                       "arity": 1, "fit": _fit_compare,
+                       "words": r"\b(a/?b|experiment\w*|variant\w*|test group|holdout|control|significan\w*|lift|uplift|beat|compare|"
+                                r"versus|arms?|treatment)\b"},
     "process_map": {"title": "process mining", "task_classes": {"process_analysis"}, "arity": 1, "fit": _fit_process,
                     "words": r"\b(process|steps?|stuck|bottleneck|handoffs?|cycle time|rework|order to cash|order-to-cash|workflow|flow)\b"},
     "log_patterns": {"title": "event log analysis", "task_classes": {"security_investigation", "anomaly_detection", "root_cause"},
@@ -204,6 +230,51 @@ def choose(text: str, task_classes: list[str], datasets: list[dict[str, Any]]) -
     return None
 
 
+BRIEF = {"title": "document brief", "task_classes": {"research_synthesis", "compliance_review", "text_analytics",
+                                                     "document_extraction", "risk_assessment"},
+         "words": r"\b(documents?|polic(y|ies)|brief me|summari[sz]e|say|says|said|requir\w*|promis\w*|recommend\w*|"
+                  r"according to|contracts?|notes|findings|audit|assessment|review|register|readiness|survey|report|"
+                  r"guidelines?|standard|evaluation|business case|requirements)\b"}
+_STOPWORDS = {"what", "does", "do", "did", "our", "the", "say", "says", "about", "from", "with", "for", "and", "this", "that",
+              "brief", "me", "summarize", "summarise", "document", "documents", "which", "how", "are", "is", "on", "of", "in", "to"}
+
+
+def asks_about_documents(text: str) -> bool:
+    """Wording that asks what a document says (checked before dataset methods, so "the order to cash report
+    requirements" reads the requirements, not the order event log)."""
+    return bool(re.search(r"\b(say|says|said|requir\w*|promis\w*|recommend\w*|according to|brief me|summari[sz]e the "
+                          r"(findings|notes)|exceeds?)\b", text, re.I))
+
+
+def choose_documents(text: str, task_classes: list[str], search, documents=None) -> dict[str, Any] | None:
+    """A brief from the workspace's documents when the request asks about one and it clearly matches: a document whose
+    title shares at least two distinctive words with the request, or a passage containing at least two of them."""
+    if not re.search(BRIEF["words"], text, re.I) and not (BRIEF["task_classes"] & set(task_classes)):
+        return None
+    want = {t for t in tokens(text) if t not in _STOPWORDS and len(t) > 2}
+    if documents is not None:
+        try:
+            docs = documents()
+        except Exception:  # noqa: BLE001
+            docs = []
+        scored = sorted(((len(want & set(tokens(d["title"]))), d) for d in docs), key=lambda x: -x[0])
+        if scored and scored[0][0] >= 2 and (len(scored) == 1 or scored[1][0] < scored[0][0]):
+            d = scored[0][1]
+            return {"method": "brief", "title": BRIEF["title"], "datasets": [], "params": {"query": text, "document_id": d["id"]},
+                    "task_classes": sorted(BRIEF["task_classes"])}
+    try:
+        hits = search(text)
+    except Exception:  # noqa: BLE001 - no documents, or none the actor may read
+        return None
+    if not hits:
+        return None
+    have = set(tokens(str(hits[0]["text"]) + " " + str(hits[0]["title"])))
+    if len(want & have) < 2:
+        return None
+    return {"method": "brief", "title": BRIEF["title"], "datasets": [], "params": {"query": text},
+            "task_classes": sorted(BRIEF["task_classes"])}
+
+
 @capability(REGISTRY, "run_method", agent="statistical_analyst", phase="execute", permission="data.query",
             description="Run a specialist method (segmentation, classification, process mining, distances, two-source "
                         "reconciliation, graph or event-log analysis) on datasets the actor may query.")
@@ -211,7 +282,7 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     from ..analyst.engine import _evidence  # noqa: PLC0415
 
     name, datasets, params = args["method"], args["datasets"], dict(args.get("params") or {})
-    if name not in METHODS:
+    if name not in METHODS and name != "brief":
         raise ValueError(f"unknown method {name}")
     frames, evidence = [], []
     for ds in datasets:
@@ -229,6 +300,19 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             out = M.segment(frames[0], params["features"], entity=params.get("entity"))
         elif name == "classify":
             out = M.classify(frames[0], params["target"], params["features"], order_by=params.get("order_by"))
+        elif name == "evaluate":
+            out = M.evaluate_predictions(frames[0], params["actual"], params.get("predicted"), segment=params.get("segment"),
+                                         passed=params.get("passed"))
+        elif name == "compare_groups":
+            out = M.compare_groups(frames[0], params["group"], params["outcome"])
+        elif name == "brief":
+            if params.get("document_id"):  # the document the request names: its passages, best matching first
+                passages = ctx.services.knowledge.document_passages(ctx.actor, ctx.workspace_id, params["document_id"])
+                want = set(tokens(params["query"]))
+                passages.sort(key=lambda p: -len(want & set(tokens(p["text"]))))
+            else:
+                passages = ctx.services.knowledge.search(ctx.actor, ctx.workspace_id, params["query"], limit=5)
+            out = M.brief(passages, params["query"])
         elif name == "reconcile":
             out = M.reconcile(frames[0], frames[1], key=params["key"], value=params["value"], rvalue=params.get("rvalue"),
                               names=(datasets[0], datasets[1]))
@@ -237,5 +321,5 @@ def run_method(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                               label=params.get("label"), tlabel=params.get("tlabel"), within_km=params.get("within_km"))
     except M.MethodError as exc:
         return {"method": name, "datasets": datasets, "params": params, "error": str(exc), "evidence": evidence}
-    return {"method": name, "title": METHODS[name]["title"], "datasets": datasets, "params": params, "output": out,
-            "evidence": evidence}
+    title = METHODS[name]["title"] if name in METHODS else BRIEF["title"]
+    return {"method": name, "title": title, "datasets": datasets, "params": params, "output": out, "evidence": evidence}

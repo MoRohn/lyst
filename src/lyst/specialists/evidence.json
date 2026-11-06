@@ -1,25 +1,224 @@
 {
+ "agent_reliability_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did agent task failures and retries increase last month?"
+   ]
+  }
+ },
+ "agentic_ai_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did agent task failures increase last month? Which tool did the agent select?"
+   ]
+  }
+ },
+ "ai_cost_inference_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did model inference cost and token spend rise last month? Which workload?"
+   ]
+  }
+ },
+ "ai_governance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does our AI use policy require before deploying a model?"
+   ]
+  }
+ },
+ "ai_safety_alignment_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the AI safety eval results: jailbreak and prompt injection pass rate by harm category"
+   ]
+  }
+ },
+ "ai_systems_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does the AI system architecture review of the support assistant say about failure modes?"
+   ]
+  }
+ },
+ "api_integration_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did API errors spike last month? Which endpoint broke the integration?"
+   ]
+  }
+ },
+ "application_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did application issues rise last month after the release?"
+   ]
+  }
+ },
+ "audience_intelligence_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which audience segments do we have? Segment our customers"
+   ]
+  }
+ },
+ "audio_podcast_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did podcast downloads rise last month? Which show?"
+   ]
+  }
+ },
+ "automation_rpa_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did RPA bot exceptions rise last month? Which automated process?"
+   ]
+  }
+ },
+ "business_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What do the business requirements for the order to cash report say?"
+   ]
+  }
+ },
  "business_intelligence_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Build a dashboard for weekly revenue by region"
    ]
   }
  },
- "crm_analyst": {
+ "capacity_planning_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
-    "Segment our customers into groups"
+    "Forecast GPU hours capacity for the next two quarters"
+   ]
+  }
+ },
+ "clinical_data_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Compare adverse events between the treatment and control arm in the clinical trial"
+   ]
+  }
+ },
+ "cloud_finops_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did our cloud cost rise last month?"
+   ]
+  }
+ },
+ "cloud_infrastructure_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which cloud services drove the increase in cloud infrastructure cost last month?"
+   ]
+  }
+ },
+ "cloud_security_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did cloud security misconfigurations rise last month? Which account?"
+   ]
+  }
+ },
+ "communications_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What did the staff communications survey say about the internal newsletter?"
+   ]
+  }
+ },
+ "content_performance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did content pageviews rise last month? Which topic performed?"
+   ]
+  }
+ },
+ "conversational_ai_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did chatbot escalations to agents rise last month? Which intent?"
+   ]
+  }
+ },
+ "crm_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Segment our customers into groups",
+    "Why did CRM email unsubscribes rise last month? Which list?"
+   ]
+  }
+ },
+ "customer_insights_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Segment our customers into groups by value and behaviour"
+   ]
+  }
+ },
+ "customer_lifecycle_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did customer churn increase last month? Which segment?"
    ]
   }
  },
  "cybersecurity_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Analyze the login events for suspicious patterns"
@@ -28,25 +227,214 @@
  },
  "data_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "What is our revenue by region last quarter?"
    ]
   }
  },
+ "data_governance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does our data retention policy say about customer records?"
+   ]
+  }
+ },
+ "data_integration_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Reconcile ledger erp against ledger bank after the sync"
+   ]
+  }
+ },
+ "data_modeling_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Profile the order_events dataset structure, keys and grain"
+   ]
+  }
+ },
+ "data_observability_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Profile the api_gateway dataset freshness and data quality"
+   ]
+  }
+ },
  "data_quality_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Profile the pnl dataset for data quality"
    ]
   }
  },
+ "data_warehouse_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Profile the shop_orders warehouse table"
+   ]
+  }
+ },
+ "database_performance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did database query time increase last month? Which table is slow?"
+   ]
+  }
+ },
+ "decision_intelligence_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Decision: should we accept it if labor costs increase 6% while revenue grows 3%? Compare the options for operating margin"
+   ]
+  }
+ },
+ "developer_productivity_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did pull request cycle time and review wait increase last month?"
+   ]
+  }
+ },
+ "devops_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did failed deployments rise last month? Check the DevOps release pipeline."
+   ]
+  }
+ },
+ "digital_accessibility_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Summarize our accessibility audit findings"
+   ]
+  }
+ },
+ "digital_experimentation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Read out the checkout experiment A/B test: did the variant win?"
+   ]
+  }
+ },
+ "digital_marketing_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did marketing campaign conversions fall last month?"
+   ]
+  }
+ },
+ "digital_media_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did our digital media audience fall last month? Which property?"
+   ]
+  }
+ },
+ "digital_transformation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What benefits did the onboarding program business case promise?"
+   ]
+  }
+ },
+ "document_intelligence_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What do our supplier contracts say about payment terms?"
+   ]
+  }
+ },
+ "ecommerce_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did online store orders fall last month? Which category?"
+   ]
+  }
+ },
+ "energy_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did energy consumption rise last month? Which site?"
+   ]
+  }
+ },
+ "environmental_data_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did CO2 emissions rise last month? Which site?"
+   ]
+  }
+ },
+ "epidemiological_data_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did reported disease cases rise last month? Which district?"
+   ]
+  }
+ },
+ "erp_systems_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Reconcile the ledger erp postings against the ledger bank"
+   ]
+  }
+ },
+ "experimentation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Did variant B of the checkout experiment improve conversion?"
+   ]
+  }
+ },
  "financial_data_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Why did operating margin decline last quarter?"
@@ -55,7 +443,7 @@
  },
  "financial_systems_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Reconcile ledger erp against ledger bank"
@@ -64,55 +452,559 @@
  },
  "forecasting_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Forecast revenue for the next two quarters"
    ]
   }
  },
+ "fpa_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Build a rolling forecast of operating income for the FP&A plan, next two quarters"
+   ]
+  }
+ },
+ "fraud_detection_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did chargebacks and suspected fraud spike last month? Which merchant?"
+   ]
+  }
+ },
+ "generative_ai_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What did the generative AI use case assessment recommend?"
+   ]
+  }
+ },
  "geospatial_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Which stores are more than 300 km from a warehouse?"
    ]
   }
  },
+ "gpu_computing_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did GPU hours rise last month? Which workloads are using the accelerators?"
+   ]
+  }
+ },
+ "growth_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Segment our customers to find growth opportunities for acquisition and activation"
+   ]
+  }
+ },
+ "health_informatics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did hospital readmissions rise last month? Which unit?"
+   ]
+  }
+ },
+ "iam_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did privileged access grants increase last month? Which system needs an access review?"
+   ]
+  }
+ },
+ "industrial_iot_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did industrial sensor alarms in the telemetry spike last month? Which asset?"
+   ]
+  }
+ },
+ "infrastructure_performance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did CPU saturation increase last month across host groups?"
+   ]
+  }
+ },
+ "inventory_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did inventory stock levels rise last month? Which warehouse?"
+   ]
+  }
+ },
+ "it_service_management_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did service desk requests increase last month? Which ITSM category?"
+   ]
+  }
+ },
+ "kubernetes_container_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did Kubernetes cluster CPU cost by namespace increase last month?"
+   ]
+  }
+ },
+ "llm_evaluation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the llm eval results pass rate by model"
+   ]
+  }
+ },
+ "manufacturing_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did manufacturing scrap increase last month? Which production line?"
+   ]
+  }
+ },
+ "marketing_attribution_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Did the email campaign drive incremental purchases versus the holdout in the email holdout test?"
+   ]
+  }
+ },
+ "master_data_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Check the customers master data for duplicates and nulls"
+   ]
+  }
+ },
+ "media_monitoring_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did media coverage and press mentions spike last month?"
+   ]
+  }
+ },
+ "model_performance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the model predictions accuracy by segment"
+   ]
+  }
+ },
+ "multimodal_ai_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the multimodal eval results by modality"
+   ]
+  }
+ },
  "network_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Which suppliers are connected in the supplier links network?"
    ]
   }
  },
+ "news_information_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Brief me on what our documents say about the Data Act regulation"
+   ]
+  }
+ },
+ "paid_media_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did paid media spend rise last month? Which channel is pacing over?"
+   ]
+  }
+ },
+ "platform_engineering_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did golden path deploys on the developer platform drop last month?"
+   ]
+  }
+ },
  "predictive_analytics_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Which customers are likely to churn?"
    ]
   }
  },
+ "pricing_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did discounts and discount leakage rise last month? Which region?"
+   ]
+  }
+ },
+ "privacy_data_protection_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does our privacy deletion standard say about deleting personal data?"
+   ]
+  }
+ },
  "process_mining_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Where does our order process get stuck? Use the order events."
    ]
   }
  },
+ "procurement_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did procurement spend with suppliers rise last month?"
+   ]
+  }
+ },
+ "product_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did active users drop last month? Which feature lost adoption?"
+   ]
+  }
+ },
+ "prompt_context_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What do our prompt guidelines recommend for few-shot prompts?"
+   ]
+  }
+ },
+ "quantum_computing_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does our quantum readiness note say about RSA-2048?"
+   ]
+  }
+ },
+ "rag_retrieval_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the retrieval eval results: how often is the right passage retrieved, by query type?"
+   ]
+  }
+ },
+ "reporting_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Produce this month's management report of revenue by region"
+   ]
+  }
+ },
+ "revenue_operations_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did sales pipeline value drop last month? Which segment?"
+   ]
+  }
+ },
+ "risk_controls_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Test controls: reconcile ledger erp and ledger bank and list the exceptions"
+   ]
+  }
+ },
+ "robotics_autonomous_systems_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did robot interventions increase last month? Which fleet?"
+   ]
+  }
+ },
+ "scientific_computing_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Run a reproducible statistical comparison of the checkout experiment groups: is the difference significant?"
+   ]
+  }
+ },
+ "search_seo_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did organic search clicks fall last month? Which page lost SEO rankings?"
+   ]
+  }
+ },
+ "security_compliance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which SOC 2 controls lack current evidence according to the control review?"
+   ]
+  }
+ },
+ "security_risk_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does our security risk register say exceeds our risk appetite?"
+   ]
+  }
+ },
+ "simulation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Run a scenario simulation: what if labor costs increase 6% while revenue grows 3%? Show the operating margin"
+   ]
+  }
+ },
+ "site_reliability_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did incidents increase last month? Which service hurt our SLO?"
+   ]
+  }
+ },
+ "social_media_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did social media engagement rise last month? Which platform?"
+   ]
+  }
+ },
+ "software_performance_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did slow requests and latency increase last month? Which endpoint is the bottleneck?"
+   ]
+  }
+ },
+ "software_qa_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did escaped defects rise last month? Which component has the QA problem?"
+   ]
+  }
+ },
+ "speech_audio_ai_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Evaluate the transcription eval results accuracy by accent"
+   ]
+  }
+ },
  "statistical_analyst": {
   "operational": {
-   "recorded": "2026-11-04",
+   "recorded": "2026-11-06",
    "catalog_version": "5ec2a4aa9538a3a8",
    "scenarios": [
     "Is the correlation between revenue and support tickets significant?"
+   ]
+  }
+ },
+ "storage_data_infrastructure_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did storage used grow last month? Which storage tier?"
+   ]
+  }
+ },
+ "subscription_monetization_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did subscription MRR rise last month? Which plan drove expansion?"
+   ]
+  }
+ },
+ "supply_chain_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did late shipments and delivery delays increase last month? Which carrier?"
+   ]
+  }
+ },
+ "systems_operations_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Which systems drove the rise in operational incidents and alerts last month?"
+   ]
+  }
+ },
+ "technology_research_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What did our vector database evaluation recommend?"
+   ]
+  }
+ },
+ "test_automation_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did CI test failures increase last month? Which test suite is flaky?"
+   ]
+  }
+ },
+ "threat_intelligence_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "What does the threat report say about phishing campaigns?"
+   ]
+  }
+ },
+ "time_series_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "When did the trend in revenue change over time? Any anomalies?"
+   ]
+  }
+ },
+ "user_experience_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Summarize the findings from the usability study notes"
+   ]
+  }
+ },
+ "video_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did video watch time drop last month? Which series?"
+   ]
+  }
+ },
+ "vulnerability_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did critical vulnerabilities increase last month? Which asset group?"
+   ]
+  }
+ },
+ "web_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did web analytics sessions fall last month? Which traffic channel?"
+   ]
+  }
+ },
+ "workforce_analytics_analyst": {
+  "operational": {
+   "recorded": "2026-11-06",
+   "catalog_version": "5ec2a4aa9538a3a8",
+   "scenarios": [
+    "Why did employee attrition and leavers increase last month? Which department?"
    ]
   }
  }

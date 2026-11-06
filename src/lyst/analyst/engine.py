@@ -155,7 +155,9 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     text: str = args["question"]
     s = ctx.services
     resolved = s.semantic.resolve(ctx.actor, ctx.workspace_id, text)
-    if not ctx.request.get("workflow") and not ctx.request.get("expertise"):
+    # expertise is now assembled for every task (runtime.before_submit), so it no longer marks an explicit analysis;
+    # a request sent to the Analyst Core's own entry point (analyst_request_id) still does
+    if not ctx.request.get("workflow") and not ctx.request.get("analyst_request_id"):
         # "Do we have an executive dashboard?" asks what exists, not for a figure: answer it in conversation instead of
         # forcing it onto a metric. A scheduled or workflow run is always analysis.
         talk = converse_mod.route(text, metrics_named=bool(resolved["metrics"] or resolved["ambiguous"]))
@@ -193,7 +195,8 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                                                     for m, spec in metrics.items()}}) + "\n"
                  + untrusted("user_request", text)},
             ], purpose="understand", task_id=ctx.task_id, workload="classify", pool="interactive")
-            if choice.get("intent") == "conversation" and not ctx.request.get("workflow") and not ctx.request.get("expertise"):
+            if choice.get("intent") == "conversation" and not ctx.request.get("workflow") \
+                    and not ctx.request.get("analyst_request_id"):
                 return _conversation(text, {"kind": "open", "topic": converse_mod.topic_of(text)}, resolved, method="model")
             picked = [m for m in choice.get("metrics", []) if m in metrics]
             phrase = " ".join(str(choice.get("phrase") or "").lower().split())
@@ -272,8 +275,19 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         # a routed request that no governed metric covers: a specialist method on a dataset it names may (methods.py)
         from ..specialists import methods as specialist_methods  # noqa: PLC0415
 
-        specialist = specialist_methods.choose(text, ctx.request["expertise"].get("task_classes") or [],
-                                               s.data.catalog(ctx.actor, ctx.workspace_id))
+        asked = ctx.request["expertise"].get("task_classes") or []
+
+        def docs():  # a question about the workspace's own documents
+            if s.knowledge is None:
+                return None
+            return specialist_methods.choose_documents(
+                text, asked, lambda q: s.knowledge.search(ctx.actor, ctx.workspace_id, q, limit=5),
+                lambda: s.knowledge.documents(ctx.actor, ctx.workspace_id))
+
+        if specialist_methods.asks_about_documents(text):
+            specialist = docs() or specialist_methods.choose(text, asked, s.data.catalog(ctx.actor, ctx.workspace_id))
+        else:
+            specialist = specialist_methods.choose(text, asked, s.data.catalog(ctx.actor, ctx.workspace_id)) or docs()
         if specialist:
             intent = "method"
     horizon = reasoning.horizon_of(text)
@@ -524,7 +538,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     intensity = "high" if (u.get("depth") == "deep" or re.search(r"\b(board|executive|audit|financial statement|"
                                                                 r"regulat\w*|investor)", u["question"], re.I)) else (
         "low" if u.get("depth") == "fast" else "standard")
-    intensity = expertise_rules.intensity(intensity, ctx.request.get("expertise"))  # assembled expertise only tightens
+    if u.get("depth") != "fast":  # assembled expertise only tightens, and never overrides an explicit ask for speed
+        intensity = expertise_rules.intensity(intensity, ctx.request.get("expertise"))
     steps.append({"capability": "validate", "key": "validate", "args": {"intensity": intensity}, "after": everything})
     steps.append({"capability": "deliver", "key": "deliver", "args": {}, "after": ["validate"]})
     steps.append({"capability": "learn", "key": "learn", "args": {}, "after": ["deliver"]})
@@ -1052,10 +1067,11 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         check("method_ran", "error" not in o["method"], o["method"].get("error") or f"{o['method']['title']} ran on "
               + ", ".join(o["method"]["datasets"]))
     und = o.get("understand") or {}
-    fitted = expertise_rules.fit(ctx.request.get("expertise"), und.get("intent"),
-                                 set((und.get("specialist_method") or {}).get("task_classes") or []) or None)
-    if fitted is not None:  # routed requests only: an answer to a different question is never presented as verified
-        check("fits_request", fitted[0], fitted[1])
+    sm = und.get("specialist_method") or {}
+    fitted = expertise_rules.fit(ctx.request.get("expertise"), und.get("intent"),  # a brief answers from the document asked about
+                                 None if sm.get("method") == "brief" else (set(sm.get("task_classes") or []) or None))
+    if fitted is not None and not fitted[0]:  # an answer to a different question is never presented as verified
+        check("fits_request", False, fitted[1])
     errors = [c for c in checks if not c["passed"] and c["severity"] == "error"]
     warnings = [c for c in checks if not c["passed"] and c["severity"] == "warning"]
     status = "failed" if errors else ("passed_with_warnings" if warnings else "passed")

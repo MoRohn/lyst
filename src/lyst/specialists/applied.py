@@ -115,6 +115,8 @@ INTENT_COVERS: dict[str, set[str]] = {
 # requests in these intents are explicit instructions (SQL, a named skill, a refresh) or already explain themselves
 FIT_EXEMPT = {"sql", "skill", "gap", "refresh", "sync", "causal_unsupported"}
 GENERIC = {"descriptive_reporting", "cost_analysis", "risk_assessment"}
+# intents whose answer is a reported number: the audit's wrong-question answers were all of this kind
+REPORTING_INTENTS = {"value", "breakdown", "trend"}
 
 
 def fit(expertise: dict[str, Any] | None, intent: str | None, covers: set[str] | None = None) -> tuple[bool, str] | None:
@@ -122,8 +124,8 @@ def fit(expertise: dict[str, Any] | None, intent: str | None, covers: set[str] |
     ``covers`` overrides the intent's task classes (a specialist method states its own)."""
     if not expertise or expertise.get("general") or not intent or intent in FIT_EXEMPT:
         return None
-    if covers is None and intent not in INTENT_COVERS:
-        return None
+    if covers is None and intent not in REPORTING_INTENTS:
+        return None  # explain, forecast, what-if, impact... did request-specific work; only bare reports are judged
     asked = [tc for tc in expertise.get("task_classes") or [] if tc not in GENERIC]
     if not asked:
         return None

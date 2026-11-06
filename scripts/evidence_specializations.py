@@ -27,7 +27,7 @@ def main() -> None:
     from lyst import demo
     from lyst.app import Lyst
     from lyst.config import load_settings
-    from lyst.specialists import representative, samples
+    from lyst.specialists import packs, representative, samples
 
     with tempfile.TemporaryDirectory() as home:
         lyst = Lyst.build(load_settings(Path(home) / "home"), lease_seconds=30)
@@ -35,6 +35,7 @@ def main() -> None:
             owner = lyst.guard.create_user("evidence@lyst.local", "Evidence")
             demo.seed(lyst, owner)
             samples.load_all(lyst, owner, "northwind")
+            packs.load_all(lyst, owner, "northwind")  # domain packs with planted causes
             results = representative.run(lyst, owner, "northwind")
         finally:
             lyst.close()

@@ -7,7 +7,7 @@ import pytest
 
 from lyst.analytics import methods as M
 from lyst.specialists import methods as SM
-from lyst.specialists import representative, samples
+from lyst.specialists import packs, representative, samples
 from lyst.specialists.core import AnalystRequest
 
 
@@ -94,12 +94,12 @@ def test_methods_run_end_to_end_through_the_core(sampled):
     assert any(s["capability"] == "run_method" for s in t["steps"])
     assert any("SELECT" in q["sql"] for q in t["result"]["supporting"]["queries"])  # reads went through the SQL guard
     checks = {c["name"]: c["passed"] for c in t["result"]["confidence"]["checks"]}
-    assert checks["method_ran"] and checks["fits_request"]
+    assert checks["method_ran"] and checks.get("fits_request", True)
 
 
-def test_plain_tasks_never_use_specialist_methods(sampled):
+def test_tasks_without_expertise_never_use_specialist_methods(sampled):
     lyst, owner = sampled
-    tid = lyst.runtime.submit(owner, "northwind", "Reconcile ledger erp against ledger bank")
+    tid = lyst.runtime.submit(owner, "northwind", "Reconcile ledger erp against ledger bank", extra={"expertise": None})
     lyst.runtime.drain()
     t = lyst.runtime.get(owner, tid)
     assert not any(s["capability"] == "run_method" for s in t["steps"])
@@ -121,6 +121,7 @@ def test_representative_scenarios_still_pass_and_match_recorded_evidence(sampled
     from lyst.specialists.maturity import evidence
 
     lyst, owner = sampled
+    packs.load_all(lyst, owner, "northwind")
     results = representative.run(lyst, owner, "northwind")
     failed = {pid: [c["check"] for s in r["scenarios"] for c in s["checks"] if not c["passed"]]
               for pid, r in results.items() if not r["passed"]}
