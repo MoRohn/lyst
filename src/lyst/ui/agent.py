@@ -209,6 +209,7 @@ def answer_card(t: dict, r: dict, *, key: str) -> bool:
         left, right = st.columns([3.3, 1], vertical_alignment="top")
         with left:
             badge, tone = (("Needs your input", "warn") if r.get("status") == "needs_input" else
+                           ("Reply", "info") if r.get("mode") == "conversation" else
                            ("Verified", "ok") if level == "verified" else ((level or "").capitalize(), "warn"))
             st.html('<div class="lyst-answer-q">' + (f'<span class="lyst-answer-badge {tone}">{escape(badge)}</span>'
                     if badge else "") + f'{escape(question)} · {escape(kit.when(t.get("updated_at") or t.get("created_at")))}'

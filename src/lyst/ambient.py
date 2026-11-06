@@ -73,7 +73,9 @@ def lifecycle(task: dict[str, Any], steps: list[dict[str, Any]] | None = None, e
     outcome = task.get("outcome") or (result or {}).get("status")
     if status == "done":
         if outcome in (None, "complete"):
-            return {"state": "Completed", "detail": "Finished and verified" if outcome == "complete" else "Finished",
+            talk = (result or {}).get("mode") == "conversation"  # a reply computed nothing, so it is not "verified"
+            return {"state": "Completed", "detail": "Replied" if talk else
+                    "Finished and verified" if outcome == "complete" else "Finished",
                     "source": "task.status=done"}
         return {"state": "Needs Attention", "detail": {"needs_input": "Needs your input", "unverified": "Finished but not verified"}
                 .get(outcome, f"Finished: {outcome}"), "source": f"result.status={outcome}"}
@@ -255,7 +257,8 @@ class AmbientService:
                     out.append(_action("task.schedule", "Repeat every Monday", "approve",
                                        "A recurring run starts once an admin approves it", needs_approval=True,
                                        follow_up="schedule this every Monday"))
-        if st == "done" and (t.get("result") or {}).get("status") == "complete":
+        if st == "done" and (t.get("result") or {}).get("status") == "complete" and \
+                (t.get("result") or {}).get("mode") != "conversation":
             out.append(_action("task.briefing", "Save a briefing", "run", "A Markdown briefing kept in your reports"))
         return out
 
