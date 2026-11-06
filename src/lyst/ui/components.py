@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Reusable pieces: the answer layout, charts, tables, status chips."""
+"""Reusable pieces: the answer layout, charts, tables, status chips.
+
+The UI is an HTTP client (decision 0003), so the reading of an answer here (trust line, caveats, breakdown
+chart, headings) mirrors ``lyst.answer_view``, which the downloads use; test_deliverables holds the two equal."""
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
-# what the answer shows is read once, for the screen and for every download made from it
-from lyst.answer_view import breakdown_chart, caveats, heading, trust_line  # noqa: F401
 
 STATUS = {
     "queued": ("Queued", "gray", ":material/schedule:"),
@@ -101,6 +102,28 @@ def chart(c: dict[str, Any]) -> None:
     st.plotly_chart(fig, width="stretch", theme=None, config={"displayModeBar": False}, alt=_alt(c))
 
 
+def breakdown_chart(r: dict[str, Any]) -> dict[str, Any] | None:
+    """A breakdown answer (a table of one category column and one number) as a bar chart, so the Summary shows
+    the split at a glance instead of only naming the largest part. Only when the answer has no chart of its own."""
+    if r.get("charts"):
+        return None
+    for t in r.get("tables") or []:
+        cols, rows = t.get("columns") or [], t.get("rows") or []
+        if len(cols) == 2 and 2 <= len(rows) <= 24 and all(
+                isinstance(row[1], int | float) and not isinstance(row[0], int | float) for row in rows):
+            fmt = "percent" if any(k in cols[1] for k in ("rate", "share", "margin", "ratio")) else (
+                "currency" if "$" in str(r.get("answer", "")) else "number")
+            return {"type": "bar", "title": t.get("title") or f"{heading(cols[1])} by {heading(cols[0]).lower()}",
+                    "x": [str(row[0]) for row in rows], "y": [float(row[1]) for row in rows], "format": fmt}
+    return None
+
+
+def heading(col: str) -> str:
+    """'prior_rate' -> 'Prior rate', 'region' -> 'Region': column names in words, acronyms kept."""
+    text = str(col).replace("_", " ").strip()
+    return text[:1].upper() + text[1:]
+
+
 def table(t: dict[str, Any]) -> None:
     st.caption(t["title"])
     df = pd.DataFrame(t["rows"], columns=t["columns"])
@@ -123,6 +146,7 @@ def table(t: dict[str, Any]) -> None:
 
 VIEWS = ("Summary", "Detail", "Method")
 _OLD_VIEWS = {"Business": "Summary", "Analyst": "Detail", "Engineer": "Method", "Executive": "Summary"}
+_CAVEAT = re.compile(r"\b(did not|does not|disagree|differently|no period was named|assumed|filtered|caution|not verified)\b", re.I)
 
 
 def _default_view(r: dict[str, Any]) -> str:
@@ -149,8 +173,32 @@ def brief(r: dict[str, Any], pdf: Any = None, key: str = "answer") -> None:
                            icon=":material/download:", type="primary", on_click="ignore", key=f"brief_pdf_{key}")
 
 
+def trust_line(r: dict[str, Any]) -> str | None:
+    """What 'Verified' means for this answer, in one line a business reader can repeat."""
+    conf = r.get("confidence") or {}
+    checks = conf.get("checks") or []
+    passed = sum(1 for c in checks if c.get("passed"))
+    if r.get("status") == "needs_input":
+        return "Lyst needs one more detail before it can answer; see below."
+    if conf.get("level") == "verified" and passed == len(checks):
+        return (f"All {len(checks)} checks passed: every figure was recomputed independently from approved data."
+                if checks else "Every figure was recomputed independently from approved data.")
+    if checks:
+        return f"{passed} of {len(checks)} checks passed. Read the notes below before relying on this."
+    return None
+
+
 def _join(*parts: Any) -> str:
     return " · ".join(str(p) for p in parts if p not in (None, ""))
+
+
+def caveats(r: dict[str, Any]) -> list[str]:
+    """What a reader must not miss: wrong premises, defaulted periods, filters, disagreements, failed warnings."""
+    sup = r.get("supporting") or {}
+    out = [a for a in sup.get("assumptions", []) if _CAVEAT.search(a)]
+    out += [f"Check not passed: {c.get('name', 'a check')}" + (f" ({c['detail']})" if c.get("detail") else "")
+            for c in (r.get("confidence") or {}).get("checks", []) if not c.get("passed", True)]
+    return out
 
 
 RULE_TONE = {"passed": "good", "enforced": "good", "failed": "bad", "not_automated": "warn", "not_applicable": "neutral"}

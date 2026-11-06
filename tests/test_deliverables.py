@@ -183,3 +183,23 @@ def test_forecast_downloads_carry_the_chart_with_history_forecast_and_interval(s
     assert "Actual" in text and "Interval" in text and "Forecast" in text and "Jan 2025" in text
     _, md = lyst.artifacts.get(owner, lyst.artifacts.build(owner, t, "md")["id"])
     assert md.decode().count("data:image/svg+xml;base64,") >= 2  # in the answer and under Made in this answer
+
+
+def test_the_answer_page_and_the_downloads_read_an_answer_the_same_way(seeded):
+    """The UI keeps its own copy (it is an HTTP client and may not import the backend), so hold the two equal."""
+    from lyst import answer_view as av
+    from lyst.ui import components as ui
+
+    lyst, owner = seeded
+    results = [ask(lyst, owner, q)["result"] for q in ("Why did operating margin decline last quarter?",
+                                                        "What was revenue last quarter by region?")]
+    failed = {**results[0], "confidence": {"level": "unverified", "checks": [
+        {"name": "recompute", "passed": False, "detail": "off by 2%"}, {"name": "coverage", "passed": True}]}}
+    results += [failed, {**results[1], "status": "needs_input"}, {"answer": "x", "confidence": {"level": "verified"}}]
+    for r in results:
+        assert ui.trust_line(r) == av.trust_line(r)
+        assert ui.caveats(r) == av.caveats(r)
+        assert ui.breakdown_chart(r) == av.breakdown_chart(r)
+    assert results[1].get("charts") or ui.breakdown_chart(results[1])  # the breakdown case is really exercised
+    for col in ("prior_rate", "region", "operating_margin", "x"):
+        assert ui.heading(col) == av.heading(col)
