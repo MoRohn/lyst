@@ -96,8 +96,9 @@ board**, with Suggested, Needs you, In progress and Done, scoped to the page wit
 a card to open it, hold it (or press M) for its actions, or drag it to another column to propose that move, with
 each column saying what a drop would do; the keyboard works too (arrows, and Space to pick up and drop), every
 change asks for confirmation and goes through the usual approvals and permissions, and viewers can only open
-cards. The sidebar holds **Search or go to** (⌘K), your four most recent questions with their live status,
-notifications, and a "What these words mean" glossary.
+cards. The sidebar stays calm: the four areas lead, Pinned and Recent fold away as quiet one-line links (only a
+status worth noticing gets an icon), and one foot holds a workspace menu (account, role, switcher, sign out) and
+three quiet icons for search (Ctrl/⌘+K opens the palette from anywhere), notifications and the glossary.
 
 | Area | What you do there |
 |---|---|
@@ -126,10 +127,11 @@ Breakdown answers show their split as a chart.
 
 ### What Lyst makes is an artifact
 
-Dashboards, charts, briefings, slides, workbooks and saved analyses appear as previews drawn from their own content,
-and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides as slides,
-a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to refine it in
-words, see its versions, pin it to your sidebar, and return exactly where you were. Every chart in an answer
+Dashboards, charts, briefings, slides, workbooks and saved analyses appear as previews drawn from their own
+content, and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides
+as slides, a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to
+refine it in words ("break that down by region", "compare it to last year", "every Monday", however you phrase or
+quote it), see its versions, pin it to your sidebar, and return exactly where you were. Every chart in an answer
 appears under **Made in this answer**, Data › Dashboards is the gallery of everything made, and ⌘K finds artifacts
 by title.
 
@@ -173,6 +175,21 @@ way; and the morning brief and weekly review are produced on request, not yet on
   </tr>
 </table>
 
+### Talk to it like a colleague
+
+Not every question needs a number. Ask what exists, how to do something, what a metric means, or just say hello,
+and Lyst replies in conversation from what the workspace actually holds (dashboards, reports, datasets, approved
+metrics, rules, watches, repeatable analyses), read with your permissions. A reply computes nothing, so it is never
+marked Verified and carries no number a model made up; it says so in one line. When it can help, it makes an offer
+("Want me to?"), and **yes**, "go ahead", "the second one" or "2" runs that offer through the same pipeline, roles
+and approvals as if you had typed it. Replies follow the last few questions and answers, and a figure repeated from
+them must come from those checked answers. A question about figures that names no approved metric is no longer
+answered with the nearest one: Lyst says which metrics exist and how to add one.
+
+<p align="center">
+  <img src="docs/images/conversation.png" alt="A conversational reply: no dashboard exists yet, an offer to build an Executive overview, marked as a reply from what is in the workspace with nothing computed" width="75%">
+</p>
+
 ### Every answer: Summary, Detail, Method, and a Brief
 
 Answers open as a canvas: the answer beside an **evidence rail** showing which checks passed, the data and version
@@ -189,12 +206,14 @@ briefing, ready to forward; executive requests lead with it. Limitations stay vi
 **More**, beside Brief and Focus, lists what Lyst can do with this answer right now: break it down, compare it,
 explain it, make a dashboard, repeat it (marked as needing approval) or save a briefing. Under each answer you can
 act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved analysis on a schedule,
-**Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, **Share** assigns it to a colleague or
-asks for a review, **Discuss** opens its thread, and **How this ran** shows each step, query and model call with
-its timing. Four questions sit under every answer: **How was this figured? · Where is it from? · What could change
-it? · Can it be repeated?** Each opens the engine's own explanation from its records, and the last reruns the
-recorded queries under your current permissions. Below them, **Next steps** offers up to three follow-ups grounded
-in what the answer found, each with Run now (or Watch it), Later and Why.
+**Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, each carrying everything the answer
+shows in the same order, charts included (native, editable charts in Excel and slides, vector charts in the PDF,
+an embedded chart with its data in Markdown), **Share** assigns it to a colleague or asks for a review,
+**Discuss** opens its thread, and **How this ran** shows each step, query and model call with its timing and
+tokens. Four questions sit under every answer: **How was this figured? · Where is it from? · What could change it?
+· Can it be repeated?** Each opens the engine's own explanation from its records, and the last reruns the recorded
+queries under your current permissions. Below them, **Next steps** offers up to three follow-ups grounded in what
+the answer found, each with Run now (or Watch it), Later and Why.
 
 <p align="center">
   <img src="docs/images/next-steps.png" alt="Under an answer: the act bar, the four questions about the answer, What if and Compare options, and three Next steps with Run now, Later and Why" width="80%">
