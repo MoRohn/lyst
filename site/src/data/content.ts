@@ -117,8 +117,8 @@ export const capabilities: {
   {
     icon: 'Sprout',
     title: 'Evolve',
-    text: 'Learns new methods, with an owner’s approval.',
-    items: ['A map of everything Lyst knows', 'Memories flagged when their data changes', 'Search across data, definitions and saved work', 'Rules learned from repeated failures', 'Governed skills'],
+    text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
+    items: ['Answer verdicts: correct, incorrect or partly, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'A map of everything Lyst knows', 'Memories flagged when their data changes', 'Search across data, definitions and saved work', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
@@ -179,7 +179,7 @@ export const enterprise = {
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost.', status: 'available' as Status },
-    { icon: 'Repeat', title: 'Repeatable workflows', text: 'Verified analyses compile into versioned workflows that schedules can rerun.', status: 'available' as Status },
+    { icon: 'Repeat', title: 'Repeatable, governed learning', text: 'Verified analyses compile into versioned workflows that schedules can rerun; one that keeps failing, or gave an answer a person disputed, is held back with its reason. Only an admin takes back approved memory, and agent-observed memory expires after 365 days by default.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Scheduled, encrypted backups, each test-restored automatically, and whole workspaces that move in one sealed file.', status: 'available' as Status },
   ],
 };
@@ -232,7 +232,7 @@ export const footer = {
  */
 export const proof = [
   { value: '850+', label: 'automated tests, fault injection included' },
-  { value: '21', label: 'real questions gate every change' },
+  { value: '24', label: 'eval cases gate every change, learning included' },
   { value: '136', label: 'specialist profiles behind one Analyst' },
   { value: 'AGPL-3.0', label: 'open source, self-hosted' },
 ];
