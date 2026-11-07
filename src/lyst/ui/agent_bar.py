@@ -243,7 +243,7 @@ def conversation(tasks: dict[str, dict]) -> list[dict[str, Any]]:
 
 
 def payload(page: str) -> dict[str, Any]:
-    from lyst.ui import activity, agent, zone  # noqa: PLC0415
+    from lyst.ui import activity, agent, home, zone  # noqa: PLC0415
 
     ws = workspace()
     s = agent.state(ws)
@@ -272,6 +272,7 @@ def payload(page: str) -> dict[str, Any]:
         "follow": bool(st.session_state.get("_bar_follow")), "heard": heard.get("text") if heard else None,
         "voice": _voice_ok(), "say": say, "open": bool(st.session_state.pop("_bar_open", False)),
         "role": st.session_state.get("role"),
+        "hero": home.payload(s["tasks"]) if home.is_home(page) else None,
     }
 
 
@@ -399,6 +400,8 @@ def handle(ev: dict, page: str) -> None:
         st.switch_page("app_pages/analyst.py", query_params={"task": str(ev["task"])})
     elif kind == "clear":
         st.session_state["_bar_turns"] = []
+    elif kind == "setup":  # Home's dock: Get started opens as a sheet over Home
+        st.session_state["_home_setup"] = True
 
 
 def _follow(page: str, data: dict) -> None:

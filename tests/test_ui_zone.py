@@ -166,8 +166,8 @@ def _boards(at) -> list[dict]:
     return out
 
 
-@pytest.mark.parametrize("page,name", [("app_pages/analyst.py", "home"), ("app_pages/data.py", "data"),
-                                       ("app_pages/brain.py", "brain"), ("app_pages/settings.py", "settings")])
+@pytest.mark.parametrize("page,name", [("app_pages/data.py", "data"), ("app_pages/brain.py", "brain"),
+                                       ("app_pages/settings.py", "settings")])
 def test_every_page_has_its_activity_zone(ui, page, name):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
@@ -177,9 +177,19 @@ def test_every_page_has_its_activity_zone(ui, page, name):  # noqa: F811
     boards = _boards(at)
     assert len(boards) == 1 and boards[0]["page"] == name
     assert [c["id"] for c in boards[0]["columns"]] == COLS
-    if name == "home":  # the ambiguous question waits on the person, on Home
-        mine = [c for c in boards[0]["cards"] if c["col"] == "needs" and "home" in c["pages"]]
-        assert any(c["title"] == "What is our margin?" for c in mine)
+
+
+def test_home_brings_one_thing_forward_instead_of_a_board(ui):  # noqa: F811
+    """Home has no activity board: the one thing that most wants the person (here, the ambiguous question) is a
+    single focus line under the composer, and everything else waits in the dock and Brain › Work."""
+    from .test_ui_agent import _bar  # noqa: PLC0415
+
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert _boards(at) == []
+    focus = _bar(at)["hero"]["focus"]
+    assert focus["title"] == "What is our margin?" and focus["kicker"] == "Needs you" and focus["task"]
 
 
 def test_a_drop_asks_first_then_goes_through_the_approval(ui):  # noqa: F811
@@ -222,6 +232,9 @@ def test_a_drop_asks_first_then_goes_through_the_approval(ui):  # noqa: F811
 
 def test_a_move_the_card_does_not_offer_does_nothing(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/brain.py")
+    at.query_params["view"] = "work"
     at.run()
     card = next(c for c in _boards(at)[0]["cards"] if c["col"] == "done")
     at.session_state["_zone_do"] = {"type": "move", "card": card["id"], "to": "needs", "nonce": "2"}

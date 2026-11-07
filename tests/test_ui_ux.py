@@ -59,9 +59,9 @@ def test_trust_line_and_headings():
 def test_an_answer_offers_watch_repeat_and_download(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    rows = [b for b in at.button if (b.key or "").startswith("ans_open_")]  # Home's answer cards
-    assert rows
-    rows[-1].click().run()  # the verified margin answer from the fixture
+    from .test_ui_agent import open_recent  # noqa: PLC0415
+
+    open_recent(at)  # Home's dock: Recent, the verified margin answer from the fixture
     assert not at.exception, [e.value for e in at.exception]
     labels = set(_popovers(at.main))
     assert {"Keep watch", "Download", "Share", "More"} <= labels  # four menus, not a toolbar
@@ -96,10 +96,17 @@ def test_pulse_compares_complete_months_as_the_reader(seeded):
 def test_home_guides_a_first_run(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
+    from .test_ui_agent import _bar  # noqa: PLC0415
+
+    hero = _bar(at)["hero"]
+    assert hero["setup"] and hero["setup"]["done"] < hero["setup"]["need"]  # one dock item while setup is unfinished
+    # what to ask, from the workspace's own approved measures; what Lyst can answer about is the starters' tooltip
+    assert "Lyst can answer about" in hero["about"]
+    at.session_state["_bar_do"] = {"type": "setup", "nonce": "s1"}  # the dock's Get started opens the guide
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
     body = _texts(at)
     assert "Get started" in body and "Let Lyst study the data" in body  # driven by the onboarding status
-    # what to ask, from the workspace's own approved measures; what Lyst can answer about is the suggestions' tooltip
-    assert any("Lyst can answer about" in (g.proto.help or "") for g in at.get("button_group"))
 
 
 def test_brain_shows_the_health_of_definitions(ui):  # noqa: F811
@@ -374,8 +381,9 @@ def test_people_can_ask_how_an_answer_was_figured_and_see_data_sensitivity(seede
         ["32.5%: approved operating margin"]
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    rows = [b for b in at.button if (b.key or "").startswith("ans_open_")]  # Home's answer cards
-    rows[-1].click().run()
+    from .test_ui_agent import open_recent  # noqa: PLC0415
+
+    open_recent(at)
     assert not at.exception, [e.value for e in at.exception]
     assert any("How was this figured?" in str(o) for g in at.get("button_group") for o in g.proto.options)
     at.switch_page("app_pages/settings.py")

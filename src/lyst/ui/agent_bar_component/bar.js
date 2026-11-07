@@ -12,6 +12,12 @@
 //   {type: "go", go}                    Go: the page and section where something happened
 //   {type: "open", task}                open an answer
 //   {type: "clear"}                     clear the conversation
+//   {type: "setup"}                     Home: open Get started
+//
+// On Home with nothing open (data.hero), the same bar becomes Home itself: Lyst's presence (its mark, which moves
+// only while Lyst works, listens or waits on the person), one composer that grows as the person writes, at most
+// three starters, the one thing Lyst most wants the person to see, and a quiet dock for work in flight and recent
+// work. Nothing here is a second ask box: it is the one bar, composed differently.
 //
 // Voice rules (docs/VOICE.md): the microphone starts only on a press of the mic button (or Alt+M, also a press) and
 // stops when the person stops or pauses. Recognition runs in the browser; no audio leaves it or is kept. Speech
@@ -28,7 +34,25 @@ const PATHS = {
   ask: '<path d="M4 5h16v11H9l-5 4z"/>',
   keys: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
   close: '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
+  clip: '<path d="m21 11-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="m6.5 6.5 2 2M15.5 15.5l2 2M17.5 6.5l-2 2M8.5 15.5l-2 2"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  doc: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  pin: '<path d="M9 4h6l-1 6 4 4H6l4-4z"/><path d="M12 14v7"/>',
 };
+// Lyst's mark, drawn so its two planes can catch light: the stem and the floor of the logo, nothing added.
+const MARK = `<svg class="h-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="h-ms" x1="9" y1="1" x2="9" y2="31" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--h-stem-a)"/><stop offset="1" style="stop-color:var(--h-stem-b)"/></linearGradient>
+  <linearGradient id="h-mf" x1="3" y1="27" x2="29" y2="25" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--h-floor-a)"/><stop offset="1" style="stop-color:var(--h-floor-b)"/></linearGradient>
+  <linearGradient id="h-sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <clipPath id="h-clip"><path d="M3.4 31.8 15.2 21.4H28.5Q29.6 21.4 29 22.3L23.6 31Q23 31.8 22 31.8Z"/><path d="M2.8 10.6Q2.8 9.4 3.8 8.7L14.8.7Q16.2-.2 16.2 1.5V19.3Q16.2 20.6 15.2 21.4L3.6 31.3Q2.8 32 2.8 30.9Z"/></clipPath></defs>
+  <path class="h-floor" d="M3.4 31.8 15.2 21.4H28.5Q29.6 21.4 29 22.3L23.6 31Q23 31.8 22 31.8Z" fill="url(#h-mf)"/>
+  <path class="h-stem" d="M2.8 10.6Q2.8 9.4 3.8 8.7L14.8.7Q16.2-.2 16.2 1.5V19.3Q16.2 20.6 15.2 21.4L3.6 31.3Q2.8 32 2.8 30.9Z" fill="url(#h-ms)"/>
+  <g clip-path="url(#h-clip)"><g class="h-sheen"><rect x="-16" y="-4" width="12" height="40" fill="url(#h-sheen)" transform="skewX(-18)"/></g></g></svg>`;
+const KIND_ICON = { answer: "chart", dashboard: "chart", briefing: "doc", report: "doc", presentation: "doc", workbook: "doc",
+  workflow: "clock", pin: "pin" };
 const svg = (n) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${PATHS[n] || ""}</svg>`;
 const esc = (s) =>
@@ -54,20 +78,36 @@ class Bar {
     this.el = document.createElement("div");
     this.el.className = "b";
     this.el.innerHTML = `
+      <div class="h-top" hidden>
+        <div class="h-presence" aria-hidden="true"><span class="h-halo"></span>${MARK}</div>
+        <h1 class="h-title"></h1>
+      </div>
       <div class="b-bar" role="search">
         <span class="b-mark" aria-hidden="true"><i></i></span>
         <div class="b-field">
           <label class="sr" for="b-q">Ask Lyst, or go to a page</label>
-          <input id="b-q" class="b-q" type="text" autocomplete="off" spellcheck="false" enterkeyhint="send"
+          <textarea id="b-q" class="b-q" rows="1" autocomplete="off" spellcheck="false" enterkeyhint="send"
                  role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="b-list"
-                 placeholder="Ask Lyst anything, or go to a page" />
+                 placeholder="Ask Lyst anything, or go to a page"></textarea>
           <kbd class="b-kbd" aria-hidden="true">/</kbd>
           <ul id="b-list" class="b-list" role="listbox" aria-label="Suggestions" hidden></ul>
+        </div>
+        <div class="h-tools" hidden>
+          <button type="button" class="h-tool h-attach">${svg("clip")}<span>Add data</span></button>
+          <span class="h-hint" aria-hidden="true"><kbd>↵</kbd> ask <kbd>⇧↵</kbd> new line</span>
         </div>
         <button type="button" class="b-btn b-mic" aria-pressed="false">${svg("mic")}</button>
         <button type="button" class="b-btn b-send" aria-label="Send" hidden>${svg("send")}</button>
         <div class="b-now"></div>
         <button type="button" class="b-btn b-chev" aria-expanded="false" aria-controls="b-panel">${svg("chev")}</button>
+      </div>
+      <div class="h-below" hidden>
+        <div class="h-starters" role="group" aria-label="Try"></div>
+        <div class="h-focus"></div>
+      </div>
+      <div class="h-dock" hidden>
+        <nav class="h-dock-bar" aria-label="Work in flight and recent work"></nav>
+        <div id="h-sheet" class="h-sheet" role="region" aria-label="Recent" hidden></div>
       </div>
       <div id="b-panel" class="b-panel" role="region" aria-label="Lyst" hidden>
         <section class="b-talk" aria-label="Conversation">
@@ -91,6 +131,9 @@ class Bar {
     this.nowEl = $(".b-now"); this.chev = $(".b-chev"); this.panel = $(".b-panel"); this.mark = $(".b-mark");
     this.turnsEl = $(".b-turns"); this.heardEl = $(".b-heard"); this.runEl = $(".b-running");
     this.feedEl = $(".b-feed"); this.followEl = $(".b-follow"); this.live = $(".b-say");
+    this.top = $(".h-top"); this.titleEl = $(".h-title"); this.presence = $(".h-presence"); this.tools = $(".h-tools");
+    this.below = $(".h-below"); this.starters = $(".h-starters"); this.focusEl = $(".h-focus");
+    this.dock = $(".h-dock"); this.dockBar = $(".h-dock-bar"); this.sheet = $(".h-sheet");
     this.q.value = store.get("lyst.bar.draft") || "";
     this.wire();
   }
@@ -106,7 +149,7 @@ class Bar {
 
   // ------------------------------------------------------------------------------------------- wiring
   wire() {
-    this.q.addEventListener("input", () => { store.set("lyst.bar.draft", this.q.value); this.suggest(); });
+    this.q.addEventListener("input", () => { store.set("lyst.bar.draft", this.q.value); this.grow(); this.suggest(); });
     this.q.addEventListener("focus", () => { if (this.q.value) this.suggest(); });
     this.q.addEventListener("blur", () => window.setTimeout(() => this.close(), 120));
     this.q.addEventListener("keydown", (e) => this.key(e));
@@ -118,12 +161,16 @@ class Bar {
     this.send.addEventListener("click", () => this.submit());
     this.mic.addEventListener("click", () => (this.listening ? this.stopMic() : this.startMic()));
     this.chev.addEventListener("click", () => this.toggle());
+    this.el.querySelector(".h-attach").addEventListener("click", () =>
+      this.emit({ type: "go", go: { page: "app_pages/data.py", params: { add: "1" } } }));
     this.followEl.addEventListener("change", () => this.emit({ type: "follow", on: this.followEl.checked }));
     this.el.querySelector(".b-clear").addEventListener("click", () => this.emit({ type: "clear" }));
     this.el.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-go],[data-open],[data-heard],[data-watch],[data-need],[data-ask]");
+      const b = e.target.closest("[data-go],[data-open],[data-heard],[data-watch],[data-need],[data-ask],[data-sheet],[data-setup]");
       if (!b) return;
-      if (b.dataset.ask) this.emit({ type: "submit", text: b.dataset.ask });
+      if (b.dataset.sheet !== undefined) return this.toggleSheet();
+      if (b.dataset.setup !== undefined) return this.emit({ type: "setup" });
+      if (b.dataset.ask) { this.thinking(); this.emit({ type: "submit", text: b.dataset.ask }); }
       else if (b.dataset.go) this.emit({ type: "go", go: JSON.parse(b.dataset.go) });
       else if (b.dataset.open) this.emit({ type: "open", task: b.dataset.open });
       else if (b.dataset.heard) this.emit({ type: "heard", yes: b.dataset.heard === "yes" });
@@ -138,6 +185,8 @@ class Bar {
         e.preventDefault(); this.q.focus(); this.q.select();
       } else if (e.key === "Escape" && this.open && !typing && this.el.contains(t)) {
         this.toggle(false); this.chev.focus();
+      } else if (e.key === "Escape" && !this.sheet.hidden) {
+        this.toggleSheet(false);
       }
     };
     document.addEventListener("keydown", this.onDoc);
@@ -148,6 +197,7 @@ class Bar {
     if (e.key === "ArrowDown" && n) { e.preventDefault(); this.mark_(this.sel < n - 1 ? this.sel + 1 : 0); }
     else if (e.key === "ArrowDown" && !this.q.value) { e.preventDefault(); this.toggle(true); }
     else if (e.key === "ArrowUp" && n) { e.preventDefault(); this.mark_(this.sel > 0 ? this.sel - 1 : n - 1); }
+    else if (e.key === "Enter" && e.shiftKey && this.hero) { window.setTimeout(() => this.grow(), 0); }
     else if (e.key === "Enter" && !e.isComposing) {
       e.preventDefault();
       if (this.sel >= 0 && n) this.pick(this.sel); else this.submit();
@@ -162,7 +212,7 @@ class Bar {
   // --------------------------------------------------------------------------------------- suggestions
   suggest() {
     const raw = this.q.value.trim();
-    this.send.hidden = !raw;
+    this.send.hidden = !raw && !this.hero;
     const places = (this.data && this.data.places) || [];
     if (!raw) { this.items = []; return this.close(); }
     const w = norm(raw.replace(GO_WORDS, ""));
@@ -179,6 +229,7 @@ class Bar {
     const asking = GO_WORDS.test(raw) && hits.length ? [] : [{ ask: raw }];
     const named = hits.length && raw.split(/\s+/).length <= 2;  // "sql", "definitions": the place first
     this.items = GO_WORDS.test(raw) || named ? [...hits, ...asking] : [...asking, ...hits];
+    if (this.hero && !hits.length) { this.items = []; return this.close(); }  // Home: the composer itself is the ask
     this.list.innerHTML = this.items.map((it, i) => it.ask
       ? `<li id="b-o${i}" role="option" data-i="${i}" class="b-opt ask">${svg("ask")}<span><span class="b-o-k">Ask Lyst</span> ${esc(it.ask)}</span><kbd>↵</kbd></li>`
       : `<li id="b-o${i}" role="option" data-i="${i}" class="b-opt">${svg("place")}<span>${esc(it.label)}</span><span class="b-o-k">Go</span></li>`).join("");
@@ -212,12 +263,35 @@ class Bar {
     const text = this.q.value.trim();
     if (!text) return;
     this.clearField();
+    this.thinking();
     this.el.classList.add("sent");
     window.setTimeout(() => this.el.classList.remove("sent"), 500);
     this.emit({ type: "submit", text });
   }
 
-  clearField() { this.q.value = ""; store.set("lyst.bar.draft", ""); this.send.hidden = true; this.close(); }
+  clearField() { this.q.value = ""; store.set("lyst.bar.draft", ""); this.send.hidden = !this.hero; this.close(); this.grow(); }
+
+  // The field grows with what is written (Home: up to eight lines; the bar elsewhere: up to three).
+  grow() {
+    this.q.style.height = "auto";
+    const line = parseFloat(getComputedStyle(this.q).lineHeight) || 22;
+    const max = line * (this.hero ? 8 : 3) + 18;
+    this.q.style.height = `${Math.min(this.q.scrollHeight, max)}px`;
+    this.q.style.overflowY = this.q.scrollHeight > max ? "auto" : "hidden";
+    this.el.classList.toggle("typed", !!this.q.value.trim());
+    if (this.hero) this.send.disabled = !this.q.value.trim();
+  }
+
+  // Sent: Lyst's mark catches light until the answer (or its progress) takes over the page.
+  thinking() { this.el.classList.add("thinking"); this.say("Lyst is working on it"); }
+
+  toggleSheet(force) {
+    const open = typeof force === "boolean" ? force : this.sheet.hidden;
+    this.sheet.hidden = !open;
+    const b = this.dockBar.querySelector("[data-sheet]");
+    if (b) b.setAttribute("aria-expanded", String(open));
+    store.set("lyst.home.sheet", open ? "1" : "0");
+  }
 
   toggle(force) {
     this.open = typeof force === "boolean" ? force : !this.open;
@@ -280,7 +354,7 @@ class Bar {
     this.mic.setAttribute("aria-label", this.listening ? "Stop listening" : "Speak to Lyst");
     this.mic.title = !ok ? "Voice is off for this workspace" : this.listening ? "Stop listening" : "Speak to Lyst (Alt+M)";
     this.el.classList.toggle("listening", this.listening);
-    this.q.placeholder = this.listening ? "Listening…" : "Ask Lyst anything, or go to a page";
+    this.q.placeholder = this.listening ? "Listening…" : this.hero ? (this.data.hero.placeholder || "Ask anything") : "Ask Lyst anything, or go to a page";
     if (this.listening) this.say("Listening");
   }
 
@@ -297,7 +371,9 @@ class Bar {
   // ------------------------------------------------------------------------------------------- render
   update(data) {
     const first = !this.data;
+    if (this.data && data !== this.data) this.el.classList.remove("thinking");
     this.data = data;
+    this.paintHero(data);
     if (data.open && !this.open) this.toggle(true);
     this.mark.className = `b-mark ${data.tone || "ok"}`;
     this.mark.title = data.head || "";
@@ -310,6 +386,55 @@ class Bar {
     this.el.classList.toggle("following", !!data.follow);
     if (!first && document.activeElement === this.q && this.q.value) this.suggest();
     this.speak(data.say);
+  }
+
+  // ------------------------------------------------------------------------------------------- Home
+  paintHero(d) {
+    const h = d.hero || null;
+    const was = this.hero;
+    this.hero = !!h;
+    this.el.classList.toggle("hero", this.hero);
+    this.top.hidden = this.below.hidden = this.dock.hidden = this.tools.hidden = !this.hero;
+    this.chev.hidden = this.hero;
+    this.send.hidden = this.hero ? false : !this.q.value.trim();
+    if (!this.hero) { if (was) this.grow(); return; }
+    this.presence.className = `h-presence ${d.tone || "ok"}`;
+    this.presence.title = d.head || "";
+    if (this.titleEl.textContent !== h.title) this.titleEl.textContent = h.title;
+    this.send.setAttribute("aria-label", "Ask Lyst");
+    const st = (h.starters || []).map((x) => `<button type="button" class="h-chip${x.lead ? " lead" : ""}" data-ask="${esc(x.text)}">${x.lead ? svg("spark") : ""}<span>${esc(x.text)}</span></button>`).join("");
+    if (this.starters.innerHTML !== st) this.starters.innerHTML = st;
+    this.starters.title = h.about || "";
+    const f = h.focus;
+    const fo = f ? `<button type="button" class="h-focus-line ${esc(f.tone || "")}" ${f.task ? `data-open="${esc(f.task)}"` : `data-go="${esc(JSON.stringify(f.go || {}))}"`}>
+        <span class="h-dot" aria-hidden="true"></span><span class="h-focus-k">${esc(f.kicker)}</span><span class="h-focus-t">${esc(f.title)}</span>${svg("go")}</button>` : "";
+    if (this.focusEl.innerHTML !== fo) this.focusEl.innerHTML = fo;
+    this.paintDock(d, h);
+    if (!was) { this.grow(); if (store.get("lyst.home.sheet") === "1") this.toggleSheet(true); }
+  }
+
+  paintDock(d, h) {
+    const now = d.now || [], need = d.need || 0, recent = h.recent || [];
+    const parts = [];
+    if (now.length) {
+      const top = now[0];
+      const pct = typeof top.progress === "number" ? ` <span class="b-pct">${Math.round(top.progress * 100)}%</span>` : "";
+      parts.push(`<button type="button" class="h-dk run" ${top.task ? `data-open="${esc(top.task)}"` : `data-watch`} title="Watch what Lyst is doing">
+        <span class="b-spin" aria-hidden="true"></span><span class="h-dk-t">${esc(top.title)}</span>${pct}${now.length > 1 ? ` <span class="b-more">+${now.length - 1}</span>` : ""}</button>`);
+    }
+    if (need) parts.push(`<button type="button" class="h-dk wait" data-need><b>${need}</b> need${need === 1 ? "s" : ""} you</button>`);
+    if (h.setup) parts.push(`<button type="button" class="h-dk" data-setup>${svg("flag")}Get started <span class="b-pct">${h.setup.done}/${h.setup.need}</span></button>`);
+    if (recent.length) parts.push(`<button type="button" class="h-dk" data-sheet aria-controls="h-sheet" aria-expanded="${String(!this.sheet.hidden)}">${svg("clock")}Recent</button>`);
+    const bar = parts.join('<span class="h-sep" aria-hidden="true"></span>');
+    if (this.dockBar.innerHTML !== bar) this.dockBar.innerHTML = bar;
+    this.dock.hidden = !parts.length;
+    const rows = recent.map((r) => {
+      const attr = r.task ? `data-open="${esc(r.task)}"` : `data-go="${esc(JSON.stringify(r.go || {}))}"`;
+      return `<li><button type="button" class="h-row" ${attr}><span class="h-row-i">${svg(KIND_ICON[r.kind] || "doc")}</span>
+        <span class="h-row-t">${esc(r.title)}</span><span class="b-when">${esc(r.when || r.label || "")}</span></button></li>`;
+    }).join("");
+    const sheet = rows ? `<ol>${rows}</ol>` : "";
+    if (this.sheet.innerHTML !== sheet) this.sheet.innerHTML = sheet;
   }
 
   paintNow(d) {

@@ -45,16 +45,25 @@ def test_every_page_renders(ui, page, title):
     at.switch_page(page)
     at.run()
     assert not at.exception, [e.value for e in at.exception]
-    assert title in _texts(at) or any(title in str(h.value) for h in at.get("html")), page
+    hero = (_bar_of(at).get("hero") or {}).get("title", "")  # Home's title is drawn by the bar, which is Home
+    assert title in _texts(at) or title in hero or any(title in str(h.value) for h in at.get("html")), page
+
+
+def _bar_of(at) -> dict:
+    from .test_ui_agent import _bar  # noqa: PLC0415
+
+    return _bar(at)
 
 
 def test_home_shows_suggestions_from_metrics(ui):
-    """What waits on the person is on Home's activity zone (tests/test_ui_zone.py); the suggestions come from metrics."""
+    """Home is one composer with at most three starters, from the workspace's approved metrics; what waits on the
+    person is the one focus line (tests/test_ui_zone.py), not a board."""
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     assert not at.exception
-    pills = at.get("button_group")
-    assert pills and any("operating margin" in str(o).lower() for p in pills for o in p.proto.options)
+    hero = _bar_of(at)["hero"]
+    assert 0 < len(hero["starters"]) <= 3
+    assert any("operating margin" in s["text"].lower() for s in hero["starters"])
 
 
 def test_brain_work_lands_on_needs_you_when_something_waits(ui):

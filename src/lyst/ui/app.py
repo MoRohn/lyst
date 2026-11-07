@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
 
 import streamlit as st
 
@@ -20,10 +19,8 @@ st.set_page_config(page_title="Lyst", page_icon=str(ASSETS / "lyst-mark.svg"), l
 
 
 def brand() -> None:
-    """The Lyst logo in place of a text wordmark, in the variant that reads on the active theme."""
-    dark = (st.context.theme.type or "light") == "dark"
-    st.logo(str(ASSETS / ("lyst-logo-on-dark.svg" if dark else "lyst-logo.svg")), size="large",
-            icon_image=str(ASSETS / "lyst-mark.svg"))
+    """Lyst's mark at the top of the rail: the navigation is a slim column of icons, so the mark is the identity."""
+    st.logo(str(ASSETS / "lyst-mark.svg"), size="large", icon_image=str(ASSETS / "lyst-mark.svg"))
 
 
 brand()
@@ -214,57 +211,22 @@ from lyst.ui import agent  # noqa: E402 - what Lyst is doing; Home's count adds 
 nav = st.navigation(make_pages(agent.waiting(agent.state(st.session_state.workspace))), position="sidebar")
 
 
-def _recent(ws: str) -> list[dict]:
-    """The person's latest questions in this workspace, for one-click return; refreshed like the waiting count."""
-    import time  # noqa: PLC0415
-
-    hit = st.session_state.get("_recent")
-    if hit and hit[0] == ws and time.monotonic() - hit[1] < WAITING_TTL:
-        return hit[2]
-    try:
-        tasks = [t for t in api.get(f"/v1/workspaces/{ws}/tasks") if t.get("kind", "analysis") == "analysis"][:4]
-    except APIError:
-        tasks = []
-    st.session_state["_recent"] = (ws, time.monotonic(), tasks)
-    return tasks
-
-
-RECENT_ICON = {"queued": ":material/schedule:", "running": ":material/progress_activity:",
-               "awaiting_approval": ":material/approval:", "failed": ":material/error:",
-               "paused": ":material/pause:"}
-# a finished question still earns an icon when its answer waits on the person
-OUTCOME_ICON = {"needs_input": ":material/contact_support:", "unverified": ":material/error:"}
-
-def _pins(ws: str) -> list[dict]:
-    hit = st.session_state.get("_pins")
-    if hit and hit[0] == ws:
-        return hit[1]
-    try:
-        pins = api.get(f"/v1/workspaces/{ws}/pins")[:6]
-    except APIError:
-        pins = []
-    st.session_state["_pins"] = (ws, pins)
-    return pins
-
-
-PIN_PAGE = {"dataset": ("app_pages/data.py", "dataset"), "metric": ("app_pages/brain.py", "metric")}
-
 def _ws_name(i: str) -> str:
     return next(w["name"] for w in spaces if w["id"] == i)
 
 
-def _quiet_list(title: str, key: str) -> Any:
-    """Pinned and Recent: a quiet, collapsible list under the four areas. It stays open until the person closes it."""
-    return st.container(key=f"lyst_side_list_{key}").expander(title, expanded=True, key=f"lyst_side_x_{key}")
-
-
 def _footer() -> None:
-    """The sidebar's foot: who and where (workspace, account, sign out) in one menu, then search, notifications and
-    the glossary as three quiet icons. Every label stays in the accessible name; only the eye sees icons."""
-    with st.container(key="lyst_side_foot"):
-        with st.popover(_ws_name(st.session_state.workspace), icon=":material/apartment:", width="stretch",
-                        key="lyst_side_account"):
-            who = me.get("name") or me["email"]
+    """The rail's foot: search, notifications, the glossary, and who and where (workspace, account, sign out), as
+    four quiet icons. Every label stays in the accessible name and the tooltip; only the eye sees icons."""
+    with st.container(key="lyst_side_foot"), st.container(key="lyst_side_icons", gap="small"):
+        palette.trigger(spaces)
+        collab.bell()
+        with st.popover("What these words mean", icon=":material/help:", key="lyst_side_help",
+                        help="What these words mean"):
+            st.markdown(GLOSSARY)
+        who = me.get("name") or me["email"]
+        with st.popover(f"{_ws_name(st.session_state.workspace)} · {who}", icon=":material/account_circle:",
+                        key="lyst_side_account", help=f"{who} · {_ws_name(st.session_state.workspace)}"):
             st.html(f'<p class="lyst-side-who"><b>{kit._esc(who)}</b>'
                     + (f'<br>{kit._esc(me["email"])}' if who != me["email"] else "")
                     + f'<br>{kit._esc(role.capitalize())} · {kit._esc(_ws_name(st.session_state.workspace))}</p>')
@@ -277,36 +239,9 @@ def _footer() -> None:
                     pass
                 st.session_state.pop("token", None)
                 st.rerun()
-        with st.container(key="lyst_side_icons", horizontal=True, gap="small"):
-            palette.trigger(spaces)
-            collab.bell()
-            with st.popover("What these words mean", icon=":material/help:", key="lyst_side_help",
-                            help="What these words mean"):
-                st.markdown(GLOSSARY)
 
 
 with st.sidebar:
-    if pins := _pins(st.session_state.workspace):
-        from lyst.ui import artifacts as _art  # noqa: PLC0415
-
-        with _quiet_list("Pinned", "pinned"):
-            for p in pins:
-                if st.button(p.get("title") or p["id"], key=f"lyst_recent_pin_{p['kind']}_{p['id']}".replace(":", "_"),
-                             type="tertiary", width="stretch", icon=_art.KINDS.get(p["kind"], ("", ":material/keep:"))[1]
-                             if p["kind"] in _art.KINDS else ":material/keep:"):
-                    if p["kind"] in PIN_PAGE:
-                        page, qk = PIN_PAGE[p["kind"]]
-                        st.switch_page(page, query_params={qk: p["id"]})
-                    _art.open_artifact({"kind": p["kind"], "id": p["id"]})
-    if recent := _recent(st.session_state.workspace):
-        with _quiet_list("Recent", "recent"):
-            for t in recent:
-                # only a status worth noticing earns an icon; finished questions read as plain quiet links
-                if st.button(t.get("title") or "Untitled", key=f"lyst_recent_{t['id']}", type="tertiary",
-                             width="stretch", icon=RECENT_ICON.get(t["status"]) or OUTCOME_ICON.get(t.get("outcome")),
-                             help=f"{t['status'].replace('_', ' ').capitalize()} · {kit.when(t.get('updated_at'))}"):
-                    st.session_state.task_id = t["id"]
-                    st.switch_page("app_pages/analyst.py", query_params={"task": t["id"]})
     _footer()
     from lyst.ui import activity  # noqa: PLC0415 - events lane: live activity, on every page
 

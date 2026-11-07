@@ -51,6 +51,10 @@ _MATERIAL = {
              "shadow-3": "0 1px 0 rgba(255,255,255,.06) inset, 0 16px 48px rgba(0,0,0,.6)"},
 }
 
+# Lyst's mark: the stem and the floor of the logo, each a two-stop gradient (lyst-mark.svg). Home's presence draws
+# the mark from these, so it is the logo's own colour, never an approximation.
+MARK = {"mark-stem-a": "#0B6B64", "mark-stem-b": "#034440", "mark-floor-a": "#12A79B", "mark-floor-b": "#7FD4C2"}
+
 # Type: one family (the theme's), a short modular scale (rem, 15px base), and weights that rank without shouting.
 TYPE = {
     "size-xs": ".72rem",   # section labels, chart axes
@@ -112,7 +116,7 @@ def colors(mode: str = "light") -> dict[str, str]:
         "border": t["borderColor"], "grid": _mix(t["backgroundColor"], t["borderColor"], .75),
         "focus": t["linkColor"],
         "good": s["good"], "warn": s["warn"], "bad": s["bad"], "info": s["info"], "neutral": s["neutral"],
-        **_MATERIAL["dark" if mode == "dark" else "light"],
+        **_MATERIAL["dark" if mode == "dark" else "light"], **MARK,
     }
 
 
