@@ -101,7 +101,7 @@ def _settings(view: str | None = None):
 
 
 @pytest.mark.parametrize("view,expect", [("models", "OpenRouter"), ("connections", "Credentials of"),
-                                         ("workspace", "Audit trail")])
+                                         ("workspaces", "Members"), ("privacy", "Audit trail")])
 def test_settings_sections_render_without_raw_internals(ui, view, expect):
     at = _settings(view)
     body = _texts(at)
@@ -114,6 +114,9 @@ def test_workspace_section_lists_members_as_rows_with_readable_times(ui):
     at = _settings("workspace")
     body = _texts(at)
     assert "avery@northwind.test" in body or "Avery" in body
+    at = _settings("privacy")  # the latest entries as rows; the whole trail opens in a sheet
+    at.button(key="set_audit_all").click().run()
+    assert not at.exception, [e.value for e in at.exception]
     df = at.dataframe[-1].value
     assert list(df.columns) == ["When", "Who", "Action", "On", "Outcome", "Detail"]
     assert "avery@northwind.test" in set(df["Who"])  # actors by email, not user ids

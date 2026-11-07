@@ -53,7 +53,7 @@ def test_settings_offers_rules_and_work_shows_what_they_did(ui):  # noqa: F811
 
     owner = Principal(owner_id, "avery@northwind.test")
     at = _run("app_pages/settings.py")
-    at.query_params["view"] = "workspace"
+    at.query_params["view"] = "preferences"
     at.run()
     text = _texts(at)
     assert "Event rules" in text and TEMPLATES["schema_change"]["name"] in text

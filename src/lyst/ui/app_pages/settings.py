@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
-"""Settings: inference, Secrets & Connections (users manage connections, Lyst manages secrets), members, audit."""
+"""Settings, as a native settings window: seven sections in a quiet list (Account, Workspaces, Connections, Models &
+Voice, Privacy & Security, Preferences, Advanced), Lyst's own check of the setup above them, and every technical control
+(catalogs, model pins, installation policy, the full audit trail) one step further, in a sheet."""
 
 import pandas as pd
 import streamlit as st
@@ -14,9 +16,6 @@ s = api.get(f"/v1/workspaces/{ws}/settings")
 admin = s["role"] in ("admin", "owner")
 owner = s["role"] == "owner"
 cred = s.get("credentials") or {}
-kit.header("Settings", f"You are {s['role']} of {s['workspace']['name']} · "
-           + ("encrypted at rest" if s["encrypted"] else "not encrypted at rest")
-           + f" · {s['llm_usage']['calls']:,} model call{'s' * (s['llm_usage']['calls'] != 1)} so far")
 
 
 def _reauth(e: APIError) -> None:
@@ -140,6 +139,70 @@ def per_m(row: dict) -> str:
 
 
 
+@st.dialog("Choose a model", width="large")
+def model_sheet(opts: dict) -> None:
+    """The level and model for this workspace: auto (the level's best-priced model, with fallbacks) or one pinned."""
+    with st.form("model-level", border=False):
+        ws_row = s["workspace"]
+        labels = {"": "Follow the installation default"} | {t["id"]: f"{t['label']} · about {usd(t['per_call_usd'])} per call"
+                                                            for t in opts["tiers"] if t["allowed"]}
+        cur_tier = ws_row.get("llm_tier") or ""
+        f = st.columns(2)
+        tier = f[0].selectbox("Level for this workspace", list(labels), format_func=labels.get,
+                              index=list(labels).index(cur_tier) if cur_tier in labels else 0)
+        allowed = [r for r in opts["models"] if r["allowed"]]
+        by_id = {r["modelId"]: r for r in allowed}
+        choices = ["auto"] + [r["modelId"] for r in allowed]
+        cur_model = ws_row.get("llm_model") or "auto"
+        if cur_model not in choices:
+            choices.append(cur_model)
+
+        def model_label(mid: str) -> str:
+            if mid == "auto":
+                return "Auto: the tier's best-priced model, with fallbacks (recommended)"
+            r = by_id.get(mid)
+            if not r:
+                return mid
+            tier_tag = f" · {r['tier']}" if r.get("tier") else ""
+            return f"{r['vendorLabel']} · {r['modelLabel']}{tier_tag} · {price(r['input_per_m'])}/{price(r['output_per_m'])} per 1M · ≈{usd(r['per_call_usd'])}/call"
+
+        model = f[1].selectbox("Model", choices, index=choices.index(cur_model), format_func=model_label,
+                               help="Auto walks the level's models cheapest first and falls back on errors, as in Acumane. "
+                                    "A specific model is used alone. Models above this installation's highest allowed "
+                                    "level are not listed.")
+        if st.form_submit_button("Save model choice", icon=":material/save:"):
+            try:
+                api.patch(f"/v1/workspaces/{ws}/settings", {"llm_tier": tier, "llm_model": model})
+                st.toast("Model choice saved; the next call uses it.", icon=":material/check:")
+                st.rerun()
+            except APIError as e:
+                st.error(str(e))
+
+
+@st.dialog("Every model and price", width="large")
+def catalog_sheet(opts: dict) -> None:
+    """Each level's models in the order Lyst tries them, and every OpenRouter model Lyst can use, with prices."""
+    cat = opts["catalog"]
+    kit.label("Every model in each level")
+    rows = [{"Level": t["label"], "Order": i + 1, "Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"],
+             "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Cached $/1M": r["cached_per_m"],
+             "Per call": r["per_call_usd"], "Per 1,000 calls": r["per_call_usd"] * 1000, "Context": r["context"]}
+            for t in opts["tiers"] for i, r in enumerate(t["models"])]
+    money = {k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Cached $/1M", "Per 1,000 calls")}
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 column_config=money | {"Per call": st.column_config.NumberColumn("Per call", format="$%.6f"),
+                                        "Context": st.column_config.NumberColumn("Context", format="%d")})
+    kit.label(f"All {cat.get('selectable') or len(opts['models'])} OpenRouter models Lyst can use")
+    st.caption("Text models that support tool calls, with a published price and at least 8,000 tokens of context. "
+               "Newest first within each provider.")
+    allm = pd.DataFrame([{"Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"], "Level": r["tier"] or "",
+                          "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Per 1,000 calls": r["per_call_usd"] * 1000,
+                          "Context": r["context"], "Reasoning": bool(r["reasoning"]), "Allowed here": r["allowed"]}
+                         for r in opts["models"]])
+    st.dataframe(allm, hide_index=True, width="stretch",
+                 column_config={k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Per 1,000 calls")})
+
+
 def models() -> None:
     """Which model Lyst may use, at what level and cost, and what it has spent."""
     m = s["model"]
@@ -223,70 +286,16 @@ def models() -> None:
         st.caption(md(f"Now: {where}. Calls walk {' → '.join(f'`{x}`' for x in sel['attempts'][:6])}"
                       + (" …" if len(sel["attempts"]) > 6 else "")
                       + (f". This installation allows tiers up to {sel['ceiling']}." if sel["ceiling"] != "frontier" else ".")))
-        if admin:
-            with st.form("model-level", border=True):
-                ws_row = s["workspace"]
-                labels = {"": "Follow the installation default"} | {t["id"]: f"{t['label']} · about {usd(t['per_call_usd'])} per call"
-                                                                    for t in opts["tiers"] if t["allowed"]}
-                cur_tier = ws_row.get("llm_tier") or ""
-                f = st.columns(2)
-                tier = f[0].selectbox("Level for this workspace", list(labels), format_func=labels.get,
-                                      index=list(labels).index(cur_tier) if cur_tier in labels else 0)
-                allowed = [r for r in opts["models"] if r["allowed"]]
-                by_id = {r["modelId"]: r for r in allowed}
-                choices = ["auto"] + [r["modelId"] for r in allowed]
-                cur_model = ws_row.get("llm_model") or "auto"
-                if cur_model not in choices:
-                    choices.append(cur_model)
-
-                def model_label(mid: str) -> str:
-                    if mid == "auto":
-                        return "Auto: the tier's best-priced model, with fallbacks (recommended)"
-                    r = by_id.get(mid)
-                    if not r:
-                        return mid
-                    tier_tag = f" · {r['tier']}" if r.get("tier") else ""
-                    return f"{r['vendorLabel']} · {r['modelLabel']}{tier_tag} · {price(r['input_per_m'])}/{price(r['output_per_m'])} per 1M · ≈{usd(r['per_call_usd'])}/call"
-
-                model = f[1].selectbox("Model", choices, index=choices.index(cur_model), format_func=model_label,
-                                       help="Auto walks the level's models cheapest first and falls back on errors, as in Acumane. "
-                                            "A specific model is used alone. Models above this installation's highest allowed "
-                                            "level are not listed.")
-                if st.form_submit_button("Save model choice", icon=":material/save:"):
-                    try:
-                        api.patch(f"/v1/workspaces/{ws}/settings", {"llm_tier": tier, "llm_model": model})
-                        st.toast("Model choice saved; the next call uses it.", icon=":material/check:")
-                        st.rerun()
-                    except APIError as e:
-                        st.error(str(e))
-        with st.expander("Every model in each level"):
-            rows = [{"Level": t["label"], "Order": i + 1, "Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"],
-                     "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Cached $/1M": r["cached_per_m"],
-                     "Per call": r["per_call_usd"], "Per 1,000 calls": r["per_call_usd"] * 1000, "Context": r["context"]}
-                    for t in opts["tiers"] for i, r in enumerate(t["models"])]
-            money = {k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Cached $/1M", "Per 1,000 calls")}
-            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                         column_config=money | {"Per call": st.column_config.NumberColumn("Per call", format="$%.6f"),
-                                                "Context": st.column_config.NumberColumn("Context", format="%d")})
-        with st.expander(f"All {cat.get('selectable') or len(opts['models'])} OpenRouter models Lyst can use"):
-            st.caption("Text models that support tool calls, with a published price and at least 8,000 tokens of context. "
-                       "Newest first within each provider.")
-            allm = pd.DataFrame([{"Provider": r["vendorLabel"], "Model": r["modelLabel"], "Id": r["modelId"], "Level": r["tier"] or "",
-                                  "Input $/1M": r["input_per_m"], "Output $/1M": r["output_per_m"], "Per 1,000 calls": r["per_call_usd"] * 1000,
-                                  "Context": r["context"], "Reasoning": bool(r["reasoning"]), "Allowed here": r["allowed"]}
-                                 for r in opts["models"]])
-            st.dataframe(allm, hide_index=True, width="stretch",
-                         column_config={k: st.column_config.NumberColumn(k, format="$%.4f") for k in ("Input $/1M", "Output $/1M", "Per 1,000 calls")})
-
+        with st.container(horizontal=True, gap="small", key="set_model_moves"):
+            if admin and st.button("Choose a model", icon=":material/tune:", key="set_model_pick"):
+                model_sheet(opts)
+            if st.button("Every model and price", icon=":material/table_rows:", type="tertiary", key="set_model_catalog"):
+                catalog_sheet(opts)
     if not admin:
         return
-    allow = st.toggle("Allow this workspace to use external model providers", value=bool(s["workspace"]["allow_external_llm"]))
-    if allow != bool(s["workspace"]["allow_external_llm"]):
-        kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": allow}), "Saved")
-        st.rerun()
     usage = api.get(f"/v1/workspaces/{ws}/model-usage")
     if usage:
-        st.markdown("**Model usage**")
+        kit.label("Model usage")
         if opts and opts.get("spend"):
             sp = opts["spend"]
             u = st.columns(4)
@@ -310,11 +319,59 @@ def models() -> None:
                    + (f"; refused: {g['refusals']}" if g.get("refusals") else "") + ".")
 
 
+@st.dialog("Installation policy and models", width="large")
+def installation_sheet(inst: dict) -> None:
+    """Installation administrators: where keys may be overridden, the default and highest model level, a pinned or
+    embedding model, the catalog refresh, and the trust anchors."""
+    pol = inst["policy"].get("openrouter", {})
+    p1 = st.columns(2)
+    wo = p1[0].toggle("Workspaces may connect their own OpenRouter key", value=bool(pol.get("workspace_override")))
+    uc = p1[1].toggle("People may connect a personal OpenRouter key", value=bool(pol.get("user_credentials")))
+    st_ = inst["settings"]
+    levels = ["economy", "balanced", "frontier"]
+    p2 = st.columns(2)
+    tier = p2[0].selectbox("Default level", levels, format_func=str.capitalize,
+                           index=levels.index(st_.get("LYST_LLM_TIER") or "balanced"),
+                           help="What every workspace uses unless it chooses its own.")
+    ceiling = p2[1].selectbox("Highest level a workspace may choose", levels, format_func=str.capitalize,
+                              index=levels.index(st_.get("LYST_LLM_MAX_TIER") or "frontier"),
+                              help="Also caps a workspace's specific model at the dearest model of this level. "
+                                   "A workspace above a lowered ceiling falls back to the default.")
+    p3 = st.columns(2)
+    pinned = p3[0].text_input("Pinned model for every workspace (optional)", value=st_.get("LYST_LLM_MODEL") or "",
+                              help="An OpenRouter slug used alone, e.g. anthropic/claude-opus-5.5. Administrators may "
+                                   "pin a model outside the catalog.")
+    embed = p3[1].text_input("Embedding model (optional)", value=st_.get("LYST_EMBED_MODEL") or "",
+                             help="e.g. openai/text-embedding-3-small; turns on semantic search")
+    b1, b2 = st.columns([1, 1])
+    if b1.button("Save installation settings", icon=":material/save:"):
+        try:
+            api.patch("/v1/installation", {"policy": {"provider": "openrouter", "workspace_override": wo, "user_credentials": uc},
+                                           "settings": {"LYST_LLM_TIER": tier, "LYST_LLM_MAX_TIER": ceiling,
+                                                        "LYST_LLM_MODEL": pinned or None, "LYST_EMBED_MODEL": embed or None}})
+            st.rerun()
+        except APIError as e:
+            _reauth(e)
+    if inst.get("provider") == "openrouter" and b2.button("Refresh models and prices from OpenRouter",
+                                                          icon=":material/sync:"):
+        try:
+            out = api.post("/v1/models/catalog/refresh", {})
+            st.success(md(f"Catalog updated: {out['selectable']} usable models of {out['modelCount']}. "
+                          + ("; ".join(out["changes"][:8]) or "No tier changes.")))
+        except APIError as e:
+            _reauth(e)
+    kit.label("Trust anchors and administrators")
+    st.caption(f"Administrators: {', '.join(inst['admins'])}. Data directory: {inst['home']}.")
+    st.dataframe(pd.DataFrame(inst["anchors"]), hide_index=True, width="stretch")
+    if inst["events"]:
+        st.dataframe(pd.DataFrame(inst["events"])[["occurred_at", "actor", "action", "credential_id", "outcome", "detail"]],
+                     hide_index=True, width="stretch")
+
+
 def connections() -> None:
     """Users manage connections; Lyst manages the secrets."""
-    st.caption("You manage connections; Lyst manages the secrets. Values are entered once, tested, sealed with AES-256-GCM under "
-               "a master key kept outside the database, and never displayed or returned again. Every connect, test, replace, "
-               "revoke and use is in a tamper-evident history.")
+    st.caption("Entered once, tested, sealed with AES-256-GCM under a master key kept outside the database, and never "
+               "shown again. Every connect, test, replace, revoke and use is on a tamper-evident record.")
     personal = bool((cred.get("policy") or {}).get("user_credentials"))
     names = ["This workspace"] + (["Installation"] if cred.get("installation_admin") else []) + (["Personal"] if personal else [])
     tabs = st.tabs(names)
@@ -339,50 +396,9 @@ def connections() -> None:
                 credential_panel("installation", None, key="inst", title="Installation credentials",
                                  intro="Shared by every workspace: the OpenRouter key (Acumane's rails) and the sign-in provider. "
                                        "An installation credential is authoritative; the policy below says where it may be overridden.")
-                st.markdown("**Policy and model settings**")
-                pol = inst["policy"].get("openrouter", {})
-                p1 = st.columns(2)
-                wo = p1[0].toggle("Workspaces may connect their own OpenRouter key", value=bool(pol.get("workspace_override")))
-                uc = p1[1].toggle("People may connect a personal OpenRouter key", value=bool(pol.get("user_credentials")))
-                st_ = inst["settings"]
-                levels = ["economy", "balanced", "frontier"]
-                p2 = st.columns(2)
-                tier = p2[0].selectbox("Default level", levels, format_func=str.capitalize,
-                                       index=levels.index(st_.get("LYST_LLM_TIER") or "balanced"),
-                                       help="What every workspace uses unless it chooses its own.")
-                ceiling = p2[1].selectbox("Highest level a workspace may choose", levels, format_func=str.capitalize,
-                                          index=levels.index(st_.get("LYST_LLM_MAX_TIER") or "frontier"),
-                                          help="Also caps a workspace's specific model at the dearest model of this level. "
-                                               "A workspace above a lowered ceiling falls back to the default.")
-                p3 = st.columns(2)
-                pinned = p3[0].text_input("Pinned model for every workspace (optional)", value=st_.get("LYST_LLM_MODEL") or "",
-                                          help="An OpenRouter slug used alone, e.g. anthropic/claude-opus-5.5. Administrators may "
-                                               "pin a model outside the catalog.")
-                embed = p3[1].text_input("Embedding model (optional)", value=st_.get("LYST_EMBED_MODEL") or "",
-                                         help="e.g. openai/text-embedding-3-small; turns on semantic search")
-                b1, b2 = st.columns([1, 1])
-                if b1.button("Save installation settings", icon=":material/save:"):
-                    try:
-                        api.patch("/v1/installation", {"policy": {"provider": "openrouter", "workspace_override": wo, "user_credentials": uc},
-                                                       "settings": {"LYST_LLM_TIER": tier, "LYST_LLM_MAX_TIER": ceiling,
-                                                                    "LYST_LLM_MODEL": pinned or None, "LYST_EMBED_MODEL": embed or None}})
-                        st.rerun()
-                    except APIError as e:
-                        _reauth(e)
-                if inst.get("provider") == "openrouter" and b2.button("Refresh models and prices from OpenRouter",
-                                                                      icon=":material/sync:"):
-                    try:
-                        out = api.post("/v1/models/catalog/refresh", {})
-                        st.success(md(f"Catalog updated: {out['selectable']} usable models of {out['modelCount']}. "
-                                      + ("; ".join(out["changes"][:8]) or "No tier changes.")))
-                    except APIError as e:
-                        _reauth(e)
-                with st.expander("Trust anchors and administrators"):
-                    st.caption(f"Administrators: {', '.join(inst['admins'])}. Data directory: {inst['home']}.")
-                    st.dataframe(pd.DataFrame(inst["anchors"]), hide_index=True, width="stretch")
-                    if inst["events"]:
-                        st.dataframe(pd.DataFrame(inst["events"])[["occurred_at", "actor", "action", "credential_id", "outcome", "detail"]],
-                                     hide_index=True, width="stretch")
+                if st.button("Installation policy and models", icon=":material/admin_panel_settings:",
+                             key="set_inst_open"):
+                    installation_sheet(inst)
     if personal:
         with tabs[-1]:
             credential_panel("user", None, key="me", title="Your personal credentials",
@@ -456,69 +472,54 @@ def usage_and_limits() -> None:
             kit.guarded(lambda: api.put(f"/v1/workspaces/{ws}/quotas", new), "Limits saved")
 
 
-def workspace_section() -> None:
-    """How this workspace is governed: autonomy, notifications, members and the audit trail."""
-    if admin:
-        with kit.group("Autonomy", "autonomy", "How much Lyst may do on its own, and how far ahead it may prepare work."):
-            cur = s["workspace"]["autonomy"]
-            mode = st.segmented_control("Autonomy", list(AUTONOMY), default=cur, format_func=str.capitalize,
-                                        label_visibility="collapsed", key="autonomy")
-            st.caption(AUTONOMY.get(mode or cur, ""))
-            if mode and mode != cur:
-                kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
-                st.rerun()
-            anticipate.level_control()
-        with kit.group("Event rules", "rules", "What Lyst does when something happens, and how far it may go."):
-            from lyst.ui import activity  # noqa: PLC0415
-
-            activity.rules(admin=admin)
-        with kit.group("Notifications", "notify"):
-            with st.form("webhook", border=False):
-                w = st.columns([5, 1.2], vertical_alignment="bottom")
-                hook = w[0].text_input("Webhook for monitor findings", value=s["workspace"].get("webhook_url") or "",
-                                       placeholder="https://… (empty turns it off)",
-                                       help="Lyst sends each new monitor finding as a JSON POST to this https address.")
-                if w[1].form_submit_button("Save", width="stretch") and hook != (s["workspace"].get("webhook_url") or ""):
-                    kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
-                    st.rerun()
-    with kit.card("grp_profile"):
-        onboarding.profile_section()
-    with kit.card("grp_policy"):
-        governance.policy_section()
-    if admin:
-        with kit.card("grp_usage"):
-            usage_and_limits()
-        with kit.card("grp_webhooks"):
-            integrations.webhooks_section()
-    if admin:
-        with kit.group("Move or copy this workspace", "packs"):
-            packs.section()
+def members() -> None:
+    """Who is in this workspace, at what role; admins add and remove people."""
     try:
         people = api.get(f"/v1/workspaces/{ws}/members")
     except APIError as e:
         st.caption(str(e))
-        people = []
-    names = {p["user_id"]: p["email"] for p in people}
-    kit.label(f"Members · {len(people)}")
-    for i, p in enumerate(people):
-        acts = [("Remove", "rm")] if admin and p["role"] != "owner" else []
-        if kit.row(p.get("name") or p["email"], p["email"] if p.get("name") else "",
-                   status=(p["role"].capitalize(), "ok" if p["role"] in ("owner", "admin") else "info"), actions=acts,
-                   key=f"mem{i}", divider=i < len(people) - 1) == "rm":
-            kit.guarded(lambda u=p["user_id"]: api.delete(f"/v1/workspaces/{ws}/members/{u}"), f"Removed {p['email']}")
-            st.rerun()
-    if admin:
-        st.write("")
-        with st.form("member", clear_on_submit=True, border=False):
-            c2 = st.columns([4, 1.4, 1.2], vertical_alignment="bottom")
-            email = c2[0].text_input("Add someone", placeholder="name@company.com",
-                                     help="The person must have signed in to Lyst once.")
-            role = c2[1].selectbox("Role", ["viewer", "editor", "admin", "owner"], format_func=str.capitalize)
-            if c2[2].form_submit_button("Add", width="stretch") and email.strip():
-                done = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/members",
-                                                    {"email": email.strip().lower(), "role": role}), f"Added {email.strip()}")
-                if done is not None:
-                    st.rerun()
+        return
+    with kit.group(f"Members · {len(people)}", "members"):
+        for i, p in enumerate(people):
+            acts = [("Remove", "rm")] if admin and p["role"] != "owner" else []
+            if kit.row(p.get("name") or p["email"], p["email"] if p.get("name") else "",
+                       status=(p["role"].capitalize(), "ok" if p["role"] in ("owner", "admin") else "info"), actions=acts,
+                       key=f"mem{i}", divider=i < len(people) - 1) == "rm":
+                kit.guarded(lambda u=p["user_id"]: api.delete(f"/v1/workspaces/{ws}/members/{u}"), f"Removed {p['email']}")
+                st.rerun()
+        if admin:
+            with st.form("member", clear_on_submit=True, border=False):
+                c2 = st.columns([4, 1.4, 1.2], vertical_alignment="bottom")
+                email = c2[0].text_input("Add someone", placeholder="name@company.com",
+                                         help="The person must have signed in to Lyst once.")
+                role = c2[1].selectbox("Role", ["viewer", "editor", "admin", "owner"], format_func=str.capitalize)
+                if c2[2].form_submit_button("Add", width="stretch") and email.strip():
+                    done = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/members",
+                                                        {"email": email.strip().lower(), "role": role}),
+                                       f"Added {email.strip()}")
+                    if done is not None:
+                        st.rerun()
+
+
+def _audit_rows(log: list[dict]) -> pd.DataFrame:
+    try:
+        names = {p["user_id"]: p["email"] for p in api.get(f"/v1/workspaces/{ws}/members")}
+    except APIError:
+        names = {}
+    return pd.DataFrame([{"When": kit.when(r["occurred_at"]), "Who": names.get(r["actor"], r["actor"]),
+                          "Action": r["action"], "On": r["target"] or "", "Outcome": r["outcome"],
+                          "Detail": "" if r["detail"] in (None, "{}", {}) else str(r["detail"])} for r in log])
+
+
+@st.dialog("Audit trail", width="large")
+def audit_sheet(log: list[dict]) -> None:
+    st.caption("Every change, query and decision in this workspace, newest first. The trail is hash-chained, so an "
+               "edit to a past entry is detected.")
+    st.dataframe(_audit_rows(log), hide_index=True, width="stretch", height=520)
+
+
+def audit() -> None:
+    """The latest few entries of the hash-chained trail; the whole trail opens in a sheet."""
     kit.label("Audit trail")
     try:
         log = api.get(f"/v1/workspaces/{ws}/audit")
@@ -528,17 +529,264 @@ def workspace_section() -> None:
     if not log:
         st.caption("Nothing recorded yet.")
         return
-    st.caption("Every change, query and decision in this workspace, newest first. The trail is hash-chained, so an edit "
-               "to a past entry is detected.")
-    df = pd.DataFrame([{"When": kit.when(r["occurred_at"]), "Who": names.get(r["actor"], r["actor"]),
-                        "Action": r["action"], "On": r["target"] or "", "Outcome": r["outcome"],
-                        "Detail": "" if r["detail"] in (None, "{}", {}) else str(r["detail"])} for r in log])
-    st.dataframe(df, hide_index=True, width="stretch", height=min(38 + 35 * len(df), 420))
+    with kit.card("grp_audit"):
+        for i, r in enumerate(log[:4]):
+            kit.row(str(r["action"]).replace("_", " ").replace(".", " · ").capitalize(),
+                    " · ".join(x for x in (r.get("target"), kit.when(r["occurred_at"]), r.get("outcome")) if x),
+                    key=f"aud_{i}", divider=i < min(len(log), 4) - 1)
+    if st.button(f"All {len(log):,} entries", type="tertiary", icon=":material/history:", key="set_audit_all"):
+        audit_sheet(log)
 
 
+# -- the sections ---------------------------------------------------------------------------------------------------
+
+def account() -> None:
+    """Who you are here, where you can work, and your own keys."""
+    me = api.get("/v1/me")
+    spaces = me.get("workspaces") or []
+    who = me.get("name") or me["email"]
+    st.html(f'<div class="lyst-set-me"><span class="lyst-set-avatar" aria-hidden="true">{kit._esc(who[:1].upper())}</span>'
+            f'<span><b>{kit._esc(who)}</b><br>{kit._esc(me["email"]) if who != me["email"] else ""}'
+            f'{kit._esc(s["role"].capitalize())} of {kit._esc(s["workspace"]["name"])}</span></div>')
+    with kit.group(f"Your workspaces · {len(spaces)}", "spaces"):
+        for i, w in enumerate(spaces):
+            kit.row(w.get("name") or w["id"], f"Lyst {w.get('autonomy', '')}s here" if w.get("autonomy") else "",
+                    status=(str(w.get("role", "")).capitalize(), "ok" if w["id"] == ws else "info"), key=f"ws{i}",
+                    divider=i < len(spaces) - 1)
+        st.caption("Switch workspace from the account button at the foot of the rail.")
+    if (cred.get("policy") or {}).get("user_credentials"):
+        credential_panel("user", None, key="me", title="Your personal credentials",
+                         intro="Used only for your own work, never for anyone else's.")
+    if st.button("Sign out", icon=":material/logout:", key="set_signout"):
+        try:
+            api.post("/auth/logout")
+        except APIError:
+            pass
+        st.session_state.pop("token", None)
+        st.rerun()
+
+
+def workspaces() -> None:
+    """This workspace: its people, what kind of business it is, what it uses against its limits, and moving it."""
+    members()
+    with kit.card("grp_profile"):
+        onboarding.profile_section()
+    if admin:
+        with kit.card("grp_usage"):
+            usage_and_limits()
+        with kit.group("Move or copy this workspace", "packs"):
+            packs.section()
+
+
+def connections_section() -> None:
+    """Keys (owners), and where Lyst sends what happens (admins)."""
+    if owner:
+        connections()
+    if admin:
+        with kit.group("Notifications", "notify"):
+            with st.form("webhook", border=False):
+                w = st.columns([5, 1.2], vertical_alignment="bottom")
+                hook = w[0].text_input("Webhook for monitor findings", value=s["workspace"].get("webhook_url") or "",
+                                       placeholder="https://… (empty turns it off)",
+                                       help="Lyst sends each new monitor finding as a JSON POST to this https address.")
+                if w[1].form_submit_button("Save", width="stretch") and hook != (s["workspace"].get("webhook_url") or ""):
+                    kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"webhook_url": hook}), "Webhook saved")
+                    st.rerun()
+        with kit.card("grp_webhooks"):
+            integrations.webhooks_section()
+
+
+def models_and_voice() -> None:
+    models()
+    st.html('<hr class="lyst-set-rule"><h3 class="lyst-set-h3">Voice</h3>')
+    voice.settings_section()
+
+
+def privacy() -> None:
+    """What may leave this workspace, who may read what, how secrets are kept, and the record of everything."""
+    with kit.group("What leaves this workspace", "leave"):
+        if admin:
+            allow = st.toggle("Allow this workspace to use external model providers",
+                              value=bool(s["workspace"]["allow_external_llm"]), key="set_allow_llm")
+            if allow != bool(s["workspace"]["allow_external_llm"]):
+                kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"allow_external_llm": allow}), "Saved")
+                st.rerun()
+        st.caption("Models see definitions and computed findings, never dataset rows, and text is redacted before it "
+                   "leaves. " + ("Data and secrets are encrypted at rest." if s["encrypted"] else
+                                 "Data is not encrypted at rest on this installation."))
+    with kit.group("Who reads what", "policy"):
+        st.caption(governance.policy_summary())
+        if st.button("Change who reads what", icon=":material/lock_person:", key="set_policy_open"):
+            policy_sheet()
+    audit()
+
+
+@st.dialog("Who reads what", width="large")
+def policy_sheet() -> None:
+    governance.policy_section()
+
+
+def preferences() -> None:
+    """How much Lyst does on its own, how far ahead it prepares, and what it does when something happens."""
+    if admin:
+        with kit.group("Autonomy", "autonomy"):
+            cur = s["workspace"]["autonomy"]
+            mode = st.segmented_control("Autonomy", list(AUTONOMY), default=cur, format_func=str.capitalize,
+                                        label_visibility="collapsed", key="autonomy")
+            st.caption(AUTONOMY.get(mode or cur, ""))
+            if mode and mode != cur:
+                kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/settings", {"autonomy": mode}), "Autonomy saved")
+                st.rerun()
+            anticipate.level_control()
+        with kit.group("Event rules", "rules"):
+            from lyst.ui import activity  # noqa: PLC0415
+
+            activity.rules(admin=admin)
+    with kit.group("On Home", "home_prefs"):
+        hide = st.toggle("Show the Get started guide while setup is unfinished",
+                         value=not st.session_state.get("hide_get_started"), key="set_get_started")
+        if hide == bool(st.session_state.get("hide_get_started")):
+            st.session_state["hide_get_started"] = not hide
+            st.session_state.pop("_home", None)
+            st.rerun()
+    if not admin:
+        st.caption("Autonomy and event rules are set by this workspace's administrators.")
+
+
+# Seven sections in a native list. Each short name is its ?view= (palette links and older links land on it; the
+# aliases keep the old Workspace and Voice links working).
+SECTIONS = {
+    "Account": ("Account", ":material/account_circle:", "Who you are here, and your own keys."),
+    "Workspaces": ("Workspaces", ":material/apartment:", "This workspace: its people, its profile and its limits."),
+    "Connections": ("Connections", ":material/key:", "You manage connections; Lyst manages the secrets."),
+    "Models": ("Models & Voice", ":material/neurology:", "Which model Lyst thinks with, what it costs, and how you talk to it."),
+    "Privacy": ("Privacy & Security", ":material/shield_lock:", "What may leave, who may read what, and every change on record."),
+    "Preferences": ("Preferences", ":material/tune:", "How much Lyst does on its own, and what it does when something happens."),
+    "Advanced": ("Advanced", ":material/code:", "Skills, capabilities, evaluations, working ahead, backups and health."),
+}
+ALIASES = {"workspace": "Workspaces", "voice": "Models", "security": "Privacy"}
+DRAW = {"Account": account, "Workspaces": workspaces, "Connections": connections_section, "Models": models_and_voice,
+        "Privacy": privacy, "Preferences": preferences, "Advanced": advanced.skills}
+
+
+def diagnose() -> list[dict]:
+    """Lyst's own check of the setup: each problem in a sentence, why it matters, and the section that fixes it."""
+    out: list[dict] = []
+    if not s.get("model") and s.get("provider") == "openrouter":
+        out.append({"tone": "warn", "text": "No model is connected", "why": "Lyst plans with rules and writes answers "
+                    "from templates until one is. Every number still comes from SQL.", "go": "Models"})
+    elif s.get("model") and not s.get("model_ready"):
+        out.append({"tone": "warn", "text": "This workspace may not use its model", "why": "External model providers are "
+                    "turned off for it.", "go": "Privacy"})
+    try:
+        d = api.get("/v1/diagnostics")  # installation administrators: Lyst's checks of itself, with what to do
+    except APIError:
+        d = {}
+    fails = [c for c in d.get("checks") or [] if c.get("status") == "fail"]
+    if not s.get("encrypted") and not any("encrypt" in c["id"] for c in fails):
+        out.append({"tone": "info", "text": "Data is not encrypted at rest", "why": "Turn on encryption for the "
+                    "installation before real data arrives.", "go": "Privacy"})
+    for c in fails[:3]:
+        out.append({"tone": "bad", "text": c["id"].replace("_", " ").capitalize(),
+                    "why": c.get("fix") or c.get("detail") or "", "go": "Advanced"})
+    return out
+
+
+def header(pick: str) -> None:
+    issues = diagnose()
+    top = st.columns([3, 2.4], vertical_alignment="center")
+    top[0].html('<div class="lyst-set"></div><h1 class="lyst-title lyst-set-title">Settings</h1>'
+                f'<p class="lyst-set-line">{kit._esc(s["role"].capitalize())} of {kit._esc(s["workspace"]["name"])}</p>')
+    with top[1].container(horizontal=True, horizontal_alignment="right", key="set_check"):
+        if not issues:
+            st.html('<p class="lyst-set-ok" role="status"><i></i>Lyst checked the setup: nothing needs you</p>')
+        else:
+            worst = "bad" if any(i["tone"] == "bad" for i in issues) else "warn" if any(i["tone"] == "warn" for i in issues) else "info"
+            with st.popover(f"{len(issues)} thing{'s' * (len(issues) != 1)} to look at", icon=":material/fiber_manual_record:",
+                            key=f"set_diag_{worst}", help="Lyst checked this setup"):
+                for k, i in enumerate(issues):
+                    st.markdown(f"**{md(i['text'])}**")
+                    st.caption(md(i["why"]))
+                    if i["go"] != pick and st.button(f"Open {SECTIONS[i['go']][0]}", key=f"set_fix_{k}", type="tertiary",
+                                                     icon=":material/arrow_forward:"):
+                        go(i["go"])
+
+
+def go(name: str) -> None:
+    st.query_params["view"] = name.lower()
+    st.rerun()
+
+
+def nav(pick: str) -> None:
+    """The section list: an icon tile and a name for each, the open one raised."""
+    for name, (title, icon, _line) in SECTIONS.items():
+        if name == "Connections" and not admin:
+            continue
+        on = name == pick
+        if st.button(title, key=f"set_nav_{'on_' if on else ''}{name.lower()}", icon=icon, type="tertiary",
+                     width="stretch") and not on:
+            go(name)
+
+
+_CSS = """<style>
+.block-container:has(.lyst-set) {max-width: var(--lyst-canvas-max); padding-top: 3.2rem;}
+h1.lyst-set-title {font-size: 2.6rem; letter-spacing: -.035em; font-weight: 640; margin-bottom: 0;}
+p.lyst-set-line {color: var(--lyst-text-muted); margin: .2rem 0 1.2rem 0; font-size: .95rem;}
+p.lyst-set-ok {display: flex; align-items: center; gap: .5rem; color: var(--lyst-text-muted); font-size: var(--lyst-size-sm); margin: 0;}
+p.lyst-set-ok i {width: .5rem; height: .5rem; border-radius: 50%; background: var(--lyst-good);}
+div[class*="st-key-set_diag_"] button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.3rem;}
+div.st-key-set_diag_warn [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .75rem;}
+div.st-key-set_diag_bad [data-testid="stIconMaterial"] {color: var(--lyst-bad); font-size: .75rem;}
+div.st-key-set_diag_info [data-testid="stIconMaterial"] {color: var(--lyst-info); font-size: .75rem;}
+/* the list: icon tiles in a raised inset group */
+div.st-key-set_nav {background: var(--lyst-raised); border: 1px solid var(--lyst-edge); border-radius: 20px;
+  box-shadow: var(--lyst-shadow-1); padding: .45rem; gap: .1rem; position: sticky; top: 1rem;}
+div[class*="st-key-set_nav_"] button {justify-content: flex-start; min-height: 2.6rem; padding: .3rem .55rem;
+  border-radius: 13px; color: var(--lyst-text); font-weight: 450;}
+div[class*="st-key-set_nav_"] button > div {justify-content: flex-start; gap: .65rem;}
+div[class*="st-key-set_nav_"] button [data-testid="stIconMaterial"] {width: 1.75rem; min-width: 1.75rem; height: 1.75rem;
+  flex: none; border-radius: 8px; line-height: 1.75rem; text-align: center;
+  display: grid; place-items: center; font-size: 1.05rem; color: var(--lyst-accent);
+  background: color-mix(in srgb, var(--lyst-accent) 12%, var(--lyst-raised));}
+div[class*="st-key-set_nav_"] button:hover {background: var(--lyst-surface);}
+div[class*="st-key-set_nav_on_"] button {background: color-mix(in srgb, var(--lyst-accent) 10%, var(--lyst-raised));
+  font-weight: var(--lyst-weight-medium);}
+div[class*="st-key-set_nav_on_"] button [data-testid="stIconMaterial"] {background: var(--lyst-accent); color: var(--lyst-raised);}
+/* the open section: its name, one line, then its groups */
+h2.lyst-set-h {font-size: 1.6rem; letter-spacing: -.02em; font-weight: 650; margin: .2rem 0 0 0; padding: 0;}
+p.lyst-set-sub {color: var(--lyst-text-muted); margin: .15rem 0 1rem 0;}
+h3.lyst-set-h3 {font-size: 1.15rem; font-weight: 650; margin: 0 0 .2rem 0; padding: 0;}
+hr.lyst-set-rule {border: 0; border-top: 1px solid var(--lyst-border); margin: 1.4rem 0 .6rem 0;}
+.lyst-set-me {display: flex; align-items: center; gap: .9rem; margin: .2rem 0 1rem 0; line-height: 1.35;}
+.lyst-set-me span:last-child {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm);}
+.lyst-set-me b {color: var(--lyst-text); font-size: 1.05rem;}
+.lyst-set-avatar {width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; font-weight: 650;
+  font-size: 1.25rem; color: var(--lyst-raised); background: linear-gradient(135deg, var(--lyst-mark-floor-a), var(--lyst-mark-stem-a));}
+div.st-key-set_model_moves button {border-radius: var(--lyst-radius-pill) !important;}
+@media (max-width: 640px) {
+  .block-container:has(.lyst-set) {padding-top: 4rem;}
+  h1.lyst-set-title {font-size: 2rem;}
+  div.st-key-set_check {justify-content: flex-start;}
+  div.st-key-set_nav {position: static; border-radius: 16px;}
+  div[data-testid="stHorizontalBlock"]:has(div.st-key-set_nav) {flex-wrap: wrap; gap: 1rem;}
+  div[data-testid="stHorizontalBlock"]:has(div.st-key-set_nav) > div[data-testid="stColumn"] {flex: 1 1 100% !important;
+    width: 100% !important; min-width: 100% !important;}
+}
+</style>"""
+
+st.html(_CSS)
+asked = (st.query_params.get("view") or "").lower()
+pick = ALIASES.get(asked) or next((n for n in SECTIONS if n.lower() == asked), "Account")
+if pick == "Connections" and not admin:
+    pick = "Models"
+if st.query_params.get("view") != pick.lower():
+    st.query_params["view"] = pick.lower()
+header(pick)
 zone.board("settings")
-SECTIONS = ["Models"] + (["Connections"] if owner else []) + ["Workspace", "Voice", "Advanced"]
-_pane, _body = kit.panes(SECTIONS, key="view")
+_nav, _body = st.columns([1, 3.2], gap="large")
+with _nav, st.container(key="set_nav"):
+    nav(pick)
 with _body:
-    {"Models": models, "Connections": connections, "Workspace": workspace_section,
-     "Voice": voice.settings_section, "Advanced": advanced.skills}[_pane]()
+    title, _icon, line = SECTIONS[pick]
+    st.html(f'<h2 class="lyst-set-h">{kit._esc(title)}</h2><p class="lyst-set-sub">{kit._esc(line)}</p>')
+    DRAW[pick]()
