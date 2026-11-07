@@ -90,7 +90,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Dataset cards: Explore, Insights or a quality check', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -118,7 +118,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
-    items: ['Answer verdicts: correct, incorrect or partly, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'A map of everything Lyst knows', 'Memories flagged when their data changes', 'Search across data, definitions and saved work', 'Rules learned from repeated failures', 'Governed skills'],
+    items: ['“Is this right?” under every answer: Right, Partly or Wrong, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'A map of everything Lyst knows', 'Memories flagged when their data changes', 'Brain Overview: search what Lyst knows, then open it or ask', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
@@ -191,7 +191,7 @@ export const workflow = {
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Type or speak in plain words. Lyst replies in conversation, offers next steps you accept with a yes, and turns a vague project into a living spec.' },
     { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
     { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze and verify each step, under one honest status from Preparing to Completed or Needs attention.' },
-    { icon: 'PackageCheck', title: 'Deliver', text: 'Receive usable answers and downloads, with next steps proposed for your approval: run now, watch or schedule.' },
+    { icon: 'PackageCheck', title: 'Deliver', text: 'Get the finding first, with the evidence one click away, then keep watch, download, share or say whether it was right. One next step is proposed for your approval.' },
   ],
 };
 
@@ -240,7 +240,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home with the agent bar and activity board, an answer with its evidence rail, a conversation, the What if explorer, how your datasets connect, data that checks itself, analyses that know when they are out of date, Brain and its work, the knowledge graph, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home with one next step, an answer that leads with the finding, “Is this right?”, a conversation, the What if explorer, dataset cards, data that checks itself, analyses that know when they are out of date, Brain with search first, the knowledge map, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
@@ -254,4 +254,20 @@ export const verification = {
   eyebrow: 'Verification',
   headline: 'Every answer is checked before you see it.',
   lede: 'Lyst plans the work as a graph, runs independent steps in parallel, then recomputes high-consequence results a second way and runs adversarial checks before it calls anything verified.',
+};
+
+export const answerLayers = {
+  eyebrow: 'Calm by default',
+  headline: 'The finding first. The depth when you want it.',
+  lede: 'Every answer opens on what was found, why it matters and what to do. The evidence and the method wait one click away, and four menus replace a wall of buttons.',
+  layers: [
+    { icon: 'Target', title: 'The finding', text: 'The result, one line on why it matters, the trust line, any caveats, one chart and what to do.' },
+    { icon: 'ListTree', title: 'Why, and the details', text: 'Evidence, tables, the explanations tested, assumptions, and the checks, data and expertise behind it.' },
+    { icon: 'FileSearch', title: 'Method, checks and queries', text: 'Every source, check and step of the plan, and every governed query with its SQL.' },
+  ],
+  verdict: {
+    title: 'Is this right?',
+    text: 'Say Right, Partly or Wrong under any answer, add a correction if you like, and undo it later. A wrong answer is never reused, recalled or cited.',
+  },
+  note: 'Illustration of the answer layout, with figures from the sample data.',
 };
