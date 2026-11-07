@@ -667,7 +667,7 @@ def run_eval(label: str, *, baseline: str | None = None, write_baseline: str | N
         try:
             owner = lyst.guard.create_user("eval@lyst.local", "Evaluator")
             demo.seed(lyst, owner)
-            s = evals.run(lyst, owner, "northwind", evals.demo_bank(), label=label)
+            s = evals.run(lyst, owner, "northwind", evals.demo_bank(), label=label, learning=True)
             for r in s["results"]:
                 bad = [c["name"] for c in r["checks"] if not c["passed"]]
                 print(f"{'PASS' if r['passed'] else 'FAIL'}  {r['seconds']:>5.2f}s  {r['case']}" + (f"  ({', '.join(bad)})" if bad else ""))
@@ -897,7 +897,10 @@ def _dispatch(args) -> None:
 
         lyst = Lyst.build()
         try:
-            print(json.dumps(lyst.stores.prune(event_days=args.event_days, audit_days=args.audit_days)))
+            from .memory import retention_days  # noqa: PLC0415
+
+            print(json.dumps(lyst.stores.prune(event_days=args.event_days, audit_days=args.audit_days,
+                                               memory_days=retention_days())))
         finally:
             lyst.close()
     elif args.cmd == "eval":

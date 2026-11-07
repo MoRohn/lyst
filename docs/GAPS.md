@@ -48,3 +48,4 @@ only Rohn or an environment can provide), **by design** (not a defect; documente
 | O1 | Docker Compose never run | waiting | No Docker on this machine; needs a host with Docker |
 | O2 | One engine process per set of database files | by design | `docs/DUCKDB.md`; revisit for multi-node |
 | O3 | `opentelemetry.context: Failed to detach context` in the test log | owned by the product-excellence register (their O4) | |
+| O4 | Every dataset version's table is kept, so disk grows with each sync | by design (Rohn, 2026-11-06) | Any stored answer can be re-run on the exact data it used; no pruning of dataset versions |
