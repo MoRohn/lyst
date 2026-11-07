@@ -144,17 +144,7 @@ def table(t: dict[str, Any]) -> None:
     st.dataframe(df, hide_index=True, width="stretch", column_config=cfg, placeholder="—", height=height)
 
 
-VIEWS = ("Summary", "Detail", "Method")
-_OLD_VIEWS = {"Business": "Summary", "Analyst": "Detail", "Engineer": "Method", "Executive": "Summary"}
 _CAVEAT = re.compile(r"\b(did not|does not|disagree|differently|no period was named|assumed|filtered|caution|not verified)\b", re.I)
-
-
-def _default_view(r: dict[str, Any]) -> str:
-    pref = st.session_state.get("view_pref")
-    pref = _OLD_VIEWS.get(pref, pref)
-    if pref in VIEWS:
-        return pref
-    return "Summary"  # everyone starts at the summary; the depth a person picks is remembered
 
 
 @st.dialog("Brief", width="large")
@@ -256,7 +246,7 @@ def evidence_rail(r: dict[str, Any]) -> None:
     q = sup.get("queries") or []
     if q or sup.get("plan"):
         section("Method", f'<div class="lyst-card-meta">{len(sup.get("plan") or [])} steps · {len(q)} governed '
-                          f'quer{"y" if len(q) == 1 else "ies"}. Open “Show the method” for each.</div>')
+                          f'quer{"y" if len(q) == 1 else "ies"}, each under “Method, checks and queries”.</div>')
     if parts:
         st.html('<div class="lyst-rail">' + "".join(parts) + "</div>")
 
@@ -274,124 +264,123 @@ def made_here(r: dict[str, Any], key: str) -> None:
     artifacts.grid(items, key=f"made_{tid}", per_row=4)
 
 
-def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
-    """One result, three depths, no re-run: Summary (answer, evidence, what it means, what to do), Detail (adds
-    tables, hypotheses, assumptions and sources), Method (adds plan, checks and every query). Brief opens the
-    two-line version with a PDF to forward; an executive request opens on it. Limitations show at every depth."""
-    conf = r.get("confidence", {})
-    level = conf.get("level", "")
+def _badge(r: dict[str, Any], where: Any = st) -> None:
+    level = (r.get("confidence") or {}).get("level", "")
+    if r["status"] == "needs_input":
+        where.badge("Needs your input", color="orange", icon=":material/help:")
+    elif r.get("mode") == "conversation":  # a reply computed nothing, so it is never shown as verified
+        where.badge("Reply", color="blue", icon=":material/chat:")
+    elif level == "verified":
+        where.badge("Verified", color="green", icon=":material/verified:")
+    elif level:
+        where.badge(level.capitalize(), color="orange", icon=":material/warning:")
+
+
+def details(r: dict[str, Any], key: str) -> None:
+    """Layer 2: why the answer holds. The evidence, what it means, the tables and hypotheses behind it, the
+    assumptions, the expertise applied and what this answer made."""
     sup = r.get("supporting", {}) or {}
-    with st.container(border=True):
-        head = st.empty()
-        bar = st.columns([2.4, 0.9, 0.9, 1, 2], vertical_alignment="center")
-        default = _default_view(r)
-        view = bar[4].segmented_control("Depth", VIEWS, default=default, key=f"view_{key}",
-                                        label_visibility="collapsed", width="stretch") or default
-        st.session_state["view_pref"] = view  # the depth a person picks carries to their next answers
-        exec_ = view == "Summary" and r.get("audience") == "executive"  # an executive asked: lead with the brief
-        if bar[1].button("Brief", icon=":material/summarize:", type="tertiary", key=f"brief_{key}", width="stretch",
+    wf = sup.get("workflow") or {}
+    if wf.get("used"):
+        st.caption(f":material/bolt: Reused the checked analysis “{md(wf['used']['title'])}”, verified "
+                   f"{wf['used']['verified_runs']}× before, so this took one pass instead of being worked out again.")
+    elif (wf.get("compiled") or {}).get("created"):
+        st.caption(":material/library_add_check: Saved as a repeatable analysis: rerun it for any period, or have "
+                   "it repeat on its own.")
+    main, rail = st.columns([2.35, 1], gap="large")
+    with main:
+        if r.get("evidence"):
+            st.markdown("**Evidence**")
+            st.markdown(bullets(r["evidence"]))
+        if len(r.get("implications") or []) > 1 or (r.get("implications") and r.get("audience") == "executive"):
+            st.markdown("**What it means**")
+            st.markdown(bullets(r["implications"]))
+        for t in r.get("tables", []):
+            table(t)
+        if r.get("hypotheses"):
+            st.markdown(f"**Explanations tested** ({len(r['hypotheses'])})")
+            icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
+            for h in r["hypotheses"]:
+                st.markdown(f"{icons.get(h.get('verdict'), '·')} **{str(h.get('id', '')).replace('_', ' ').capitalize()}**"
+                            f" · {h.get('verdict', '')} · {md(h.get('detail', ''))}")
+        if sup.get("assumptions"):
+            st.markdown("**Assumptions**")
+            st.markdown(bullets(sup["assumptions"]))
+    with rail:
+        evidence_rail(r)
+    made_here(r, key)
+
+
+def method(r: dict[str, Any]) -> None:
+    """Layer 3: the sources, documents, every check, the plan and every governed query with its SQL."""
+    conf = r.get("confidence", {}) or {}
+    sup = r.get("supporting", {}) or {}
+    if sup.get("sources"):
+        st.markdown("**Sources**")
+        for src in sup["sources"]:
+            st.caption(md(_join(src.get("dataset"), f"v{src['version']}" if src.get("version") else None,
+                                f"{src['rows']:,} rows" if isinstance(src.get("rows"), int) else None,
+                                f"data through {src['data_through']}" if src.get("data_through") else None,
+                                f"sha256 {str(src['sha256'])[:12]}…" if src.get("sha256") else None,
+                                f"loaded {str(src['loaded_at'])[:16]}" if src.get("loaded_at") else None)))
+    if sup.get("citations"):
+        st.markdown("**Documents consulted**")
+        for ci in sup["citations"]:
+            st.caption(md(_join(ci.get("title"), f"passage {ci['passage']}" if ci.get("passage") is not None else None)))
+            if ci.get("quote"):
+                st.markdown("> " + md(ci["quote"]))
+    if conf.get("checks"):
+        st.markdown(f"**Checks** ({conf.get('basis', '')})")
+        st.dataframe(pd.DataFrame(conf["checks"]), hide_index=True, width="stretch",
+                     column_config={"passed": st.column_config.CheckboxColumn("Passed")})
+    if sup.get("plan"):
+        st.markdown("**Plan**  " + " → ".join(f"`{p.get('capability', '?')}`" for p in sup["plan"]))
+    for q in sup.get("queries", []):  # scenario answers carry queries without rows, timing or an id
+        st.markdown("**" + md(q.get("purpose") or "Query") + "**" + md(" · " + _join(
+            f"{q['rows']} rows" if q.get("rows") is not None else None,
+            f"{q['ms']} ms" if q.get("ms") is not None else None,
+            f"query #{q['query_id']}" if q.get("query_id") else None) if any(
+            q.get(k) is not None for k in ("rows", "ms", "query_id")) else ""))
+        if q.get("sql"):
+            st.code(q["sql"], language="sql")
+    if sup.get("reproduce"):
+        st.caption(sup["reproduce"] + f" Narrative written by: {sup.get('narrative_by')}.")
+
+
+def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
+    """One result in three layers, never re-run. Layer 1, always visible: the finding, how far it can be trusted,
+    anything a reader must not miss (caveats show at every layer), one chart and what to do. Layer 2 (“Why, and
+    the details”) adds the evidence, tables, explanations tested, assumptions and what the answer made. Layer 3
+    (“Method, checks and queries”) adds every source, check and governed query. An executive request leads with
+    the brief; Brief (in the answer's More menu) opens the two-line version with a PDF to forward."""
+    sup = r.get("supporting", {}) or {}
+    exec_ = r.get("audience") == "executive" and bool(r.get("brief"))
+    with st.container(border=True, key=f"lyst_answer_{key}"):
+        top = st.columns([6, 1], vertical_alignment="center")
+        with top[0]:
+            _badge(r)
+        if top[1].button("Brief", icon=":material/summarize:", type="tertiary", key=f"brief_{key}", width="stretch",
                          help="The two-line version, with what to do and a PDF to forward"):
             brief(r, pdf, key)
-        fk = f"focus_{key}"
-        bar[2].button("Evidence" if st.session_state.get(fk) else "Focus", type="tertiary", key=f"focusbtn_{key}",
-                      icon=":material/view_sidebar:" if st.session_state.get(fk) else ":material/fullscreen:",
-                      width="stretch", help="Show or hide the evidence beside the answer",
-                      on_click=lambda: st.session_state.update({fk: not st.session_state.get(fk)}))
-        if key.removeprefix("av_").startswith("t_"):  # what Lyst can do next with this answer, from the engine
-            from lyst.ui import actions  # noqa: PLC0415
-
-            with bar[3]:
-                actions.menu("task", key.removeprefix("av_"), page="home", label="More", exclude=("task.open",))
-        head.markdown("#### " + md(r["brief"] if exec_ and r.get("brief") else r["answer"]))
-        if r["status"] == "needs_input":
-            bar[0].badge("Needs your input", color="orange", icon=":material/help:")
-        elif r.get("mode") == "conversation":  # a reply computed nothing, so it is never shown as verified
-            bar[0].badge("Reply", color="blue", icon=":material/chat:")
-        elif level == "verified":
-            bar[0].badge("Verified", color="green", icon=":material/verified:")
-        elif level:
-            bar[0].badge(level.capitalize(), color="orange", icon=":material/warning:")
-        focus = bool(st.session_state.get(f"focus_{key}"))
-        # the canvas: the answer on the left, its evidence beside it; Focus gives the answer the whole width
-        main, rail = (st.container(), None) if focus else st.columns([2.35, 1], gap="large")
-        with main:
-            if tl := trust_line(r):
-                st.caption(md(tl))
-            wf = sup.get("workflow") or {}
-            if wf.get("used"):
-                st.caption(f":material/bolt: Reused the checked analysis “{md(wf['used']['title'])}”, verified "
-                           f"{wf['used']['verified_runs']}× before, so this took one pass instead of being worked out again.")
-            elif (wf.get("compiled") or {}).get("created"):
-                st.caption(":material/library_add_check: Saved as a repeatable analysis: rerun it for any period, or have "
-                           "it repeat on its own (Repeat it, below).")
-            cav = caveats(r)
-            if cav:
-                st.warning(bullets(cav), icon=":material/info:")
-            if not exec_ and r.get("evidence"):
-                st.markdown("**Evidence**")
-                st.markdown(bullets(r["evidence"]))
-            # one chart in the flow of the finding; every chart is also an artifact below, to open on its own
-            for c in r.get("charts", [])[:1]:
-                chart(c)
-            if view == "Summary" and (bc := breakdown_chart(r)):
-                chart(bc)
-            cols = st.columns(2)
-            if r.get("implications"):
-                with cols[0]:
-                    st.markdown("**What it means**")
-                    st.markdown(bullets(r["implications"]))
-            if r.get("actions"):
-                with cols[1]:
-                    st.markdown("**What to do**")
-                    st.markdown(bullets(r["actions"]))
-            if view in ("Detail", "Method"):
-                for t in r.get("tables", []):
-                    table(t)
-                if r.get("hypotheses"):
-                    with st.expander(f"Hypotheses tested ({len(r['hypotheses'])})", icon=":material/science:", expanded=True):
-                        icons = {"supported": "✓", "partial": "◐", "refuted": "✕", "untestable": "–"}
-                        for h in r["hypotheses"]:
-                            st.markdown(f"{icons.get(h.get('verdict'), '·')} **{str(h.get('id', '')).replace('_', ' ').capitalize()}**"
-                                        f" · {h.get('verdict', '')} · {md(h.get('detail', ''))}")
-                if sup.get("assumptions"):
-                    st.markdown("**Assumptions**")
-                    st.markdown(bullets(sup["assumptions"]))
-        if rail is not None:
-            with rail:
-                evidence_rail(r)
-        made_here(r, key)
-        with st.expander("Show the method, checks and queries", icon=":material/fact_check:",
-                         expanded=view == "Method"):
-            if sup.get("sources"):
-                st.markdown("**Sources**")
-                for src in sup["sources"]:
-                    st.caption(md(_join(src.get("dataset"), f"v{src['version']}" if src.get("version") else None,
-                                        f"{src['rows']:,} rows" if isinstance(src.get("rows"), int) else None,
-                                        f"data through {src['data_through']}" if src.get("data_through") else None,
-                                        f"sha256 {str(src['sha256'])[:12]}…" if src.get("sha256") else None,
-                                        f"loaded {str(src['loaded_at'])[:16]}" if src.get("loaded_at") else None)))
-            if view not in ("Detail", "Method") and sup.get("assumptions"):
-                st.markdown("**Assumptions**")
-                st.markdown(bullets(sup["assumptions"]))
-            if sup.get("citations"):
-                st.markdown("**Documents consulted**")
-                for ci in sup["citations"]:
-                    st.caption(md(_join(ci.get("title"), f"passage {ci['passage']}" if ci.get("passage") is not None else None)))
-                    if ci.get("quote"):
-                        st.markdown("> " + md(ci["quote"]))
-            if conf.get("checks"):
-                st.markdown(f"**Checks** ({conf.get('basis', '')})")
-                st.dataframe(pd.DataFrame(conf["checks"]), hide_index=True, width="stretch",
-                             column_config={"passed": st.column_config.CheckboxColumn("Passed")})
-            if sup.get("plan"):
-                st.markdown("**Plan**  " + " → ".join(f"`{p.get('capability', '?')}`" for p in sup["plan"]))
-            for q in sup.get("queries", []):  # scenario answers carry queries without rows, timing or an id
-                st.markdown("**" + md(q.get("purpose") or "Query") + "**" + md(" · " + _join(
-                    f"{q['rows']} rows" if q.get("rows") is not None else None,
-                    f"{q['ms']} ms" if q.get("ms") is not None else None,
-                    f"query #{q['query_id']}" if q.get("query_id") else None) if any(
-                    q.get(k) is not None for k in ("rows", "ms", "query_id")) else ""))
-                if q.get("sql"):
-                    st.code(q["sql"], language="sql")
-            if sup.get("reproduce"):
-                st.caption(sup["reproduce"] + f" Narrative written by: {sup.get('narrative_by')}.")
+        st.markdown("#### " + md(r["brief"] if exec_ else r["answer"]))
+        if not exec_ and r.get("implications"):  # why it matters, in one line
+            st.markdown(md(r["implications"][0]))
+        if tl := trust_line(r):
+            st.caption(md(tl))
+        cav = caveats(r)
+        if cav:
+            st.warning(bullets(cav), icon=":material/info:")
+        # one chart in the flow of the finding; every chart is also an artifact under the details, to open on its own
+        for c in r.get("charts", [])[:1]:
+            chart(c)
+        if not r.get("charts") and (bc := breakdown_chart(r)):
+            chart(bc)
+        if r.get("actions"):
+            st.markdown("**What to do**")
+            st.markdown(bullets(r["actions"]))
+        if r.get("evidence") or r.get("tables") or r.get("hypotheses") or sup.get("assumptions") or r.get("charts"):
+            with st.expander("Why, and the details", icon=":material/unfold_more:"):
+                details(r, key)
+        if sup.get("queries") or sup.get("sources") or (r.get("confidence") or {}).get("checks"):
+            with st.expander("Method, checks and queries", icon=":material/fact_check:"):
+                method(r)

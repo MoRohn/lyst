@@ -116,15 +116,18 @@ def run(kind: str, oid: str, action: dict, *, page: str, objective: str | None =
 
 
 def menu(kind: str, oid: str, *, page: str, label: str = "Actions", objective: str | None = None,
-         exclude: tuple[str, ...] = ()) -> None:
-    """The object's actions in one popover: things to ask, things to run, things that need approval, places to go."""
+         exclude: tuple[str, ...] = (), inline: bool = False) -> None:
+    """The object's actions in one popover: things to ask, things to run, things that need approval, places to go.
+    ``inline`` draws the same groups in the current container, for a surface that is already a menu."""
     acts = available(kind, oid)
     if not acts:
         return
     acts = [a for a in acts if a["id"] not in exclude]
     if not acts:
         return
-    with st.popover(label, icon=":material/more_horiz:", help="What Lyst can do with this"):
+    from contextlib import nullcontext  # noqa: PLC0415
+
+    with nullcontext() if inline else st.popover(label, icon=":material/more_horiz:", help="What Lyst can do with this"):
         groups = (("Ask Lyst", ("ask",)), ("Do", ("run", "approve")), ("Go to", ("navigate",)))
         for title, kinds in groups:
             items = [a for a in acts if a["kind"] in kinds]

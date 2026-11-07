@@ -37,16 +37,15 @@ def _answer(result, role="owner"):
     return at
 
 
-def test_owners_open_answers_at_the_business_depth_with_trust_in_words(seeded):
+def test_owners_open_answers_on_the_result_with_trust_in_words(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "Why did operating margin decline in Q3 2026?")["result"]
     at = _answer(r, role="owner")
-    view = at.get("button_group")[0]
-    assert view.value == "Summary"
-    assert not at.dataframe[1:]  # only the checks (inside the collapsed method); tables wait for a deeper view
+    assert not at.get("button_group")  # no depth switch: the details are one click away instead
+    assert all(not e.proto.expanded for e in at.expander)  # tables and checks wait in closed layers
     captions = " ".join(c.value for c in at.caption)
     assert "checks passed" in captions and "recomputed independently" in captions
-    assert "**What it means**" in " ".join(m.value for m in at.markdown)
+    assert "**What to do**" in " ".join(m.value for m in at.markdown)
 
 
 def test_trust_line_and_headings():
@@ -65,7 +64,10 @@ def test_an_answer_offers_watch_repeat_and_download(ui):  # noqa: F811
     rows[-1].click().run()  # the verified margin answer from the fixture
     assert not at.exception, [e.value for e in at.exception]
     labels = set(_popovers(at.main))
-    assert {"Watch this metric", "Repeat it", "Download"} <= labels
+    assert {"Keep watch", "Download", "Share", "More"} <= labels  # four menus, not a toolbar
+    keep = next(g for g in at.get("button_group") if (g.key or "").startswith("kw_"))
+    assert {"Watch this metric", "Repeat it"} <= {o.content for o in keep.proto.options}
+    assert any((g.key or "").startswith("vd_") for g in at.get("button_group"))  # Is this right?
 
 
 def test_work_speaks_in_business_words(ui):  # noqa: F811
@@ -96,7 +98,8 @@ def test_home_guides_a_first_run(ui):  # noqa: F811
     at.run()
     body = _texts(at)
     assert "Get started" in body and "Let Lyst study the data" in body  # driven by the onboarding status
-    assert "Lyst can answer about" in body  # what to ask, from the workspace's own approved measures
+    # what to ask, from the workspace's own approved measures; what Lyst can answer about is the suggestions' tooltip
+    assert any("Lyst can answer about" in (g.proto.help or "") for g in at.get("button_group"))
 
 
 def test_brain_shows_the_health_of_definitions(ui):  # noqa: F811

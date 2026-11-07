@@ -160,8 +160,19 @@ def next_steps(task_id: str) -> None:
     found = [a for a in found if a.get("kind") == NEXT]
     if not found:
         return
-    kit.label("Next steps")
-    rows(found[:3], key=f"nx{task_id}")
+    kit.label("Suggested next")
+    rows(found[:1], key=f"nx{task_id}")  # one suggestion leads; the rest wait one click away
+    if len(found) > 1:
+        with st.expander(f"{len(found) - 1} more suggestion{'s' * (len(found) > 2)}"):
+            rows(found[1:4], key=f"nx{task_id}_more")
+
+
+def top_suggestion() -> None:
+    """Home: the one suggestion most worth a look, ranked by the engine; the rest wait in Activity."""
+    found = [a for a in items() if a.get("kind") == NEXT]
+    if found:
+        kit.label("Suggested next")
+        rows(found[:1], key="home_top")
 
 
 def home_line() -> None:

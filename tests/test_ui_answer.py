@@ -7,48 +7,50 @@ import json
 
 from streamlit.testing.v1 import AppTest
 
+from lyst.ui.components import md
+
 from .conftest import ask
 
 
-def _render(result, view=None):
-    def app(result_json, view):
+def _render(result, view=None):  # view: kept for callers; every layer renders, details inside expanders
+    def app(result_json):
         import json as _j
-
-        import streamlit as st
 
         from lyst.ui.components import answer
 
-        if view:
-            st.session_state.setdefault("view_pref", view)
         answer(_j.loads(result_json), key="t")
 
-    at = AppTest.from_function(app, args=(json.dumps(result, default=str), view))
+    at = AppTest.from_function(app, args=(json.dumps(result, default=str),))
     at.run(timeout=30)
     assert not at.exception, at.exception
     return at
 
 
-def test_views_change_depth_without_rerunning(seeded):
+def _head(at) -> str:
+    return next(m.value for m in at.markdown if m.value.startswith("####"))
+
+
+def test_the_result_leads_and_the_details_wait_one_click_away(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "Why did operating margin decline in Q4 2025?")["result"]  # wrong premise: a caveat
-    business = _render(r, "Summary")
-    text = " ".join(m.value for m in business.markdown)
-    assert "did not decline" in business.markdown[0].value
-    assert any("assumed a decline" in w.value for w in business.warning)  # limitation visible at every depth
-    assert "**Evidence**" in text and not business.dataframe[1:]  # tables stay hidden for business readers
-    engineer = _render(r, "Method")
-    assert len(engineer.code) == len(r["supporting"]["queries"])  # every query, with its SQL
-    executive = _render({**r, "audience": "executive"}, "Summary")  # an executive asked: the brief leads
-    assert "**Evidence**" not in " ".join(m.value for m in executive.markdown)
-    legacy = _render(r, "Engineer")  # a depth remembered under its old name still opens the same depth
-    assert len(legacy.code) == len(r["supporting"]["queries"])
+    at = _render(r)
+    assert "did not decline" in _head(at)  # the finding first
+    assert any("assumed a decline" in w.value for w in at.warning)  # a limitation is never folded away
+    labels = [e.label for e in at.expander]
+    assert labels == ["Why, and the details", "Method, checks and queries"]
+    assert all(not e.proto.expanded for e in at.expander)  # layers 2 and 3 start closed
+    details, method = at.expander
+    assert "**Evidence**" in " ".join(m.value for m in details.markdown)
+    assert len(method.code) == len(r["supporting"]["queries"])  # every query, with its SQL, in layer 3
+    executive = _render({**r, "audience": "executive"})  # an executive asked: the brief leads
+    assert r.get("brief") and _head(executive) == "#### " + md(r["brief"])
 
 
 def test_currency_is_escaped(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "What was revenue in Q3 2026?")["result"]
     at = _render(r, "Summary")
-    assert "\\$25.41M" in at.markdown[0].value
+    assert "\\$25.41M" in _head(at)
 
 
 def test_a_what_if_answer_renders_at_every_depth(seeded):
