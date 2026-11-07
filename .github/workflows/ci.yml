@@ -21,7 +21,7 @@ jobs:
   test:
     name: Lint, test, evaluate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # the suite takes about 27-32 minutes on a hosted runner
     services:
       # the PostgreSQL connector tests run against a real server, as they do on the development machine
       postgres:

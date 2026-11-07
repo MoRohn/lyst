@@ -220,6 +220,16 @@ PACKS: list[Pack] = [
 ]
 
 
+def month_col(p: Pack) -> str:
+    """Each pack's own time and neutral-dimension column names: dozens of packs sharing "month" and "region" would make
+    the catalog compare (and relate) every pair of them on every ingest, which grows with the square of the count."""
+    return f"{p.dataset}_month"
+
+
+def area_col(p: Pack) -> str:
+    return f"{p.dataset}_{p.other_dim}"
+
+
 def frame(p: Pack) -> pd.DataFrame:
     rng = np.random.default_rng(zlib.crc32(p.dataset.encode()))
     rows = []
@@ -230,7 +240,7 @@ def frame(p: Pack) -> pd.DataFrame:
             if member == p.planted and i == len(MONTHS) - 1:
                 level *= p.factor
             for o in p.others:
-                rows.append({"month": m.date(), p.dim: member, p.other_dim: o,
+                rows.append({month_col(p): m.date(), p.dim: member, area_col(p): o,
                              "value": round(level / len(p.others) * float(rng.uniform(0.98, 1.02)), 2)})
     return pd.DataFrame(rows).rename(columns={"value": p.metric})
 
@@ -245,7 +255,7 @@ def load_all(lyst, actor, workspace_id: str) -> list[str]:
                          title=p.dataset.replace("_", " ").title())
         lyst.semantic.define(actor, workspace_id, MetricSpec(
             name=p.metric, title=p.title, dataset=p.dataset, description=f"Sum of {p.title.lower()} (synthetic sample).",
-            measure=Measure(agg="sum", column=p.metric), time_column="month", dimensions=[p.dim, p.other_dim],
+            measure=Measure(agg="sum", column=p.metric), time_column=month_col(p), dimensions=[p.dim, area_col(p)],
             format=p.fmt, higher_is_better=p.higher_is_better, synonyms=list(p.synonyms)), note="sample pack")
     return [p.dataset for p in PACKS]
 

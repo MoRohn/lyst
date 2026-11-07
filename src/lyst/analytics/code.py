@@ -296,7 +296,13 @@ def run_tests(files: pd.DataFrame, *, path: str = "path", source: str = "source"
         lines.append(f"os.makedirs(os.path.dirname(os.path.join('src_files', {rel!r})) or 'src_files', exist_ok=True)")
         lines.append(f"open(os.path.join('src_files', {rel!r}), 'w').write({str(r[source])!r})")
     code = "\n".join(lines) + "\n" + TEST_RUNNER
-    out = sandbox.run(code, {}, limits=sandbox.Limits(timeout=timeout))
+    kind, why = sandbox.backend()
+    if kind is None:  # no OS sandbox on this host: report it, never run the code anywhere else
+        raise MethodError(why)
+    try:
+        out = sandbox.run(code, {}, limits=sandbox.Limits(timeout=timeout))
+    except RuntimeError as exc:
+        raise MethodError(str(exc)) from None
     if out.status != "ok":
         raise MethodError(f"the tests did not run in the sandbox: {out.error or out.status}")
     res = out.result or []
