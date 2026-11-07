@@ -315,7 +315,7 @@ def memory() -> None:
 # definitions, documents, memory), so every older link, the palette and the graph's own links still land.
 SECTIONS = {"Overview": ":material/explore:", "Work": ":material/view_kanban:", "Knowledge": ":material/menu_book:",
             "Specializations": ":material/badge:"}
-KNOWLEDGE = {"Definitions": "definitions", "Documents": "documents", "Memory": "memory", "Map": "graph"}
+KNOWLEDGE = {"Definitions": "definitions", "Documents": "documents", "Memory": "memory", "Graph": "graph"}
 
 
 def tabs(default: str) -> tuple[str, str | None]:
@@ -455,7 +455,7 @@ try:
     if view == "Work":  # what Lyst is doing with what it knows: running work, what needs you, what repeats
         work.section(agent.state(ws)["tasks"], agent.waiting(agent.state(ws)))
     elif view == "Knowledge":
-        {"Map": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory}[leaf]()
+        {"Graph": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory}[leaf]()
     else:
         {"Overview": overview, "Specializations": specialists.catalog}[view]()
 except APIError as e:

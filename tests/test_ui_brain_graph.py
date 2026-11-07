@@ -18,10 +18,10 @@ def _brain(at, **params):
     return at
 
 
-def test_the_brain_opens_on_its_graph(ui):  # noqa: F811
+def test_the_graph_has_its_place_in_the_brain(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    _brain(at)
+    _brain(at, view="graph")
     assert any(t.label == "Show graph runs" for t in at.toggle)
     assert "Every dataset, approved metric" in _texts(at)
 
@@ -40,7 +40,7 @@ def test_runs_and_harness_render_a_finished_run(ui):  # noqa: F811
         lyst.graphs.advance("northwind", run["id"])
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    _brain(at)
+    _brain(at, view="graph")
     at.session_state["bg_tab"] = "Runs"
     at.run()
     assert not at.exception, [e.value for e in at.exception]

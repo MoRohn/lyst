@@ -276,7 +276,7 @@ _SURFACES = """<script>
   mark();
   // the rail: each icon carries its area's name as a floating label (the accessible name is already the link text)
   const tips = () => document.querySelectorAll('[data-testid="stSidebarNavLink"]:not([data-tip])').forEach(a => {
-    const t = (a.querySelector('[label]')?.getAttribute('label') || a.getAttribute('aria-label') || a.innerText || '').replace(/\s+/g, ' ').trim();
+    const t = (a.querySelector('[label]')?.getAttribute('label') || a.getAttribute('aria-label') || a.innerText || '').replace(/\\s+/g, ' ').trim();
     if (t) a.setAttribute('data-tip', t);
   });
   new MutationObserver(() => requestAnimationFrame(tips)).observe(document.body, {childList: true, subtree: true});
