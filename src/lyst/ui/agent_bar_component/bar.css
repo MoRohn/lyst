@@ -301,6 +301,7 @@
 .b.hero .b-mark, .b.hero .b-now, .b.hero .b-kbd { display: none; }
 .b.hero .b-field { align-self: stretch; }
 .b-q { resize: none; line-height: 1.45; display: block; overflow-y: hidden; white-space: pre-wrap; }
+.b:not(.hero) .b-q { white-space: nowrap; overflow: hidden; } /* the bar elsewhere stays one line, like a field */
 .b.hero .b-q { font-size: 1.12rem; padding: .62rem 0 .55rem; min-height: 2.9rem; }
 .b.hero .b-btn { width: 2.75rem; height: 2.75rem; }
 .b.hero .b-send { transition: opacity var(--b-base) var(--b-ease), transform var(--b-fast) var(--b-ease), background var(--b-fast); }
