@@ -100,13 +100,14 @@ screen is checked by an automated render with WCAG 2.2 AA accessibility scanning
 (asked from Data, Brain or Settings, the answer follows in a panel without leaving the page), go anywhere by name
 ("go to SQL", "open definitions"), and watch Lyst work: a **Watch** chip for what is running, a **Live** panel
 with each step and the event feed, and an opt-in **Follow Lyst**. Below it, every page has the same **activity
-board**, with Suggested, Needs you, In progress and Done, scoped to the page with an **Everywhere** switch: click
-a card to open it, hold it (or press M) for its actions, or drag it to another column to propose that move, with
-each column saying what a drop would do; the keyboard works too (arrows, and Space to pick up and drop), every
-change asks for confirmation and goes through the usual approvals and permissions, and viewers can only open
-cards. The sidebar stays calm: the four areas lead, Pinned and Recent fold away as quiet one-line links (only a
-status worth noticing gets an icon), and one foot holds a workspace menu (account, role, switcher, sign out) and
-three quiet icons for search (Ctrl/⌘+K opens the palette from anywhere), notifications and the glossary.
+board**, which folds to one quiet line when nothing needs you, with Suggested, Needs you, In progress and Done,
+scoped to the page with an **Everywhere** switch: click a card to open it, hold it (or press M) for its actions,
+or drag it to another column to propose that move, with each column saying what a drop would do; the keyboard
+works too (arrows, and Space to pick up and drop), every change asks for confirmation and goes through the usual
+approvals and permissions, and viewers can only open cards. The sidebar stays calm: the four areas lead, Pinned
+and Recent fold away as quiet one-line links (only a status worth noticing gets an icon), and one foot holds a
+workspace menu (account, role, switcher, sign out) and three quiet icons for search (Ctrl/⌘+K opens the palette
+from anywhere), notifications and the glossary.
 
 | Area | What you do there |
 |---|---|
@@ -564,7 +565,7 @@ where they point, with Mark all read and "What to tell me about".
   status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
   tied to the event that caused it. Work started from any page lands in Brain › Work and records where it began, and its
   verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
-  and each repair is verified. On screen, **More** sits beside Brief and Focus on every answer, and on metric
+  and each repair is verified. On screen, **More** sits under every answer, and on metric
   definitions, Brain › Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
   approval marked; the activity board and Brain › Work show each task's lifecycle state and what it is doing now.
 * **Runs every task under a contract.** Each task gets a frozen, hashed contract (goal, inputs, output,
