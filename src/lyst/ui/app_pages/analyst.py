@@ -67,17 +67,13 @@ if "task_id" not in st.session_state and (q_tid := st.query_params.get("task")):
 tid = st.session_state.get("task_id")
 
 
-def ask_box(compact: bool) -> None:
-    with st.form("ask", clear_on_submit=True, border=False):
-        q = st.text_area("Request", label_visibility="collapsed", height=68 if compact else 96,
-                         placeholder=("Ask a follow-up or something new" if compact else
-                                      "Ask a question or describe the work, for example: why did operating margin fall "
-                                      "last quarter, and what should we do about it?"))
-        c = st.columns([1.2, 6])
-        if c[0].form_submit_button("Ask Lyst", type="primary", icon=":material/arrow_upward:", width="stretch") \
-                and q.strip():
-            submit(q.strip())
-            st.rerun()
+def ask_box() -> None:
+    """A one-line follow-up under the conversation; the agent bar above takes anything, from anywhere."""
+    with st.container(key="lyst_followup"):
+        q = st.chat_input("Ask a follow-up or something new", key="ask_followup")
+    if q and q.strip():
+        submit(q.strip())
+        st.rerun()
 
 
 # ----------------------------------------------------------------------------------------- home
@@ -85,6 +81,8 @@ def ask_box(compact: bool) -> None:
 def suggestions(metrics: list[dict]) -> list[str]:
     """Questions this workspace can answer well, from its own approved metrics, not a hard-coded list."""
     out: list[str] = []
+    # ratios first: "why did it change" is the question a measure of performance invites
+    metrics = sorted(metrics, key=lambda m: not (m.get("kind") == "ratio" or m.get("format") == "percent"))
     for m in metrics[:4]:
         t = kit.lower(m["title"])
         if m.get("kind") == "ratio" or m.get("format") == "percent":
@@ -166,9 +164,7 @@ def get_started_folded(datasets: list[dict], metrics: list[dict]) -> None:
 def home() -> None:
     """Home is a monitor first and a form second: what Lyst is doing, the question box, what waits on you, then the
     answers themselves. Everything else (how an answer was reached, older work) is one click deeper."""
-    kit.header("What should Lyst work on?",
-               "Ask in the bar above, in plain words or out loud. Lyst works it out from your approved numbers, "
-               "checks every figure and shows why.")
+    kit.header("What should Lyst work on?")
     try:
         metrics = api.get(f"/v1/workspaces/{ws}/metrics")
         datasets = api.get(f"/v1/workspaces/{ws}/datasets")
@@ -182,16 +178,17 @@ def home() -> None:
                      "become questions you can ask.", action="Add data", key="home_add"):
             st.switch_page("app_pages/data.py")
         return
-    pick = st.pills("Try", suggestions(metrics), label_visibility="collapsed", key="suggest")
+    names = ", ".join(m["title"] for m in metrics[:3]) + (f" and {len(metrics) - 3} more" if len(metrics) > 3 else "")
+    pick = st.pills("Try", suggestions(metrics)[:3], label_visibility="collapsed", key="suggest",
+                    help=f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here "
+                         f"({names}): why they changed, what drove them, a breakdown, a trend or a forecast.")
     if pick:
         submit(pick)
         st.rerun()
-    names = ", ".join(m["title"] for m in metrics[:3]) + (f" and {len(metrics) - 3} more" if len(metrics) > 3 else "")
-    st.caption(f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here ({names}): "
-               "why they changed, what drove them, a breakdown, a trend or a forecast.")
     recent = agent.state(ws)["tasks"][:30]
     zone.board("home")  # what Lyst suggests, what waits on you, what it is doing and what it finished
-    rest = agent.answers(recent, n=3)
+    anticipate.top_suggestion()
+    rest = agent.answers(recent, n=2)
     # what Lyst has made, as artifacts to open (dashboards, briefings, saved analyses)
     from lyst.ui import artifacts  # noqa: PLC0415
 
@@ -288,45 +285,115 @@ def how_it_ran(task: str) -> None:
     st.caption(f"Task {task}. Model calls and queries are matched to a step when exactly one step was running at the time.")
 
 
+VERDICTS = {"correct": ":material/check: Right", "partly": ":material/rule: Partly", "incorrect": ":material/close: Wrong"}
+VERDICT_SAID = {"correct": "Thanks. Lyst will rely on this answer with more confidence.",
+                "partly": "Thanks. Noted on this answer.",
+                "incorrect": "Thanks. Lyst stops reusing this answer and works the next one out afresh."}
+
+
+def verdict(task: str) -> None:
+    """Was this right? One click records a person's verdict (docs/LEARNING.md); a wrong or partial answer can take a
+    correction. A new verdict replaces the earlier one, and Undo withdraws it."""
+    aid = f"a_{task}"
+    try:
+        fb = api.get(f"/v1/workspaces/{ws}/analyses/{aid}/feedback")
+    except APIError:
+        return  # no analysis behind this result (a reply), so nothing to judge
+    me = st.session_state.get("me_id")
+    mine = next((f for f in fb.get("feedback") or [] if f.get("given_by") == me and not f.get("withdrawn_at")), None)
+    cur = mine["verdict"] if mine else None
+    st.caption("Is this right?", width="content")
+    pick = st.segmented_control("Is this right?", list(VERDICTS), format_func=VERDICTS.get, default=cur,
+                                  key=f"vd_{task}_{cur}", label_visibility="collapsed")
+    if mine and st.button("Undo", type="tertiary", key=f"vd_undo_{task}", help="Withdraw your verdict"):
+        kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/feedback/{mine['id']}/withdraw"), "Verdict withdrawn")
+        st.rerun()
+    if pick and pick != cur:
+        if kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/analyses/{aid}/feedback", {"verdict": pick}),
+                       VERDICT_SAID[pick], icon=":material/how_to_reg:") is not None:
+            st.session_state[f"vd_fix_{task}"] = pick != "correct"
+        st.rerun()
+    st.session_state[f"vd_cur_{task}"] = cur
+
+
+def verdict_fix(task: str) -> None:
+    """After Partly or Wrong: an optional correction, which Lyst recalls ahead of what it observed."""
+    cur = st.session_state.get(f"vd_cur_{task}")
+    if not (cur and cur != "correct" and st.session_state.get(f"vd_fix_{task}")):
+        return
+    aid = f"a_{task}"
+    with st.form(f"vd_form_{task}", border=True):
+        fix = st.text_area("What should it have said? (optional)", height=68, key=f"vd_fix_text_{task}",
+                           placeholder="For example: EMEA's Q3 figures exclude the September restatement.")
+        b = st.columns([1.2, 1, 5])
+        if b[0].form_submit_button("Save", type="primary", width="stretch"):
+            kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/analyses/{aid}/feedback",
+                                         {"verdict": cur, "correction": fix.strip() or None}),
+                        "Saved. Lyst recalls the correction next time." if fix.strip() else "Saved")
+            st.session_state[f"vd_fix_{task}"] = False
+            st.rerun()
+        if b[1].form_submit_button("Skip", type="tertiary", width="stretch"):
+            st.session_state[f"vd_fix_{task}"] = False
+            st.rerun()
+
+
+def _watch_form(task: str, metric: dict) -> None:
+    name = kit.lower(metric.get("title") or metric["name"])
+    st.caption(f"Lyst checks {name} on its own and investigates when it moves unusually. An admin approves it once.")
+    sens = st.radio("Tell me about", list(SENSITIVITY), format_func=SENSITIVITY.get, index=1,
+                    key=f"w_sens_{task}", help="Big moves only alerts beyond 4 standard deviations of the "
+                    "usual change, notable beyond 3, any unusual move beyond 2.")
+    grain = st.radio("Looking at", ["month", "quarter"], format_func=lambda g: f"Each {g}", horizontal=True,
+                     key=f"w_grain_{task}")
+    if st.button("Start watching", type="primary", key=f"w_go_{task}", width="stretch"):
+        kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/monitors", {
+            "metric": metric["name"], "grain": grain, "threshold_sigma": sens, "every_seconds": 86400}),
+            f"Watching {name}. It starts once an admin approves it.", icon=":material/monitor_heart:")
+
+
+def _repeat_form(task: str, t: dict, wf_id: str | None) -> None:
+    st.caption("Lyst asks this again on its own, for the latest period, and keeps the results in Work.")
+    ev = st.radio("How often", list(REPEAT), format_func=REPEAT.get, key=f"r_ev_{task}")
+    if st.button("Repeat it", type="primary", key=f"r_go_{task}", width="stretch"):
+        question = ((t.get("request") or {}).get("question") or t["title"]).strip()
+        kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/workflows/{wf_id}/schedule", {"every_seconds": ev})
+                    if wf_id else api.post(f"/v1/workspaces/{ws}/schedules",
+                                           {"title": t["title"], "question": question, "every_seconds": ev}),
+                    "Scheduled. It starts once an admin approves it.", icon=":material/event_repeat:")
+
+
 def act_bar(task: str, t: dict, r: dict) -> None:
-    """Every recommendation is a button: watch the metric, repeat the analysis, take the answer away, see how it ran."""
+    """Four menus, each a place for one kind of next move: keep it current (watch or repeat), take it away
+    (download), hand it on (share) and everything else (More: brief, discuss, what if, compare, how it ran and what
+    the engine offers for this task)."""
     editor = st.session_state.get("role") in ("editor", "admin", "owner")
     sup = r.get("supporting") or {}
     metric = (sup.get("metric") or {}).get("spec") or {}
     wf = sup.get("workflow") or {}
     wf_id = (wf.get("used") or {}).get("id") or (wf.get("compiled") or {}).get("id")
     done = r["status"] == "complete"
-    cols = st.columns([1.5, 1.2, 1.2, 1.1, 1.1, 1.3], vertical_alignment="center")
-    if done and editor and metric.get("name"):
-        name = kit.lower(metric.get("title") or metric["name"])
-        with cols[0].popover("Watch this metric", icon=":material/monitor_heart:", width="stretch"):
-            st.caption(f"Lyst checks {name} on its own and investigates when it moves unusually. "
-                       "An admin approves it once.")
-            sens = st.radio("Tell me about", list(SENSITIVITY), format_func=SENSITIVITY.get, index=1,
-                            key=f"w_sens_{task}", help="Big moves only alerts beyond 4 standard deviations of the "
-                            "usual change, notable beyond 3, any unusual move beyond 2.")
-            grain = st.radio("Looking at", ["month", "quarter"], format_func=lambda g: f"Each {g}", horizontal=True,
-                             key=f"w_grain_{task}")
-            if st.button("Start watching", type="primary", key=f"w_go_{task}", width="stretch"):
-                kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/monitors", {
-                    "metric": metric["name"], "grain": grain, "threshold_sigma": sens, "every_seconds": 86400}),
-                    f"Watching {name}. It starts once an admin approves it.", icon=":material/monitor_heart:")
-    if done and editor:
-        with cols[1].popover("Repeat it", icon=":material/event_repeat:", width="stretch"):
-            st.caption("Lyst asks this again on its own, for the latest period, and keeps the results in Work.")
-            ev = st.radio("How often", list(REPEAT), format_func=REPEAT.get, key=f"r_ev_{task}")
-            if st.button("Repeat it", type="primary", key=f"r_go_{task}", width="stretch"):
-                question = ((t.get("request") or {}).get("question") or t["title"]).strip()
-                kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/workflows/{wf_id}/schedule", {"every_seconds": ev})
-                            if wf_id else api.post(f"/v1/workspaces/{ws}/schedules",
-                                                   {"title": t["title"], "question": question, "every_seconds": ev}),
-                            "Scheduled. It starts once an admin approves it.", icon=":material/event_repeat:")
+    left, right = st.columns([1.15, 1], vertical_alignment="center")
     if done:
-        with cols[2].popover("Download", icon=":material/download:", width="stretch"):
+        with right.container(horizontal=True, horizontal_alignment="right", vertical_alignment="center", gap="small"):
+            verdict(task)
+    row = left.container(horizontal=True, vertical_alignment="center", gap="small")
+    cols = [row] * 4
+    if done and editor:
+        with cols[0].popover("Keep watch", icon=":material/monitor_heart:", width="content",
+                             help="Watch this metric, or repeat the question on a schedule"):
+            how = st.segmented_control("Keep watch how", ["Watch this metric", "Repeat it"] if metric.get("name")
+                                       else ["Repeat it"], default="Watch this metric" if metric.get("name")
+                                       else "Repeat it", key=f"kw_{task}", label_visibility="collapsed")
+            if how == "Watch this metric" and metric.get("name"):
+                _watch_form(task, metric)
+            elif how:
+                _repeat_form(task, t, wf_id)
+    if done:
+        with cols[1].popover("Download", icon=":material/download:", width="content"):
             for kind, text in EXPORTS:
                 st.download_button(text, _export(task, kind), file_name=f"lyst-{task}.{kind}", mime=MIME[kind],
                                    key=f"dl_{kind}_{task}", type="tertiary", on_click="ignore", width="stretch")
-    with cols[3].popover("Share", icon=":material/group:", width="stretch"):
+    with cols[2].popover("Share", icon=":material/group:", width="content"):
         st.caption("Hand this answer to a colleague, or ask someone to check it before it is relied on.")
         opts = ["Assign", "Ask for a review"] + (["Publish"] if done and editor else [])
         how = st.segmented_control("Share how", opts, default="Assign", key=f"sh_{task}",
@@ -337,31 +404,28 @@ def act_bar(task: str, t: dict, r: dict) -> None:
             publish.form(task, t["title"], key=task)
         else:
             collab.request_review("task", task, f"Check: {t['title']}", key=task)
-    if cols[4].button("Discuss", type="tertiary", icon=":material/forum:", key=f"disc_{task}", width="stretch"):
+    with cols[3].popover("More", icon=":material/more_horiz:", width="content"):
+        more_menu(task, t, r, metric, editor)
+
+
+def more_menu(task: str, t: dict, r: dict, metric: dict, editor: bool) -> None:
+    """The answer's less common moves, in one place."""
+    if st.button("Discuss", type="tertiary", icon=":material/forum:", key=f"disc_{task}", width="stretch"):
         collab.discuss("task", task, t["title"])
-    if cols[5].button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
+    if r.get("status") == "complete":
+        models = scenarios.models_for(metric["name"]) if metric.get("name") else []
+        if models and st.button(f"What if…? Explore {kit.lower(metric.get('title') or metric['name'])}",
+                                type="tertiary", icon=":material/tune:", key=f"wi_{task}", width="stretch"):
+            st.session_state.pop(f"sc_prev_{models[0]}", None)
+            scenarios.explore(models[0])
+        if editor and st.button("Compare options", type="tertiary", icon=":material/balance:", key=f"dec_{task}",
+                                width="stretch"):
+            decisions.new(task_id=task, question="")
+    if st.button("How this ran", type="tertiary", icon=":material/timeline:", key=f"trace_{task}", width="stretch"):
         how_it_ran(task)
+    from lyst.ui import actions  # noqa: PLC0415 - what the engine offers for this task
 
-
-def explore_row(task: str, t: dict, r: dict) -> None:
-    """From an answer to a choice: move its drivers (What if…?) or weigh options (Compare options)."""
-    if r.get("status") != "complete":
-        return
-    metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec") or {}
-    models = scenarios.models_for(metric["name"]) if metric.get("name") else []
-    editor = st.session_state.get("role") in ("editor", "admin", "owner")
-    if not models and not editor:
-        return
-    c = st.columns([2, 2, 4])
-    if models and c[0].button(f"What if…? Explore {kit.lower(metric.get('title') or metric['name'])}", type="tertiary",
-                              icon=":material/tune:", key=f"wi_{task}", width="stretch"):
-        st.session_state.pop(f"sc_prev_{models[0]}", None)
-        scenarios.explore(models[0])
-    if editor and c[1].button("Compare options", type="tertiary", icon=":material/balance:", key=f"dec_{task}",
-                              width="stretch"):
-        decisions.new(task_id=task, question="")
-    if (did := st.session_state.pop("open_decision", None)):
-        decisions.detail(did)
+    actions.menu("task", task, page="home", exclude=("task.open",), inline=True)
 
 
 KIND_WORDS = {"dashboard": "Dashboard", "report": "Report", "workbook": "Workbook", "presentation": "Presentation",
@@ -392,6 +456,24 @@ def reply_view(task: str, r: dict) -> None:
         if nxt:
             submit(nxt)
             st.rerun()
+
+
+def follow_ups(task: str, r: dict) -> None:
+    """One row of follow-ups: how the answer was figured (its trust questions open together), then the metric's
+    next questions."""
+    metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
+    opts = [governance.ASK["how"]]
+    if metric:
+        m = kit.lower(metric["title"])
+        opts += [f"Forecast {m}", f"Show the {m} trend over time"]
+        opts += [f"What was {m} last quarter by {d.replace('_', ' ')}?" for d in metric.get("dimensions", [])][:1]
+    nxt = st.pills("Follow up", opts, label_visibility="collapsed", key=f"fu_{task}")
+    if nxt == governance.ASK["how"]:
+        st.session_state.pop(f"fu_{task}", None)
+        governance.explain(task, "how")
+    elif nxt:
+        submit(nxt)
+        st.rerun()
 
 
 def task_view(task: str) -> None:
@@ -435,20 +517,12 @@ def task_view(task: str) -> None:
         voice.read_back(task)
         answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
         act_bar(task, t, r)
-        governance.ask_row(task)
-        explore_row(task, t, r)
+        verdict_fix(task)
+        if (did := st.session_state.pop("open_decision", None)):
+            decisions.detail(did)
         anticipate.next_steps(task)
-        metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
-        if metric:
-            m = kit.lower(metric["title"])
-            opts = [f"Show the {m} trend over time", f"Forecast {m}"]
-            opts += [f"What was {m} last quarter by {d.replace('_', ' ')}?" for d in metric.get("dimensions", [])]
-            kit.label("Follow up")
-            nxt = st.pills("Follow up", opts, label_visibility="collapsed", key=f"fu_{task}")
-            if nxt:
-                submit(nxt)
-                st.rerun()
-    ask_box(compact=True)
+        follow_ups(task, r)
+    ask_box()
 
 
 if tid:

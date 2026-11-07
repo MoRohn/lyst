@@ -638,7 +638,15 @@ def board(page: str) -> None:
         cards, _ = collect(workspace())
     except APIError:
         return
-    (_live if any(c["col"] == "working" for c in cards) else _still)(page)
+    draw = _live if any(c["col"] == "working" for c in cards) else _still
+    if ev or any(c["col"] in ("needs", "working") for c in cards):
+        draw(page)  # something wants the person or is moving: the board is in view
+        return
+    # quiet: nothing waits on the person and nothing runs, so the board folds into one line until asked for
+    n = {col: sum(c["col"] == col for c in cards) for col, *_ in COLUMNS}
+    said = " · ".join(f"{n[k]} {w}" for k, w in (("suggested", "suggested"), ("done", "done this week")) if n[k])
+    with st.expander(f"Activity · {said}" if said else "Activity · all quiet", icon=":material/bolt:"):
+        draw(page)
 
 
 CSS = """
