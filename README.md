@@ -395,21 +395,19 @@ where they point, with Mark all read and "What to tell me about".
   records, not invented explanations, and Lyst says when the data behind an answer has a newer version.
 * **One analyst, many specializations.** Lyst stays one analyst that assembles the expertise a request needs from
   136 specialization profiles in 11 domains (data and BI, statistics, AI and ML, software, cloud, security,
-  finance and operations, marketing, media, science and industry, and more), backed by a shared library of 34
-  method families and 36 verification rules. A router picks the disciplines with its reasons, never grants a
-  permission a person lacks, and reports methods Lyst does not have yet. Maturity is earned, not declared: 8 of
-  136 specializations are Operational on representative tasks with known answers, re-verified by the test suite;
-  98 are Equipped and 30 Defined. An audit of every role's example requests, including the many declined for lack
-  of demo data, is published in [docs/SPECIALIZATIONS_AUDIT.md](docs/SPECIALIZATIONS_AUDIT.md). Typed and spoken
-  questions go through the same entry point and pick the same expertise. When a question is routed to specialists,
-  their discipline's checks apply and can only tighten verification; the answer reports each as passed, failed or
-  not applicable, and says which cannot yet be run automatically. Lyst also checks that an answer addresses the
-  question it was asked: a specialist request that a governed metric cannot answer is flagged instead of being
-  answered with the nearest number. Seven specialist methods run on datasets a request names (customer
-  segmentation, outcome prediction with logistic regression, process mining with paths, bottlenecks and rework,
-  distances between locations, two-source reconciliation, network and graph structure, and event-log burst
-  detection), all through the same access checks. Brain › **Specializations** lists all 136 with their maturity,
-  what each still lacks and the recorded evidence behind it, and example questions can be asked in one click
+  finance and operations, marketing, media, science and industry, and more), backed by a shared library of method
+  families and verification rules. Every task is routed, whether it starts on Home, the agent bar, the activity
+  board, a schedule, a follow-up or a monitor, and the activity board shows which specialist took it. A router
+  picks the disciplines with its reasons, never grants a permission a person lacks, and reports methods Lyst does
+  not have yet. All 136 analyst specializations are Operational: each one's representative task runs end to end on
+  controlled sample data and finds the right answer, re-checked by the test suite. That does not mean validated on
+  real data, or that every request in a discipline will work; a workspace still needs its own data and metrics.
+  When a question is routed to specialists, their discipline's checks apply and can only tighten verification; the
+  answer reports each as passed, failed or not applicable, and says which cannot yet be run automatically. Lyst
+  also checks that an answer addresses the question it was asked: a specialist request that a governed metric
+  cannot answer is flagged instead of being answered with the nearest number. Brain › **Specializations** lists
+  all 136 with the evidence behind each, and example questions can be asked in one click. An audit of every role's
+  example requests is in [docs/SPECIALIZATIONS_AUDIT.md](docs/SPECIALIZATIONS_AUDIT.md)
   ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
 * **Tests its own methods on your data.** Experiments compare forecasting methods (naive, seasonal naive, mean,
   drift, linear trend and ETS) on an approved metric with rolling-origin backtests and standard error measures,
@@ -425,6 +423,16 @@ where they point, with Mark all read and "What to tell me about".
   the API today.
 * **Gets faster with use.** A verified analysis compiles into a typed, versioned saved analysis. Matching
   requests reuse it, and a changed data layout or metric definition marks it out of date until it is verified again.
+* **Learns from your verdicts, and shows whether it is getting better.** Mark an answer **correct**, **incorrect**
+  or **partly**, with an optional note or correction. An incorrect verdict stops that answer from being reused,
+  recalled or cited: its memory leaves recall, the saved analysis it ran on is held back with the reason, and the
+  next question is planned afresh. A correct verdict raises its memory to person-validated, and a correction is
+  kept as validated team memory. Any verdict can be withdrawn, which undoes its effects. A saved analysis that
+  keeps failing verification is held back too. One learning report counts, from stored records only, verdicts and
+  the judged-correct rate, reuse, held-back analyses, harness rules that worked or did not, and what memory can
+  recall. The CI gate now includes a learning category that proves reuse, dispute and withdrawal work, so breaking
+  the loop fails the build. Verdicts are not in the interface yet; the API is the way in
+  ([docs/LEARNING.md](docs/LEARNING.md)).
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
   group by fiscal quarter and year, labelled like "Q4 FY2027". Calendar-year workspaces are unchanged.
@@ -489,8 +497,12 @@ where they point, with Mark all read and "What to tell me about".
 * **Remembers carefully.** Each memory records the datasets and metric versions it was learned from, and is
   flagged as possibly out of date, with the reason, when a source has a newer version or is gone, a definition
   changed, or it is older than a year. Recall ranks memories that still apply first, an answer that draws on a
-  stale one says it "may no longer apply", and admins review them in Brain › Memory. Retention removes only old
-  agent-observed memory, never approved or person-validated knowledge.
+  stale one says it "may no longer apply", and admins review them in Brain › Memory. Memory is governed: only an
+  admin takes back approved memory, only its owner changes private memory, and revoking something that is not
+  there is an error, not a silent success. Recall reads a bounded set (approved first, then person-validated, then
+  the newest observations) so it stays fast at tens of thousands of memories. Agent-observed memory expires after
+  365 days by default; approved and person-validated knowledge never ages out, and every dataset version is kept
+  so any answer can be re-run on the data it used.
 
 ### Autonomy, with a person in charge
 
@@ -602,15 +614,16 @@ where they point, with Mark all read and "What to tell me about".
   person, task, schedule, model or purpose, beside verified answers, time to a verified answer and reuse. Effort
   avoided appears only with an assumption an administrator supplies, there is never an invented ROI figure, and
   suggested savings cite the numbers behind them.
-* **Guards its own quality.** Every pull request runs Lyst's evaluation suite (21 real questions with
-  independently computed answers, including what-if and adversarial cases) against a recorded baseline. A change
-  that makes an answer wrong, slower, or more expensive in queries, steps, model calls or tokens fails the build,
-  and a planted-defect test proves the gate catches it. Runs report quality by dimension (completion, correctness,
-  evidence, efficiency) and by category. Model routing learns from Lyst's own call records: a model that keeps
-  failing a kind of work moves behind healthy ones (pinned models are never reordered), and a model registry shows
-  each model's context, prices and reasoning settings beside its measured performance. Fault-injection tests break
-  things part-way (a commit, an export that runs out of disk, an import, a webhook, a flood of output, corrupt
-  workbooks, PDFs and CSVs) and check that nothing is left half done and the cause is stated.
+* **Guards its own quality.** Every pull request runs Lyst's evaluation suite (24 cases: 21 real questions with
+  independently computed answers, including what-if and adversarial ones, plus three learning scenarios) against a
+  recorded baseline. A change that makes an answer wrong, slower, or more expensive in queries, steps, model calls
+  or tokens fails the build, and a planted-defect test proves the gate catches it. Runs report quality by
+  dimension (completion, correctness, evidence, efficiency) and by category. Model routing learns from Lyst's own
+  call records: a model that keeps failing a kind of work moves behind healthy ones (pinned models are never
+  reordered), and a model registry shows each model's context, prices and reasoning settings beside its measured
+  performance. Fault-injection tests break things part-way (a commit, an export that runs out of disk, an import,
+  a webhook, a flood of output, corrupt workbooks, PDFs and CSVs) and check that nothing is left half done and the
+  cause is stated.
 
 ### Working with others
 
@@ -763,7 +776,7 @@ Prefix each with `uv run` in a checkout. Ports move with `LYST_PORT` and `LYST_U
 
 ```bash
 uv run pytest                        # the full suite; the PostgreSQL connector test uses a local server
-uv run lyst eval --baseline docs/quality/eval-baseline.json   # 21 questions scored against independent answers and the baseline
+uv run lyst eval --baseline docs/quality/eval-baseline.json   # 24 cases scored against independent answers and the baseline
 uv run ruff check src tests scripts  # lint
 uv run python scripts/licenses.py    # regenerate docs/SBOM.md and fail on a disallowed license
 ```
@@ -785,7 +798,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Events](docs/EVENTS.md) · [Harness](docs/HARNESS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Learning](docs/LEARNING.md) · [Events](docs/EVENTS.md) · [Harness](docs/HARNESS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
