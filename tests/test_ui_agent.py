@@ -84,9 +84,8 @@ def test_data_opens_with_lyst_reading_its_data(ui):  # noqa: F811
     at.switch_page("app_pages/data.py")
     at.run()
     assert not at.exception, [e.value for e in at.exception]
-    html = " ".join(str(h.value) for h in at.get("html"))
-    assert "need" in html and "attention" in html and "Ready" not in html  # the ledger copy has a high-risk finding
-    hit = next(b for b in at.button if b.key == "read_pnl_ledger_open")
+    hit = next(b for b in at.button if b.key == "read_pnl_ledger_open")  # Lyst's one line: the ledger copy needs a look
+    assert "to fix" in hit.label and "need" in (hit.help or "") and "attention" in (hit.help or "")
     hit.click().run()  # one click to the dataset's full record
     assert not at.exception, [e.value for e in at.exception]
     assert any(g.key == "dsv_pnl_ledger" for g in at.get("button_group"))

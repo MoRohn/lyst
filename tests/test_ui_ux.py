@@ -120,18 +120,6 @@ def test_brain_shows_the_health_of_definitions(ui):  # noqa: F811
     assert any("definition issue" in lb or "small gap" in lb for lb in labels)  # the semantic audit, in one line
 
 
-def test_data_rows_say_whether_a_table_can_be_relied_on(ui):  # noqa: F811
-    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
-    at.run()
-    at.switch_page("app_pages/data.py")
-    at.run()
-    assert not at.exception, [e.value for e in at.exception]
-    body = _texts(at)
-    assert "data through" in body  # freshness from the catalog, not just the load time
-    # the demo ledger repeats a row at its grain: the list flags it before anyone opens it
-    assert any("badge[" in m.value and "to fix" in m.value for m in at.markdown)
-
-
 def test_search_results_open_where_each_thing_lives():
     from lyst.ui.palette import destination as dest  # noqa: PLC0415
 
@@ -160,7 +148,12 @@ def test_sources_show_health_and_the_action_to_take(seeded, ui, tmp_path, monkey
     assert not at.exception, [e.value for e in at.exception]
     assert "CRM export" in _texts(at) and "feeds 1 dataset" in _texts(at)
     assert any("badge[" in m.value and "Healthy" in m.value for m in at.markdown)
-    assert any(b.label == "1 source · all working" for b in at.button)  # the header's status pill
+    from .test_ui_data import objects_of  # noqa: PLC0415
+
+    at.query_params.clear()
+    at.run()
+    crm = next(x for x in objects_of(at)["sources"] if x["label"] == "CRM export")  # a source, as an object on Data
+    assert crm["count"] == 1 and "Healthy" in crm["hint"]
     at.query_params.clear()
     at.query_params["connection"] = conn["id"]  # a link to one source opens Sources and its dialog
     at.run()
@@ -286,6 +279,7 @@ def test_a_built_dataset_explains_how_it_is_made(seeded, ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
+    at.session_state["data_pick"] = "pnl"  # a picked dataset's More holds it
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Build a dataset from data Lyst has" for b in at.button)
@@ -566,32 +560,6 @@ def test_memory_review_is_quiet_when_nothing_is_stale(seeded, ui):  # noqa: F811
     at.query_params["view"] = "memory"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
-
-
-def test_data_is_a_workspace_with_a_library_and_three_layouts(ui):  # noqa: F811
-    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
-    at.run()
-    at.switch_page("app_pages/data.py")
-    at.run()
-    assert not at.exception, [e.value for e in at.exception]
-    keys = {b.key for b in at.button}
-    assert {"lib_ok_ds_pnl", "lib_bad_ds_pnl_ledger", "lib_ok_m_operating_margin"} <= keys  # the library rail
-    assert "Ask about the data" in set(_popovers(at.main))  # Ask, docked beside the tabs
-    tabs = next(g for g in at.get("button_group") if g.key == "sec_data_view")
-    assert len(tabs.proto.options) == 5  # Datasets, Sources, Dashboards, Saved analyses, SQL
-    layout = next(g for g in at.get("button_group") if g.key == "ds_layout")
-    layout.set_value("List").run()
-    assert not at.exception, [e.value for e in at.exception]
-    assert "Relationships · " in _texts(at) and any(b.label == "Open" for b in at.button)
-    next(g for g in at.get("button_group") if g.key == "ds_layout").set_value("Map").run()
-    assert not at.exception, [e.value for e in at.exception]
-    at.text_input(key="ds_find").set_value("ledger").run()  # the rail's search narrows the library and the canvas
-    keys = {b.key for b in at.button}
-    assert "lib_bad_ds_pnl_ledger" in keys and "lib_ok_ds_pnl" not in keys
-    next(b for b in at.button if b.key == "lib_bad_ds_pnl_ledger").click().run()  # the dataset opens with its actions
-    assert not at.exception, [e.value for e in at.exception]
-    assert any(g.key == "dsv_pnl_ledger" for g in at.get("button_group"))
-    assert "More" in {lb for root in at._tree.children.values() for lb in _popovers(root)}
 
 
 def test_health_lists_problems_first_with_what_to_do(seeded, ui):  # noqa: F811
