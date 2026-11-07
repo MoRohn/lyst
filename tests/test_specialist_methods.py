@@ -251,3 +251,17 @@ def test_cleaning_needs_the_editor_role(sampled):
     t = lyst.runtime.get(viewer, out.task_id)
     assert t["outcome"] == "needs_input" and "editor" in t["result"]["answer"]
     assert "supplier_master_clean" not in {d["name"] for d in lyst.data.catalog(owner, "northwind")}
+
+
+def test_code_analysis_still_answers_on_a_host_without_a_sandbox(monkeypatch, sampled):
+    """Linux CI has no bubblewrap: the analysis must still finish, saying the tests were not run."""
+    from lyst import sandbox
+
+    monkeypatch.setattr(sandbox, "backend", lambda: (None, "no operating-system sandbox is available on this host"))
+    lyst, owner = sampled
+    out = lyst.analyst_core.handle(owner, AnalystRequest(
+        workspace_id="northwind", text="Analyze the app repo source code for architecture risks, failing tests and complexity"))
+    lyst.runtime.drain()
+    t = lyst.runtime.get(owner, out.task_id)
+    assert t["outcome"] == "complete", t.get("error")
+    assert any("Tests were not run" in f for f in t["result"]["evidence"])
