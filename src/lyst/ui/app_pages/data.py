@@ -545,8 +545,9 @@ def datasets(catalog: list[dict], every: list[dict]) -> None:
         with st.container(key="data_canvas_ds"):
             bar = st.columns([4, 1.4], vertical_alignment="center")
             layout = bar[1].segmented_control("Layout", ["Cards", "Map", "List"], default="Cards", key="ds_layout",
-                                              label_visibility="collapsed") or "Cards"
-            bar[0].caption(LAYOUTS[layout])
+                                              label_visibility="collapsed", help=" ".join(LAYOUTS.values())) or "Cards"
+            if layout != "Cards":
+                bar[0].caption(LAYOUTS[layout])
             if not shown:
                 st.caption(f"Nothing matches “{q}”.")
             elif layout == "Map":
@@ -654,20 +655,6 @@ def data_list(full: list[dict], by: dict[str, list[dict]]) -> str | None:
     return opened
 
 
-ROLE_TONE = {"time": ("Time", "info"), "dimension": ("Categories", "neutral"), "measure": ("Numbers", "accent")}
-
-
-def _roles(schema: list[dict]) -> dict[str, int]:
-    """Columns by what they are for: time, categories (to split by), numbers (to add up)."""
-    out = {"time": 0, "dimension": 0, "measure": 0}
-    for col in schema or []:
-        t = str(col.get("type", "")).lower()
-        out["time" if any(k in t for k in ("date", "time")) else
-            "measure" if any(k in t for k in ("int", "double", "float", "decimal", "numeric", "real")) else
-            "dimension"] += 1
-    return out
-
-
 def _metrics_by_dataset() -> dict[str, list[dict]]:
     try:
         metrics = api.get(f"/v1/workspaces/{ws}/metrics")
@@ -736,34 +723,37 @@ def attention(flagged: list[tuple[dict, tuple[str, str]]]) -> None:
 
 
 def dataset_card(c: dict, feeds: list[dict]) -> bool:
-    """One dataset as a quiet card: what it is, whether to rely on it, its shape in one line and one bar. The full
-    record (profile, contract, lineage, activity) opens in the dataset viewer."""
+    """One dataset as a quiet card: what it is, whether to rely on it, how big and how fresh, and what it feeds.
+    Columns, roles, profile, contract and lineage open with it. Explore opens it; Insights hands it to Lyst; the
+    rest wait in More."""
     fresh = c.get("freshness") or {}
-    schema = c.get("schema") or []
-    roles = _roles(schema)
     top = st.columns([4, 1.6], vertical_alignment="top")
-    top[0].html(f'<div class="lyst-card-kicker">{kit._esc(str(c.get("classification", "")).capitalize())} · '
-                f'v{c.get("version", 1)}</div>'
+    top[0].html(f'<div class="lyst-card-kicker">{kit._esc(str(c.get("classification", "")).capitalize())}</div>'
                 f'<div class="lyst-card-title">{kit._esc(c["title"])}</div>')
     if h := health(c):
         kit.chip(h[0], h[1], top[1])
-    grain = " × ".join(g.replace("_", " ") for g in c.get("grain") or [])
-    shape = " · ".join(x for x in (f"{int(c.get('rows') or c.get('row_count') or 0):,} rows", f"{len(schema)} columns",
-                                   f"one row per {grain}" if grain else None,
+    shape = " · ".join(x for x in (f"{int(c.get('rows') or c.get('row_count') or 0):,} rows",
                                    f"through {fresh['latest']}" if fresh.get("latest") else None) if x)
     st.html(f'<div class="lyst-card-meta lyst-clamp" style="margin:.15rem 0 .35rem 0">'
             f'{kit._esc(c.get("description") or "")}</div>'
-            f'<div class="lyst-card-meta lyst-num" style="margin-bottom:.45rem">{kit._esc(shape)}</div>'
-            + visuals.stacked([(f"{ROLE_TONE[k][0]} {v}", v, ROLE_TONE[k][1]) for k, v in roles.items()],
-                              label=f"{c['title']} columns by role"))
-    if feeds:
-        st.caption(f"Feeds {', '.join(m['title'] for m in feeds[:3])}" + (f" and {len(feeds) - 3} more" if len(feeds) > 3
-                                                                           else ""))
-    b = st.columns([1, 1, 2.5])
-    opened = b[0].button("Open", key=f"d{c['name']}_open", type="tertiary", icon=":material/open_in_full:")
-    if b[1].button("Ask", key=f"d{c['name']}_ask", type="tertiary", icon=":material/chat:",
-                   help=f"Ask Lyst what is in {c['title']}"):
-        ask(f"Summarise {c['name']}: what does it contain and what stands out?")
+            f'<div class="lyst-card-meta lyst-num" style="margin-bottom:.35rem">{kit._esc(shape)}'
+            + (kit._esc(" · feeds " + ", ".join(m["title"] for m in feeds[:2])
+                        + (f" and {len(feeds) - 2} more" if len(feeds) > 2 else "")) if feeds else "")
+            + "</div>")
+    with st.container(horizontal=True, gap="small", vertical_alignment="center"):
+        opened = st.button("Explore", key=f"d{c['name']}_open", type="tertiary", icon=":material/open_in_full:",
+                           help=f"Open {c['title']}: its columns, profile, checks and lineage")
+        if st.button("Insights", key=f"d{c['name']}_ask", type="tertiary", icon=":material/auto_awesome:",
+                     help=f"Lyst reads {c['title']} and reports what stands out"):
+            ask(f"Summarise {c['name']}: what does it contain and what stands out?")
+        with st.popover("More", icon=":material/more_horiz:", key=f"d{c['name']}_more"):
+            if st.button("Check data quality", key=f"d{c['name']}_dq", type="tertiary", icon=":material/rule:",
+                         width="stretch"):
+                ask(f"Check {c['name']} for gaps, duplicates and unusual values. What should I know before relying on it?")
+            q = st.text_input("Ask about it", key=f"d{c['name']}_q", placeholder=f"Ask about {c['title']}")
+            if st.button("Use in analysis", key=f"d{c['name']}_use", type="primary", icon=":material/arrow_upward:",
+                         disabled=not q.strip(), width="stretch"):
+                ask(f"Using {c['name']}: {q.strip()}")
     return opened
 
 
