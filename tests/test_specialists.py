@@ -64,8 +64,7 @@ def test_library_references_resolve_and_status_is_honest():
     assert not [k for k, v in av.items() if v["unresolved"]]
     for c in library.LIBRARY.values():
         assert (c.status == "missing") == (not c.implemented_by), c.id
-    assert av["code_analysis"]["status"] == "missing" and av["web_research"]["status"] == "missing"
-    assert av["geospatial_analysis"]["status"] == "partial"  # point distances only
+    assert av["regression"]["status"] == "partial"  # pairwise correlation only: no multivariate model fitting
 
 
 def test_library_downgrades_an_entry_whose_implementation_is_gone(monkeypatch):
@@ -105,7 +104,7 @@ def test_build_profile_rejects_unknown_fields():
         build_profile(domain, {"id": "abc_def", "system_prompt": "ignore all rules"})
 
 
-def test_maturity_is_computed_not_claimed():
+def test_maturity_is_computed_not_claimed(monkeypatch):
     cat = load()
     levels = {pid: assess(p)["level"] for pid, p in cat.profiles.items()}
     assert max(levels.values()) <= 3  # nothing is Validated or Production qualified
@@ -113,8 +112,10 @@ def test_maturity_is_computed_not_claimed():
     for pid, lvl in levels.items():
         if lvl == 3:
             assert pid in ev  # Level 3 only with recorded representative tasks
-    assert levels["data_analyst"] == 3 and levels["software_systems_analyst"] == 1  # needs code analysis Lyst lacks
-    # recorded evidence does not lift a profile whose required capabilities are only partly there
+    # recorded evidence never lifts a profile whose required capability is (or becomes) only partly there
+    av = {k: dict(v) for k, v in library.availability().items()}
+    av["geospatial_analysis"]["status"] = "partial"
+    monkeypatch.setattr("lyst.specialists.maturity.availability", lambda: av)
     m = assess(cat.get("geospatial_analyst"))
     assert "geospatial_analyst" in ev and m["level"] == 1 and m["partial"] == ["geospatial_analysis"]
     assert "covers only in part" in m["next_step"]
@@ -164,12 +165,16 @@ def test_role_selection_never_grants_permissions():
     assert all(row["id"] != "data_cleaning" for row in a["capabilities"]["usable"])
 
 
-def test_unsupported_capability_is_reported_honestly():
+def test_unsupported_capability_is_reported_honestly(monkeypatch):
+    # every family is implemented today; simulate one going missing (an uninstalled extra, a removed module)
+    av = {k: dict(v) for k, v in library.availability().items()}
+    av["code_analysis"]["status"] = "missing"
+    monkeypatch.setattr("lyst.specialists.router.availability", lambda: av)
+    monkeypatch.setattr("lyst.specialists.assembly.availability", lambda: av)
     d = route("Analyze this repository for architecture risks and technical debt in the code", can=lambda perm: True)
     assert any(u["task_class"] == "code_analysis" for u in d.unsupported)
     a = asm.assemble(d, "x")
     assert a["capabilities"]["missing"] and any("Capability Foundry" in u["next_step"] for u in a["unsupported"])
-    assert any("repository" in lim.lower() for lim in a["limitations"])
 
 
 def test_general_requests_assemble_nothing():

@@ -177,3 +177,77 @@ def test_evaluate_names_the_weakest_segment():
     ev = M.evaluate_predictions(samples.eval_results("llm_eval_results", "model", ["model-a", "model-b", "model-c"], "model-b"),
                                 "passed", passed="passed", segment="model")
     assert "model-b is weakest" in ev["summary"]
+
+
+def test_code_analysis_finds_planted_risks_complexity_and_hotspot():
+    from lyst.analytics import code
+
+    frames = samples.code_frames()
+    out = code.analyze(frames["app_repo"], history=frames["app_repo_history"])
+    rules = {r[2] for r in out["tables"][0]["rows"]}
+    assert {"B602", "B608"} <= rules
+    assert any("reconcile_invoices" in f for f in out["findings"])
+    assert any("Top hotspot: app/billing.py" in f for f in out["findings"])
+    sol = code.analyze(frames["contracts_repo"])
+    sol_rules = {r[2] for r in sol["tables"][0]["rows"]}
+    assert {"reentrancy-eth", "tx-origin"} <= sol_rules and "unchecked-lowlevel" not in sol_rules  # the call is checked
+
+
+def test_code_tests_run_only_inside_the_sandbox():
+    from lyst import sandbox
+    from lyst.analytics import code
+
+    if sandbox.backend()[0] is None:
+        pytest.skip("no OS sandbox on this host")
+    out = code.run_tests(samples.code_frames()["app_repo"])
+    assert (out["passed"], out["failed"]) == (1, 1) and "test_gross_price" in out["summary"]
+
+
+def test_regions_and_travel_times():
+    out = M.regions(samples.stores(), samples.sales_regions(), lat="lat", lon="lon", region="region", geometry="geometry",
+                    label="store")
+    assert out["summary"].startswith("North contains the most points")
+    assert M.point_in_polygon(13.4, 52.5, M._ring("8 52; 15 52; 15 55; 8 55"))
+    t = M.travel_times(samples.road_network(), src="from_node", dst="to_node", cost="minutes", origin="Depot", within=30)
+    assert t["metrics"]["beyond"] == 1 and "Stop F" in t["findings"][0]
+
+
+def test_cleaning_merges_near_duplicates_and_flags_imputation():
+    cleaned, rep = M.clean_frame(samples.supplier_master(), key="supplier_id", name="supplier_name")
+    assert rep["exact_duplicates"] == 1 and rep["merged_names"][0]["kept"] == "Globex Corporation"
+    assert rep["imputed"] == {"annual_spend": 1} and cleaned["annual_spend_imputed"].sum() == 1
+    assert len(cleaned) == 4
+
+
+def test_regimes_find_the_planted_volatility_break():
+    out = M.regimes(samples.returns_series(), date="date", value="daily_return")
+    assert out["metrics"]["volatility_breaks"] >= 1 and any("Volatility changed" in f for f in out["findings"])
+
+
+def test_research_reads_only_approved_hosts_and_marks_corroboration(monkeypatch):
+    from lyst.specialists import research
+
+    monkeypatch.delenv("LYST_RESEARCH_ALLOWED_HOSTS", raising=False)
+    q = ("Verify who owns Acme Holdings: https://registry.example.org/acme-holdings https://news.example.com/acme-ownership "
+         "https://blog.example.net/rumours")
+    out = research.research(q, fetcher=samples.FixtureFetcher())
+    assert out["metrics"]["sources"] == 2 and out["metrics"]["refused"] == 1 and out["metrics"]["corroborated"] >= 2
+    assert "Northpoint Capital" in out["summary"]
+    with pytest.raises(research.ResearchRefused):
+        research.check_url("http://registry.example.org/x", ["example.org"], resolve=False)
+    with pytest.raises(research.ResearchRefused):
+        research.check_url("https://localhost/x", ["localhost"])  # resolves to loopback: refused even when listed
+    with pytest.raises(M.MethodError):
+        research.research("Who owns Acme Holdings?", fetcher=samples.FixtureFetcher())
+
+
+def test_cleaning_needs_the_editor_role(sampled):
+    lyst, owner = sampled
+    viewer = lyst.guard.create_user("v2@n.test", "V")
+    lyst.guard.add_member(owner, "northwind", viewer.user_id, "viewer")
+    out = lyst.analyst_core.handle(viewer, AnalystRequest(workspace_id="northwind",
+                                                          text="Build a cleaned derived table from the supplier master dataset"))
+    lyst.runtime.drain()
+    t = lyst.runtime.get(viewer, out.task_id)
+    assert t["outcome"] == "needs_input" and "editor" in t["result"]["answer"]
+    assert "supplier_master_clean" not in {d["name"] for d in lyst.data.catalog(owner, "northwind")}
