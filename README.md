@@ -112,7 +112,7 @@ from anywhere), notifications and the glossary.
 | Area | What you do there |
 |---|---|
 | **Home** | Ask in the agent bar and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows a few suggested questions, one suggested next step, **Latest answers** as cards (*Why, and what to do* folds open in place) and **Made for you**. Get started and earlier answers fold into one line each, and the activity line stays quiet unless something needs you |
-| **Data** | Opens with Lyst's read on the data in one line ("1 of 4 datasets needs attention…", with **Review**), then the activity board, a library rail of datasets, approved metrics and dashboards, and tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. **Add data** uploads a file, connects a source, or proposes connections from an API description |
+| **Data** | Opens with Lyst's read on the data in one line ("1 of 4 datasets needs attention…", with **Review**), then a library rail of datasets, approved metrics and dashboards, and tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. Each dataset card says what matters (sensitivity, what it is, rows, how recent, which measures it feeds) and offers **Explore** (the full record, schema included), **Insights** (Lyst says what stands out) and **More** (check data quality, or ask a question about this dataset). **Add data** uploads a file, connects a source, or proposes connections from an API description |
 | **Brain** | One calm line on what Lyst knows and is doing, then four sections. **Overview** (the default) searches everything Lyst knows (definitions, datasets, earlier answers, documents), each result with **Open** and **Ask**, and lists the measures and expertise used lately and what it learned lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **Knowledge** holds Definitions, Documents, Memory (with memories waiting for review) and the **Map** of how everything links, with graph runs. **Specializations** is the catalog of 136 kinds of analyst work |
 | **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
 
@@ -235,8 +235,8 @@ change it and whether it can be repeated, from the engine's own records.
 </picture><br><b>Brain › Overview</b>: search first, then what was used and learned lately</td>
     <td width="50%"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/data-dark.png">
-  <img src="docs/images/data.png" alt="Data: Lyst's one-line read on the data with Review, the library rail and dataset cards">
-</picture><br><b>Data</b>: Lyst's read on the data first</td>
+  <img src="docs/images/data.png" alt="Data: Lyst's one-line read on the data with Review, the library rail, and dataset cards with Explore, Insights and More">
+</picture><br><b>Data</b>: Lyst's read first; each card with Explore, Insights and More</td>
   </tr>
   <tr>
     <td><img src="docs/images/brain-search.png" alt="Brain search for margin: COGS ratio, Operating margin, a saved analysis and an earlier answer, each with Open and Ask"><br><b>Search what Lyst knows</b>: open it, or ask about it</td>
