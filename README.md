@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="site/brand/lyst-logo.svg" alt="Lyst" width="160">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/brand/lyst-logo-on-dark.svg">
+    <img src="site/brand/lyst-logo.svg" alt="Lyst" width="160">
+  </picture>
 </p>
 
 <p align="center">
@@ -22,7 +25,12 @@ Python, verifies the result independently, and returns a decision-ready answer w
 assumption behind it. It is judged by completed, verifiable work, not by conversation: every number comes from
 a query, whether or not a model is involved.
 
-![Lyst answering why operating margin declined: a verified answer with evidence, a trend chart, what it means and what to do](docs/images/analyst-light.png)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/analyst-dark.png">
+    <img src="docs/images/analyst-light.png" alt="Lyst answering why operating margin declined: the verified finding first, why it matters, the trust line, one chart and what to do, with the details one click away">
+  </picture>
+</p>
 
 **Why Lyst**
 
@@ -92,23 +100,27 @@ screen is checked by an automated render with WCAG 2.2 AA accessibility scanning
 (asked from Data, Brain or Settings, the answer follows in a panel without leaving the page), go anywhere by name
 ("go to SQL", "open definitions"), and watch Lyst work: a **Watch** chip for what is running, a **Live** panel
 with each step and the event feed, and an opt-in **Follow Lyst**. Below it, every page has the same **activity
-board**, with Suggested, Needs you, In progress and Done, scoped to the page with an **Everywhere** switch: click
-a card to open it, hold it (or press M) for its actions, or drag it to another column to propose that move, with
-each column saying what a drop would do; the keyboard works too (arrows, and Space to pick up and drop), every
-change asks for confirmation and goes through the usual approvals and permissions, and viewers can only open
-cards. The sidebar stays calm: the four areas lead, Pinned and Recent fold away as quiet one-line links (only a
-status worth noticing gets an icon), and one foot holds a workspace menu (account, role, switcher, sign out) and
-three quiet icons for search (Ctrl/⌘+K opens the palette from anywhere), notifications and the glossary.
+board**, which folds to one quiet line when nothing needs you, with Suggested, Needs you, In progress and Done,
+scoped to the page with an **Everywhere** switch: click a card to open it, hold it (or press M) for its actions,
+or drag it to another column to propose that move, with each column saying what a drop would do; the keyboard
+works too (arrows, and Space to pick up and drop), every change asks for confirmation and goes through the usual
+approvals and permissions, and viewers can only open cards. The sidebar stays calm: the four areas lead, Pinned
+and Recent fold away as quiet one-line links (only a status worth noticing gets an icon), and one foot holds a
+workspace menu (account, role, switcher, sign out) and three quiet icons for search (Ctrl/⌘+K opens the palette
+from anywhere), notifications and the glossary.
 
 | Area | What you do there |
 |---|---|
-| **Home** | Answer-first: a one-line status ("1 thing needs you · watching 3 metrics · next run in 3 h"), suggested questions, the activity board, then **Latest answers** as cards (the verified answer with a preview; *Why, and what to do* folds open in place) and **Made for you**. Get started and earlier answers fold into one line each |
+| **Home** | Ask in the agent bar and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows a few suggested questions, one suggested next step, **Latest answers** as cards (*Why, and what to do* folds open in place) and **Made for you**. Get started and earlier answers fold into one line each, and the activity line stays quiet unless something needs you |
 | **Data** | Opens with Lyst's read on the data in one line ("1 of 4 datasets needs attention…", with **Review**), then the activity board, a library rail of datasets, approved metrics and dashboards, and tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. **Add data** uploads a file, connects a source, or proposes connections from an API description |
-| **Brain** | What Lyst knows, what it is doing and what it runs on its own, in a band at the top. Its sections: **Work** (needs you, activity with Running, Done, Stopped, Automatic, Decisions and Published, and recurring work: watched metrics, scheduled questions and what Lyst noticed; each task's steps show as a timeline from the engine), **Graph** (the default: a map of everything it knows and how it links, plus graph runs), Definitions, Documents it can cite, Memory (with memories waiting for review), and **Specializations** (the 136 kinds of analyst work with each one's honest maturity) |
+| **Brain** | One calm line on what Lyst knows and is doing, then four sections. **Overview** (the default) searches everything Lyst knows (definitions, datasets, earlier answers, documents), each result with **Open** and **Ask**, and lists the measures and expertise used lately and what it learned lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **Knowledge** holds Definitions, Documents, Memory (with memories waiting for review) and the **Map** of how everything links, with graph runs. **Specializations** is the catalog of 136 kinds of analyst work |
 | **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
 
 <p align="center">
-  <img src="docs/images/home.png" alt="Home: the Lyst agent bar, suggested questions, and the activity board with Suggested, Needs you, In progress and Done" width="80%">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.png">
+  <img src="docs/images/home.png" alt="Home: the agent bar, one suggested question row, the quiet activity line, a suggested next step, latest answers as cards and Made for you">
+</picture>
 </p>
 
 <p align="center">
@@ -146,9 +158,9 @@ from data to approved metrics.
   </tr>
 </table>
 
-### Brain › Graph and graph runs
+### Brain › Knowledge › Map, and graph runs
 
-The Brain opens on its graph. **Map** shows every dataset, approved metric, business term, document, memory, business
+Brain › Knowledge › **Map** shows every dataset, approved metric, business term, document, memory, business
 entity, analysis and artifact, plus graph runs and the rules they learned. A link is a relation Lyst recorded or a
 literal mention, never an inferred one. Search, zoom, pan, drag, hide a kind from the legend, or use **List** from
 the keyboard; clicking a node shows its backlinks and opens it where it lives.
@@ -190,48 +202,45 @@ answered with the nearest one: Lyst says which metrics exist and how to add one.
   <img src="docs/images/conversation.png" alt="A conversational reply: no dashboard exists yet, an offer to build an Executive overview, marked as a reply from what is in the workspace with nothing computed" width="75%">
 </p>
 
-### Every answer: Summary, Detail, Method, and a Brief
+### Every answer: the finding first, the details one click away
 
-Answers open as a canvas: the answer beside an **evidence rail** showing which checks passed, the data and version
-it came from, the expertise applied and the assumptions made, with **Focus** to give the answer the whole width.
-It opens at **Summary**: the answer, a one-line trust statement ("All 9 checks passed"), the evidence, a chart,
-what it means and what to do. **Detail** adds tables, hypotheses, assumptions and sources. **Method** adds the
-plan, every check and every query. **Brief** opens the two-line version with one chart, what to do and the PDF
-briefing, ready to forward; executive requests lead with it. Limitations stay visible at every depth.
+An answer opens on what matters: the **Verified** badge, the finding, one line on why it matters, the trust line
+("All 10 checks passed: every figure was recomputed independently from approved data"), any caveats, one chart and
+**What to do**. **Why, and the details** opens the evidence, tables, the explanations tested, the assumptions, the
+expertise applied and what the answer made. **Method, checks and queries** opens every source, check, the plan and
+every governed query with its SQL. Caveats stay visible at every layer. **Brief** gives the two-line version with
+one chart and the PDF briefing, ready to forward.
 
-<p align="center">
-  <img src="docs/images/more-menu.png" alt="An answer's More menu: Ask Lyst (by region, by product line, compare to last year, what drove it, make a dashboard) and Do (repeat every Monday, needs approval; save a briefing)" width="70%">
-</p>
+Under the answer sit four menus. **Keep watch** watches the metric or repeats the question. **Download** gives a PDF
+briefing, a deck, an Excel workbook or Markdown, each carrying everything the answer shows, charts included (native,
+editable charts in Excel and slides, vector charts in the PDF, an embedded chart with its data in Markdown).
+**Share** assigns it, asks for a review or publishes it. **More** holds Discuss, What if, Compare options, How this
+ran (each step, query and model call with its timing and tokens) and what Lyst can do with this answer right now:
+break it down, compare it, explain it, make a dashboard, or repeat it (marked as needing approval). One suggested
+next step leads, with the rest folded away, and **How was this figured?** answers where it is from, what could
+change it and whether it can be repeated, from the engine's own records.
 
-**More**, beside Brief and Focus, lists what Lyst can do with this answer right now: break it down, compare it,
-explain it, make a dashboard, repeat it (marked as needing approval) or save a briefing. Under each answer you can
-act on it: **Watch this metric** sets up a monitor, **Repeat it** reruns the saved analysis on a schedule,
-**Download** gives a PDF briefing, a deck, an Excel workbook or Markdown, each carrying everything the answer
-shows in the same order, charts included (native, editable charts in Excel and slides, vector charts in the PDF,
-an embedded chart with its data in Markdown), **Share** assigns it to a colleague or asks for a review,
-**Discuss** opens its thread, and **How this ran** shows each step, query and model call with its timing and
-tokens. Four questions sit under every answer: **How was this figured? · Where is it from? · What could change it?
-· Can it be repeated?** Each opens the engine's own explanation from its records, and the last reruns the recorded
-queries under your current permissions. Below them, **Next steps** offers up to three follow-ups grounded in what
-the answer found, each with Run now (or Watch it), Later and Why.
+**Is this right?** Mark the answer **Right**, **Partly** or **Wrong**, add what it should have said if you like, and
+**Undo** any time. A wrong answer stops being reused, recalled or cited; a right one becomes validated memory.
 
 <p align="center">
-  <img src="docs/images/next-steps.png" alt="Under an answer: the act bar, the four questions about the answer, What if and Compare options, and three Next steps with Run now, Later and Why" width="80%">
-</p>
-
-<p align="center">
-  <img src="docs/images/brief.png" alt="The Brief: the answer, the trust line, one chart, what to do and the PDF briefing" width="49%">
-  <img src="docs/images/analyst-dark.png" alt="The same answer in the dark theme, at the Summary depth" width="49%">
+  <img src="docs/images/verdict.png" alt="Under an answer: Keep watch, Download, Share and More, and Is this right? with Right, Partly (selected), Wrong and Undo" width="85%">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/work.png" alt="Brain, Work: needs you, activity filters (Running, Done, Stopped, Automatic, Decisions, Published) and recurring"><br><b>Brain › Work</b>: needs you, activity and recurring runs</td>
-    <td width="50%"><img src="docs/images/data.png" alt="Data: datasets with descriptions, rows, freshness and classification"><br><b>Data</b>: datasets, dashboards, saved analyses and SQL</td>
+    <td width="50%"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/brain-dark.png">
+  <img src="docs/images/brain.png" alt="Brain: one line on what Lyst knows and is doing, the four sections, search, Used lately and Learned lately">
+</picture><br><b>Brain › Overview</b>: search first, then what was used and learned lately</td>
+    <td width="50%"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/data-dark.png">
+  <img src="docs/images/data.png" alt="Data: Lyst's one-line read on the data with Review, the library rail and dataset cards">
+</picture><br><b>Data</b>: Lyst's read on the data first</td>
   </tr>
   <tr>
-    <td><img src="docs/images/brain.png" alt="Brain: what Lyst knows, is doing and runs on its own, above the sections and the knowledge graph"><br><b>Brain</b>: what it knows, is doing and runs on its own</td>
-    <td><img src="docs/images/saved-analyses.png" alt="Data, Saved analyses: a verified analysis ready to rerun"><br><b>Saved analyses</b>: verified work Lyst reruns for any period</td>
+    <td><img src="docs/images/brain-search.png" alt="Brain search for margin: COGS ratio, Operating margin, a saved analysis and an earlier answer, each with Open and Ask"><br><b>Search what Lyst knows</b>: open it, or ask about it</td>
+    <td><img src="docs/images/work.png" alt="Brain, Work: needs you, activity filters (Running, Done, Stopped, Automatic, Decisions, Published) and recurring"><br><b>Brain › Work</b>: needs you, activity and recurring runs</td>
   </tr>
 </table>
 
@@ -431,7 +440,7 @@ where they point, with Mark all read and "What to tell me about".
   keeps failing verification is held back too. One learning report counts, from stored records only, verdicts and
   the judged-correct rate, reuse, held-back analyses, harness rules that worked or did not, and what memory can
   recall. The CI gate now includes a learning category that proves reuse, dispute and withdrawal work, so breaking
-  the loop fails the build. Verdicts are not in the interface yet; the API is the way in
+  the loop fails the build. Verdicts are given under each answer (**Is this right?**) or through the API
   ([docs/LEARNING.md](docs/LEARNING.md)).
 * **Speaks your fiscal calendar.** The fiscal year start in the business profile drives "last quarter", "FY2026",
   year to date and their comparisons, and quarterly and yearly charts, trends, dashboards, monitors and forecasts
@@ -556,7 +565,7 @@ where they point, with Mark all read and "What to tell me about".
   status: Preparing, Investigating, Executing, Verifying, Awaiting Approval, Completed or Needs Attention, each
   tied to the event that caused it. Work started from any page lands in Brain › Work and records where it began, and its
   verified result is kept as a report. When data changes, affected reports offer a repair that waits for a person,
-  and each repair is verified. On screen, **More** sits beside Brief and Focus on every answer, and on metric
+  and each repair is verified. On screen, **More** sits under every answer, and on metric
   definitions, Brain › Work's task details and the artifact viewer, grouped as Ask Lyst, Do and Go to, with what needs
   approval marked; the activity board and Brain › Work show each task's lifecycle state and what it is doing now.
 * **Runs every task under a contract.** Each task gets a frozen, hashed contract (goal, inputs, output,
