@@ -79,17 +79,21 @@ def test_data_opens_with_lyst_reading_its_data(ui):  # noqa: F811
     assert any(g.key == "dsv_pnl_ledger" for g in at.get("button_group"))
 
 
-def test_brain_opens_on_its_band_with_work_as_a_section(ui):  # noqa: F811
+def test_brain_opens_calm_with_search_and_work_as_a_section(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/brain.py")
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     html = " ".join(str(h.value) for h in at.get("html"))
-    assert 'class="lyst-hero"' in html and "Knows" in html and "On its own" in html
-    assert 'alt="What Lyst knows:' in html  # the drawing has a text equivalent
+    assert 'class="lyst-hero"' not in html and "Knows" in html  # one line, no decorative band
+    assert any(t.key == "brain_q" for t in at.text_input)  # Overview leads with search
     nav = next(g for g in at.get("button_group") if g.key == "sec_view")
-    assert "Work" in str(nav.proto.options[0])  # Work is Brain's first section
+    assert [str(o.content).split()[-1] for o in nav.proto.options][:2] == ["Overview", "Work"] or \
+        "Overview" in str(nav.proto.options[0])
+    at.text_input(key="brain_q").input("margin").run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Operating margin" in _texts(at)
     nav.set_value("Work").run()
     assert not at.exception, [e.value for e in at.exception]
-    assert "Waiting on you" in _texts(at)  # the fixture's ambiguous question waits on the person
+    assert "Waiting on you" in _texts(at)  # the fixture's ambiguous question waits on the person  # the fixture's ambiguous question waits on the person

@@ -311,37 +311,152 @@ def memory() -> None:
                         st.rerun()
 
 
-SECTIONS = {"Work": ":material/view_kanban:", "Graph": ":material/hub:", "Definitions": ":material/menu_book:",
-            "Documents": ":material/description:", "Memory": ":material/neurology:",
+# Four sections. Knowledge holds what Lyst knows, each kind a sub-view; ?view= keeps naming the leaf (graph,
+# definitions, documents, memory), so every older link, the palette and the graph's own links still land.
+SECTIONS = {"Overview": ":material/explore:", "Work": ":material/view_kanban:", "Knowledge": ":material/menu_book:",
             "Specializations": ":material/badge:"}
+KNOWLEDGE = {"Definitions": "definitions", "Documents": "documents", "Memory": "memory", "Map": "graph"}
 
 
-def tabs(default: str) -> str:
-    """Brain's sections as icon pills, kept in the URL (?view=) so links, reloads and old /work links land on them."""
+def tabs(default: str) -> tuple[str, str | None]:
+    """Brain's sections as icon pills, kept in the URL (?view=) so links, reloads and old /work links land on them.
+    Returns (section, knowledge sub-view or None)."""
     names = list(SECTIONS)
     asked = (st.query_params.get("view") or "").lower()
-    pick = next((n for n in names if n.lower() == asked), default)
+    leaf = next((k for k, v in KNOWLEDGE.items() if v == asked), None)
+    pick = "Knowledge" if leaf else next((n for n in names if n.lower() == asked), default)
     waiting = agent.waiting(agent.state(ws))
     with st.container(key="brain_nav"):
         pick = st.segmented_control("view", names, default=pick, key="sec_view", label_visibility="collapsed",
                                     format_func=lambda n: f"{SECTIONS[n]} {n}" + (f" · {waiting}" if n == "Work" and
                                                                                   waiting else "")) or pick
-    if st.query_params.get("view") != pick.lower():
-        st.query_params["view"] = pick.lower()
-    return pick
+    if pick != "Knowledge":
+        if st.query_params.get("view") != pick.lower():
+            st.query_params["view"] = pick.lower()
+        return pick, None
+    leaf = st.segmented_control("Knowledge", list(KNOWLEDGE), default=leaf or "Definitions", key=f"kn_view_{leaf}",
+                                label_visibility="collapsed") or leaf or "Definitions"
+    if st.query_params.get("view") != KNOWLEDGE[leaf]:
+        st.query_params["view"] = KNOWLEDGE[leaf]
+    return pick, leaf
+
+
+KIND_ICON = {"metric": ":material/speed:", "dataset": ":material/table:", "analysis": ":material/chat:",
+             "document": ":material/description:", "memory": ":material/neurology:", "term": ":material/sell:"}
+
+
+def _open_found(hit: dict) -> None:
+    kind, name = hit.get("kind"), hit.get("name")
+    if kind == "metric":
+        st.session_state.pop("sec_view", None)
+        st.query_params.update({"view": "definitions", "metric": name})
+        st.rerun()
+    elif kind == "dataset":
+        st.switch_page("app_pages/data.py", query_params={"dataset": name})
+    elif kind == "analysis" and str(name).startswith("a_"):
+        st.session_state.task_id = name[2:]
+        st.switch_page("app_pages/analyst.py", query_params={"task": name[2:]})
+    else:
+        ask(f"What do we know about {hit.get('title') or name}?")
+
+
+def find() -> None:
+    """One search over what Lyst knows: definitions, datasets, earlier answers and documents."""
+    q = st.text_input("Search what Lyst knows", placeholder="Search what Lyst knows (margin, churn, EMEA…)",
+                      label_visibility="collapsed", key="brain_q", icon=":material/search:")
+    if not q.strip():
+        return
+    try:
+        hits = api.get(f"/v1/workspaces/{ws}/catalog/search", q=q.strip(), limit=8).get("results") or []
+    except APIError as e:
+        st.caption(str(e))
+        return
+    if not hits:
+        st.caption(f"Nothing here matches “{md(q.strip())}”. Ask Lyst instead, in the bar above.")
+        return
+    for i, h in enumerate(hits):
+        hit = kit.row(h.get("title") or h.get("name"), " · ".join(x for x in (h.get("kind", "").capitalize(),
+                                                                          h.get("why")) if x),
+                      actions=[("Open", "open"), ("Ask", "ask")], key=f"bq{i}", divider=i < len(hits) - 1)
+        if hit == "open":
+            _open_found(h)
+        elif hit == "ask":
+            ask(f"Tell me about {h.get('title') or h.get('name')}")
+
+
+def _recent_use(n: int = 12) -> tuple[list[str], list[str]]:
+    """The measures and expertise Lyst used in this workspace's latest answers, newest first."""
+    from lyst.ui import artifacts  # noqa: PLC0415
+
+    measures: list[str] = []
+    expertise: list[str] = []
+    done = [t for t in agent.state(ws)["tasks"] if t["status"] == "done"][:n]
+    for t in done:
+        r = artifacts.result(t["id"]) or {}
+        sup = r.get("supporting") or {}
+        spec = (sup.get("metric") or {}).get("spec") or {}
+        if spec.get("title") and spec["title"] not in measures:
+            measures.append(spec["title"])
+        for d in (sup.get("expertise") or {}).get("disciplines") or []:
+            name = str(d.get("name", d.get("id", ""))) if isinstance(d, dict) else str(d)
+            if name and name not in expertise:
+                expertise.append(name)
+    return measures, expertise
+
+
+def overview() -> None:
+    """Brain's default: search, then what Lyst has been using and what it learned lately. Everything else is in
+    Knowledge, Work and Specializations."""
+    find()
+    measures, expertise = _recent_use()
+    c = st.columns(2, gap="large")
+    with c[0]:
+        kit.label("Used lately")
+        if measures:
+            pick = st.pills("Used lately", measures[:6], label_visibility="collapsed", key="bo_measures",
+                            help="Open a definition")
+            if pick:
+                metrics = {m["title"]: m["name"] for m in api.get(f"/v1/workspaces/{ws}/metrics")}
+                if pick in metrics:
+                    _open_found({"kind": "metric", "name": metrics[pick]})
+        else:
+            st.caption("Nothing yet. Ask a question on Home and the definitions it uses show here.")
+        if expertise:
+            st.caption("Expertise applied: " + md(", ".join(expertise[:5])))
+    with c[1]:
+        kit.label("Learned lately")
+        try:
+            mem = api.get(f"/v1/workspaces/{ws}/memory")[:3]
+        except APIError:
+            mem = []
+        for i, m in enumerate(mem):
+            kit.row(m["content"], kit.when(m["created_at"]), key=f"bo_m{m['id']}", divider=i < len(mem) - 1)
+        if not mem:
+            st.caption("Nothing yet. Lyst records what it learns from verified answers, and what you teach it.")
+
+
+def header() -> None:
+    """A calm opening: the name, and one line of what Lyst knows and is doing."""
+    k = agent.knowledge(ws)
+    s = agent.state(ws)
+    _, head, parts = agent.summary(s, agent.waiting(s))
+    knows = ", ".join(f"{n:,} {w}" for w, n in (("approved metrics", k["metrics"]), ("datasets", k["datasets"]),
+                                                 ("documents", k["documents"]), ("memories", k["memory"])) if n)
+    kit.header("Brain", " · ".join(x for x in (f"Knows {knows}" if knows else None, head, *parts[:1]) if x))
 
 
 try:
-    agent.hero(ws)
+    header()
     zone.board("brain")
-    if st.query_params.get("metric") and st.query_params.get("view") in (None, "graph", "work"):
+    if st.query_params.get("metric") and st.query_params.get("view") in (None, "overview", "graph", "work"):
         st.query_params["view"] = "definitions"  # a link to a metric opens its definition, wherever Brain was
         st.session_state.pop("sec_view", None)
-    view = tabs("Graph")
+    view, leaf = tabs("Overview")
     if view == "Work":  # what Lyst is doing with what it knows: running work, what needs you, what repeats
         work.section(agent.state(ws)["tasks"], agent.waiting(agent.state(ws)))
+    elif view == "Knowledge":
+        {"Map": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory}[leaf]()
     else:
-        {"Graph": brain_graph.view, "Definitions": definitions, "Documents": documents, "Memory": memory,
-         "Specializations": specialists.catalog}[view]()
+        {"Overview": overview, "Specializations": specialists.catalog}[view]()
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")
