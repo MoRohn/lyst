@@ -110,7 +110,11 @@ def test_without_a_model_the_rules_build_the_app_and_it_is_saved_as_an_asset(see
                              prompt_id="p1")
     assert out["source"] == "rules" and out["dropped"] == []
     kinds = [e["type"] for e in events]
-    assert kinds[0] == "title" and set(kinds[1:]) == {"block"}
+    assert kinds[0] == "title" and set(kinds[1:]) == {"block", "update"}
+    # KPIs drawn before the filter arrived are sent again with the values it narrows them to
+    updated = [e for e in events if e["type"] == "update"]
+    assert updated and all(e["data"]["by"]["dimension"] == "region" for e in updated)
+    assert kinds.index("update") > kinds.index("block", kinds.index("block") + 1)
     blocks = out["spec"]["blocks"]
     assert {b["type"] for b in blocks} >= {"kpi", "filter", "trend", "breakdown", "whatif"}
     assert next(b for b in blocks if b["type"] == "filter")["dimension"] == "region"
@@ -240,8 +244,8 @@ def test_the_generate_route_streams_the_app(seeded):
     assert json.loads(text) == final["input"]
     out = next(c for c in chunks if c["type"] == "tool-output-available")["output"]
     assert out["saved"] and out["appId"] == listed[0]["id"]
-    assert [c["data"]["block"]["id"] for c in chunks if c["type"] == "data-lyst-app-block"] == [
-        b["id"] for b in final["input"]["blocks"]]
+    sent = [c["data"]["block"]["id"] for c in chunks if c["type"] == "data-lyst-app-block"]
+    assert list(dict.fromkeys(sent)) == [b["id"] for b in final["input"]["blocks"]]  # updates reuse a block's id
     assert {c["sourceId"] for c in chunks if c["type"] == "source-document"} == {"pnl@1"}
     assert opened["spec"] == final["input"] and set(opened["blocks"]) == {b["id"] for b in final["input"]["blocks"]}
     assert set(cat["blocks"]) == {"kpi", "trend", "breakdown", "table", "filter", "whatif", "note"}

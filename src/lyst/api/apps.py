@@ -37,6 +37,8 @@ class SpecIn(BaseModel):
 
 
 def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names used in api/__init__.py
+    ChatUser = app.state.chat_user  # noqa: N806 - a session, or a chat ticket for this workspace (lyst.tickets)
+
     @app.get("/v1/workspaces/{ws}/apps/catalog")
     def apps_catalog(request: Request, ws: str, user: User):
         svc = L(request).apps
@@ -46,7 +48,7 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
                 "max_blocks": apps_mod.MAX_BLOCKS, "metrics": svc.inventory(svc._metrics(user, ws))}
 
     @app.post("/v1/workspaces/{ws}/apps/generate")
-    async def apps_generate(request: Request, ws: str, body: ChatIn, user: User):
+    async def apps_generate(request: Request, ws: str, body: ChatIn, user: ChatUser):
         lyst = L(request)
         text, message_id = uistream.question_from(body.messages)
         if not text:
@@ -104,7 +106,7 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return L(request).apps.save(user, ws, body.spec, app_id=app_id, note=body.note)
 
     @app.get("/v1/workspaces/{ws}/apps/{app_id}/open")
-    def apps_open(request: Request, ws: str, app_id: str, user: User):
+    def apps_open(request: Request, ws: str, app_id: str, user: ChatUser):
         return L(request).apps.open(user, ws, app_id)
 
     @app.post("/v1/workspaces/{ws}/apps/{app_id}/retire")

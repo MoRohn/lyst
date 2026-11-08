@@ -155,11 +155,28 @@ data when opened, so a new dataset version does not make them stale, but a bound
 (`invalidated`), and the repair saves the app again, re-checking every binding. Routes: `GET .../apps/catalog`,
 `GET|POST .../apps`, `GET|PUT .../apps/{id}`, `GET .../apps/{id}/open` (values read now), `POST .../apps/{id}/retire`.
 
-## Next, in order
+## Apps in the interface (shipped)
 
-1. **Apps in the interface.** A renderer for the spec in a sandboxed iframe (`sandbox="allow-scripts"`,
-   `default-src 'none'`, values by `postMessage`), drawn block by block from the stream, with chat tickets extended
-   to the generate and open routes.
-2. **Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
-   works in any client. The response is enforced by `runtime.decide`: role checks still apply, and the proposer of
-   a capability still cannot approve it.
+`lyst.ui.app_view.app_view(ask=..., ask_id=...)` generates an app from a sentence; `app_view(app_id=...)` opens a saved
+one with its values read now. It is a `st.components.v2` component in two parts with different trust:
+
+- **The host** holds the chat ticket (which also opens `POST .../apps/generate` and `GET .../apps/{id}/open`, and no
+  other apps route) and reads the app's UI message stream with the AI SDK (`DefaultChatTransport`,
+  `readUIMessageStream`). It sends the renderer each block as it arrives, again when Lyst updates a block's values in
+  place (a filter that arrives after the KPIs it narrows), and starts over on `reset-step`. It reports `done` (with the
+  app id, whether it was saved, its version) and `error` to Python, and says above the app what it was built from and
+  how many blocks were left out (their reasons on hover).
+- **The renderer** (`ui-src/live/src/frame.js`) runs in an iframe with `sandbox="allow-scripts"` and no same origin,
+  under a CSP of `default-src 'none'`. It cannot reach the network, the page, cookies or storage (checked in Chromium),
+  and it draws with `textContent` and SVG only, so nothing it receives is parsed as HTML. It takes the page's
+  `--lyst-*` tokens, so it follows light and dark. Trends show their scale. A filter narrows with Lyst's per-value
+  numbers. The what-if is the one number it computes, and it is labelled "Projection, not data".
+
+`npm run build` in `ui-src/live` writes `src/lyst/ui/apps_component/apps.js` (about 196 KB) with the renderer inlined,
+and its third-party licenses beside it. Where an app sits on each page is the page owner's decision.
+
+## Next
+
+**Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
+works in any client. The response is enforced by `runtime.decide`: role checks still apply, and the proposer of a
+capability still cannot approve it.

@@ -337,6 +337,10 @@ class AppStream:
             out.append({"type": "data-lyst-app-block", "id": f"{self.call_id}:{b['id']}",
                         "data": {"block": b, "data": ev.get("data") or {}}})
             return out
+        if kind == "update":  # the same data part again: the client replaces it in place
+            b = ev["block"]
+            return [{"type": "data-lyst-app-block", "id": f"{self.call_id}:{b['id']}",
+                     "data": {"block": b, "data": ev.get("data") or {}}}]
         if kind == "dropped":
             self._dropped += 1
             return [{"type": "data-lyst-app-dropped", "id": f"{self.gen_id}:dropped:{self._dropped}",

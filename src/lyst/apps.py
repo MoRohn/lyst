@@ -423,7 +423,8 @@ class AppService:
     def generate(self, actor: Principal, ws: str, request: str, *, emit: Callable[[dict[str, Any]], None],
                  save: bool = True, prompt_id: str | None = None) -> dict[str, Any]:
         """Generate an app for ``request``, block by block. ``emit`` gets ``{"type": "title"|"block"|"dropped"|"reset"}``
-        events as they happen; the return value is the checked spec, its data and sources, and the saved app (when the
+        events as they happen (``"update"``: a block shown earlier has new values, when a filter arrives after it); the
+        return value is the checked spec, its data and sources, and the saved app (when the
         person may save: editor and above)."""
         self.guard.require(actor, ws, "analyst.ask")
         self.guard.require(actor, ws, "data.query")
@@ -467,6 +468,13 @@ class AppService:
             state["blocks"].append(b)
             state["data"][b["id"]] = d
             emit({"type": "block", "block": b, "data": d})
+            if b["type"] == "filter":  # blocks shown before the filter gain the values it narrows them to
+                for prev in state["blocks"][:-1]:
+                    spec = metrics.get(prev.get("metric") or "")
+                    if spec is None or b["dimension"] not in spec.dimensions or prev["type"] not in ("kpi", "whatif", "trend"):
+                        continue
+                    state["data"][prev["id"]] = state["resolver"].block(prev, state["filter"])
+                    emit({"type": "update", "block": prev, "data": state["data"][prev["id"]]})
 
         reader = SpecReader()
 
