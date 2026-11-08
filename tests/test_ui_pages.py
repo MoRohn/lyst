@@ -87,3 +87,28 @@ def test_old_work_links_land_in_brain_work(ui):
     body = _texts(at)
     assert "Scheduled questions" in body and "Watched metrics" in body  # Brain › Work › Recurring
     assert any("Brain" in str(h.value) for h in at.get("html"))
+
+
+def test_an_open_answer_has_a_way_back_to_the_home_front_page(ui):
+    """Back leaves the conversation for Home's front page (the composer with Lyst's mark); the conversation stays
+    under Recent. Opening Home with no task in the URL (the Home icon, "go to Home") lands on the front page too."""
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    tasks = _bar_of(at)["hero"]["recent"]
+    task = next(r["task"] for r in tasks if r.get("task"))
+    at.query_params["task"] = task
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert not _bar_of(at).get("hero")  # the answer is open
+    at.button(key="lyst_back_home").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    hero = _bar_of(at)["hero"]
+    assert hero and "task" not in at.query_params and at.session_state["task_id"] is None
+    assert any(r.get("task") == task for r in hero["recent"])  # still reachable under Recent
+
+    at.query_params["task"] = task
+    at.run()
+    assert not _bar_of(at).get("hero")
+    at.query_params.pop("task")  # what the Home icon does: Home with no task in the URL
+    at.run()
+    assert _bar_of(at).get("hero"), "Home without a task in the URL must be the front page"

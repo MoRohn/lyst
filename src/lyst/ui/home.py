@@ -53,7 +53,7 @@ def about(metrics: list[dict]) -> str:
 
 def is_home(page: str) -> bool:
     """Home with nothing open: the bar becomes the page."""
-    return page == "home" and not (st.session_state.get("task_id") or st.query_params.get("task"))
+    return page == "home" and not st.query_params.get("task")  # the URL says what Home has open (analyst.py)
 
 
 def _read(ws: str) -> dict[str, Any]:

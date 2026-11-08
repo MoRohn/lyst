@@ -60,10 +60,10 @@ def submit(q: str) -> None:
     open_task(out["task_id"])
 
 
-# the open task lives in the URL too, so a reload, a bookmark or a shared link returns to the same work
-if "task_id" not in st.session_state and (q_tid := st.query_params.get("task")):
-    st.session_state.task_id = q_tid
-tid = st.session_state.get("task_id")
+# the open task lives in the URL, and only there: a reload, a bookmark or a shared link returns to the same work, and
+# anything that opens Home without a task (the Home icon in the rail, "go to Home", Back) lands on the front page
+tid = st.query_params.get("task") or None
+st.session_state.task_id = tid
 
 
 def ask_box() -> None:
@@ -454,20 +454,40 @@ def follow_ups(task: str, r: dict) -> None:
         st.rerun()
 
 
+# Streamlit keeps the query string when the rail link of the page already open is clicked, so the Home icon alone
+# would leave the answer open. While an answer is open, a click on the current Home icon presses Back instead.
+HOME_ICON_BACK = """<script>
+if (!window.__lystHomeBack) {
+  window.__lystHomeBack = true;
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest('[data-testid="stSidebarNavLink"][aria-current="page"]');
+    const back = link && document.querySelector(".st-key-lyst_back_home button");
+    if (!back || !back.offsetParent) return;
+    e.preventDefault();
+    e.stopPropagation();
+    back.click();
+  }, true);
+}
+</script>"""
+
+
 def task_view(task: str) -> None:
-    top = st.columns([6, 1.4], vertical_alignment="center")
-    if top[1].button("New question", icon=":material/add:", type="tertiary", width="stretch"):
+    # one clear way out: back to Home's front page; this conversation stays under Recent there
+    if st.button("Home", icon=":material/arrow_back:", type="tertiary", key="lyst_back_home",
+                 help="Back to Home. This conversation stays under Recent."):
         open_task(None)
         st.rerun()
+    with st.sidebar:  # at the rail's end, where an empty element takes no room
+        st.html(HOME_ICON_BACK, unsafe_allow_javascript=True)
     try:
         t = api.get(f"/v1/tasks/{task}")
     except APIError as e:
-        top[0].error(str(e))
+        st.error(str(e))
         return
     # the heading is the whole request (list titles are shortened); long requests use a smaller size
     full = ((t.get("request") or {}).get("question") or t["title"]).strip()
     size = "" if len(full) <= 90 else ' style="font-size:1.2rem;line-height:1.35"'
-    top[0].html(f'<h1 class="lyst-title"{size}>{kit._esc(full)}</h1>')
+    st.html(f'<h1 class="lyst-title"{size}>{kit._esc(full)}</h1>')
     trig = (t.get("request") or {}).get("trigger") or {}
     if trig.get("activity_id"):  # started by an event rule: one calm line saying why, the details a click away
         from lyst.ui import activity  # noqa: PLC0415
