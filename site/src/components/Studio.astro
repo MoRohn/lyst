@@ -33,11 +33,12 @@ type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata;
 const views: View[] = [
   {
     id: 'home', tab: 'Home', img: homeLight, dark: homeDark,
-    alt: 'Lyst Home: the agent bar (ask anything, speak, or go to a page; 2 need you), “What should Lyst work on?” with three suggested questions, a one-line activity summary, the single top suggestion “Look inside EMEA by product line” with Run now, Later and Why, and the latest verified answer with its sparkline.',
+    alt: 'Lyst Home as one composer: Lyst’s mark above “What should Lyst work on?”, a box to ask anything (why something changed, a forecast, a what-if) or speak, three starter questions from approved metrics, a slim icon rail for Home, Data, Brain and Settings, and a dock with “2 need you”, “Get started 3/4” and Recent.',
     callouts: [
-      { icon: 'Mic', text: 'One bar to ask, speak or go anywhere', x: '55%', y: '11.5%' },
-      { icon: 'MousePointerClick', text: 'One next step, one click away', x: '50%', y: '36.7%' },
-      { icon: 'BadgeCheck', text: 'Latest answers, verified', x: '50%', y: '49.5%' },
+      { icon: 'Sparkles', text: 'Lyst’s mark shows what it is doing', x: '64%', y: '32%' },
+      { icon: 'Mic', text: 'One place to type or speak', x: '52%', y: '67%' },
+      { icon: 'PanelBottom', text: 'A dock for work in flight and recent answers', x: '52%', y: '88%' },
+      { icon: 'PanelLeft', text: 'A slim icon rail', x: '13%', y: '15.5%' },
     ],
   },
   {
@@ -53,8 +54,8 @@ const views: View[] = [
     id: 'verdict', tab: 'Verdict', img: verdictLight, dark: verdictDark,
     alt: 'Under a Lyst answer: four menus (Keep watch, Download, Share, More) and “Is this right?” with Right, Partly and Wrong; Partly is selected, with Undo, and an optional “What should it have said?” correction box with Save and Skip.',
     callouts: [
-      { icon: 'LayoutList', text: 'Four menus instead of a wall of buttons', x: '48%', y: '64%' },
-      { icon: 'ThumbsUp', text: 'Right, Partly or Wrong, with undo', x: '70%', y: '64%' },
+      { icon: 'LayoutList', text: 'Four menus instead of a wall of buttons', x: '40%', y: '64%' },
+      { icon: 'ThumbsUp', text: 'Right, Partly or Wrong, with undo', x: '76%', y: '64%' },
       { icon: 'PenLine', text: 'A correction Lyst recalls next time', x: '55%', y: '84%' },
     ],
   },
@@ -79,7 +80,7 @@ const views: View[] = [
     id: 'data', tab: 'Data', img: dataLight, dark: dataDark,
     alt: 'Lyst Data: a header noting 2 of 5 datasets need attention, a library of datasets and approved metrics, and dataset cards such as Opportunities, Support demand, Monthly P&L and P&L from the ledger, each with its sensitivity, rows, data-through date and the measures it feeds, and Explore, Insights and More.',
     callouts: [
-      { icon: 'LayoutGrid', text: 'What matters about each dataset', x: '58%', y: '37.2%' },
+      { icon: 'LayoutGrid', text: 'What matters about each dataset', x: '54%', y: '35.5%' },
       { icon: 'Sparkles', text: 'Explore, Insights or More', x: '74%', y: '91%' },
     ],
   },
@@ -94,21 +95,21 @@ const views: View[] = [
     id: 'health', tab: 'Stale', img: healthLight, dark: healthDark,
     alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button.',
     callouts: [
-      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '58%', y: '62.5%' },
-      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '17%', y: '67.8%' },
+      { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '62%', y: '44%' },
+      { icon: 'Wrench', text: 'One click to rebuild, re-verified', x: '32%', y: '54%' },
     ],
   },
   {
     id: 'brain', tab: 'Brain', img: brainLight, dark: brainDark,
     alt: 'Lyst Brain: one line on what it knows (6 approved metrics, 5 datasets, memories) and what needs you, four sections (Overview, Work, Knowledge, Specializations), and a search for “revenue” listing metrics, columns and a dataset, each with Open and Ask, then Used lately and Learned lately.',
     callouts: [
-      { icon: 'Brain', text: 'What it knows, in one calm line', x: '78%', y: '25.6%' },
+      { icon: 'Brain', text: 'What it knows, in one calm line', x: '74%', y: '25.6%' },
       { icon: 'Search', text: 'Search first, then open it or ask', x: '50%', y: '38%' },
     ],
   },
   {
     id: 'graph', tab: 'Map', img: graphLight, dark: graphDark,
-    alt: 'Lyst Brain › Knowledge › Map: an interactive map joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
+    alt: 'Lyst Brain › Knowledge › Graph: an interactive map joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
     callouts: [
       { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '42%', y: '86%' },
       { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '42%', y: '55%' },
