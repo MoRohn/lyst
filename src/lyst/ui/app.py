@@ -11,7 +11,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # src/, when run by `streamlit run`
 
-from lyst.ui import collab, kit, palette  # noqa: E402
+from lyst.ui import collab, glossary, kit, palette  # noqa: E402
 from lyst.ui.client import APIError, client  # noqa: E402
 
 ASSETS = Path(__file__).parent / "assets"
@@ -27,30 +27,6 @@ brand()
 kit.style()
 
 here = Path(__file__).parent / "app_pages"
-
-GLOSSARY = """
-**Approved measure (metric)**: a definition an admin approved, such as what revenue means here. Lyst answers only
-from these, so two people asking the same question get the same number.
-
-**Verified**: every figure in the answer was recomputed independently and every required check passed.
-
-**Depth**: how much of the method an answer shows. Summary is the answer and what to do; Detail adds the tables
-and what was tested; Method adds every check and query. **Brief** is the two-line version with a PDF to forward.
-
-**Watch a metric**: Lyst checks it on its own and investigates unusual moves. Sensitivity sets how unusual a move
-must be before it tells you.
-
-**Repeat it**: Lyst asks the same question again every day, week or month, for the latest period.
-
-**Saved analysis (workflow)**: a verified answer Lyst can rerun for any period without working it out again.
-
-**Needs you**: approvals, questions Lyst needs answered, and results that did not pass verification.
-
-**Brain**: what Lyst knows about this business: approved definitions, documents, and what it has learned.
-
-**Skill**: a new method a builder adds to Lyst in Python (Settings › Advanced). It is tested in a sandbox and
-approved before use.
-"""
 
 
 def make_pages(waiting: int = 0) -> list:
@@ -223,7 +199,7 @@ def _footer() -> None:
         collab.bell()
         with st.popover("What these words mean", icon=":material/help:", key="lyst_side_help",
                         help="What these words mean"):
-            st.markdown(GLOSSARY)
+            st.html(f"<style>{glossary.CSS}</style>" + glossary.html())
         who = me.get("name") or me["email"]
         with st.popover(f"{_ws_name(st.session_state.workspace)} · {who}", icon=":material/account_circle:",
                         key="lyst_side_account", help=f"{who} · {_ws_name(st.session_state.workspace)}"):
