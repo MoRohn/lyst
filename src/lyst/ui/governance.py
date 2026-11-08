@@ -100,6 +100,20 @@ def classification(name: str, current: str | None) -> None:
                                             {"level": new, "tags": [], "reason": why.strip()}), "Saved")
 
 
+def policy_summary() -> str:
+    """The data policy in one sentence: who reads restricted and confidential data, and what may leave."""
+    api, ws, _admin = _ctx()
+    try:
+        spec = (api.get(f"/v1/workspaces/{ws}/data-policy").get("spec") or {})
+    except APIError:
+        return ""
+    reads = spec.get("read_min_role") or {}
+    return (f"Restricted data: {ROLES.get(reads.get('restricted', 'admin'), '').lower()}. Confidential data: "
+            f"{ROLES.get(reads.get('confidential', 'viewer'), '').lower()}. Models receive data up to "
+            f"{LEVELS.get(spec.get('external_model_max', 'confidential'), '').lower()}; exports up to "
+            f"{LEVELS.get(spec.get('export_max', 'confidential'), '').lower()}.")
+
+
 def policy_section() -> None:
     """Settings › Workspace: who may read each sensitivity level, and what may leave the workspace."""
     api, ws, admin = _ctx()

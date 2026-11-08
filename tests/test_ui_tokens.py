@@ -62,7 +62,7 @@ def test_chart_alt_text_describes_the_data():
 def test_palette_finds_places_by_name_and_by_the_words_people_use():
     assert ("Brain", "Needs you") in {(a, s) for a, s, _, _ in palette.places("approvals")}
     assert ("Data", "SQL") in {(a, s) for a, s, _, _ in palette.places("query")}
-    assert {(a, s) for a, s, _, _ in palette.places("settings voice")} == {("Settings", "Workspace")}
+    assert {(a, s) for a, s, _, _ in palette.places("settings voice")} == {("Settings", "Models")}
     assert palette.places("") == []
 
 

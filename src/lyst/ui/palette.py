@@ -39,9 +39,12 @@ PLACES: list[tuple[str, str | None, str, dict[str, str]]] = [
     ("Brain", "Definitions", "app_pages/brain.py", {"view": "definitions"}),
     ("Brain", "Documents", "app_pages/brain.py", {"view": "documents"}),
     ("Brain", "Memory", "app_pages/brain.py", {"view": "memory"}),
-    ("Settings", "Models", "app_pages/settings.py", {"view": "models"}),
+    ("Settings", "Account", "app_pages/settings.py", {"view": "account"}),
+    ("Settings", "Workspaces", "app_pages/settings.py", {"view": "workspaces"}),
     ("Settings", "Connections", "app_pages/settings.py", {"view": "connections"}),
-    ("Settings", "Workspace", "app_pages/settings.py", {"view": "workspace"}),
+    ("Settings", "Models", "app_pages/settings.py", {"view": "models"}),
+    ("Settings", "Privacy", "app_pages/settings.py", {"view": "privacy"}),
+    ("Settings", "Preferences", "app_pages/settings.py", {"view": "preferences"}),
     ("Settings", "Advanced", "app_pages/settings.py", {"view": "advanced"}),
 ]
 # extra words people use for a place, so "approvals" finds Needs you and "voice" finds Settings
@@ -49,8 +52,10 @@ ALIASES = {"Needs you": "approvals reviews inbox assigned questions", "Activity"
            "Recurring": "schedules monitors watch repeat work",
            "Graph": "map knowledge runs harness", "Datasets": "tables sources upload connect add data",
            "SQL": "query workbench", "Definitions": "metrics measures terms glossary",
-           "Models": "openrouter llm model key", "Workspace": "voice audio usage limits webhooks members",
-           "Advanced": "skills capabilities evals", "Connections": "credentials secrets"}
+           "Models": "openrouter llm model key voice audio speech", "Workspaces": "members people usage limits profile pack",
+           "Account": "me sign out profile personal", "Privacy": "security audit policy encryption external",
+           "Preferences": "autonomy working ahead event rules", "Advanced": "skills capabilities evals health backups",
+           "Connections": "credentials secrets webhooks notifications"}
 
 KINDS = {"metric": ("Metric", ":material/functions:"), "dataset": ("Dataset", ":material/database:"),
          "column": ("Column", ":material/view_column:"), "term": ("Business term", ":material/menu_book:"),

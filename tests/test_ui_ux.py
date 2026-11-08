@@ -315,7 +315,7 @@ def test_work_shows_what_lyst_prepared_ahead(seeded, ui):  # noqa: F811
     assert "Monthly finance review" in body and any(b.label == "Run now" for b in at.button)
     assert any("badge[" in m.value and "Ready" in m.value for m in at.markdown)
     at.switch_page("app_pages/settings.py")
-    at.query_params["view"] = "workspace"
+    at.query_params["view"] = "preferences"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert "checks the data and definitions an upcoming run needs" in _texts(at)
@@ -381,8 +381,11 @@ def test_people_can_ask_how_an_answer_was_figured_and_see_data_sensitivity(seede
     assert not at.exception, [e.value for e in at.exception]
     assert any("How was this figured?" in str(o) for g in at.get("button_group") for o in g.proto.options)
     at.switch_page("app_pages/settings.py")
-    at.query_params["view"] = "workspace"
+    at.query_params["view"] = "privacy"
     at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert "Restricted data:" in _texts(at)  # the policy in one sentence; its controls one step further
+    at.button(key="set_policy_open").click().run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(s.label == "Restricted data is read by" for s in at.selectbox)
 
@@ -392,7 +395,7 @@ def test_source_of_truth_and_webhooks_have_a_place(seeded, ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/settings.py")
-    at.query_params["view"] = "workspace"
+    at.query_params["view"] = "connections"
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert "Lyst can POST a signed message" in _texts(at)

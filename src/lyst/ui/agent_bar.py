@@ -151,7 +151,7 @@ def where(kind: str, oid: str, *, acts: dict[str, dict] | None = None) -> dict |
     if kind in ("monitor", "finding"):
         return {"page": "app_pages/brain.py", "params": {"view": "work", "work": "recurring"}, "label": "Brain › Work"}
     if kind == "rule":
-        return {"page": "app_pages/settings.py", "params": {"view": "workspace"}, "label": "Settings"}
+        return {"page": "app_pages/settings.py", "params": {"view": "preferences"}, "label": "Settings"}
     return None
 
 
