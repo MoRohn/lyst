@@ -31,8 +31,12 @@ def test_b_dashboard_from_a_sentence_is_a_dash_app(seeded):
     assert t["status"] == "done", t["error"]
     r = t["result"]
     d = lyst.studio.list(owner, "northwind")[0]
-    assert r["status"] == "complete" and "as a Dash app" in r["answer"] and "every page and callback ran" in r["answer"], \
-        json.dumps(d["checks"], indent=1)
+    assert r["status"] == "complete" and "verified on every page" in r["answer"], json.dumps(d["checks"], indent=1)
+    # the answer opens the dashboard itself, with its trends as charts; nobody is told to run a command
+    assert {k: r["open"][k] for k in ("kind", "id", "title")} == {"kind": "dashboard", "id": d["id"], "title": d["title"]}
+    assert [c["title"] for c in r["charts"]] == ["Operating margin by month", "Revenue by month"]
+    said = " ".join([r["answer"], r["brief"], *r["actions"]])
+    assert "pip install" not in said and "python app.py" not in said and "cd /" not in said
     folder = Path(lyst.stores.workspace("northwind").scalar("SELECT path FROM dashboards WHERE id = ?", [d["id"]]))
     names = {str(p.relative_to(folder)) for p in folder.rglob("*") if p.is_file() and ".cache" not in p.parts and "__pycache__" not in p.parts}
     assert {"app.py", "theme.toml", "requirements.txt", "DESIGN.md", "README.md", "manifest.json", "lyst_dash/settings.py",
@@ -95,7 +99,8 @@ def test_b_dashboard_from_a_sentence_is_a_dash_app(seeded):
 def test_streamlit_target_on_request(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "Build a revenue dashboard by region in Streamlit")["result"]
-    assert "as a Streamlit app" in r["answer"] and "verified" in r["answer"]
+    assert "verified on every page" in r["answer"] and r["open"]["kind"] == "dashboard"
+    assert "streamlit run" not in " ".join(r["actions"])
     d = lyst.studio.list(owner, "northwind")[0]
     folder = Path(lyst.stores.workspace("northwind").scalar("SELECT path FROM dashboards WHERE id = ?", [d["id"]]))
     man = json.loads((folder / "manifest.json").read_text())

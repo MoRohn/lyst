@@ -325,46 +325,136 @@ def view_chart(item: dict) -> None:
     st.caption(f"From the analysis “{item['result']['_task'].get('title')}”.")
 
 
-def view_dashboard(item: dict) -> None:
-    """The dashboard's own published series, interactive: one chart per metric, with a period range to filter."""
+def view_dashboard(item: dict, *, key: str = "", actions: bool = True) -> None:
+    """The dashboard itself, from its own published extracts: a KPI tile per metric (latest value, change, recent
+    history), then each metric's trend beside its split for the latest period, with a period range to filter. The same
+    view opens in the viewer and in place under the answer that built it, so nobody has to run the app to see it."""
     import pandas as pd  # noqa: PLC0415
 
+    from lyst import answer_view  # noqa: PLC0415
     from lyst.ui.components import chart  # noqa: PLC0415
 
     api, ws = client(), _ws()
     did = item.get("ref_id") or item["id"]
+    k = f"{key}{did}"
     man = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/dashboards/{did}"))
     if not man:
         return
+
+    def extract(name: str | None) -> pd.DataFrame | None:
+        if not name:
+            return None
+        try:
+            raw = api.http.get(f"/v1/workspaces/{ws}/dashboards/{did}/files/{name}", headers=api._h())
+            raw.raise_for_status()
+            return pd.read_parquet(io.BytesIO(raw.content))
+        except Exception:  # noqa: BLE001 - an extract that cannot be read leaves that panel out, not the dashboard
+            return None
+
     series = []
     for m in man.get("metrics") or []:
-        raw = api.http.get(f"/v1/workspaces/{ws}/dashboards/{did}/files/{m['series_file']}", headers=api._h()).content
-        series.append((m, pd.read_parquet(io.BytesIO(raw)).sort_values("period")))
+        s = extract(m.get("series_file"))
+        if s is not None and len(s):
+            series.append((m, s.sort_values("period"), extract(m.get("breakdown_file"))))
     if not series:
         st.caption("This dashboard has no published series yet.")
         return
-    periods = sorted({str(p)[:10] for _, s in series for p in s["period"]})
+    dim = man.get("dimension") or ""
+    tiles = st.columns(min(4, len(series)))
+    for i, (m, s, _) in enumerate(series[:4]):
+        vals = [float(v) for v in s["value"] if pd.notna(v)]
+        if not vals:
+            continue
+        fmt_ = m.get("format", "number")
+        change, good = "", None
+        if len(vals) > 1:
+            d = vals[-1] - vals[-2]
+            change = f"{d * 100:+.1f} pts" if fmt_ == "percent" else ("+" if d >= 0 else "") + answer_view.fmt(d, fmt_)
+            good = (d >= 0) == bool(m.get("higher_is_better", True)) if d else None
+        with tiles[i % len(tiles)], kit.card(f"dbt_{k}_{i}"):
+            st.html(visuals.metric_tile({"title": m["title"], "value_text": answer_view.fmt(vals[-1], fmt_),
+                                         "change_text": change, "good": good, "history": vals[-12:],
+                                         "grain": man.get("grain") or "month"}))
+    periods = sorted({str(p)[:10] for _, s, _ in series for p in s["period"]})
     if len(periods) > 2:
         lo, hi = st.select_slider("Period", periods, value=(periods[max(0, len(periods) - 13)], periods[-1]),
-                                  key=f"dbr_{did}")
+                                  key=f"dbr_{k}")
     else:
         lo, hi = periods[0], periods[-1]
-    cols = st.columns(min(2, len(series)))
-    for i, (m, s) in enumerate(series):
+    for m, s, b in series:
         s = s[(s["period"].astype(str).str[:10] >= lo) & (s["period"].astype(str).str[:10] <= hi)]
-        with cols[i % len(cols)]:
-            chart({"type": "line", "title": m["title"], "x": [str(p)[:10] for p in s["period"]],
-                   "y": [float(v) for v in s["value"]], "format": m.get("format", "number")})
+        line = {"type": "line", "title": m["title"], "x": [str(p)[:10] for p in s["period"]],
+                "y": [float(v) for v in s["value"]], "format": m.get("format", "number")}
+        split = None
+        if b is not None and dim in b.columns and len(b):
+            last = b[b["period"].astype(str).str[:10] <= hi]["period"].max() if "period" in b.columns else None
+            lb = (b[b["period"] == last] if last is not None else b).sort_values("value", ascending=False)
+            lb = lb[lb["value"].notna()]
+            if len(lb) >= 2:
+                split = {"type": "bar", "title": f"{m['title']} by {dim.replace('_', ' ')}"
+                         + (f", {str(last)[:7]}" if last is not None else ""),
+                         "x": [str(x) for x in lb[dim]], "y": [float(v) for v in lb["value"]],
+                         "format": m.get("format", "number")}
+        if split:
+            c = st.columns([3, 2], gap="medium")
+            with c[0]:
+                chart(line)
+            with c[1]:
+                chart(split)
+        else:
+            chart(line)
     checks = man.get("checks") or []
     if checks:
         st.caption("Checks: " + " · ".join(("✓ " if c["passed"] else "✕ ") + c["name"].replace("_", " ") for c in checks))
+    if not actions:
+        return
     c = st.columns([1.4, 1.6, 4])
-    if c[0].button("Refresh now", icon=":material/refresh:", key=f"dbref_{did}"):
+    if c[0].button("Refresh now", icon=":material/refresh:", key=f"dbref_{k}"):
         kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/dashboards/{did}/refresh"), "Refreshed")
     c[1].download_button("Download app", lambda: api.http.get(f"/v1/workspaces/{ws}/dashboards/{did}/bundle",
                                                                headers=api._h()).content,
                          file_name=f"{did}.zip", mime="application/zip", on_click="ignore", icon=":material/download:",
-                         key=f"dbdl_{did}")
+                         key=f"dbdl_{k}", help="The app and its data, to run on another machine")
+
+
+def opened(ref: dict | None) -> dict | None:
+    """The viewer item for an answer's ``open`` pointer ({"kind", "id", "title", "asset_id"?}), or None when the
+    artifact is not one Lyst can show here or can no longer be read."""
+    if not ref or ref.get("kind") not in VIEWERS:
+        return None
+    if ref["kind"] == "dashboard":  # read by its own id; its registry entry (when there is one) opens the full viewer
+        aid = ref.get("asset_id")
+        if not aid:
+            try:
+                aid = next((a["id"] for a in client().get(f"/v1/workspaces/{_ws()}/assets", kind="dashboard")
+                            if a.get("ref_id") == ref["id"]), None)
+            except (APIError, TypeError):
+                aid = None
+        return {"kind": "dashboard", "id": aid or ref["id"], "ref_id": ref["id"], "asset_id": aid,
+                "title": ref.get("title") or "Dashboard", "task_id": None}
+    return find(ref["kind"], ref["id"])
+
+
+def show_inline(ref: dict | None, *, key: str) -> bool:
+    """Open the artifact an answer made or asked for, in place: the thing itself, not a description of it, with a way
+    to open it full size. Returns False (and shows nothing) when there is nothing Lyst can show."""
+    item = opened(ref)
+    if not item:
+        return False
+    label, icon = KINDS.get(item["kind"], ("Artifact", ":material/draft:"))
+    with st.container(border=True, key=f"lyst_open_{key}"):
+        top = st.columns([6, 1.4], vertical_alignment="center")
+        top[0].html(f'<div class="lyst-card-kicker">{escape(label)}</div>'
+                    f'<div class="lyst-card-title">{escape(item["title"])}</div>')
+        full = item["kind"] != "dashboard" or item.get("asset_id")  # the viewer opens registered artifacts
+        if full and top[1].button("Open full view", icon=":material/open_in_full:", type="tertiary",
+                                  key=f"openfull_{key}", width="stretch"):
+            open_artifact(item)
+        if item["kind"] == "dashboard":
+            view_dashboard(item, key=f"{key}_", actions=True)
+        else:
+            VIEWERS[item["kind"]](item)
+    return True
 
 
 def view_workflow(item: dict) -> None:

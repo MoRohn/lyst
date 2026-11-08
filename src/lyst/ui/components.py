@@ -347,6 +347,15 @@ def method(r: dict[str, Any]) -> None:
         st.caption(sup["reproduce"] + f" Narrative written by: {sup.get('narrative_by')}.")
 
 
+def open_inline(r: dict[str, Any], key: str) -> bool:
+    """Show the artifact the answer opens (its ``open`` pointer) in place. False when there is none to show."""
+    if not r.get("open"):
+        return False
+    from lyst.ui import artifacts  # noqa: PLC0415
+
+    return artifacts.show_inline(r["open"], key=f"ans_{key}")
+
+
 def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
     """One result in three layers, never re-run. Layer 1, always visible: the finding, how far it can be trusted,
     anything a reader must not miss (caveats show at every layer), one chart and what to do. Layer 2 (“Why, and
@@ -370,11 +379,14 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
         cav = caveats(r)
         if cav:
             st.warning(bullets(cav), icon=":material/info:")
-        # one chart in the flow of the finding; every chart is also an artifact under the details, to open on its own
-        for c in r.get("charts", [])[:1]:
-            chart(c)
-        if not r.get("charts") and (bc := breakdown_chart(r)):
-            chart(bc)
+        # an answer that made (or points to) an artifact opens it right here, the thing itself rather than a
+        # description of it; otherwise one chart in the flow of the finding. Every chart is also an artifact under
+        # the details, to open on its own
+        if not open_inline(r, key):
+            for c in r.get("charts", [])[:1]:
+                chart(c)
+            if not r.get("charts") and (bc := breakdown_chart(r)):
+                chart(bc)
         if r.get("actions"):
             st.markdown("**What to do**")
             st.markdown(bullets(r["actions"]))

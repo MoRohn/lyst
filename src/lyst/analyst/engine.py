@@ -19,6 +19,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -1305,7 +1306,8 @@ def converse(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     inv = converse_mod.inventory(s, ctx.actor, ctx.workspace_id)
     reply = converse_mod.compose(u["question"], u["conversation"], inv, named=u.get("named") or [])
     narrative_by = "template"
-    if s.llm.allowed_for(ctx.workspace_id):
+    # opening an artifact needs no wording from a model: the reply names what opened, and the artifact is the answer
+    if s.llm.allowed_for(ctx.workspace_id) and not reply.get("open"):
         slim = {k: ([{f: x.get(f) for f in ("title", "kind", "status", "health", "description", "dataset", "dimensions")
                       if x.get(f) not in (None, [], "")} for x in v] if isinstance(v, list) else v) for k, v in inv.items()}
         try:
@@ -1372,6 +1374,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         assumptions.append(f"Lyst read \"{u['model_phrase']}\" in the request as {spec.title.lower()}. If you meant something "
                            "else, name the metric and ask again.")
     answer, findings, implications, actions, charts, tables = "", [], [], [], [], []
+    opens: dict[str, Any] | None = None  # the artifact this answer made or points to: viewers open it in place
 
     if pl["blockers"]:
         answer = " ".join(pl["blockers"])
@@ -1405,23 +1408,24 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         db_ = o["dashboard"]
         d = o["design"]
         ok = db_["status"] == "published"
-        kind = "Dash app" if db_.get("target") == "dash" else "Streamlit app"
-        answer = (f"Built {db_['title']} as a {kind}: {len(d['metrics'])} governed metric(s) by {d['dimension']}, {len(db_['files'])} files, "
-                  + ("verified: every page and callback ran." if ok else "but verification failed, so it is not published."))
+        n = len(d["metrics"])
+        answer = (f"Built {db_['title']}: {n} governed metric{'s' if n != 1 else ''} by {d['dimension'].replace('_', ' ')}, "
+                  + ("verified on every page. It's open below." if ok else "but verification failed, so it is not published."))
         findings = [f"{m['title']} v{m['version']}: {m['series_rows']} monthly rows, {m['breakdown_rows']} by {d['dimension']}" for m in d["metrics"]]
         findings += [("✓ " if c["passed"] else "✕ ") + f"{c['name']}: {c['detail']}" for c in db_["checks"]]
         if db_.get("schedule"):
             findings.append(f"Refresh every {d['every_seconds'] // 3600} h proposed; it starts once an admin approves it in Work › Approvals.")
             actions.append("Approve the refresh schedule in Work › Approvals.")
-        if db_.get("target") == "dash":
-            actions.append(f"Run it with `cd {db_['path']} && pip install -r requirements.txt && python app.py`, or download the bundle "
-                           "from Build › Dashboards.")
-        else:
-            actions.append(f"Run it with `streamlit run {db_['path']}/app.py`, or download the bundle from Build › Dashboards.")
+        # the dashboard opens in place in the answer, from its own published extracts: nobody is told to run a command
+        # (the app bundle stays a download, for running it somewhere else)
+        if ok:
+            opens = {"kind": "dashboard", "id": db_["dashboard_id"], "title": db_["title"]}
+            if (db_.get("asset") or {}).get("id"):
+                opens["asset_id"] = db_["asset"]["id"]
+            charts += _dashboard_charts(db_["path"], d)
         assumptions.append("The app reads only the Parquet extracts beside it; Lyst refreshes them, the app never touches a database.")
         if d.get("narrative"):
             assumptions.append("Page wording (question, subtitle, KPI order) was suggested by the model; every number is computed.")
-        tables.append({"title": "Files", "columns": ["file"], "rows": [[f] for f in db_["files"]]})
         status = "complete" if ok else "unverified"
     elif u["intent"] == "what_if":
         sc = o["scenario"]
@@ -1455,6 +1459,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         answer = f"Dashboard {rf['dashboard_id']} refreshed: {rf['status']}."
         findings = [("✓ " if c["passed"] else "✕ ") + f"{c['name']}: {c['detail']}" for c in rf["checks"]]
         status = "complete" if rf["status"] == "published" else "unverified"
+        if rf["status"] == "published":
+            opens = {"kind": "dashboard", "id": rf["dashboard_id"], "title": rf.get("title") or rf["dashboard_id"]}
     elif u["intent"] == "gap":
         pr = o["proposal"]
         if pr["status"] == "exists":
@@ -1843,6 +1849,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         "actions": actions,
         "charts": charts,
         "tables": tables,
+        "open": opens,
         "confidence": {"level": confidence, "basis": "validation checks below; not a model probability",
                        "checks": v["checks"]},
         "supporting": {
@@ -1863,6 +1870,28 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         },
     }
     return _clean(result)
+
+
+def _dashboard_charts(path: str, design: dict[str, Any], limit: int = 4) -> list[dict[str, Any]]:
+    """The dashboard's own published extracts as answer charts (each metric's trend), so a briefing, deck or workbook
+    of the answer carries the dashboard's visuals too. Read from the files the build just verified; never re-queried."""
+    folder = Path(path)
+    try:
+        man = json.loads((folder / "manifest.json").read_text())
+    except (OSError, ValueError):
+        return []
+    out = []
+    for m in (man.get("metrics") or [])[:limit]:
+        try:
+            s = pd.read_parquet(folder / m["series_file"]).sort_values("period")
+        except Exception:  # noqa: BLE001, S112 - a missing extract only means one chart fewer; the dashboard itself still opens
+            continue
+        s = s[s["value"].notna()]
+        if len(s) >= 2:
+            out.append({"type": "line", "title": f"{m['title']} by {design.get('grain') or 'month'}",
+                        "x": [str(p)[:10] for p in s["period"]], "y": [float(v) for v in s["value"]],
+                        "format": m.get("format", "number")})
+    return out
 
 
 def _shift_months(iso: str, n: int) -> str:
