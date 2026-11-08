@@ -124,7 +124,8 @@ class Live {
 
   assistant(m, L) {
     const status = m.parts.find((p) => p.type === 'data-lyst-status')?.data;
-    const steps = m.parts.filter((p) => p.type === 'dynamic-tool');
+    // an approval is also an AI SDK tool approval (lyst_approval); here it is shown once, as the approval row below
+    const steps = m.parts.filter((p) => p.type === 'dynamic-tool' && p.toolName !== 'lyst_approval');
     const text = m.parts.filter((p) => p.type === 'text');
     const sources = m.parts.filter((p) => p.type === 'source-document');
     const approvals = m.parts.filter((p) => p.type === 'data-lyst-approval').map((p) => p.data);
