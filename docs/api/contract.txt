@@ -58,6 +58,10 @@ GET /v1/workspaces/{ws}/anticipations/{aid} | query: - | body: -
 GET /v1/workspaces/{ws}/anticipations/{aid}/why | query: - | body: -
 GET /v1/workspaces/{ws}/approvals | query: - | body: -
 GET /v1/workspaces/{ws}/approvals/explained | query: - | body: -
+GET /v1/workspaces/{ws}/apps | query: - | body: -
+GET /v1/workspaces/{ws}/apps/catalog | query: - | body: -
+GET /v1/workspaces/{ws}/apps/{app_id} | query: - | body: -
+GET /v1/workspaces/{ws}/apps/{app_id}/open | query: - | body: -
 GET /v1/workspaces/{ws}/assets | query: - | body: -
 GET /v1/workspaces/{ws}/assets/{asset_id} | query: - | body: -
 GET /v1/workspaces/{ws}/assets/{asset_id}/proposal | query: - | body: -
@@ -216,6 +220,9 @@ POST /v1/workspaces/{ws}/analyses/{analysis_id}/feedback | query: - | body: verd
 POST /v1/workspaces/{ws}/analyst/requests | query: - | body: text,workspace_id
 POST /v1/workspaces/{ws}/anticipations/refresh | query: - | body: -
 POST /v1/workspaces/{ws}/anticipations/{aid}/act | query: - | body: action
+POST /v1/workspaces/{ws}/apps | query: - | body: spec
+POST /v1/workspaces/{ws}/apps/generate | query: - | body: id,messages
+POST /v1/workspaces/{ws}/apps/{app_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/assets/scan | query: - | body: -
 POST /v1/workspaces/{ws}/assets/{asset_id}/repair | query: - | body: -
 POST /v1/workspaces/{ws}/assets/{asset_id}/retire | query: - | body: -
@@ -333,6 +340,7 @@ POST /v1/workspaces/{ws}/workbench/sql | query: - | body: sql
 POST /v1/workspaces/{ws}/workflows/{wf_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/workflows/{wf_id}/run | query: - | body: -
 POST /v1/workspaces/{ws}/workflows/{wf_id}/schedule | query: - | body: every_seconds
+PUT /v1/workspaces/{ws}/apps/{app_id} | query: - | body: spec
 PUT /v1/workspaces/{ws}/attention | query: - | body: -
 PUT /v1/workspaces/{ws}/data-policy | query: - | body: -
 PUT /v1/workspaces/{ws}/datasets/{name}/authority | query: - | body: -

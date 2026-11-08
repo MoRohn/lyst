@@ -275,3 +275,92 @@ class TaskStream:
     def chunks(self, task: dict[str, Any], approvals: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         """Every chunk for a task in one pass (a finished task, or a test)."""
         return self.update(task, approvals)
+
+
+class AppStream:
+    """A Lyst App being generated (``lyst.apps``), as a UI message stream. Pure: it turns the generator's events into
+    chunks.
+
+    The app is one dynamic tool call, ``lyst_app``, whose input is the spec. Its ``tool-input-delta`` text is written
+    here from checked blocks only (never the model's raw text), so a client's partial JSON is always a checked prefix:
+    ``useChat`` shows the spec growing in ``part.input`` while ``state`` is ``input-streaming``. Each checked block
+    also arrives with its resolved values as ``data-lyst-app-block``, so the app can draw block by block. A block that
+    failed a check is reported as ``data-lyst-app-dropped``. When the model is retried, or its spec is replaced by
+    the rules', ``reset-step`` removes what was shown and a new call starts. The end: ``tool-input-available`` with
+    the whole spec, ``tool-output-available`` with the saved app, a ``source-document`` per dataset version read.
+    """
+
+    TOOL = "lyst_app"
+
+    def __init__(self, gen_id: str) -> None:
+        self.gen_id = gen_id
+        self.attempt = 0
+        self._open = False
+        self._blocks = 0
+        self._dropped = 0
+
+    @property
+    def call_id(self) -> str:
+        return f"{self.gen_id}:app:{self.attempt}"
+
+    def _begin(self) -> list[dict[str, Any]]:
+        self.attempt += 1
+        self._open, self._blocks = False, 0
+        return [{"type": "start-step"},
+                {"type": "tool-input-start", "toolCallId": self.call_id, "toolName": self.TOOL, "dynamic": True,
+                 "title": "Lyst app"}]
+
+    def start(self) -> list[dict[str, Any]]:
+        return [{"type": "start", "messageId": self.gen_id, "messageMetadata": {"kind": "lyst-app"}}, *self._begin()]
+
+    def _delta(self, text: str) -> dict[str, Any]:
+        return {"type": "tool-input-delta", "toolCallId": self.call_id, "inputTextDelta": text}
+
+    def event(self, ev: dict[str, Any]) -> list[dict[str, Any]]:
+        kind = ev["type"]
+        if kind == "reset":
+            return [{"type": "reset-step"}, *self._begin()]
+        if kind == "title":
+            if self._open:  # a title written after the blocks is in the final input
+                return []
+            self._open = True
+            head = {"title": ev["title"], **({"subtitle": ev["subtitle"]} if ev.get("subtitle") else {})}
+            return [self._delta(json.dumps(head)[:-1] + ', "blocks": [')]
+        if kind == "block":
+            out = []
+            if not self._open:
+                self._open = True
+                out.append(self._delta('{"blocks": ['))
+            b = ev["block"]
+            out.append(self._delta((", " if self._blocks else "") + json.dumps(b)))
+            self._blocks += 1
+            out.append({"type": "data-lyst-app-block", "id": f"{self.call_id}:{b['id']}",
+                        "data": {"block": b, "data": ev.get("data") or {}}})
+            return out
+        if kind == "dropped":
+            self._dropped += 1
+            return [{"type": "data-lyst-app-dropped", "id": f"{self.gen_id}:dropped:{self._dropped}",
+                     "data": {"block": ev.get("block"), "reason": ev.get("reason")}}]
+        return []
+
+    def finish(self, result: dict[str, Any]) -> list[dict[str, Any]]:
+        app = result.get("app") or {}
+        out = [self._delta("]}")] if self._open else []
+        out += [{"type": "tool-input-available", "toolCallId": self.call_id, "toolName": self.TOOL, "dynamic": True,
+                 "input": result["spec"], "title": result["spec"]["title"]},
+                {"type": "tool-output-available", "toolCallId": self.call_id, "dynamic": True,
+                 "output": {"appId": app.get("app_id"), "version": app.get("version"), "saved": bool(app),
+                            "source": result.get("source"), "dropped": result.get("dropped") or [],
+                            "sources": result.get("sources") or {}}}]
+        for ds, ver in sorted(((result.get("sources") or {}).get("datasets") or {}).items()):
+            out.append({"type": "source-document", "sourceId": f"{ds}@{ver}", "mediaType": DATASET_MEDIA_TYPE,
+                        "title": f"{ds} v{ver}"})
+        meta = {"kind": "lyst-app", "appId": app.get("app_id"), "source": result.get("source")}
+        out += [{"type": "finish-step"},
+                {"type": "finish", "finishReason": "stop", "messageMetadata": {k: v for k, v in meta.items() if v}}]
+        return out
+
+    def fail(self, text: str) -> list[dict[str, Any]]:
+        return [{"type": "tool-input-error", "toolCallId": self.call_id, "toolName": self.TOOL, "dynamic": True,
+                 "input": {}, "errorText": text},
+                {"type": "finish-step"}, {"type": "error", "errorText": text}, {"type": "finish", "finishReason": "error"}]
