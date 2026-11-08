@@ -90,7 +90,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Dataset cards: Explore, Insights or a quality check', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Data as a flow: sources, datasets and the metrics they feed', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -118,7 +118,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
-    items: ['“Is this right?” under every answer: Right, Partly or Wrong, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'A map of everything Lyst knows', 'Memories flagged when their data changes', 'Brain Overview: search what Lyst knows, then open it or ask', 'Rules learned from repeated failures', 'Governed skills'],
+    items: ['“Is this right?” under every answer: Right, Partly or Wrong, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain as a field of what Lyst knows: pick anything to see what it connects to', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
@@ -180,7 +180,7 @@ export const enterprise = {
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable, governed learning', text: 'Verified analyses compile into versioned workflows that schedules can rerun; one that keeps failing, or gave an answer a person disputed, is held back with its reason. Only an admin takes back approved memory, and agent-observed memory expires after 365 days by default.', status: 'available' as Status },
-    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Scheduled, encrypted backups, each test-restored automatically, and whole workspaces that move in one sealed file.', status: 'available' as Status },
+    { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Scheduled, encrypted backups, each test-restored automatically, and whole workspaces that move in one sealed file. Lyst checks its own setup and opens the setting that fixes a problem.', status: 'available' as Status },
   ],
 };
 
@@ -240,7 +240,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home as a single composer, an answer that leads with the finding, “Is this right?”, a conversation, the What if explorer, dataset cards, data that checks itself, analyses that know when they are out of date, Brain with search first, the knowledge map, 136 specialisms, the ⌘K palette, and a dashboard Studio built from one sentence.',
+  lede: 'Unedited screenshots from the private preview, on sample data: Home as a single composer, an answer that leads with the finding, “Is this right?”, a conversation, the What if explorer, data as a flow from source to metric, data that checks itself, analyses that know when they are out of date, Brain as a field of what Lyst knows, 136 specialisms, Settings that check themselves, the ⌘K palette, and a dashboard Studio built from one sentence.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },

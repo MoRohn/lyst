@@ -8,14 +8,14 @@ import homeLight from '../assets/product/home-light.png';
 import homeDark from '../assets/product/home-dark.png';
 import whatifLight from '../assets/product/explorer-light.png';
 import whatifDark from '../assets/product/explorer-dark.png';
-import dataLight from '../assets/product/data-cards-light.png';
-import dataDark from '../assets/product/data-cards-dark.png';
+import dataLight from '../assets/product/data-flow-light.png';
+import dataDark from '../assets/product/data-flow-dark.png';
 import verdictLight from '../assets/product/verdict-light.png';
 import verdictDark from '../assets/product/verdict-dark.png';
-import brainLight from '../assets/product/brain-overview-light.png';
-import brainDark from '../assets/product/brain-overview-dark.png';
-import graphLight from '../assets/product/brain-graph-light.png';
-import graphDark from '../assets/product/brain-graph-dark.png';
+import brainLight from '../assets/product/brain-field-light.png';
+import brainDark from '../assets/product/brain-field-dark.png';
+import settingsLight from '../assets/product/settings-light.png';
+import settingsDark from '../assets/product/settings-dark.png';
 import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
 import healthLight from '../assets/product/health-light.png';
@@ -78,17 +78,18 @@ const views: View[] = [
   },
   {
     id: 'data', tab: 'Data', img: dataLight, dark: dataDark,
-    alt: 'Lyst Data: a header noting 2 of 5 datasets need attention, a library of datasets and approved metrics, and dataset cards such as Opportunities, Support demand, Monthly P&L and P&L from the ledger, each with its sensitivity, rows, data-through date and the measures it feeds, and Explore, Insights and More.',
+    alt: 'Lyst Data as a flow: sources on the left (Files 4, CRM pipeline 1, Connect), five datasets in the middle, each drawn by its shape with rows and data-through date and two marked “1 to fix”, and the metrics they feed on the right, joined by lines; a line above links straight to what needs fixing.',
     callouts: [
-      { icon: 'LayoutGrid', text: 'What matters about each dataset', x: '54%', y: '35.5%' },
-      { icon: 'Sparkles', text: 'Explore, Insights or More', x: '74%', y: '91%' },
+      { icon: 'Workflow', text: 'From source, to dataset, to metric', x: '52%', y: '20%' },
+      { icon: 'BarChart3', text: 'Each dataset drawn by its shape', x: '37%', y: '86%' },
     ],
   },
   {
     id: 'trust', tab: 'Trust', img: trustLight, dark: trustDark,
-    alt: 'A dataset in Lyst, “P&L from the ledger”, with its sensitivity level, source of truth, and “Before you rely on it · 3”: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look).',
+    alt: 'A picked dataset in Lyst, “P&L from the ledger”, open below the flow with a one-sentence summary, Explore, Analyze and More, and its Quality tab: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look), then its sensitivity and source of truth.',
     callouts: [
-      { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '45%', y: '70%' },
+      { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '72%', y: '35.5%' },
+      { icon: 'MousePointerClick', text: 'Explore, Analyze or More', x: '50%', y: '30%' },
     ],
   },
   {
@@ -101,26 +102,26 @@ const views: View[] = [
   },
   {
     id: 'brain', tab: 'Brain', img: brainLight, dark: brainDark,
-    alt: 'Lyst Brain: one line on what it knows (6 approved metrics, 5 datasets, memories) and what needs you, four sections (Overview, Work, Knowledge, Specializations), and a search for “revenue” listing metrics, columns and a dataset, each with Open and Ask, then Used lately and Learned lately.',
+    alt: 'Lyst Brain as a field of what it knows: collection pills (Everything 14, Metrics 6, Datasets 5, Terms, Memories, Answers), a search, and the field with Operating margin picked: lines to what it reads and where it is used, and a side panel with its value (32.4%), a trend, its definition, what it connects to, Ask about it and Open.',
     callouts: [
-      { icon: 'Brain', text: 'What it knows, in one calm line', x: '74%', y: '25.6%' },
-      { icon: 'Search', text: 'Search first, then open it or ask', x: '50%', y: '38%' },
-    ],
-  },
-  {
-    id: 'graph', tab: 'Map', img: graphLight, dark: graphDark,
-    alt: 'Lyst Brain › Knowledge › Graph: an interactive map joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
-    callouts: [
-      { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '42%', y: '86%' },
-      { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '42%', y: '55%' },
+      { icon: 'Orbit', text: 'Everything Lyst knows, in one field', x: '18%', y: '78%' },
+      { icon: 'Share2', text: 'Pick anything to see what it connects to', x: '33%', y: '47%' },
     ],
   },
   {
     id: 'specs', tab: 'Experts', img: specsLight, dark: specsDark,
     alt: 'Lyst Brain › Specializations: 136 kinds of analyst work across 11 areas, 136 operational, with a search box, an area filter, and specializations such as Data Analyst, Business Intelligence Analyst and Business Analyst, each marked Operational.',
     callouts: [
-      { icon: 'GraduationCap', text: '136 kinds of analyst work', x: '45%', y: '23.6%' },
-      { icon: 'BadgeCheck', text: 'All 136 Operational', x: '73%', y: '23.6%' },
+      { icon: 'GraduationCap', text: '136 kinds of analyst work', x: '45%', y: '36%' },
+      { icon: 'BadgeCheck', text: 'All 136 Operational', x: '73%', y: '36%' },
+    ],
+  },
+  {
+    id: 'settings', tab: 'Settings', img: settingsLight, dark: settingsDark,
+    alt: 'Lyst Settings: seven sections in one list (Account, Workspaces, Connections, Models & Voice, Privacy & Security, Preferences, Advanced) and Lyst’s own check of the setup, open on “1 thing to look at”: no model is connected yet, with a link that opens Models & Voice.',
+    callouts: [
+      { icon: 'ListChecks', text: 'Seven sections, one list', x: '19%', y: '72%' },
+      { icon: 'Stethoscope', text: 'Lyst checks its own setup', x: '70%', y: '41%' },
     ],
   },
   {
