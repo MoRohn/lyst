@@ -12,8 +12,8 @@
 
 ``POST /v1/workspaces/{ws}/chat/tickets``
     A chat ticket for the signed-in person (``lyst.tickets``): what the interface hands a browser so the AI SDK can
-    use the two chat routes for this workspace, and nothing else, for 15 minutes. Send it as
-    ``Authorization: Ticket <ticket>``. The chat routes answer cross-origin requests only from the interface's own
+    use the two chat routes for this workspace, and generate or open a Lyst App (``lyst.api.apps``), and nothing else,
+    for 15 minutes. Send it as ``Authorization: Ticket <ticket>``. These routes answer cross-origin requests only from the interface's own
     origins (``LYST_UI_ORIGINS``, comma-separated; by default the local interface at ``lyst.localhost``, ``localhost``
     and ``127.0.0.1`` on ``LYST_UI_PORT``).
 
@@ -57,7 +57,9 @@ class ChatIn(BaseModel):
     autonomy: str | None = None
 
 
-CHAT_PATH = re.compile(r"^/v1/workspaces/[^/]+/chat(?:/[^/]+/stream)?$")
+# the routes a chat ticket opens, and the only ones that answer the interface cross-origin: the chat, its resume, and
+# generating or opening a Lyst App (lyst.apps)
+CHAT_PATH = re.compile(r"^/v1/workspaces/[^/]+/(?:chat(?:/[^/]+/stream)?|apps/generate|apps/app_[a-z0-9]+/open)$")
 
 
 def ui_origins() -> set[str]:
@@ -137,13 +139,14 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return Principal(rows[0]["id"], rows[0]["email"], token_label=tickets.LABEL)
 
     ChatUser = Annotated[Principal, Depends(chat_user)]  # noqa: N806 - a type alias, as User is
+    app.state.chat_user = ChatUser  # the apps routes a ticket also opens (api/apps.py)
 
     @app.post("/v1/workspaces/{ws}/chat/tickets")
     def chat_ticket(request: Request, ws: str, user: User):
         if user.token_label == tickets.LABEL:  # not reachable with a ticket today; kept explicit so it never becomes so
             raise AccessDenied("a chat ticket cannot issue another")
         L(request).guard.require(user, ws, "analyst.ask")
-        return {**tickets.issue(user.user_id, ws), "api": f"/v1/workspaces/{ws}/chat"}
+        return {**tickets.issue(user.user_id, ws), "api": f"/v1/workspaces/{ws}/chat", "apps": f"/v1/workspaces/{ws}/apps"}
 
     @app.post("/v1/workspaces/{ws}/chat")
     async def chat(request: Request, ws: str, body: ChatIn, user: ChatUser):

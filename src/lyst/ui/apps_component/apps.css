@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Copyright (C) 2026 Rohn Springfield */
+/* The frame around a Lyst App. The app itself draws inside a sandboxed iframe with the page's tokens passed in. */
+
+.la { display: flex; flex-direction: column; gap: 8px; color: var(--lyst-text, #16181d); }
+.la-status { font-size: .8125em; color: var(--lyst-text-muted, #5f6470); min-height: 1.2em; }
+.la-status.is-live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%;
+  background: var(--lyst-accent, #0b6b64); animation: la-breathe 1.6s cubic-bezier(.2, .7, .2, 1) infinite; }
+.la-status.is-error { color: var(--lyst-bad, #b42318); }
+.la-frame { width: 100%; height: 120px; border: 0; background: transparent; color-scheme: normal; }
+@keyframes la-breathe { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .la-status.is-live::before { animation: none; } }

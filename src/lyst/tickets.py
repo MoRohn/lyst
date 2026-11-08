@@ -6,8 +6,8 @@ The interface runs on the server and holds the person's session; the browser nev
 the interface asks the engine for a ticket (``POST /v1/workspaces/{ws}/chat/tickets``, signed in as the person) and
 hands only the ticket to the page. A ticket:
 
-* works only on the chat routes (``POST /v1/workspaces/{ws}/chat`` and its resume ``GET``), only for the workspace it
-  names; every other route refuses it, because it is not a session token and the session check never sees it;
+* works only on the chat routes (``POST /v1/workspaces/{ws}/chat`` and its resume ``GET``) and on generating and
+  opening a Lyst App (``POST .../apps/generate``, ``GET .../apps/{id}/open``), only for the workspace it names; every other route refuses it, because it is not a session token and the session check never sees it;
 * acts as the person who asked for it, so every permission check (``analyst.ask``, ``workspace.read``) still runs on
   each request, and a person removed from the workspace loses access at once;
 * expires after ``TTL`` seconds (15 minutes; the interface issues a fresh one on every redraw);
