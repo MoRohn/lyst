@@ -331,8 +331,8 @@ def view_dashboard(item: dict, *, key: str = "", actions: bool = True) -> None:
     view opens in the viewer and in place under the answer that built it, so nobody has to run the app to see it."""
     import pandas as pd  # noqa: PLC0415
 
-    from lyst import answer_view  # noqa: PLC0415
     from lyst.ui.components import chart  # noqa: PLC0415
+    from lyst.ui.scenarios import fmt  # noqa: PLC0415
 
     api, ws = client(), _ws()
     did = item.get("ref_id") or item["id"]
@@ -369,10 +369,10 @@ def view_dashboard(item: dict, *, key: str = "", actions: bool = True) -> None:
         change, good = "", None
         if len(vals) > 1:
             d = vals[-1] - vals[-2]
-            change = f"{d * 100:+.1f} pts" if fmt_ == "percent" else ("+" if d >= 0 else "") + answer_view.fmt(d, fmt_)
+            change = f"{d * 100:+.1f} pts" if fmt_ == "percent" else ("+" if d >= 0 else "") + fmt(d, fmt_)
             good = (d >= 0) == bool(m.get("higher_is_better", True)) if d else None
         with tiles[i % len(tiles)], kit.card(f"dbt_{k}_{i}"):
-            st.html(visuals.metric_tile({"title": m["title"], "value_text": answer_view.fmt(vals[-1], fmt_),
+            st.html(visuals.metric_tile({"title": m["title"], "value_text": fmt(vals[-1], fmt_),
                                          "change_text": change, "good": good, "history": vals[-12:],
                                          "grain": man.get("grain") or "month"}))
     periods = sorted({str(p)[:10] for _, s, _ in series for p in s["period"]})
