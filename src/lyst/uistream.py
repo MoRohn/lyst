@@ -85,6 +85,15 @@ def _step_id(task_id: str, step: dict[str, Any]) -> str:
     return f"{task_id}:{step.get('seq')}"
 
 
+def _step_title(step: dict[str, Any]) -> str:
+    """What a person reads for a step: the capability, then what it worked on ("metric value · revenue · Q3 2026")."""
+    args = step.get("args") if isinstance(step.get("args"), dict) else {}
+    period = args.get("period")
+    bits = [str(step.get("capability") or step.get("phase") or "step").replace("_", " "), args.get("metric"),
+            args.get("dimension") or args.get("by"), period.get("label") if isinstance(period, dict) else None]
+    return " · ".join(str(b) for b in bits if isinstance(b, str | int) and str(b).strip())
+
+
 def _step_output(step: dict[str, Any]) -> dict[str, Any]:
     return {k: step[k] for k in _OUTPUT_KEYS if step.get(k) is not None}
 
@@ -144,7 +153,7 @@ class TaskStream:
             out += [{"type": "start-step"},
                     {"type": "tool-input-available", "toolCallId": sid, "toolName": capability,
                      "input": step.get("args") or {}, "dynamic": True,
-                     "title": str(step.get("phase") or capability).replace("_", " ")}]
+                     "title": _step_title(step)}]
         if now == "done":
             out += [{"type": "tool-output-available", "toolCallId": sid, "output": _step_output(step), "dynamic": True},
                     {"type": "finish-step"}]

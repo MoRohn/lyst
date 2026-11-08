@@ -83,17 +83,43 @@ gets `text-end`, and the answer is not sent twice. Any other draft is removed wi
 follows. A new epoch (a retry, or the wording withdrawn) removes the draft the same way. If workers run in another
 process, the stream has no draft and shows the answer when the task ends.
 
+## The live answer in the interface (shipped)
+
+`lyst.ui.live_answer.live_answer(chat_id, ask=..., ask_id=...)` draws a `st.components.v2` component that runs the
+AI SDK client in the browser (`DefaultChatTransport` and `readUIMessageStream` from `ai`). It reads the engine's
+stream directly, so the answer is drawn as it is written and Streamlit reruns never interrupt it. It shows the status,
+each step with what it worked on ("metric value · revenue · Q3 2026"), the answer forming with a caret, the datasets
+read, and approvals waited on. When the answer is finished it offers "Open answer". It reports `done`, `open` and
+`error` to Python. A stream cut by a reload resumes. Where it sits on each page is the page owner's decision.
+
+**The browser holds only a chat ticket** (`lyst.tickets`, decided 2026-11-08). The interface keeps the person's
+session on the server. To stream, it asks `POST /v1/workspaces/{ws}/chat/tickets` for a ticket and hands only the
+ticket to the page, sent as `Authorization: Ticket <ticket>`. A ticket:
+
+- opens the two chat routes, for its workspace, and nothing else;
+- acts as the person who holds it, so every permission check still runs, and removal from the workspace takes
+  effect at once;
+- expires in 15 minutes, and the interface renews it on redraw;
+- is an HMAC over its claims with a key held only in the engine's memory, so a restart invalidates every ticket.
+
+The chat routes answer cross-origin requests only from the interface's origins (`LYST_UI_ORIGINS`; by default the
+local interface on `LYST_UI_PORT`). Every other route stays same-origin. `LYST_PUBLIC_API_URL` is where the browser
+reaches the engine, when that differs from `LYST_API_URL`.
+
+**Build.** `ui-src/live` holds the source and pins `ai`. `npm ci && npm run build` writes
+`src/lyst/ui/live_component/live.js` (about 190 KB, 53 KB gzipped) and `THIRD_PARTY_LICENSES.txt` beside it, and fails
+on a license Lyst may not ship. The bundle is committed, so installing Lyst needs no Node.
+`tests/test_chat_tickets.py` checks that the bundle carries the pinned version and only allowed licenses. It was also
+checked in Chromium against a running engine, cross-origin with a ticket, in light and dark.
+
 ## Next, in order
 
-1. **A live answer component.** A bundled Streamlit component built on the AI SDK's `Chat` that renders the stream:
-   steps as they run, sources and charts, approvals inline. Steering (`steering-message`) lets a person add
-   "also by region" mid-run as a follow-up. Its placement on pages is the Redesign lane's call.
-2. **Generative micro-apps (Lyst Apps).** The model streams an app spec as structured output, rendered live while
+1. **Generative micro-apps (Lyst Apps).** The model streams an app spec as structured output, rendered live while
    it is generated (`tool-input-delta` / partial JSON), against a closed component catalog: KPI, trend, breakdown,
    table, filter, what-if slider, note. The model never writes code and never supplies a number. Every value is a
    binding to a governed metric or dataset that the semantic layer resolves, as with Studio dashboards. Apps render
    in a sandboxed iframe (`sandbox="allow-scripts"`, `default-src 'none'`, data by `postMessage`). Each app is a
    versioned asset with dependencies and health scans (workspace migration 130).
-3. **Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
+2. **Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
    works in any client. The response is enforced by `runtime.decide`: role checks still apply, and the proposer of
    a capability still cannot approve it.

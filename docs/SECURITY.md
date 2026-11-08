@@ -16,6 +16,7 @@ secrets, session tokens, the master encryption key, model API keys, audit histor
 | Boundary | Trusted side | Untrusted side |
 |---|---|---|
 | Browser ↔ API | the API after `Guard.authenticate` | every request |
+| Browser ↔ chat routes (live answer) | the API after a chat ticket is verified (`lyst.tickets`) | the page, which holds only a 15-minute ticket for one workspace's chat routes, never the session |
 | API ↔ engine services | services, which re-check permission per call | arguments from any client, including MCP |
 | Engine ↔ source systems | Lyst's read-only connector session | the source's content (rows, documents) |
 | Engine ↔ model providers | nothing: model output is advisory | all model output; all prompts are data |
@@ -157,6 +158,8 @@ and no capability in the registry calls them.
 | Cross-workspace access | One encrypted DuckDB file per workspace; dataset names resolve only inside the workspace; roles per workspace | `test_security.py` |
 | Privilege escalation through a request or a model | Permissions checked in code per capability and service call; unknown actions denied; model output never selects permissions | `test_security.py`, `test_adversarial.py` |
 | SQL injection / data exfiltration through user SQL | SQLGlot parse, single read statement, allow-listed shape, deny-listed functions, no schema-qualified names, column policies, row limit; DuckDB `enable_external_access=false` with the configuration locked | `test_sqlguard.py`, `test_store.py` |
+| A browser script (an XSS) taking the live answer's credential | The page holds only a chat ticket: two routes (ask, resume) in one workspace, 15 minutes, acting as its holder under every permission check, invalid after an engine restart; other routes refuse it; cross-origin only from `LYST_UI_ORIGINS` | `test_chat_tickets.py` |
+| A model's wording seen before it is checked (streamed answers) | Streamed text passes a figure check as it is written (only backed figures are shown); the draft is kept only if it is exactly the stored answer, else removed | `test_live_drafts.py` |
 | Prompt injection via documents, rows or requests | Retrieved text is fenced as data; numbers in model text must match computed values or the model text is discarded; approved definitions are the only source of metric logic | `test_adversarial.py` |
 | Malicious or buggy skills | Static check (imports, builtins, attributes), separate `python -I` process, empty environment, CPU and file limits, wall-clock timeout, adversarial cases, approval by a non-proposer | `test_skills.py`, `test_foundry.py` |
 | Connector misuse | Read-only transactions, identifier validation, secrets in their own column and never returned, files confined to the import root | `test_connectors.py` |
