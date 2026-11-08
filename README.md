@@ -118,14 +118,21 @@ words.
 | Area | What you do there |
 |---|---|
 | **Home** | One question, "What should Lyst work on?", and a composer that grows as you write (Shift+Enter for a new line; on focus it offers **Add data** and keyboard hints). Ask, and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows up to three starters and at most one focus line (a question that needs your input, an answer that did not verify, a blocked run, or "add data" on an empty workspace), never a list. The dock at the foot holds work in progress, what needs you, **Get started** (the guide opens as a sheet) and **Recent** |
-| **Data** | Opens with Lyst's read on the data in one line ("1 of 4 datasets needs attention…", with **Review**), then a library rail of datasets, approved metrics and dashboards, and tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. Each dataset card says what matters (sensitivity, what it is, rows, how recent, which measures it feeds) and offers **Explore** (the full record, schema included), **Insights** (Lyst says what stands out) and **More** (check data quality, or ask a question about this dataset). **Add data** uploads a file, connects a source, or proposes connections from an API description |
-| **Brain** | One calm line on what Lyst knows and is doing, then four sections. **Overview** (the default) searches everything Lyst knows (definitions, datasets, earlier answers, documents), each result with **Open** and **Ask**, and lists the measures and expertise used lately and what it learned lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **Knowledge** holds Definitions, Documents, Memory (with memories waiting for review) and the **Map** of how everything links, with graph runs. **Specializations** is the catalog of 136 kinds of analyst work |
-| **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
+| **Data** | Opens as a flow: where the data comes from (**From**), the datasets, and the approved metrics they **Feed**, joined by lines (solid from source to dataset, dashed from dataset to metric). Each dataset's face is its *shape*, one bar per column coloured by what the column holds. Hover, focus or pick anything and its whole path lights up, upstream and downstream, so "what depends on this?" is answered by looking. Picking a dataset opens its panel below with one sentence on it (including the metrics it feeds) and **Explore** (preview, columns, quality, relationships, SQL and contract), **Analyze** (Lyst reads the dataset) and **More** (quality checks, ask about it, build a dataset, activity). Picking a source keeps the flow in view and adds its kind, health and **Manage source**; a metric opens its definition in Brain. Above the flow sit Lyst's one line on the data (a link straight to the quality checks when a dataset needs a look), **Find a dataset**, **Add data** and **More** (Sources, Dashboards, Saved analyses, SQL with a sandboxed **Python** tab, and How the data connects). The keyboard works throughout |
+| **Brain** | Opens on a map of what Lyst knows: metrics, datasets, terms, memories and answers, gathered by kind, with pills to filter and a search that highlights matches. Pick a thing and only its relationships are drawn; a panel says what it is (a metric shows its value and trend), what it connects to (each a step further), and offers **Ask about it** and **Open**. With nothing picked, the panel shows what Lyst learned and used lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **More** holds Definitions, Documents, Memory (with memories waiting for review), Graph (with graph runs and the harness) and Specializations, the catalog of 136 kinds of analyst work |
+| **Settings** | Seven sections in one native-style list: **Account** (who you are, your workspaces, personal keys, sign out), **Workspaces** (members, business profile, usage and limits, move or copy), **Connections** (credentials, notifications and webhooks), **Models & Voice**, **Privacy & Security** (the external-model switch, data policy and audit trail), **Preferences** (autonomy, working ahead, event rules, the Get started guide) and **Advanced** (skills, capabilities, evaluation runs, health, backups). Lyst checks the setup itself (no model connected, data not encrypted at rest, a failing health check) and opens the section that fixes it, or says in one quiet line that nothing needs a look. Technical controls such as the full model list and prices, installation policy, who reads what and the full audit trail open as sheets |
 
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.png">
   <img src="docs/images/home.png" alt="Home: Lyst's mark over What should Lyst work on?, the composer, three starter questions, the dock with Get started and Recent, and the slim icon rail">
+</picture>
+</p>
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/settings-dark.png">
+  <img src="docs/images/settings.png" alt="Settings: seven sections in a native list (Account, Workspaces, Connections, Models & Voice, Privacy & Security, Preferences, Advanced), with 1 thing to look at from Lyst's own check of the setup" width="85%">
 </picture>
 </p>
 
@@ -150,11 +157,11 @@ content, and open in an immersive viewer made for each kind: an interactive dash
 as slides, a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to
 refine it in words ("break that down by region", "compare it to last year", "every Monday", however you phrase or
 quote it), see its versions, pin it to Home's **Recent**, and return exactly where you were. Every chart in an answer
-appears under **Made in this answer**, Data › Dashboards is the gallery of everything made, and ⌘K finds artifacts
+appears under **Made in this answer**, Data › More › Dashboards is the gallery of everything made, and ⌘K finds artifacts
 by title.
 
-Data and Brain are workspaces too. Data › Datasets shows **Cards** or a **Map** of how datasets connect through the
-columns they share; Brain › Definitions shows each definition as what it means and how it is built, or a **Map**
+Data and Brain have deeper views a step away. Data › More › **How the data connects** is a map of how datasets connect
+through the columns they share; Brain › More › Definitions shows each definition as what it means and how it is built, or a **Map**
 from data to approved metrics.
 
 <table>
@@ -164,9 +171,9 @@ from data to approved metrics.
   </tr>
 </table>
 
-### Brain › Knowledge › Map, and graph runs
+### Brain › More › Graph, and graph runs
 
-Brain › Knowledge › **Map** shows every dataset, approved metric, business term, document, memory, business
+Brain › More › **Graph** shows every dataset, approved metric, business term, document, memory, business
 entity, analysis and artifact, plus graph runs and the rules they learned. A link is a relation Lyst recorded or a
 literal mention, never an inferred one. Search, zoom, pan, drag, hide a kind from the legend, or use **List** from
 the keyboard; clicking a node shows its backlinks and opens it where it lives.
@@ -188,7 +195,7 @@ way; and the morning brief and weekly review are produced on request, not yet on
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/brain-graph.png" alt="Brain, Graph, Map: metrics, datasets, memories, analyses and a graph run linked where Lyst recorded a relation, with a legend and a side panel"><br><b>Brain › Graph</b>: what Lyst knows, and how it links</td>
+    <td width="50%"><img src="docs/images/brain-graph.png" alt="Brain, Graph, Map: metrics, datasets, memories, analyses and a graph run linked where Lyst recorded a relation, with a legend and a side panel"><br><b>Brain › More › Graph</b>: what Lyst knows, and how it links</td>
     <td width="50%"><img src="docs/images/graph-run.png" alt="A graph run: Planner, three Builders, three Checkers, Gate and Router, Merge and Done, all branches passed"><br><b>A graph run</b>: three branches built, checked and merged</td>
   </tr>
 </table>
@@ -237,16 +244,19 @@ change it and whether it can be repeated, from the engine's own records.
   <tr>
     <td width="50%"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/brain-dark.png">
-  <img src="docs/images/brain.png" alt="Brain: one line on what Lyst knows and is doing, the four sections, search, Used lately and Learned lately">
-</picture><br><b>Brain › Overview</b>: search first, then what was used and learned lately</td>
+  <img src="docs/images/brain.png" alt="Brain: one line on what Lyst knows, Overview, Work and More, a search, filter pills, and a field of metrics, datasets and terms gathered by kind beside what Lyst learned lately">
+</picture><br><b>Brain</b>: a map of what Lyst knows</td>
     <td width="50%"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/data-dark.png">
-  <img src="docs/images/data.png" alt="Data: Lyst's one-line read on the data with Review, the library rail, and dataset cards with Explore, Insights and More">
-</picture><br><b>Data</b>: Lyst's read first; each card with Explore, Insights and More</td>
+  <img src="docs/images/data.png" alt="Data as a flow: Files feed four datasets, each drawn by its column shape, which feed six approved metrics, with one dataset marked 1 to fix">
+</picture><br><b>Data</b>: from where data comes from, to the metrics it feeds</td>
   </tr>
   <tr>
-    <td><img src="docs/images/brain-search.png" alt="Brain search for margin: COGS ratio, Operating margin, a saved analysis and an earlier answer, each with Open and Ask"><br><b>Search what Lyst knows</b>: open it, or ask about it</td>
-    <td><img src="docs/images/work.png" alt="Brain, Work: needs you, activity filters (Running, Done, Stopped, Automatic, Decisions, Published) and recurring"><br><b>Brain › Work</b>: needs you, activity and recurring runs</td>
+    <td><img src="docs/images/brain-picked.png" alt="Brain with Operating margin picked: only its link to Monthly P&L is drawn, and a panel shows 32.4%, its trend, its definition, what it connects to, Ask about it and Open"><br><b>Pick a thing</b>: only its relationships are drawn</td>
+    <td><img src="docs/images/data-path.png" alt="Data flow with Monthly P&L under the pointer: its source and the five metrics it feeds light up while everything else steps back"><br><b>Hover a dataset</b>: its whole path lights up</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/images/work.png" alt="Brain, Work: needs you, activity filters (Running, Done, Stopped, Automatic, Decisions, Published) and recurring" width="50%"><br><b>Brain › Work</b>: needs you, activity and recurring runs</td>
   </tr>
 </table>
 
@@ -264,7 +274,7 @@ any drift reported.
 
 On an answer whose metric has a driver model, **What if…? Explore** opens sliders for each driver, shows base →
 scenario marked Better or Worse, where the starting figures come from, **How sensitive is it?** and **Save this
-scenario**. Saved scenarios live in Data › Saved analyses › Scenarios with Explore, Open and Re-run.
+scenario**. Saved scenarios live in Data › More › Saved analyses › Scenarios with Explore, Open and Re-run.
 
 Decisions get the same care. Lyst tells an analytical question apart from a decision that needs authority,
 compares options on weighted criteria and constraints under uncertainty, finds where the leading option would
@@ -282,7 +292,7 @@ start one with **Compare options** on an answer, and records are listed in Brain
 
 ### Dashboards from a sentence
 
-Data › Dashboards › **New dashboard** turns a request into a Plotly Dash app on Lyst's own kit
+Data › More › Dashboards › **New dashboard** turns a request into a Plotly Dash app on Lyst's own kit
 (`src/lyst/dashkit`, vendored into each app so it runs anywhere with PyPI packages only): governed metrics,
 verified SQL, KPI cards, a trend with a forecast band, click-to-filter breakdowns, and a Data and method page.
 Every generated app is checked in a separate interpreter before it is offered.
@@ -332,7 +342,7 @@ dimensions, and overlapping sources reconciled by their totals.
 
 ### Sources that tell you what is wrong
 
-Data › Datasets › **Sources** lists each connection with a health chip (**Healthy**, **Degraded**, **Failing**,
+Data › More › **Sources** lists each connection with a health chip (**Healthy**, **Degraded**, **Failing**,
 **Needs action**, **Not tested**). When something is wrong, the row says the one thing to do instead of the
 usual details. A source's dialog shows the cause in plain words (sign-in, permissions, rate limit, time-out, the
 source itself), the last 24 hours of operations, errors and retries, every table it feeds with its sync mode,
@@ -351,7 +361,7 @@ Reports (PDF briefings, workbooks, decks), dashboards and saved analyses share o
 versions, validation status, and the question, dataset versions and metric versions each was built from. Every
 new data load and definition change re-assesses them, and the owner hears once when one stops matching the data.
 
-In Data › Dashboards and Saved analyses, a row gets a chip only when it needs attention: **Out of date** (newer
+In Data › More › Dashboards and Saved analyses, a row gets a chip only when it needs attention: **Out of date** (newer
 data), **Needs rebuilding** (a definition changed), **Broken** (an upstream contract break) or **Updating**.
 **Reports from answers** lists every briefing, deck and workbook downloaded from an answer, with **Check all**.
 Opening one says why in words and offers one button: **Refresh it** for a dashboard (the previous version is
@@ -420,7 +430,7 @@ where they point, with Mark all read and "What to tell me about".
   When a question is routed to specialists, their discipline's checks apply and can only tighten verification; the
   answer reports each as passed, failed or not applicable, and says which cannot yet be run automatically. Lyst
   also checks that an answer addresses the question it was asked: a specialist request that a governed metric
-  cannot answer is flagged instead of being answered with the nearest number. Brain › **Specializations** lists
+  cannot answer is flagged instead of being answered with the nearest number. Brain › More › **Specializations** lists
   all 136 with the evidence behind each, and example questions can be asked in one click. An audit of every role's
   example requests is in [docs/SPECIALIZATIONS_AUDIT.md](docs/SPECIALIZATIONS_AUDIT.md)
   ([docs/SPECIALIZATIONS.md](docs/SPECIALIZATIONS.md)).
@@ -456,7 +466,7 @@ where they point, with Mark all read and "What to tell me about".
   Lyst's databases, keys or home folders and has no network access. Every run records its code, inputs, data
   versions and software environment, so it can be reproduced and compared, and a result table can be saved as a
   dataset with its lineage. On macOS the sandbox is verified by tests; on Linux it uses bubblewrap. It lives in
-  Data › SQL › **Python** ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
+  Data › More › SQL › **Python** ([docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md)).
 * **Voice.** Ask a question out loud and hear the verified answer read back, with the full result on screen. A
   spoken question goes through the same Analyst as a typed one, picks the same expertise and runs as you, through
   the same permissions, data policy and budgets as a typed one. Voice cannot approve, delete, send or export
@@ -466,7 +476,7 @@ where they point, with Mark all read and "What to tell me about".
   an NVIDIA PersonaPlex server on your own GPU can add full-duplex conversation (Lyst never bundles its weights,
   and that path has not yet been verified on real hardware). On screen: **Speak** beside the ask box (push-to-talk
   or hands-free, using the browser's own speech, and talking over Lyst stops it; when recognition is not
-  confident, Lyst asks "I heard … Ask this?"), and Settings › **Voice** for your mode, reading aloud and speaking
+  confident, Lyst asks "I heard … Ask this?"), and Settings › **Models & Voice** for your mode, reading aloud and speaking
   style, the workspace's rules, and every engine with its honest support label ([docs/VOICE.md](docs/VOICE.md)).
 
 ### Your data
@@ -481,7 +491,7 @@ where they point, with Mark all read and "What to tell me about".
   changed, and which credential the API expects. Each draft is tested against the live API without loading any
   data (the token is used once and never stored, and samples are masked), then approved by an admin other than the
   person who drafted it. Drafts are settings for Lyst's reviewed REST connector, never generated code. On screen:
-  **Add data › From an API description**, then Data › Sources › **Proposed connections**, where each draft
+  **Add data › From an API description**, then Data › More › Sources › **Proposed connections**, where each draft
   explains itself and offers **Run a dry test**, **Approve and connect** or **Reject**.
 * **Reads any file, and shows you first.** **Add data › Upload a file** takes Excel workbooks (every table on
   every sheet, merged and two-row headers folded, units and scale read from headers, formula columns reported,
@@ -497,7 +507,7 @@ where they point, with Mark all read and "What to tell me about".
   columns are not mostly empty, and summed measures reconcile with their inputs. Fragile SQL is flagged and each
   query's inputs, joins and grouping are explained. With a model configured, it can be designed from a sentence
   (the model sees names, types and relationships, never rows). It reruns when an input gets a new version, keeps
-  the last good version if a run fails, and carries lineage to every input. On screen: Data › Datasets › **Build a
+  the last good version if a run fails, and carries lineage to every input. On screen: a picked dataset's **More** › **Build a
   dataset from data Lyst has** (describe it or write the query, **Run and check**, then **Save as a dataset**), and
   a built dataset's Overview says in words how it is made, with **Run again** and **Retire**.
 * **Knows which source wins.** An administrator can mark a dataset as the authoritative source (optionally for a
@@ -512,7 +522,7 @@ where they point, with Mark all read and "What to tell me about".
 * **Remembers carefully.** Each memory records the datasets and metric versions it was learned from, and is
   flagged as possibly out of date, with the reason, when a source has a newer version or is gone, a definition
   changed, or it is older than a year. Recall ranks memories that still apply first, an answer that draws on a
-  stale one says it "may no longer apply", and admins review them in Brain › Memory. Memory is governed: only an
+  stale one says it "may no longer apply", and admins review them in Brain › More › Memory. Memory is governed: only an
   admin takes back approved memory, only its owner changes private memory, and revoking something that is not
   there is an error, not a silent success. Recall reads a bounded set (approved first, then person-validated, then
   the newest observations) so it stays fast at tens of thousands of memories. Agent-observed memory expires after
@@ -536,7 +546,7 @@ where they point, with Mark all read and "What to tell me about".
   with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Brain › Work › Recurring
   (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for items that
   need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and **Working
-  ahead** in Settings › Workspace to pick the level and see today's use against the daily limits. The **Why**
+  ahead** in Settings › Preferences to pick the level and see today's use against the daily limits. The **Why**
   dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback. From metadata it
   already records, without contacting any source, Lyst also warns before integrations and data changes break work:
   a credential nearing its recorded expiry or past rotation age, with the scheduled runs and reports it feeds and
@@ -562,7 +572,7 @@ where they point, with Mark all read and "What to tell me about".
   repair. Each rule has a ceiling on how far it may go on its own, a daily cap and quiet periods, can be dry-run
   against recent events first, and anything that changes something waits for approval. Seven templates cover data
   quality, schema changes, broken reports, metric deviations, recoverable failures, definition changes and failing
-  connections. Rules live in Settings › Workspace › **Event rules**, and what they started shows in Brain › Work ›
+  connections. Rules live in Settings › Preferences › **Event rules**, and what they started shows in Brain › Work ›
   Activity › **Automatic** ([docs/EVENTS.md](docs/EVENTS.md)).
 * **Knows what can be done with each thing, and by whom.** Every dataset, metric, answer, report, workflow,
   scenario model and decision record knows the actions available on it right now for the person looking, filtered
@@ -600,7 +610,7 @@ where they point, with Mark all read and "What to tell me about".
   after downtime and record what they missed, never double a run still going, and tell the owner when a run
   finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
   admins get an operations report (queues, failures, run times, spend against budget). On screen, Settings ›
-  Workspace › **Usage & limits** shows spend, tokens and tasks against the limits; Brain › Work › **Recurring** shows each
+  Workspaces › **Usage & limits** shows spend, tokens and tasks against the limits; Brain › Work › **Recurring** shows each
   schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
   [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
@@ -619,7 +629,7 @@ where they point, with Mark all read and "What to tell me about".
   exporters, not in prompts: restricted data is refused with a plain "ask <owner> for access", and results from it
   never reach an external model or an exported file. Anyone can check ahead of time whether work would be allowed,
   narrowed or refused, and why; administrators also see the rule. On screen: a dataset's Overview shows its
-  **Sensitivity** in words, and Settings › Workspace › **Data policy** sets who reads each level and what may
+  **Sensitivity** in words, and Settings › Privacy & Security › **Data policy** sets who reads each level and what may
   leave.
 * **Explains what it asks you to approve.** Each approval and review states the action, why, what it affects
   (including reports built on a changed definition), the expected result, how to undo it, and a risk level from
@@ -651,8 +661,8 @@ where they point, with Mark all read and "What to tell me about".
   business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
   resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
   shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer. On
-  screen: **Get started** in Home's dock, **Suggestions** in Data › Datasets (with **Study the data again**), and
-  the industry picker and **Business profile** in Settings › Workspace ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
+  screen: **Get started** in Home's dock, **Suggestions** under the Data flow (with **Study the data again**), and
+  the industry picker and **Business profile** in Settings › Workspaces ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
 * **Publishes a finished answer.** **Share › Publish** turns an answer into a read-only, versioned page of the
@@ -666,13 +676,13 @@ where they point, with Mark all read and "What to tell me about".
   addresses. The Python SDK `lyst-client` (`pip install ./sdk/python`) covers files, questions, SQL, events and
   webhooks with typed errors and safe retries, and a recorded API contract keeps the HTTP API from breaking
   callers. The MCP server marks which tools only read, audits every call, keeps results within a size budget, and
-  can read files and report what changed. Admins manage webhooks in Settings › Workspace › **Webhooks** (Test,
+  can read files and report what changed. Admins manage webhooks in Settings › Connections › **Webhooks** (Test,
   Pause, a delivery log with resend, and a signing secret shown once).
 * **Moves a whole workspace in one sealed file.** Datasets and their versions, definitions, knowledge, dashboards
   and reports, members and history travel in one file encrypted with a passphrase; any tampering or truncation is
   caught before anything is read. Credentials never travel, and data your policy keeps inside the workspace cannot
   be exported this way either. Importing always creates a new workspace, checks every part first, and arrives with
-  its schedules paused, so a copy never runs the same work twice. In Settings › Workspace › **Move or copy this
+  its schedules paused, so a copy never runs the same work twice. In Settings › Workspaces › **Move or copy this
   workspace**, you seal the workspace into a passphrase-protected pack and download it; on another installation an
   admin checks the pack and brings it in as a new workspace, with schedules paused unless they choose otherwise.
 
@@ -711,11 +721,11 @@ where they point, with Mark all read and "What to tell me about".
     <td colspan="2" align="center"><img src="docs/images/build-dataset.png" alt="Build a dataset: a query by month and region, run and checked: rows, one row per key, revenue and COGS add up to their source" width="70%"><br><b>Build a dataset</b>: checked before it is saved</td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/settings-voice.png" alt="Settings, Voice: talk by pressing Speak, read answers aloud, speaking style, the workspace's voice rules, and each speech engine with its support label"><br><b>Settings › Voice</b>: your mode, the workspace's rules, honest engine labels</td>
+    <td width="50%"><img src="docs/images/settings-voice.png" alt="Settings, Voice: talk by pressing Speak, read answers aloud, speaking style, the workspace's voice rules, and each speech engine with its support label"><br><b>Settings › Models & Voice</b>: your mode, the workspace's rules, honest engine labels</td>
     <td width="50%"><img src="docs/images/proposed-connection.png" alt="A proposed connection for /purchase-orders: why Lyst proposes it this way, its fields, the incremental column, and a dry test"><br><b>Proposed connection</b>: drafted from an API description, tested dry</td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/specializations.png" alt="Brain, Specializations: 136 kinds of analyst work, searchable, each with its maturity (Equipped or Defined)"><br><b>Brain › Specializations</b>: 136 profiles, honest maturity</td>
+    <td width="50%"><img src="docs/images/specializations.png" alt="Brain, Specializations: 136 kinds of analyst work, searchable, each with its maturity (Equipped or Defined)"><br><b>Brain › More › Specializations</b>: 136 profiles, honest maturity</td>
     <td width="50%"><img src="docs/images/workbench.png" alt="Data, SQL, Python: a sandboxed run of df.describe() over the pnl dataset, 396 rows, with its result table"><br><b>Python workbench</b>: sandboxed, recorded, reproducible</td>
   </tr>
   <tr>
@@ -739,7 +749,7 @@ OpenRouter's live catalog:
 | **Frontier** | The flagships (Claude Opus, the newest GPT, Gemini Pro, Grok) | Hard investigations |
 
 An administrator sets the default level and a ceiling; a workspace admin can also choose one specific model.
-Settings › Models shows each level's models, OpenRouter's prices, the cost per call and per 1,000 calls, and
+Settings › Models & Voice shows each level's models, OpenRouter's prices, the cost per call and per 1,000 calls, and
 30-day spend. Quick steps such as classification run with thinking off, and an empty reply fails over to the
 next model, so the computed answer always stands.
 
