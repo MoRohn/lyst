@@ -117,6 +117,38 @@ div[class*="st-key-data_ask_s"] button:hover {background: var(--lyst-surface);}
   div[data-testid="stColumn"]:has(div.st-key-lyst_card_data_library),
   div[data-testid="stColumn"]:has(div.st-key-lyst_card_sql_library) {order: 2;}
 }
+/* ---------------------------------------------------------------- Data, as objects
+   A title, one search and one way in; Lyst's one line; the sources and datasets as objects; the picked dataset
+   opens below them, its depth (preview, columns, quality, SQL...) one more gesture away. */
+.block-container:has(.lyst-data) {padding-top: 3.2rem;}
+h1.lyst-data-title {font-size: 2.6rem; letter-spacing: -.035em; font-weight: 640;}
+div.st-key-data_tools {gap: .5rem;}
+div.st-key-data_tools [data-testid="stTextInputRootElement"] {border-radius: var(--lyst-radius-pill) !important;
+  background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1); border-color: var(--lyst-edge) !important;}
+div.st-key-data_tools button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.5rem;}
+div.st-key-data_more button {background: transparent !important; box-shadow: none !important; border-color: transparent !important;}
+p.lyst-data-read {color: var(--lyst-text-muted); margin: .1rem 0 1.4rem 0; font-size: .95rem;}
+div[class*="st-key-read_"] {margin: -.2rem 0 1.1rem -.5rem;}
+div[class*="st-key-read_"] button {color: var(--lyst-text); font-size: .95rem; border-radius: var(--lyst-radius-pill);
+  padding: .3rem .7rem; min-height: 0;}
+div[class*="st-key-read_"] button:hover {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);}
+div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .8rem;}
+div.st-key-data_panel {margin-top: 1.4rem; padding: 1.5rem 1.6rem 1.3rem; border-radius: 22px; background: var(--lyst-raised);
+  border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-3); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
+.lyst-panel-kicker {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted); text-transform: uppercase;
+  letter-spacing: var(--lyst-tracking-label); font-weight: 600;}
+.lyst-panel-kicker code {text-transform: none; letter-spacing: 0; font-size: .75rem; padding: .05rem .35rem;}
+h2.lyst-panel-title {font-size: 1.55rem; letter-spacing: -.02em; margin: .25rem 0 0 0; padding: 0; font-weight: 650;}
+p.lyst-panel-read {font-size: 1rem; line-height: 1.55; max-width: 48rem; margin: .4rem 0 .9rem 0;}
+div.st-key-data_moves button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.4rem; padding: 0 1rem;}
+div.st-key-data_close button {color: var(--lyst-text-muted); justify-content: flex-end;}
+div.st-key-data_close button p {position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);}
+div.st-key-data_back button {color: var(--lyst-text-muted); padding-left: 0;}
+@media (max-width: 640px) {
+  .block-container:has(.lyst-data) {padding-top: 4rem;}
+  h1.lyst-data-title {font-size: 2rem;}
+  div.st-key-data_panel {padding: 1.1rem 1rem; border-radius: 18px;}
+}
 /* nothing here yet: a dashed panel, as on the canvas */
 div[class*="st-key-data_empty"] {border: 1px dashed var(--lyst-border); border-radius: var(--lyst-radius-xl);
   background: var(--lyst-raised); padding: .5rem 1rem 1.2rem 1rem;}
@@ -316,38 +348,20 @@ def health(d: dict) -> tuple[str, str] | None:
     return None
 
 
-@st.dialog("Dataset", width="large")
-def dataset_detail(d: dict) -> None:
-    from lyst.ui import actions  # noqa: PLC0415
+EXPLORE = ["Preview", "Columns", "Quality", "Relationships", "SQL", "Contract"]
 
+
+def explore(d: dict) -> None:
+    """A dataset, opened up: preview, columns, quality, relationships, SQL and contract, one at a time."""
     name = d["name"]
-    from lyst.ui import activity  # noqa: PLC0415
-
-    top = st.columns([4, 1.6, 1.2], vertical_alignment="center")
-    top[0].markdown(f"**{d['title']}**")
-    activity.presence("dataset", name, top[1])
-    with top[2]:  # what Lyst can do with this dataset: ask, run, approve, go to (already open here, so not Open)
-        actions.menu("dataset", name, page="data", label="More", exclude=("dataset.open",))
-    fresh = d.get("freshness") or {}
-    st.caption(" · ".join(x for x in (d.get("description"), f"{d.get('rows', d.get('row_count', 0)):,} rows",
-                                      f"data through {fresh['latest']}" if fresh.get("latest") else None,
-                                      f"updated {kit.when(d.get('refreshed_at'))}",
-                                      str(d.get("classification", "")).capitalize(),
-                                      f"called {name} in SQL") if x))
-    view = st.segmented_control("Show", ["Overview", "Preview", "Columns", "Contract"], default="Overview",
-                                label_visibility="collapsed", key=f"dsv_{name}") or "Overview"
-    if view == "Overview":
+    view = st.segmented_control("Show", EXPLORE, default="Preview", label_visibility="collapsed",
+                                key=f"dsv_{name}") or "Preview"
+    if view == "Quality":
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
         if not ins:
             return
         anticipate.about("dataset", name, key=f"hf_d{name}")
-        activity.panel("dataset", name, key=f"dsact_{name}", admin=st.session_state.get("role") in ("admin", "owner"))
-        governance.classification(name, d.get("classification"))
-        integrations.authority(name, integrations.source_authority().get(name))
         risks = ins.get("risks") or []
-        if not risks:
-            st.markdown(md(ins.get("summary") or ""))
-        kit.label(f"Before you rely on it · {len(risks)}" if risks else "Before you rely on it")
         if not risks:
             st.caption(":material/check_circle: No quality risks found: no duplicate rows at its grain, no gaps in time, "
                        "no unusual values.")
@@ -355,14 +369,9 @@ def dataset_detail(d: dict) -> None:
             text, tone = SEVERITY.get(r["severity"], (r["severity"], "info"))
             kit.row(r["text"], ", ".join(c.replace("_", " ") for c in r.get("columns", [])), status=(text, tone),
                     key=f"risk_{name}_{k}", divider=k < len(risks) - 1)
-        used = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/impact")) or []
-        kit.label("What depends on it")
-        st.caption(", ".join(f"{u['title']} ({u['kind']})" for u in used) if used else "Nothing approved reads it yet.")
-        rel = ins.get("relationships") or []
-        if rel:
-            with st.expander(f"How it connects to other data · {len(rel)}", icon=":material/hub:"):
-                st.markdown("\n".join(f"- {md(x['text'])}" for x in rel))
-        if st.button("Ask Lyst to check its quality", icon=":material/fact_check:", key=f"askq_{name}"):
+        governance.classification(name, d.get("classification"))
+        integrations.authority(name, integrations.source_authority().get(name))
+        if st.button("Ask Lyst to check its quality", icon=":material/fact_check:", key=f"askq_{name}", type="tertiary"):
             ask(f"Profile {name} for data quality issues")
     elif view == "Preview":
         r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": f'SELECT * FROM "{name}" LIMIT 50',
@@ -379,10 +388,23 @@ def dataset_detail(d: dict) -> None:
                 hits = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/impact", columns=",".join(cols))) or []
                 st.markdown("\n".join(f"- **{md(h['title'])}** ({h['kind']}): {md(h['why'])}" for h in hits)
                             if hits else "Nothing approved reads those columns.")
+    elif view == "Relationships":
+        ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights")) or {}
+        rel = ins.get("relationships") or []
+        st.markdown("\n".join(f"- {md(x['text'])}" for x in rel) if rel else "No relationship to other data found yet.")
+        used = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/impact")) or []
+        kit.label("What depends on it")
+        st.caption(", ".join(f"{u['title']} ({u['kind']})" for u in used) if used else "Nothing approved reads it yet.")
+        transforms.panel(d.get("source"))
+    elif view == "SQL":
+        q = f'SELECT *\nFROM "{name}"\nLIMIT 50'
+        st.code(q, language="sql")
+        if st.button("Open in the SQL workspace", icon=":material/terminal:", key=f"sqlo_{name}", type="tertiary"):
+            _set_sql(q)
+            st.query_params["view"] = "sql"
+            st.rerun()
     else:
         contract(name)
-    if view == "Overview":
-        transforms.panel(d.get("source"))
 
 
 def _fmt(v: object) -> str:
@@ -526,133 +548,170 @@ def enrich(catalog: list[dict]) -> list[dict]:
     return [{**d, **info.get(d["name"], {})} for d in catalog]
 
 
-def datasets(catalog: list[dict], every: list[dict]) -> None:
-    """The data workspace: a library rail of everything here (datasets, approved metrics, dashboards) beside a canvas
-    that shows the datasets as cards, as a map of how they connect, or as a plain list."""
-    if not catalog:
-        if empty_panel("datasets", ":material/database:", "No data yet", "Upload a spreadsheet, a CSV or a document, "
-                       "or connect a database, and Lyst can answer questions about it.",
-                       action="Add data" if editor else None):
+_OBJECTS = None
+TYPE_KIND = (("date", "d"), ("time", "d"), ("int", "n"), ("double", "n"), ("float", "n"), ("decimal", "n"),
+             ("numeric", "n"), ("real", "n"), ("bool", "b"), ("char", "t"), ("text", "t"), ("string", "t"))
+
+
+def _objects():
+    """Register Data's objects once per process (the component's code is read from data_component/)."""
+    global _OBJECTS
+    if _OBJECTS is None:
+        from pathlib import Path  # noqa: PLC0415
+
+        from streamlit.components.v2 import component  # noqa: PLC0415
+
+        here = Path(__file__).resolve().parents[1] / "data_component"
+        _OBJECTS = component("lyst_data_objects", css=(here / "objects.css").read_text(encoding="utf-8"),
+                             js=(here / "objects.js").read_text(encoding="utf-8"))
+    return _OBJECTS
+
+
+def kind_of(t: str) -> str:
+    """A column's type as one letter for its dataset's face: n(umber), t(ext), d(ate), b(oolean), o(ther)."""
+    t = (t or "").lower()
+    return next((k for w, k in TYPE_KIND if w in t), "o")
+
+
+def source_of(d: dict, conns: list[dict]) -> str:
+    """Which source a dataset came from: a connection, a dataset Lyst built, or an uploaded file."""
+    src = str(d.get("source") or "")
+    for c in conns:
+        if src == c["id"] or src.startswith((f"{c['id']}:", f"{c.get('kind')}:{c.get('name')}:")):  # sync's own mark
+            return c["id"]
+    return "built" if src.startswith(("transform", "built")) else "files"
+
+
+def _month(day: str | None) -> str | None:
+    if not day:
+        return None
+    try:
+        import datetime as _dt  # noqa: PLC0415
+
+        return _dt.date.fromisoformat(str(day)[:10]).strftime("%b %Y")
+    except ValueError:
+        return str(day)
+
+
+def sources_for(every: list[dict], src: dict) -> list[dict]:
+    """The source objects: everything, then each place data comes from, with how many datasets it gives."""
+    counts: dict[str, int] = {}
+    for d in every:
+        counts[source_of(d, src["conns"])] = counts.get(source_of(d, src["conns"]), 0) + 1
+    out = [{"id": "all", "label": "All data", "icon": "all", "count": len(every)}]
+    if counts.get("files") or not src["conns"]:
+        staged = len(src["staged"])
+        out.append({"id": "files", "label": "Files", "icon": "file", "count": counts.get("files", 0),
+                    "tone": "warn" if staged else "", "hint": f"{staged} upload{'s' * (staged != 1)} to review"
+                    if staged else "Uploaded spreadsheets and documents"})
+    for c in src["conns"]:
+        tone = _state(c, src["health"].get(c["id"]) or {})[1]
+        out.append({"id": c["id"], "label": c["name"], "icon": "api" if "rest" in c["kind"] or "api" in c["kind"]
+                    else "database", "count": counts.get(c["id"], 0), "tone": tone if tone in ("warn", "bad") else "",
+                    "hint": f"{c['kind']} · {_state(c, src['health'].get(c['id']) or {})[0]}"})
+    if counts.get("built"):
+        out.append({"id": "built", "label": "Built by Lyst", "icon": "built", "count": counts["built"]})
+    if editor:
+        out.append({"id": "+", "label": "Connect", "icon": "add", "add": True, "hint": "Connect a database or service"})
+    return out
+
+
+def objects(every: list[dict], src: dict) -> str | None:
+    """Sources and datasets as objects. Returns the dataset picked, if any (kept across reruns and pages)."""
+    q = (st.session_state.get("ds_find") or "").strip().lower()
+    where = st.session_state.get("data_source") or "all"
+    shown = [d for d in every if (where == "all" or source_of(d, src["conns"]) == where)
+             and (not q or q in (d["title"] + d["name"] + (d.get("description") or "")).lower())]
+    pick = st.session_state.get("data_pick")
+    if pick and not any(d["name"] == pick for d in every):
+        pick = st.session_state["data_pick"] = None
+    rows = []
+    for d in shown:
+        h = health(d)
+        tone = h[1] if h and h[1] in ("warn", "bad") else "ok"
+        meta = " · ".join(x for x in (f"{int(d.get('rows') or d.get('row_count') or 0):,} rows",
+                                      f"through {_month((d.get('freshness') or {}).get('latest'))}"
+                                      if (d.get("freshness") or {}).get("latest") else None) if x)
+        rows.append({"name": d["name"], "title": d["title"], "meta": meta, "tone": tone,
+                     "status": h[0] if tone != "ok" else None,
+                     "types": [kind_of(c.get("type", "")) for c in d.get("schema") or []]})
+    data = {"sources": sources_for(every, src), "source": where, "datasets": rows, "selected": pick,
+            "empty": f"Nothing matches “{q}”." if q else "No datasets from this source yet."}
+    res = _objects()(data=data, key="lyst_data_objects", on_action_change=lambda: None)
+    ev = getattr(res, "action", None)
+    if isinstance(ev, dict) and ev.get("nonce") != st.session_state.get("_data_nonce"):
+        st.session_state["_data_nonce"] = ev.get("nonce")
+        if ev.get("type") == "source" and ev.get("id") == "+":
+            st.session_state["add_how_pick"] = "Connect a source"
             add_data()
-        return
-    by = _metrics_by_dataset()
-    rail, canvas = st.columns([1, 3.2], gap="medium")
-    with rail:
-        q, opened = library(every, by)
-    shown = [d for d in every if not q or q.lower() in (d["title"] + d["name"] + (d.get("description") or "")).lower()]
-    asked = st.query_params.get("dataset")
-    with canvas:
-        with st.container(key="data_canvas_ds"):
-            bar = st.columns([4, 1.4], vertical_alignment="center")
-            layout = bar[1].segmented_control("Layout", ["Cards", "Map", "List"], default="Cards", key="ds_layout",
-                                              label_visibility="collapsed", help=" ".join(LAYOUTS.values())) or "Cards"
-            if layout != "Cards":
-                bar[0].caption(LAYOUTS[layout])
-            if not shown:
-                st.caption(f"Nothing matches “{q}”.")
-            elif layout == "Map":
-                data_map(shown)
-            elif layout == "List":
-                hit = data_list(shown, by)
-                opened = opened or hit
-            else:
-                for start in range(0, len(shown), 2):
-                    cols = st.columns(2)
-                    for col, c in zip(cols, shown[start:start + 2], strict=False):
-                        with col, kit.card(f"ds_{c['name']}"):
-                            if dataset_card(c, by.get(c["name"]) or []):
-                                opened = c["name"]
-    if asked and not opened and any(d["name"] == asked for d in every):  # a link from search, a pin or a source
-        opened = asked
-    if asked:
-        st.query_params.pop("dataset", None)
-    if opened:
-        dataset_detail(next(d for d in every if d["name"] == opened))
+        elif ev.get("type") == "source":
+            st.session_state["data_source"] = str(ev.get("id") or "all")
+            st.rerun()
+        elif ev.get("type") == "pick":
+            name = str(ev.get("name") or "")
+            st.session_state["data_pick"] = None if name == pick else name
+            st.session_state.pop("data_explore", None)
+            st.rerun()
+    return pick
 
 
-LAYOUTS = {"Cards": "Each dataset: its shape, how fresh it is, and what it feeds.",
-           "Map": "How the datasets connect, through the columns they share.",
-           "List": "Every dataset in one list, and every relationship between them."}
+def panel(d: dict, feeds: list[dict]) -> None:
+    """The picked dataset, revealed below the objects: what it is in a sentence, then three moves. Explore opens
+    its preview, columns, quality, relationships, SQL and contract; Analyze hands it to Lyst; More holds the rest."""
+    from lyst.ui import actions, activity  # noqa: PLC0415
+
+    name = d["name"]
+    with st.container(key="data_panel"):
+        top = st.columns([6, 1], vertical_alignment="top")
+        top[0].html(f'<div class="lyst-panel-kicker">{kit._esc(str(d.get("classification", "")).capitalize())}'
+                    f' · <code>{kit._esc(name)}</code></div><h2 class="lyst-panel-title">{kit._esc(d["title"])}</h2>')
+        if top[1].button("Close", key="data_close", type="tertiary", icon=":material/close:", width="stretch"):
+            st.session_state["data_pick"] = None
+            st.rerun()
+        said = d.get("summary") or d.get("description") or ""
+        if feeds:
+            said += f" Feeds {', '.join(m['title'] for m in feeds[:3])}{' and more' if len(feeds) > 3 else ''}."
+        st.html(f'<p class="lyst-panel-read">{kit._esc(said.replace("_", " "))}</p>')
+        with st.container(horizontal=True, gap="small", vertical_alignment="center", key="data_moves"):
+            on = st.session_state.get("data_explore") == name
+            if st.button("Explore", key=f"dx_{name}", icon=":material/unfold_less:" if on else ":material/open_in_full:",
+                         type="primary" if not on else "secondary",
+                         help=f"Preview, columns, quality, relationships, SQL and contract of {d['title']}"):
+                st.session_state["data_explore"] = None if on else name
+                st.rerun()
+            if st.button("Analyze", key=f"da_{name}", icon=":material/auto_awesome:",
+                         help=f"Lyst reads {d['title']} and reports what stands out"):
+                ask(f"Summarise {name}: what does it contain and what stands out?")
+            with st.popover("More", icon=":material/more_horiz:", key=f"dm_{name}"):
+                if st.button("Check data quality", key=f"d{name}_dq", type="tertiary", icon=":material/rule:",
+                             width="stretch"):
+                    ask(f"Check {name} for gaps, duplicates and unusual values. What should I know before relying on it?")
+                qq = st.text_input("Ask about it", key=f"d{name}_q", placeholder=f"Ask about {d['title']}")
+                if st.button("Use in analysis", key=f"d{name}_use", type="primary", icon=":material/arrow_upward:",
+                             disabled=not qq.strip(), width="stretch"):
+                    ask(f"Using {name}: {qq.strip()}")
+                if editor and st.button("Build a dataset from data Lyst has", type="tertiary", icon=":material/add:",
+                                        key="tf_open", width="stretch"):
+                    transforms.build()
+                activity.panel("dataset", name, key=f"dsact_{name}", admin=st.session_state.get("role") in ("admin", "owner"))
+                actions.menu("dataset", name, page="data", label="Actions", exclude=("dataset.open",), inline=True)
+        if st.session_state.get("data_explore") == name:
+            explore(d)
 
 
-def library(every: list[dict], by: dict[str, list[dict]]) -> tuple[str, str | None]:
-    """The rail: find anything on the page, then each dataset, approved metric and dashboard one click away. Returns
-    (the search text, the dataset opened from it if any)."""
-    from lyst.ui import artifacts  # noqa: PLC0415
-
-    opened = None
-    with kit.card("data_library"):
-        st.html('<div class="lyst-rail-head"><span class="dot"></span>Library</div>')
-        q = st.text_input("Find", placeholder="Find anything", label_visibility="collapsed",
-                          key="ds_find", icon=":material/search:")
-
-        def hit(*t: str | None) -> bool:
-            return not q or q.lower() in " ".join(x or "" for x in t).lower()
-
-        sets = [d for d in every if hit(d["title"], d["name"], d.get("description"))]
-        _rail_label("Datasets", len(sets))
-        for d in sets:
-            h = health(d)
-            tone = h[1] if h and h[1] in ("warn", "bad") else "ok"
-            rows = int(d.get("rows") or d.get("row_count") or 0)
-            if st.button(d["title"], key=f"lib_{tone}_ds_{d['name']}", type="tertiary",
-                         icon=":material/error:" if tone != "ok" else ":material/table:",
-                         help=" · ".join(x for x in (d["name"], f"{rows:,} rows", h[0] if h else None) if x)):
-                opened = d["name"]
-        if editor and st.button("Build a dataset from data Lyst has", type="tertiary", icon=":material/add:",
-                                key="tf_open", help="Join, filter or reshape datasets Lyst already has into a new one, "
-                                "with checks that it adds up"):
-            transforms.build()
-        metrics = [m for ms in by.values() for m in ms if hit(m.get("title"), m.get("name"), m.get("dataset"))]
-        _rail_label("Approved metrics", len(metrics))
-        if not metrics:
-            st.html('<div class="lyst-rail-none">None yet. Define one in Brain.</div>')
-        for m in metrics:
-            if st.button(m.get("title") or m["name"], key=f"lib_ok_m_{m['name']}", type="tertiary",
-                         icon=":material/speed:", help=f"From {m.get('dataset')}. Opens in Brain."):
-                st.switch_page("app_pages/brain.py", query_params={"metric": m["name"]})
-        boards = [a for a in artifacts.catalog(limit=200) if a["kind"] == "dashboard" and hit(a["title"])]
-        _rail_label("Dashboards", len(boards))
-        if not boards:
-            st.html('<div class="lyst-rail-none">None yet. Make one under Dashboards.</div>')
-        for a in boards:
-            if st.button(a["title"], key=f"lib_ok_db_{a['id']}".replace(":", "_"), type="tertiary",
-                         icon=":material/space_dashboard:", help="Opens in the viewer"):
-                artifacts.open_artifact(a)
-    return q, opened
+@st.dialog("How the data connects", width="large")
+def data_map_sheet(every: list[dict]) -> None:
+    data_map(every)
+    pairs = _pairs(every)
+    if pairs:
+        titles = {c["name"]: c["title"] for c in every}
+        st.dataframe(pd.DataFrame([{"Dataset": titles[a], "Connects to": titles[b],
+                                    "Shared columns": ", ".join(sorted(cols)).replace("_", " ")}
+                                   for (a, b), cols in sorted(pairs.items())]), hide_index=True, width="stretch")
 
 
 def _rail_label(text: str, n: int) -> None:
     st.html(f'<div class="lyst-rail-label"><span>{kit._esc(text)}</span><span>{n}</span></div>')
-
-
-def data_list(full: list[dict], by: dict[str, list[dict]]) -> str | None:
-    """The datasets as a plain list, and every relationship between them, for keyboards, screen readers and a quick
-    scan. Returns the dataset opened, if any."""
-    pairs = _pairs(full)
-    links = {n: sum(1 for (a, b) in pairs if n in (a, b)) for n in (c["name"] for c in full)}
-    opened = None
-    with kit.card("ds_list"):
-        for i, c in enumerate(full):
-            fresh = (c.get("freshness") or {}).get("latest")
-            feeds = len(by.get(c["name"]) or [])
-            meta = " · ".join(x for x in (
-                c["name"], f"{int(c.get('rows') or c.get('row_count') or 0):,} rows", f"{len(c.get('schema') or [])} columns",
-                f"{links[c['name']]} relationship{'s' * (links[c['name']] != 1)}",
-                f"feeds {feeds} metric{'s' * (feeds != 1)}" if feeds else None,
-                f"data through {fresh}" if fresh else None) if x)
-            if kit.row(c["title"], meta, status=health(c), actions=[("Open", "open")], key=f"dsl_{c['name']}",
-                       divider=i < len(full) - 1) == "open":
-                opened = c["name"]
-    kit.label(f"Relationships · {len(pairs)}")
-    if not pairs:
-        st.caption("No relationships were found between these datasets.")
-    else:
-        titles = {c["name"]: c["title"] for c in full}
-        st.dataframe(pd.DataFrame([{"Dataset": titles[a], "Connects to": titles[b],
-                                    "Shared columns": ", ".join(sorted(cols)).replace("_", " ")}
-                                   for (a, b), cols in sorted(pairs.items())]), hide_index=True, width="stretch")
-    return opened
 
 
 def _metrics_by_dataset() -> dict[str, list[dict]]:
@@ -706,55 +765,6 @@ def read(full: list[dict], src: dict) -> tuple[str, str, list[tuple[dict, tuple[
         names = ", ".join(c["title"] for c, _ in flagged[:2]) + (" and more" if len(flagged) > 2 else "")
         return "wait", f"{len(flagged)} of {len(full)} need{'s' * (len(flagged) == 1)} attention ({names}) · {facts}", flagged
     return "ok", f"Ready to answer from · {facts}", []
-
-
-def attention(flagged: list[tuple[dict, tuple[str, str]]]) -> None:
-    """What needs attention, folded behind one button; each dataset one click from its full record."""
-    with st.popover("Review", icon=":material/rule:", key="data_review", width="stretch"):
-        for i, (c, h) in enumerate(flagged[:6]):
-            risks = c.get("risks") or {}
-            why = f"{risks.get('high', 0)} high, {risks.get('medium', 0)} medium findings" if risks else ""
-            if kit.row(c["title"], why, status=h, actions=[("Open", "open")], key=f"read_{c['name']}",
-                       divider=i < min(len(flagged), 6) - 1) == "open":
-                st.query_params["dataset"] = c["name"]
-                st.query_params["view"] = "datasets"
-                st.session_state.pop("sec_data_view", None)
-                st.rerun()
-
-
-def dataset_card(c: dict, feeds: list[dict]) -> bool:
-    """One dataset as a quiet card: what it is, whether to rely on it, how big and how fresh, and what it feeds.
-    Columns, roles, profile, contract and lineage open with it. Explore opens it; Insights hands it to Lyst; the
-    rest wait in More."""
-    fresh = c.get("freshness") or {}
-    top = st.columns([4, 1.6], vertical_alignment="top")
-    top[0].html(f'<div class="lyst-card-kicker">{kit._esc(str(c.get("classification", "")).capitalize())}</div>'
-                f'<div class="lyst-card-title">{kit._esc(c["title"])}</div>')
-    if h := health(c):
-        kit.chip(h[0], h[1], top[1])
-    shape = " · ".join(x for x in (f"{int(c.get('rows') or c.get('row_count') or 0):,} rows",
-                                   f"through {fresh['latest']}" if fresh.get("latest") else None) if x)
-    st.html(f'<div class="lyst-card-meta lyst-clamp" style="margin:.15rem 0 .35rem 0">'
-            f'{kit._esc(c.get("description") or "")}</div>'
-            f'<div class="lyst-card-meta lyst-num" style="margin-bottom:.35rem">{kit._esc(shape)}'
-            + (kit._esc(" · feeds " + ", ".join(m["title"] for m in feeds[:2])
-                        + (f" and {len(feeds) - 2} more" if len(feeds) > 2 else "")) if feeds else "")
-            + "</div>")
-    with st.container(horizontal=True, gap="small", vertical_alignment="center"):
-        opened = st.button("Explore", key=f"d{c['name']}_open", type="tertiary", icon=":material/open_in_full:",
-                           help=f"Open {c['title']}: its columns, profile, checks and lineage")
-        if st.button("Insights", key=f"d{c['name']}_ask", type="tertiary", icon=":material/auto_awesome:",
-                     help=f"Lyst reads {c['title']} and reports what stands out"):
-            ask(f"Summarise {c['name']}: what does it contain and what stands out?")
-        with st.popover("More", icon=":material/more_horiz:", key=f"d{c['name']}_more"):
-            if st.button("Check data quality", key=f"d{c['name']}_dq", type="tertiary", icon=":material/rule:",
-                         width="stretch"):
-                ask(f"Check {c['name']} for gaps, duplicates and unusual values. What should I know before relying on it?")
-            q = st.text_input("Ask about it", key=f"d{c['name']}_q", placeholder=f"Ask about {c['title']}")
-            if st.button("Use in analysis", key=f"d{c['name']}_use", type="primary", icon=":material/arrow_upward:",
-                         disabled=not q.strip(), width="stretch"):
-                ask(f"Using {c['name']}: {q.strip()}")
-    return opened
 
 
 STATE = {"healthy": ("Healthy", "ok"), "degraded": ("Degraded", "warn"), "failing": ("Failing", "bad"),
@@ -1071,58 +1081,69 @@ def sql(catalog: list[dict]) -> None:
             fn(catalog)
 
 
-def tabs() -> str:
-    """The sections as icon pills, kept in the URL (?view=) like kit.sections, so links and reloads land on them."""
-    names = list(TABS)
-    if st.query_params.get("connection"):  # a link to one source opens it where sources live
-        st.query_params["view"] = "sources"
-    asked = (st.query_params.get("view") or "").lower()
-    default = next((n for n in names if n.lower() == asked), names[0])
-    pick = st.segmented_control("view", names, default=default, key="sec_data_view", label_visibility="collapsed",
-                                format_func=lambda n: f"{TABS[n]} {n}") or default
-    if st.query_params.get("view") != pick.lower():
-        st.query_params["view"] = pick.lower()
-    return pick
+ADVANCED = {"sources": ("Sources", ":material/cable:"), "dashboards": ("Dashboards", ":material/space_dashboard:"),
+            "saved analyses": ("Saved analyses", ":material/bookmark:"), "sql": ("SQL", ":material/terminal:")}
 
 
-def header(src: dict, every: list[dict]) -> None:
-    """One calm starting point: the title and the one action, then a single line on whether the data can be relied
-    on. Sources and anything that needs attention sit behind small buttons on that line, not on the page."""
-    cols = st.columns([5, 1.4], vertical_alignment="bottom")
-    cols[0].html('<div class="lyst-data"></div><h1 class="lyst-title">Data</h1>')
-    if editor and cols[1].button("Add data", type="primary", icon=":material/add:", key="data_add", width="stretch"):
-        st.session_state["add_how_pick"] = "Upload a file"
-        add_data()
+def go(view: str | None) -> None:
+    if view:
+        st.query_params["view"] = view
+    else:
+        st.query_params.pop("view", None)
+    st.rerun()
+
+
+def header(every: list[dict]) -> None:
+    """The title, one search, one way to add, and the deeper places (sources, dashboards, saved analyses, SQL)
+    folded behind one quiet menu."""
+    cols = st.columns([3, 2.4], vertical_alignment="center")
+    cols[0].html('<div class="lyst-data"></div><h1 class="lyst-title lyst-data-title">Data</h1>')
+    with cols[1].container(horizontal=True, gap="small", vertical_alignment="center", horizontal_alignment="right",
+                           key="data_tools"):
+        st.text_input("Find data", placeholder="Find a dataset", label_visibility="collapsed", key="ds_find",
+                      icon=":material/search:", width=220)
+        if editor and st.button("Add data", type="primary", icon=":material/add:", key="data_add"):
+            st.session_state["add_how_pick"] = "Upload a file"
+            add_data()
+        with st.popover("More", icon=":material/more_horiz:", key="data_more", help="Sources, dashboards, saved "
+                        "analyses, SQL and how the data connects"):
+            for v, (label, icon) in ADVANCED.items():
+                if st.button(label, key=f"data_go_{v.replace(' ', '_')}", icon=icon, type="tertiary", width="stretch"):
+                    go(v)
+            if st.button("How the data connects", key="data_go_map", icon=":material/hub:", type="tertiary",
+                         width="stretch"):
+                data_map_sheet(every)
+
+
+def focus(every: list[dict], src: dict) -> None:
+    """Lyst's one line about the data: the dataset that most needs a look, or that everything is ready."""
     tone, sentence, flagged = read(every, src)
-    line = st.columns([5, 1, 1.6] if flagged else [5.9, 1.6], vertical_alignment="center")
-    line[0].html(f'<div class="lyst-pulse" role="status"><span class="lyst-pulse-dot {tone}" aria-hidden="true"></span>'
-                 f'<span>{kit._esc(sentence)}</span></div>')
+    staged = len(src["staged"])
     if flagged:
-        with line[1]:
-            attention(flagged)
-    text, stone = status_pill(src)
-    if line[-1].button(text, key=f"data_status_{stone}", icon=":material/fiber_manual_record:", width="stretch",
-                       type="tertiary", help="Where the data comes from: open Sources"):
-        st.query_params["view"] = "sources"
-        st.session_state.pop("sec_data_view", None)
-        st.rerun()
+        c, h = flagged[0]
+        more = f" · {len(flagged) - 1} more" if len(flagged) > 1 else ""
+        if st.button(f"{c['title']}: {h[0].lower()} before you rely on it{more}", key=f"read_{c['name']}_open",
+                     type="tertiary", icon=":material/fiber_manual_record:", help=sentence):
+            st.session_state["data_pick"] = c["name"]
+            st.session_state["data_explore"] = c["name"]
+            st.session_state[f"dsv_{c['name']}"] = "Quality"
+            st.rerun()
+    elif staged and editor:
+        if st.button(f"{staged} upload{'s' * (staged != 1)} waiting for review", key="read_staged", type="tertiary",
+                     icon=":material/fiber_manual_record:"):
+            go("sources")
+    else:
+        st.html(f'<p class="lyst-data-read" role="status">{kit._esc(sentence)}</p>')
 
 
-ASK_STARTERS = ("What changed in the latest data?", "Which dataset should I trust for revenue?",
-                "Are there gaps or duplicates I should know about?")
-
-
-def ask_dock() -> None:
-    """Ask, docked beside the tabs: a question about the data goes straight to Lyst and opens on Home."""
-    with st.popover("Ask about the data", icon=":material/forum:", key="data_ask_dock", width="stretch"):
-        q = st.text_area("Question", placeholder="Which region drove the change in margin?", key="data_ask_q",
-                         height=90)
-        if st.button("Ask", type="primary", icon=":material/arrow_upward:", key="data_ask_go", disabled=not q.strip()):
-            ask(q.strip())
-        st.caption("Or start from one of these")
-        for i, s_ in enumerate(ASK_STARTERS):
-            if st.button(s_, key=f"data_ask_s{i}", type="tertiary"):
-                ask(s_)
+def advanced(view: str, catalog: list[dict], src: dict) -> None:
+    st.html('<div class="lyst-data"></div>')
+    if st.button("Data", key="data_back", icon=":material/arrow_back:", type="tertiary", help="Back to the datasets"):
+        go(None)
+    if view == "sql":  # the other views open with their own named intro
+        st.html('<h1 class="lyst-title" style="font-size:1.6rem">SQL</h1>')
+    {"sources": lambda: sources_view(src), "dashboards": dashboards_view, "saved analyses": saved_view,
+     "sql": lambda: sql(catalog)}[view]()
 
 
 try:
@@ -1130,21 +1151,31 @@ try:
     catalog = api.get(f"/v1/workspaces/{ws}/datasets")
     every = enrich(catalog)
     src = sources_state()
-    header(src, every)
-    if st.query_params.get("add") and editor:  # "Add data" from Home's composer opens the same sheet here
-        st.query_params.pop("add", None)
-        st.session_state["add_how_pick"] = "Upload a file"
-        add_data()
-    zone.board("data")
-    row = st.columns([5.4, 1.6], vertical_alignment="center")
-    with row[0]:
-        view = tabs()
-    with row[1]:
-        ask_dock()
-    {"Datasets": lambda: (datasets(catalog, every), onboarding.data_suggestions()),
-     "Sources": lambda: sources_view(src),
-     "Dashboards": dashboards_view,
-     "Saved analyses": saved_view,
-     "SQL": lambda: sql(catalog)}[view]()
+    if st.query_params.get("connection"):  # a link to one source opens it where sources live
+        st.query_params["view"] = "sources"
+    if (asked := st.query_params.get("dataset")) and any(d["name"] == asked for d in every):
+        st.session_state["data_pick"] = asked  # a link from search, a pin or a source
+        st.query_params.pop("dataset", None)
+    view = (st.query_params.get("view") or "").lower()
+    if view in ADVANCED:
+        advanced(view, catalog, src)
+    else:
+        header(every)
+        if st.query_params.get("add") and editor:  # "Add data" from Home's composer opens the same sheet here
+            st.query_params.pop("add", None)
+            st.session_state["add_how_pick"] = "Upload a file"
+            add_data()
+        if not catalog:
+            if empty_panel("datasets", ":material/database:", "No data yet", "Upload a spreadsheet, a CSV or a "
+                           "document, or connect a database, and Lyst can answer questions about it.",
+                           action="Add data" if editor else None):
+                add_data()
+        else:
+            focus(every, src)
+            pick = objects(every, src)
+            if pick:
+                panel(next(d for d in every if d["name"] == pick), _metrics_by_dataset().get(pick) or [])
+            onboarding.data_suggestions()
+        zone.board("data")
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

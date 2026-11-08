@@ -1,0 +1,80 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Copyright (C) 2026 Rohn Springfield */
+/* Data's objects. Every colour, radius, shadow and duration is a design token from the page (--lyst-*). */
+:host, .o {
+  --o-text: var(--lyst-text, #16181d); --o-muted: var(--lyst-text-muted, #5f6470); --o-raised: var(--lyst-raised, #fff);
+  --o-surface: var(--lyst-surface, #f5f6f8); --o-edge: var(--lyst-edge, transparent); --o-border: var(--lyst-border, #e3e5ea);
+  --o-accent: var(--lyst-accent, #0b6b64); --o-link: var(--lyst-link, #0b6b64); --o-info: var(--lyst-info, #0b5cad);
+  --o-warn: var(--lyst-warn, #865a00); --o-bad: var(--lyst-bad, #b42318); --o-focus: var(--lyst-focus, #0b6b64);
+  --o-s1: var(--lyst-shadow-1, none); --o-s2: var(--lyst-shadow-2, none); --o-s3: var(--lyst-shadow-3, none);
+  --o-ease: var(--lyst-motion-ease, ease); --o-fast: var(--lyst-motion-fast, 120ms); --o-base: var(--lyst-motion-base, 200ms);
+  --o-slow: var(--lyst-motion-slow, 320ms); --o-pill: var(--lyst-radius-pill, 999px);
+}
+.o { color: var(--o-text); font: inherit; container-type: inline-size; }
+.o *, .o *::before, .o *::after { box-sizing: border-box; }
+.o button { font: inherit; color: inherit; }
+.o :focus-visible { outline: 2px solid var(--o-focus); outline-offset: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* sources: compact rounded objects in one row; the picked one raised */
+.o-sources { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.6rem; }
+.o-src { display: inline-flex; align-items: center; gap: .55rem; height: 2.6rem; padding: 0 .95rem 0 .4rem;
+         border: 1px solid transparent; border-radius: var(--o-pill); background: transparent; cursor: pointer;
+         color: var(--o-muted); font-size: var(--lyst-size-sm, .84rem); white-space: nowrap; flex: none;
+         transition: background var(--o-base) var(--o-ease), box-shadow var(--o-base) var(--o-ease), color var(--o-fast); }
+.o-src:hover { background: color-mix(in srgb, var(--o-raised) 70%, transparent); color: var(--o-text); }
+.o-src.on { background: var(--o-raised); box-shadow: var(--o-s2); color: var(--o-text); font-weight: var(--lyst-weight-medium, 560); }
+.o-src-i { display: grid; place-items: center; width: 1.85rem; height: 1.85rem; border-radius: 50%;
+           background: color-mix(in srgb, var(--o-accent) 11%, var(--o-raised)); color: var(--o-accent); position: relative; }
+.o-src-i svg { width: .95rem; height: .95rem; }
+.o-src-i.warn::after, .o-src-i.bad::after { content: ""; position: absolute; top: -1px; right: -1px; width: .55rem; height: .55rem;
+           border-radius: 50%; background: var(--o-warn); box-shadow: 0 0 0 2px var(--o-raised); }
+.o-src-i.bad::after { background: var(--o-bad); }
+.o-src-n { font-variant-numeric: tabular-nums; color: var(--o-muted); font-weight: 400; }
+.o-src.add .o-src-i { background: transparent; border: 1px dashed var(--o-border); color: var(--o-muted); }
+
+/* datasets: objects with a face (their shape), a name and one line */
+.o-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 1rem; }
+.o-cell { min-width: 0; animation: o-in var(--o-slow) var(--o-ease) both; animation-delay: calc(var(--i) * 40ms); }
+@keyframes o-in { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+.o-ds { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; text-align: left;
+        padding: 1.05rem 1.1rem 1rem; border-radius: 18px; border: 1px solid var(--o-edge); background: var(--o-raised);
+        box-shadow: var(--o-s1); cursor: pointer; position: relative;
+        transition: transform var(--o-base) var(--o-ease), box-shadow var(--o-base) var(--o-ease), opacity var(--o-base) var(--o-ease),
+                    border-color var(--o-base) var(--o-ease); }
+.o-ds:hover { transform: translateY(-2px); box-shadow: var(--o-s2); }
+.o-ds[aria-pressed="true"] { border-color: color-mix(in srgb, var(--o-accent) 55%, transparent); transform: translateY(-3px);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--o-accent) 12%, transparent), var(--o-s3); }
+.o.has-pick .o-ds[aria-pressed="false"] { opacity: .55; }
+.o.has-pick .o-ds[aria-pressed="false"]:hover { opacity: 1; }
+.o-ds-top { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; gap: .5rem; margin-bottom: .55rem; }
+.o-shape { height: 1.75rem; max-width: 70%; flex: none; }
+.o-shape .k-n { fill: var(--o-accent); }
+.o-shape .k-t { fill: color-mix(in srgb, var(--o-muted) 45%, transparent); }
+.o-shape .k-d { fill: color-mix(in srgb, var(--o-info) 70%, transparent); }
+.o-shape .k-b, .o-shape .k-o { fill: color-mix(in srgb, var(--o-muted) 25%, transparent); }
+.o-ds[aria-pressed="true"] .o-shape rect { animation: o-bar var(--o-slow) var(--o-ease) both; transform-origin: bottom; transform-box: fill-box; }
+@keyframes o-bar { from { transform: scaleY(.3); } }
+.o-flag { display: inline-flex; align-items: center; gap: .35rem; font-size: var(--lyst-size-xs, .72rem); color: var(--o-warn);
+          font-weight: var(--lyst-weight-medium, 560); white-space: nowrap; }
+.o-flag i { width: .45rem; height: .45rem; border-radius: 50%; background: currentColor; }
+.o-ds.bad .o-flag { color: var(--o-bad); }
+.o-ds-t { font-weight: var(--lyst-weight-strong, 680); font-size: 1.02rem; letter-spacing: -.01em; line-height: 1.3;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.o-ds-m { font-size: var(--lyst-size-sm, .84rem); color: var(--o-muted); font-variant-numeric: tabular-nums;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.o-none { color: var(--o-muted); margin: 1rem 0; }
+
+@container (max-width: 520px) {
+  .o-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+  .o-ds { padding: .85rem .85rem .8rem; border-radius: 16px; }
+  .o-flag { display: none; }
+  .o-sources { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-bottom: 1.1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .o *, .o *::before, .o *::after { animation: none !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+  .o-ds, .o-src { border: 1px solid CanvasText; }
+  .o-ds[aria-pressed="true"], .o-src.on { outline: 2px solid Highlight; }
+}
