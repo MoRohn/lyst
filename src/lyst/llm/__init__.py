@@ -214,19 +214,22 @@ class LLMClient:
 
     def chat(self, workspace_id: str, messages: list[dict[str, str]], *, purpose: str, task_id: str | None = None,
              json_mode: bool = False, max_tokens: int | None = None, workload: str = "chat",
-             pool: str | None = None) -> str:
+             pool: str | None = None, on_delta=None) -> str:
+        """The reply's text. With ``on_delta``, the reply streams: each piece of text is passed to it as the model writes
+        it, and ``on_delta(None)`` means discard what was passed (a retry or the next model). The return value is
+        still the whole reply, so callers check it exactly as before; streaming changes when text is seen, not what."""
         self._local.task_id, self._local.purpose = task_id, purpose  # read by _record on this thread
         self._local.step = obs.step_seq.get() if task_id else None
         self._local.user_id = self._owner_of(task_id)
         try:
             return self._chat(workspace_id, messages, purpose=purpose, task_id=task_id, json_mode=json_mode,
-                              max_tokens=max_tokens, workload=workload, pool=pool)
+                              max_tokens=max_tokens, workload=workload, pool=pool, on_delta=on_delta)
         finally:
             # the identity belongs to this call only: a reused worker thread must not carry it into the next one
             self._local.user_id = None
 
     def _chat(self, workspace_id: str, messages: list[dict[str, str]], *, purpose: str, task_id: str | None,
-              json_mode: bool, max_tokens: int | None, workload: str, pool: str | None) -> str:
+              json_mode: bool, max_tokens: int | None, workload: str, pool: str | None, on_delta=None) -> str:
         for gate in self.gates:
             reason = gate(workspace_id, task_id)
             if reason:
@@ -261,7 +264,8 @@ class LLMClient:
                         models = policy.quick_order(models, self.gateway.reasoning_refused)
                     reasoning_for = lambda model, _w: policy.quick_reasoning(model, "quick")  # noqa: E731
                 r = self.gateway.complete(messages, models=models, workload=workload, tenant=workspace_id,
-                                          pool=pool, json_mode=json_mode, max_tokens=max_tokens, reasoning_for=reasoning_for)
+                                          pool=pool, json_mode=json_mode, max_tokens=max_tokens, reasoning_for=reasoning_for,
+                                          on_delta=on_delta)
                 span.set_attribute("lyst.model", r.model)
                 return r.text
         except GatewayError as exc:

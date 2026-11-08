@@ -30,7 +30,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import uistream
+from .. import live, uistream
 from ..analyst import converse as converse_mod
 from ..security import AccessDenied
 
@@ -68,7 +68,7 @@ def _stream(request: Request, lyst, user, task_id: str) -> StreamingResponse:
                 yield uistream.sse({"type": "error", "errorText": "This answer is no longer available to you."})
                 yield uistream.DONE
                 return
-            chunks = ts.update(task, approvals)
+            chunks = ts.update(task, approvals, live.DRAFTS.get(task_id))
             for c in chunks:
                 yield uistream.sse(c)
             if ts.finished:
