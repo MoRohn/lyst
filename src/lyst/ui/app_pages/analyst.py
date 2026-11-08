@@ -6,7 +6,6 @@ import pandas as pd
 import streamlit as st
 
 from lyst.ui import (
-    agent,
     anticipate,
     collab,
     decisions,
@@ -16,10 +15,10 @@ from lyst.ui import (
     publish,
     scenarios,
     voice,
-    zone,
 )
+from lyst.ui import home as home_mod
 from lyst.ui.client import APIError, client, workspace
-from lyst.ui.components import answer, md, task_state
+from lyst.ui.components import answer, md
 
 api, ws = client(), workspace()
 ACTIVE = {"queued", "running", "paused", "awaiting_approval"}
@@ -78,22 +77,7 @@ def ask_box() -> None:
 
 # ----------------------------------------------------------------------------------------- home
 
-def suggestions(metrics: list[dict]) -> list[str]:
-    """Questions this workspace can answer well, from its own approved metrics, not a hard-coded list."""
-    out: list[str] = []
-    # ratios first: "why did it change" is the question a measure of performance invites
-    metrics = sorted(metrics, key=lambda m: not (m.get("kind") == "ratio" or m.get("format") == "percent"))
-    for m in metrics[:4]:
-        t = kit.lower(m["title"])
-        if m.get("kind") == "ratio" or m.get("format") == "percent":
-            out.append(f"Why did {t} change last quarter?")
-        elif m.get("dimensions"):
-            out.append(f"What was {t} last quarter by {m['dimensions'][0].replace('_', ' ')}?")
-        else:
-            out.append(f"Forecast {t}")
-    if metrics:
-        out.append(f"Forecast {kit.lower(metrics[0]['title'])}")
-    return list(dict.fromkeys(out))[:5]
+suggestions = home_mod.suggestions  # kept here for older imports
 
 
 def get_started(datasets: list[dict], metrics: list[dict]) -> None:
@@ -119,7 +103,7 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
     except APIError:
         return
     steps = [("Add your data", "Upload a spreadsheet or connect a database.", bool(datasets), "app_pages/data.py", None),
-             ("Ask a first question", "Pick a suggestion below, or type your own.", asked, None, None),
+             ("Ask a first question", "Pick a suggestion on Home, or type your own.", asked, None, None),
              ("Keep watch", "From an answer: Watch this metric, or Repeat it weekly.", watching, "app_pages/brain.py",
               {"view": "work", "work": "recurring"})]
     if admin:
@@ -128,80 +112,46 @@ def get_started(datasets: list[dict], metrics: list[dict]) -> None:
     left = sum(not s[2] for s in steps)
     if not left:
         return
-    with st.container(border=True):
-        top = st.columns([6, 1], vertical_alignment="center")
-        top[0].markdown(f"**Get started** · {len(steps) - left} of {len(steps)} done")
-        if top[1].button("Hide", type="tertiary", key="gs_hide", width="stretch"):
-            st.session_state.hide_get_started = True
-            st.rerun()
-        for i, (title, body, ok, page, qp) in enumerate(steps):
-            c = st.columns([0.35, 6, 1.4], vertical_alignment="center")
-            c[0].markdown(":material/check_circle:" if ok else ":material/radio_button_unchecked:")
-            c[1].markdown(f"~~{title}~~" if ok else f"**{title}**  \n{body}")
-            if not ok and page and c[2].button("Go", key=f"gs_{i}", type="tertiary", width="stretch"):
-                st.switch_page(page, query_params=qp)
+    st.markdown(f"**Get started** · {len(steps) - left} of {len(steps)} done")
+    for i, (title, body, ok, page, qp) in enumerate(steps):
+        c = st.columns([0.35, 6, 1.4], vertical_alignment="center")
+        c[0].markdown(":material/check_circle:" if ok else ":material/radio_button_unchecked:")
+        c[1].markdown(f"~~{title}~~" if ok else f"**{title}**  \n{body}")
+        if not ok and page and c[2].button("Go", key=f"gs_{i}", type="tertiary", width="stretch"):
+            st.switch_page(page, query_params=qp)
+    if st.button("Hide this guide", type="tertiary", key="gs_hide"):
+        st.session_state.hide_get_started = True
+        home_mod.drop()
+        st.rerun()
 
 
-def get_started_folded(datasets: list[dict], metrics: list[dict]) -> None:
-    """Get started stays one line once anything is done: it opens in place, so the page leads with answers."""
-    try:
-        stat = onboarding.status()
-    except APIError:
-        stat = None
-    if stat and (stat["state"] == "complete" or st.session_state.get("hide_get_started")):
-        return
-    steps = (stat or {}).get("steps") or []
-    done = sum(s_["done"] for s_ in steps if not s_["optional"])
-    need = sum(not s_["optional"] for s_ in steps)
-    if stat and done == 0:  # nothing done yet: the guide is the page
-        get_started(datasets, metrics)
-        return
-    label = f"Get started · {done} of {need} done" if stat else "Get started"
-    with st.expander(label, icon=":material/flag:"):
-        get_started(datasets, metrics)
-
-
-def home() -> None:
-    """Home is a monitor first and a form second: what Lyst is doing, the question box, what waits on you, then the
-    answers themselves. Everything else (how an answer was reached, older work) is one click deeper."""
-    kit.header("What should Lyst work on?")
+@st.dialog("Get started", width="medium")
+def get_started_sheet() -> None:
     try:
         metrics = api.get(f"/v1/workspaces/{ws}/metrics")
         datasets = api.get(f"/v1/workspaces/{ws}/datasets")
     except APIError:
         metrics, datasets = [], []
-    anticipate.home_line()
-    get_started_folded(datasets, metrics)
-    if not datasets:
-        if kit.empty(":material/database:", "Connect data to begin",
-                     "Lyst answers from data you load or connect. Add a file or a database, and approved metrics on it "
-                     "become questions you can ask.", action="Add data", key="home_add"):
-            st.switch_page("app_pages/data.py")
-        return
-    names = ", ".join(m["title"] for m in metrics[:3]) + (f" and {len(metrics) - 3} more" if len(metrics) > 3 else "")
-    pick = st.pills("Try", suggestions(metrics)[:3], label_visibility="collapsed", key="suggest",
-                    help=f"Lyst can answer about {len(metrics)} approved measure{'s' * (len(metrics) != 1)} here "
-                         f"({names}): why they changed, what drove them, a breakdown, a trend or a forecast.")
-    if pick:
-        submit(pick)
-        st.rerun()
-    recent = agent.state(ws)["tasks"][:30]
-    zone.board("home")  # what Lyst suggests, what waits on you, what it is doing and what it finished
-    anticipate.top_suggestion()
-    rest = agent.answers(recent, n=2)
-    # what Lyst has made, as artifacts to open (dashboards, briefings, saved analyses)
-    from lyst.ui import artifacts  # noqa: PLC0415
+    get_started(datasets, metrics)
 
-    artifacts.shelf(title="Made for you", n=3, key="home", exclude=("analysis",))
-    earlier = [t for t in rest if t.get("outcome") not in ("needs_input", "unverified")][:8]
-    if earlier:
-        with st.expander(f"Earlier answers · {len(earlier)}", icon=":material/history:"):
-            for i, t in enumerate(earlier):
-                text, color, _ = task_state(t["status"], t.get("outcome"))
-                if kit.row(t["title"], kit.when(t["created_at"]), status=(text, TONE.get(color, "info")),
-                           actions=[("Open", "open")], key=f"rec{t['id']}", divider=i < len(earlier) - 1):
-                    open_task(t["id"])
-                    st.rerun()
+
+HOME_CSS = """<style>
+/* Home: the bar is the page. It stops floating, and a faint light from Lyst's accent sits behind the composer. */
+div.st-key-lyst_agent_bar {position: static !important;}
+[data-testid="stMain"] {background:
+  radial-gradient(ellipse 60% 48% at 50% 40%, color-mix(in srgb, var(--lyst-accent) 6%, transparent) 0%,
+                  color-mix(in srgb, var(--lyst-accent) 3%, transparent) 45%, transparent 100%);}
+.block-container {padding-top: 1rem !important; padding-bottom: 0 !important;}
+</style>"""
+
+
+def home() -> None:
+    """Home is one focal point, drawn by the agent bar (lyst.ui.home): Lyst's mark, one line, one composer, a few
+    starters, the one thing that wants the person, and a dock for work in flight and recent work. This page only
+    sets the stage and opens Get started when the dock asks for it."""
+    st.html(HOME_CSS)
+    if st.session_state.pop("_home_setup", False):
+        get_started_sheet()
 
 
 # ----------------------------------------------------------------------------------------- a task
@@ -224,13 +174,41 @@ def progress(task: str) -> None:
     done = sum(s["status"] == "done" for s in steps)
     current = next((s for s in steps if s["status"] == "running"), steps[-1] if steps else None)
     label = PHASES.get(current["phase"], current["phase"]) if current else "Starting"
-    st.progress(done / max(len(steps), 1), text=f"{label} · {done} of {len(steps)} steps")
+    st.html(working(label, done, len(steps)))
     if t["status"] == "awaiting_approval":
         st.info("A step needs an admin's approval before Lyst continues.", icon=":material/approval:")
         st.page_link("app_pages/brain.py", label="Review it in Brain › Work", icon=":material/arrow_forward:",
                      query_params={"view": "work", "work": "needs you"})
     elif st.button("Stop", type="tertiary", icon=":material/stop_circle:", key=f"stop_{task}"):
         kit.guarded(lambda: api.post(f"/v1/tasks/{task}/cancel"), "Stopped")
+
+
+_MARK = ('<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3.4 31.8 15.2 21.4H28.5Q29.6 21.4 29 22.3L23.6 31Q23 31.8 '
+         '22 31.8Z" fill="var(--lyst-mark-floor-a)"/><path d="M2.8 10.6Q2.8 9.4 3.8 8.7L14.8.7Q16.2-.2 16.2 1.5V19.3Q16.2 20.6 15.2 21.4L3.6 '
+         '31.3Q2.8 32 2.8 30.9Z" fill="var(--lyst-mark-stem-a)"/></svg>')
+WORK_CSS = """<style>
+/* Working: Lyst's mark catches light while the engine runs; one line says which step, and a hairline shows how far */
+.lyst-work {display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 3.5rem 0 1.5rem; text-align: center;}
+.lyst-work-mark {position: relative; width: 2.6rem; height: 2.6rem; overflow: hidden; border-radius: 4px;}
+.lyst-work-mark svg {width: 100%; height: 100%; display: block;}
+.lyst-work-mark::after {content: ""; position: absolute; inset: -20% auto -20% -60%; width: 40%; transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: lyst-sheen 1.8s var(--lyst-motion-ease) infinite;}
+@keyframes lyst-sheen {0% {left: -60%;} 70%, 100% {left: 130%;}}
+.lyst-work-step {font-size: 1.05rem; font-weight: var(--lyst-weight-medium); letter-spacing: -.01em;}
+.lyst-work-step span {color: var(--lyst-text-muted); font-weight: 400; margin-left: .4rem; font-variant-numeric: tabular-nums;}
+.lyst-work-line {width: min(18rem, 70%); height: 3px; border-radius: 3px; background: var(--lyst-surface); overflow: hidden;}
+.lyst-work-line i {display: block; height: 100%; border-radius: inherit; background: var(--lyst-accent);
+  transition: width var(--lyst-motion-slow) var(--lyst-motion-ease);}
+@media (prefers-reduced-motion: reduce) {.lyst-work-mark::after {display: none;}}
+</style>"""
+
+
+def working(label: str, done: int, total: int) -> str:
+    pct = round(100 * done / max(total, 1))
+    return (WORK_CSS + f'<div class="lyst-work" role="status" aria-live="polite"><div class="lyst-work-mark">{_MARK}</div>'
+            f'<div class="lyst-work-step">{kit._esc(label)}<span>{done} of {total}</span></div>'
+            f'<div class="lyst-work-line" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{pct}" '
+            f'aria-label="{done} of {total} steps"><i style="width:{max(pct, 4)}%"></i></div></div>')
 
 
 def _secs(ms: int | None) -> str:

@@ -34,13 +34,13 @@ def pin_button(item: dict) -> None:
         return
     if st.button("Pinned" if pinned else "Pin", key="art_pin", type="tertiary",
                  icon=":material/keep:" if pinned else ":material/keep_off:",
-                 help="Unpin" if pinned else "Keep it one click away in the sidebar"):
+                 help="Unpin" if pinned else "Keep it one click away in Home's Recent"):
         if pinned:
             kit.guarded(lambda: api.delete(f"/v1/workspaces/{ws}/pins/{item['kind']}/{item['id']}"), "Unpinned")
         else:
             kit.guarded(lambda: api.put(f"/v1/workspaces/{ws}/pins/{item['kind']}/{item['id']}",
                                         {"title": item["title"]}), "Pinned")
-        st.session_state.pop("_pins", None)
+        st.session_state.pop("_home", None)
         st.rerun()
 
 

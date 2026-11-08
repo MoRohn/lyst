@@ -1131,6 +1131,10 @@ try:
     every = enrich(catalog)
     src = sources_state()
     header(src, every)
+    if st.query_params.get("add") and editor:  # "Add data" from Home's composer opens the same sheet here
+        st.query_params.pop("add", None)
+        st.session_state["add_how_pick"] = "Upload a file"
+        add_data()
     zone.board("data")
     row = st.columns([5.4, 1.6], vertical_alignment="center")
     with row[0]:

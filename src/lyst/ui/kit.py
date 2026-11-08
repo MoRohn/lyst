@@ -208,6 +208,52 @@ div[class*="st-key-lyst_recent_"] button [data-testid="stIconMaterial"] {font-si
   box-shadow: 0 0 0 2px var(--lyst-surface, transparent);}
 p.lyst-side-who {margin: 0 0 .5rem 0; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); line-height: 1.45;}
 p.lyst-side-who b {color: var(--lyst-text); font-weight: var(--lyst-weight-strong);}
+/* ---------------------------------------------------------------- the rail
+   On a desktop the four areas are a slim column of icons beside the page, not a sidebar of words: the mark on top,
+   Home · Data · Brain · Settings, and the foot (search, notifications, glossary, account) at the bottom. Each icon
+   names itself in a floating label on hover and focus; on a phone the menu opens as a sheet with its words. */
+@media (min-width: 641px) {
+  :root {--lyst-rail: 4.5rem;}
+  section[data-testid="stSidebar"] {width: var(--lyst-rail) !important; min-width: var(--lyst-rail) !important;
+    max-width: var(--lyst-rail) !important; transform: none !important; border-right: 0 !important;
+    background: transparent !important; backdrop-filter: none;}
+  section[data-testid="stSidebar"] > div:first-child {overflow: visible !important;}
+  [data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapsedControl"],
+  section[data-testid="stSidebar"] [data-testid="stSidebarResizer"],
+  section[data-testid="stSidebar"] > div > div[style*="cursor"] {display: none !important;}
+  [data-testid="stSidebarHeader"] {padding: 1.35rem 0 .9rem !important; justify-content: center !important; height: auto !important;
+    margin: 0 !important;}
+  [data-testid="stSidebarHeader"] > div:first-child {margin: 0 auto;}
+  img[data-testid="stSidebarLogo"] {height: 1.75rem !important; width: 1.75rem !important; max-width: none;}
+  [data-testid="stSidebarContent"] {overflow: visible !important;}
+  [data-testid="stSidebarNav"] {padding: .35rem 0 !important; display: flex; flex-direction: column; align-items: center;}
+  [data-testid="stSidebarNavItems"] {padding: 0 !important; display: flex; flex-direction: column; align-items: center; gap: .3rem;}
+  [data-testid="stSidebarNavLink"] {width: 2.85rem; height: 2.85rem; padding: 0 !important; margin: 0 !important;
+    justify-content: center; align-items: center; border-radius: 14px; position: relative; overflow: visible;}
+  [data-testid="stSidebarNavLink"] > span:first-child {margin: 0 !important;}
+  [data-testid="stSidebarNavLink"] [data-testid="stIconMaterial"] {font-size: 1.32rem !important; color: var(--lyst-text-muted);}
+  [data-testid="stSidebarNavLink"]:hover [data-testid="stIconMaterial"] {color: var(--lyst-text);}
+  [data-testid="stSidebarNavLink"] > span[label] {position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;}
+  [data-testid="stSidebarNavLink"][aria-current="page"] {background: var(--lyst-raised) !important; box-shadow: var(--lyst-shadow-2);}
+  [data-testid="stSidebarNavLink"][aria-current="page"]::before {content: ""; position: absolute; left: -.72rem; top: 30%;
+    bottom: 30%; width: 3px; border-radius: 3px; background: var(--lyst-accent);}
+  [data-tip]::after {content: attr(data-tip); position: absolute; left: calc(100% + .7rem); top: 50%; translate: -4px -50%;
+    padding: .3rem .6rem; border-radius: 8px; background: var(--lyst-text); color: var(--lyst-bg); font-size: var(--lyst-size-xs);
+    font-weight: var(--lyst-weight-medium); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 1000;
+    transition: opacity var(--lyst-motion-fast) var(--lyst-motion-ease), translate var(--lyst-motion-base) var(--lyst-motion-ease);}
+  [data-tip]:hover::after, [data-tip]:focus-visible::after {opacity: 1; translate: 0 -50%;}
+  [data-testid="stSidebarUserContent"] {padding: 0 0 1rem 0 !important;}
+  [data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] {align-items: center;}
+  .st-key-lyst_side_foot {box-shadow: none; padding-top: 0; align-items: center;}
+  .st-key-lyst_side_foot, .st-key-lyst_side_icons {align-items: center !important; gap: .2rem !important; width: 100% !important;}
+  .st-key-lyst_side_icons > div, .st-key-lyst_side_foot > div {width: auto !important; display: flex; justify-content: center;}
+  .st-key-lyst_side_icons [data-testid="stPopoverButton"], .st-key-lyst_side_icons [data-testid^="stBaseButton"] {
+    width: 2.6rem !important; min-width: 2.6rem; height: 2.6rem; border-radius: 12px; overflow: visible;}
+  .st-key-lyst_side_account [data-testid="stPopoverButton"] [data-testid="stIconMaterial"] {font-size: 1.5rem !important;}
+  .block-container {animation: lyst-page var(--lyst-motion-slow) var(--lyst-motion-ease);}
+}
+@keyframes lyst-page {from {opacity: 0; transform: translateY(4px);}}
 /* quiet chrome */
 [data-testid="stToolbar"] {opacity: .55;}
 footer {visibility: hidden;}
@@ -228,6 +274,13 @@ _SURFACES = """<script>
   new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mark(); }); } })
     .observe(document.body, {childList: true, subtree: true});
   mark();
+  // the rail: each icon carries its area's name as a floating label (the accessible name is already the link text)
+  const tips = () => document.querySelectorAll('[data-testid="stSidebarNavLink"]:not([data-tip])').forEach(a => {
+    const t = (a.querySelector('[label]')?.getAttribute('label') || a.getAttribute('aria-label') || a.innerText || '').replace(/\\s+/g, ' ').trim();
+    if (t) a.setAttribute('data-tip', t);
+  });
+  new MutationObserver(() => requestAnimationFrame(tips)).observe(document.body, {childList: true, subtree: true});
+  tips();
 })();
 </script>"""
 
@@ -376,7 +429,7 @@ def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":mater
         st.error(str(e), icon=":material/error:")
         return None
     st.session_state.pop("_waiting", None)  # something changed: recount what waits on this person
-    st.session_state.pop("_recent", None)
+    st.session_state.pop("_home", None)  # and Home's starters, focus and recent work
     st.session_state.pop("_agent", None)  # and what Lyst is doing (agent.state)
     st.session_state.pop("_zone", None)  # and the activity zone's cards
     if ok:
