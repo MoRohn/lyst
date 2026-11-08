@@ -224,6 +224,7 @@ POST /v1/workspaces/{ws}/assignments | query: - | body: assignee,object_id,objec
 POST /v1/workspaces/{ws}/assignments/{assignment_id}/complete | query: - | body: -
 POST /v1/workspaces/{ws}/catalog/discover | query: - | body: -
 POST /v1/workspaces/{ws}/chat | query: - | body: id,messages
+POST /v1/workspaces/{ws}/chat/tickets | query: - | body: -
 POST /v1/workspaces/{ws}/comments/{comment_id}/resolve | query: - | body: -
 POST /v1/workspaces/{ws}/connections | query: - | body: kind,name,values
 POST /v1/workspaces/{ws}/connections/{cid}/sync | query: - | body: source_table

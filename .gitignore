@@ -12,3 +12,4 @@ var/
 !.env.example
 /secrets/
 tests/aisdk/node_modules/
+ui-src/live/node_modules/

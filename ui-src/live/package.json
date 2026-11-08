@@ -1,0 +1,16 @@
+{
+  "name": "lyst-live-answer",
+  "private": true,
+  "type": "module",
+  "description": "Source of Lyst's live answer component: the AI SDK client bundled into src/lyst/ui/live_component/live.js.",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "ai": "7.0.165"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

@@ -10,6 +10,13 @@
     A retried request for the same chat and user message returns the same task (idempotency), so a dropped
     connection never runs the work twice.
 
+``POST /v1/workspaces/{ws}/chat/tickets``
+    A chat ticket for the signed-in person (``lyst.tickets``): what the interface hands a browser so the AI SDK can
+    use the two chat routes for this workspace, and nothing else, for 15 minutes. Send it as
+    ``Authorization: Ticket <ticket>``. The chat routes answer cross-origin requests only from the interface's own
+    origins (``LYST_UI_ORIGINS``, comma-separated; by default the local interface at ``lyst.localhost``, ``localhost``
+    and ``127.0.0.1`` on ``LYST_UI_PORT``).
+
 ``GET /v1/workspaces/{ws}/chat/{chat_id}/stream``
     ``useChat({resume: true})``: the chat's task that is still running, replayed from its start and then live;
     ``204`` when nothing is running, as the AI SDK expects.
@@ -22,17 +29,19 @@ client resumes), and a comment line every ``HEARTBEAT`` seconds keeps proxies fr
 # no `from __future__ import annotations`: FastAPI resolves the User dependency from the real annotation
 
 import asyncio
+import os
+import re
 import time
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import live, uistream
+from .. import live, tickets, uistream
 from ..analyst import converse as converse_mod
-from ..security import AccessDenied
+from ..security import AccessDenied, Principal
 
 POLL = 0.4  # seconds between task snapshots
 HEARTBEAT = 15.0
@@ -46,6 +55,23 @@ class ChatIn(BaseModel):
                      "regenerate-assistant-message"] | None = None
     messageId: str | None = Field(None, max_length=200)  # noqa: N815 - the AI SDK's field name
     autonomy: str | None = None
+
+
+CHAT_PATH = re.compile(r"^/v1/workspaces/[^/]+/chat(?:/[^/]+/stream)?$")
+
+
+def ui_origins() -> set[str]:
+    """The interface's origins, which alone may call the chat routes from a browser."""
+    if raw := os.environ.get("LYST_UI_ORIGINS"):
+        return {o.strip().rstrip("/") for o in raw.split(",") if o.strip()}
+    port = os.environ.get("LYST_UI_PORT", "8501")
+    return {f"http://{h}:{port}" for h in ("lyst.localhost", "localhost", "127.0.0.1")}
+
+
+def _cors(origin: str) -> dict[str, str]:
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Max-Age": "600",
+            "Access-Control-Allow-Methods": "GET, POST", "Access-Control-Allow-Headers": "authorization, content-type",
+            "Access-Control-Expose-Headers": "x-vercel-ai-ui-message-stream"}
 
 
 def _approvals(lyst, task_id: str) -> list[dict[str, Any]]:
@@ -84,8 +110,43 @@ def _stream(request: Request, lyst, user, task_id: str) -> StreamingResponse:
 
 
 def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names used in api/__init__.py
+    @app.middleware("http")
+    async def chat_cors(request: Request, call_next):
+        """Cross-origin access to the chat routes, for the interface's origins only. Every other route stays same-origin."""
+        origin = request.headers.get("origin", "").rstrip("/")
+        if not origin or not CHAT_PATH.match(request.url.path) or origin not in ui_origins():
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=_cors(origin))
+        response = await call_next(request)
+        response.headers.update(_cors(origin))
+        return response
+
+    def chat_user(request: Request, ws: str) -> Principal:
+        """The person behind a chat request: a session token, or a chat ticket for this workspace (``lyst.tickets``)."""
+        auth = request.headers.get("authorization", "")
+        if auth[:7].lower() != "ticket ":
+            return L(request).guard.authenticate(auth[7:] if auth[:7].lower() == "bearer " else None)
+        try:
+            uid = tickets.verify(auth[7:].strip(), ws)
+        except tickets.TicketInvalid as exc:
+            raise HTTPException(401, str(exc), headers={"WWW-Authenticate": tickets.SCHEME}) from None
+        rows = L(request).stores.control.query("SELECT id, email FROM users WHERE id = ?", [uid])
+        if not rows:
+            raise HTTPException(401, "this chat ticket's person no longer exists")
+        return Principal(rows[0]["id"], rows[0]["email"], token_label=tickets.LABEL)
+
+    ChatUser = Annotated[Principal, Depends(chat_user)]  # noqa: N806 - a type alias, as User is
+
+    @app.post("/v1/workspaces/{ws}/chat/tickets")
+    def chat_ticket(request: Request, ws: str, user: User):
+        if user.token_label == tickets.LABEL:  # not reachable with a ticket today; kept explicit so it never becomes so
+            raise AccessDenied("a chat ticket cannot issue another")
+        L(request).guard.require(user, ws, "analyst.ask")
+        return {**tickets.issue(user.user_id, ws), "api": f"/v1/workspaces/{ws}/chat"}
+
     @app.post("/v1/workspaces/{ws}/chat")
-    async def chat(request: Request, ws: str, body: ChatIn, user: User):
+    async def chat(request: Request, ws: str, body: ChatIn, user: ChatUser):
         lyst = L(request)
         question, message_id = uistream.question_from(body.messages)
         if not question:
@@ -103,7 +164,7 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
         return _stream(request, lyst, user, task_id)
 
     @app.get("/v1/workspaces/{ws}/chat/{chat_id}/stream")
-    async def chat_resume(request: Request, ws: str, chat_id: str, user: User):
+    async def chat_resume(request: Request, ws: str, chat_id: str, user: ChatUser):
         lyst = L(request)
         await run_in_threadpool(lyst.guard.require, user, ws, "workspace.read")
         rows = await run_in_threadpool(
