@@ -85,6 +85,17 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", s.lower()).strip()
 
 
+def _exact(words: str, p: dict) -> bool:
+    w = _norm(re.sub(r"^(the|my|our)\s+", "", words.strip(), flags=re.I))
+    return w in (_norm(p["label"].replace("›", " ")), _norm(p["label"].split("›")[-1]), _norm(p["area"]))
+
+
+def _opens_artifact(text: str) -> bool:
+    from lyst.analyst import converse  # noqa: PLC0415
+
+    return (converse.route(text) or {}).get("kind") == "open_artifact"
+
+
 def find_place(words: str, where: list[dict] | None = None) -> dict | None:
     """The place a person named: an exact section or area name first, then every word found in its words."""
     where = where or places()
@@ -111,7 +122,11 @@ def interpret(text: str, where: list[dict] | None = None) -> tuple[str, Any]:
         return "follow", True
     m = GO.match(t)
     if m and (p := find_place(m.group(1), where)):
-        return "go", p
+        # "open the dash" names a thing, not the Dashboards section: Lyst opens the dashboard itself. Only a place
+        # named exactly ("open dashboards", "go to settings") is a move to that page.
+        if _exact(m.group(1), p) or not _opens_artifact(t):
+            return "go", p
+        return "ask", t
     if len(t.split()) <= 3 and (p := find_place(t, where)) and _norm(t) in _norm(p["label"]).split(" ") + [
             _norm(p["label"].replace("›", " ")), _norm(p["label"].split("›")[-1])]:
         return "go", p
