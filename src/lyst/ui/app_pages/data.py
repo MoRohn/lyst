@@ -127,6 +127,11 @@ div.st-key-data_tools [data-testid="stTextInputRootElement"] {border-radius: var
   background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1); border-color: var(--lyst-edge) !important;}
 div.st-key-data_tools button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.5rem;}
 div.st-key-data_more button {background: transparent !important; box-shadow: none !important; border-color: transparent !important;}
+div.st-key-data_src_strip {margin-top: .9rem; padding: .55rem .6rem .55rem 1rem; border-radius: var(--lyst-radius-pill);
+  background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1); width: fit-content; max-width: 100%; flex-wrap: wrap;}
+div.st-key-data_src_strip button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.1rem;}
+p.lyst-data-src {margin: 0; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted);}
+p.lyst-data-src b {color: var(--lyst-text); font-weight: var(--lyst-weight-medium);}
 p.lyst-data-read {color: var(--lyst-text-muted); margin: .1rem 0 1.4rem 0; font-size: .95rem;}
 div[class*="st-key-read_"] {margin: -.2rem 0 1.1rem -.5rem;}
 div[class*="st-key-read_"] button {color: var(--lyst-text); font-size: .95rem; border-radius: var(--lyst-radius-pill);
@@ -616,15 +621,57 @@ def sources_for(every: list[dict], src: dict) -> list[dict]:
     return out
 
 
+def uses_for(feeds: dict[str, list[dict]], every: list[dict]) -> list[dict]:
+    """What the data feeds, for the flow's right-hand lane: each approved metric once, with the datasets it reads."""
+    titles = {d["name"]: d["title"] for d in every}
+    out: dict[str, dict] = {}
+    for ds, metrics in feeds.items():
+        for m in metrics:
+            u = out.setdefault(m["name"], {"id": m["name"], "title": m.get("title") or m["name"].replace("_", " "),
+                                           "from": [], "fromTitles": []})
+            if ds not in u["from"]:
+                u["from"].append(ds)
+                u["fromTitles"].append(titles.get(ds, ds))
+    for u in out.values():
+        u["hint"] = f"{u['title']} · from {', '.join(u['fromTitles'])}"
+    return sorted(out.values(), key=lambda u: (u["from"][0], u["title"]))
+
+
+def source_strip(every: list[dict], src: dict) -> None:
+    """With a source picked: one line about it, and the way into its detail (health, settings, sync) as a sheet."""
+    where = st.session_state.get("data_source") or "all"
+    if where in ("all", "+"):
+        return
+    n = sum(1 for d in every if source_of(d, src["conns"]) == where)
+    conn = next((c for c in src["conns"] if c["id"] == where), None)
+    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="data_src_strip"):
+        if conn:
+            state = _state(conn, src["health"].get(conn["id"]) or {})[0]
+            st.html(f'<p class="lyst-data-src"><b>{kit._esc(conn["name"])}</b> · {kit._esc(conn["kind"])} · '
+                    f'{kit._esc(state)} · gives {n} dataset{"s" * (n != 1)}</p>')
+            if st.button("Manage source", key="data_src_manage", icon=":material/tune:", type="secondary"):
+                source_detail(conn["id"])
+        else:
+            label = {"files": "Files you uploaded", "built": "Datasets Lyst built"}.get(where, where)
+            st.html(f'<p class="lyst-data-src"><b>{kit._esc(label)}</b> · gives {n} dataset{"s" * (n != 1)}</p>')
+            if where == "files" and editor and st.button("Upload a file", key="data_src_upload", icon=":material/upload:"):
+                st.session_state["add_how_pick"] = "Upload a file"
+                add_data()
+        if st.button("Show everything", key="data_src_all", type="tertiary", icon=":material/close:"):
+            st.session_state["data_source"] = "all"
+            st.rerun()
+
+
 def objects(every: list[dict], src: dict) -> str | None:
     """Sources and datasets as objects. Returns the dataset picked, if any (kept across reruns and pages)."""
     q = (st.session_state.get("ds_find") or "").strip().lower()
     where = st.session_state.get("data_source") or "all"
-    shown = [d for d in every if (where == "all" or source_of(d, src["conns"]) == where)
-             and (not q or q in (d["title"] + d["name"] + (d.get("description") or "")).lower())]
+    # a picked source lights its path rather than hiding the rest, so the whole flow stays in view
+    shown = [d for d in every if not q or q in (d["title"] + d["name"] + (d.get("description") or "")).lower()]
     pick = st.session_state.get("data_pick")
     if pick and not any(d["name"] == pick for d in every):
         pick = st.session_state["data_pick"] = None
+    feeds = _metrics_by_dataset()
     rows = []
     for d in shown:
         h = health(d)
@@ -633,9 +680,11 @@ def objects(every: list[dict], src: dict) -> str | None:
                                       f"through {_month((d.get('freshness') or {}).get('latest'))}"
                                       if (d.get("freshness") or {}).get("latest") else None) if x)
         rows.append({"name": d["name"], "title": d["title"], "meta": meta, "tone": tone,
-                     "status": h[0] if tone != "ok" else None,
+                     "status": h[0] if tone != "ok" else None, "from": source_of(d, src["conns"]),
+                     "feeds": len(feeds.get(d["name"]) or []),
                      "types": [kind_of(c.get("type", "")) for c in d.get("schema") or []]})
     data = {"sources": sources_for(every, src), "source": where, "datasets": rows, "selected": pick,
+            "uses": uses_for(feeds, every),
             "empty": f"Nothing matches “{q}”." if q else "No datasets from this source yet."}
     res = _objects()(data=data, key="lyst_data_objects", on_action_change=lambda: None)
     ev = getattr(res, "action", None)
@@ -647,6 +696,8 @@ def objects(every: list[dict], src: dict) -> str | None:
         elif ev.get("type") == "source":
             st.session_state["data_source"] = str(ev.get("id") or "all")
             st.rerun()
+        elif ev.get("type") == "use":  # a metric the data feeds: its definition, where Brain keeps it
+            st.switch_page("app_pages/brain.py", query_params={"view": "definitions", "metric": str(ev.get("id") or "")})
         elif ev.get("type") == "pick":
             name = str(ev.get("name") or "")
             st.session_state["data_pick"] = None if name == pick else name
@@ -1173,6 +1224,7 @@ try:
         else:
             focus(every, src)
             pick = objects(every, src)
+            source_strip(every, src)
             if pick:
                 panel(next(d for d in every if d["name"] == pick), _metrics_by_dataset().get(pick) or [])
             onboarding.data_suggestions()

@@ -16,8 +16,45 @@
 .o :focus-visible { outline: 2px solid var(--o-focus); outline-offset: 3px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* sources: compact rounded objects in one row; the picked one raised */
-.o-sources { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.6rem; }
+/* the flow: three lanes, left to right, with the wires drawn behind them */
+.o-flow { --o-stacked: 0; position: relative; display: grid; grid-template-columns: minmax(10.5rem, 14rem) minmax(15rem, 23rem) minmax(10.5rem, 14rem);
+          justify-content: space-between; column-gap: 3rem; row-gap: .8rem; grid-template-rows: auto 1fr; padding: 1.4rem 1.5rem 1.6rem; border-radius: 24px; background: var(--o-raised);
+          border: 1px solid var(--o-edge); box-shadow: var(--o-s1);
+          background-image: radial-gradient(color-mix(in srgb, var(--o-muted) 16%, transparent) 1px, transparent 1px);
+          background-size: 22px 22px; background-position: 11px 11px; }
+.o-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.o-wires path { fill: none; stroke: color-mix(in srgb, var(--o-muted) 32%, transparent); stroke-width: 1.4;
+                transition: stroke var(--o-base) var(--o-ease), opacity var(--o-base) var(--o-ease), stroke-width var(--o-base); }
+.o-wires path.w-use { stroke-dasharray: 3 4; }
+.o.lit .o-wires path { opacity: .25; }
+.o.lit .o-wires path.on-path { opacity: 1; stroke: var(--o-accent); stroke-width: 2; }
+.o-lane { position: relative; min-width: 0; display: grid; grid-row: span 2; grid-template-rows: subgrid; }
+.o-lane > :not(.o-lane-h) { align-self: center; }
+.o-lane-h { margin: 0 0 .1rem; font-size: var(--lyst-size-xs, .72rem); font-weight: 600; color: var(--o-muted);
+            text-transform: uppercase; letter-spacing: var(--lyst-tracking-label, .08em); display: flex; gap: .4rem; }
+.o-lane-h span { font-weight: 400; font-variant-numeric: tabular-nums; }
+.o.lit .o-src:not(.on-path):not(.add), .o.lit .o-ds:not(.on-path), .o.lit .o-use:not(.on-path) { opacity: .42; }
+.o.lit .o-ds.on-path, .o.lit .o-use.on-path { opacity: 1; }
+
+/* sources: compact rounded objects stacked in their lane; the picked one raised */
+.o-sources { display: flex; flex-direction: column; align-items: stretch; gap: .5rem; margin: 0; }
+.o-sources .o-src { width: 100%; background: var(--o-surface); justify-content: flex-start; }
+.o-sources .o-src.add { background: transparent; border: 1px dashed var(--o-border); }
+.o-src-t { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.o-src-n { margin-left: auto; }
+
+/* what the datasets feed: approved metrics, each a small chip that opens its definition */
+.o-uses { display: flex; flex-direction: column; gap: .45rem; }
+.o-use { width: 100%; display: flex; align-items: center; gap: .55rem; min-height: 2.4rem; padding: 0 .8rem 0 .4rem;
+         border-radius: var(--o-pill); border: 1px solid transparent; background: var(--o-surface); cursor: pointer;
+         font-size: var(--lyst-size-sm, .84rem); text-align: left;
+         transition: background var(--o-base) var(--o-ease), box-shadow var(--o-base) var(--o-ease), opacity var(--o-base) var(--o-ease); }
+.o-use:hover { background: var(--o-raised); box-shadow: var(--o-s2); }
+.o-use-i { display: grid; place-items: center; width: 1.65rem; height: 1.65rem; border-radius: 50%; flex: none;
+           background: color-mix(in srgb, var(--o-accent) 14%, var(--o-raised)); color: var(--o-accent); }
+.o-use-i svg { width: .9rem; height: .9rem; }
+.o-use-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.o-none-use { font-size: var(--lyst-size-sm, .84rem); margin: 0; line-height: 1.45; }
 .o-src { display: inline-flex; align-items: center; gap: .55rem; height: 2.6rem; padding: 0 .95rem 0 .4rem;
          border: 1px solid transparent; border-radius: var(--o-pill); background: transparent; cursor: pointer;
          color: var(--o-muted); font-size: var(--lyst-size-sm, .84rem); white-space: nowrap; flex: none;
@@ -34,7 +71,10 @@
 .o-src.add .o-src-i { background: transparent; border: 1px dashed var(--o-border); color: var(--o-muted); }
 
 /* datasets: objects with a face (their shape), a name and one line */
-.o-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 1rem; }
+.o-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: .9rem; }
+.o-lane-ds .o-grid { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.o-lane-ds .o-grid.dense { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.o-flow:has(.o-grid.dense) { grid-template-columns: minmax(10.5rem, 14rem) minmax(26rem, 40rem) minmax(10.5rem, 14rem); }
 .o-cell { min-width: 0; animation: o-in var(--o-slow) var(--o-ease) both; animation-delay: calc(var(--i) * 40ms); }
 @keyframes o-in { from { opacity: 0; transform: translateY(8px) scale(.985); } }
 .o-ds { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; text-align: left;
@@ -42,6 +82,7 @@
         box-shadow: var(--o-s1); cursor: pointer; position: relative;
         transition: transform var(--o-base) var(--o-ease), box-shadow var(--o-base) var(--o-ease), opacity var(--o-base) var(--o-ease),
                     border-color var(--o-base) var(--o-ease); }
+.o-lane-ds .o-ds { background: var(--o-raised); box-shadow: var(--o-s2); }
 .o-ds:hover { transform: translateY(-2px); box-shadow: var(--o-s2); }
 .o-ds[aria-pressed="true"] { border-color: color-mix(in srgb, var(--o-accent) 55%, transparent); transform: translateY(-3px);
         box-shadow: 0 0 0 4px color-mix(in srgb, var(--o-accent) 12%, transparent), var(--o-s3); }
@@ -65,16 +106,25 @@
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .o-none { color: var(--o-muted); margin: 1rem 0; }
 
+/* narrower: the lanes stack, sources and feeds become rows of chips, and the order of the lanes says the flow */
+@container (max-width: 760px) {
+  .o-flow { --o-stacked: 1; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; gap: 1.3rem; padding: 1.1rem 1rem 1.2rem; border-radius: 20px; }
+  .o-wires { display: none; }
+  .o-lane { grid-row: auto; grid-template-rows: none; gap: .6rem; }
+  .o-lane-ds .o-grid, .o-lane-ds .o-grid.dense { grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); }
+  .o-sources, .o-uses { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+  .o-sources .o-src, .o-use { width: auto; flex: none; }
+}
 @container (max-width: 520px) {
-  .o-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+  .o-grid, .o-lane-ds .o-grid, .o-lane-ds .o-grid.dense { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
   .o-ds { padding: .85rem .85rem .8rem; border-radius: 16px; }
   .o-flag { display: none; }
-  .o-sources { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-bottom: 1.1rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .o *, .o *::before, .o *::after { animation: none !important; transition: none !important; }
 }
 @media (forced-colors: active) {
-  .o-ds, .o-src { border: 1px solid CanvasText; }
+  .o-ds, .o-src, .o-use { border: 1px solid CanvasText; }
+  .o-wires path.on-path { stroke: Highlight; }
   .o-ds[aria-pressed="true"], .o-src.on { outline: 2px solid Highlight; }
 }
