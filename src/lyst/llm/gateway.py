@@ -28,6 +28,7 @@ tenant (the per-tenant limit still caps any one workspace), and limits are per p
 
 from __future__ import annotations
 
+import json
 import math
 import random
 import threading
@@ -263,6 +264,42 @@ class Admission:
 # ------------------------------------------------------------------------------- the gateway
 
 
+def read_stream(lines, on_delta: Callable[[str | None], None]) -> dict[str, Any]:
+    """Assemble a streamed chat completion (Server-Sent Events of ``chat.completion.chunk``) while passing each piece of
+    answer text to ``on_delta``. Comment lines (OpenRouter's ``: OPENROUTER PROCESSING``) and reasoning are skipped;
+    usage, the model, the provider and the finish reason are taken from whichever chunk carries them. A stream that
+    ends without ``[DONE]`` or a finish reason was cut: ``ValueError``."""
+    text: list[str] = []
+    out: dict[str, Any] = {"choices": [{"message": {"content": ""}, "finish_reason": None}]}
+    done = False
+    for line in lines:
+        if not line or line.startswith(":") or not line.startswith("data:"):
+            continue
+        payload = line[5:].strip()
+        if payload == "[DONE]":
+            done = True
+            break
+        chunk = json.loads(payload)
+        if chunk.get("error"):
+            out["error"] = chunk["error"]
+            done = True
+            break
+        for k in ("model", "provider", "usage"):
+            if chunk.get(k):
+                out[k] = chunk[k]
+        for choice in chunk.get("choices") or []:
+            piece = (choice.get("delta") or {}).get("content")
+            if piece:
+                text.append(piece)
+                on_delta(piece)
+            if choice.get("finish_reason"):
+                out["choices"][0]["finish_reason"] = choice["finish_reason"]
+    if not done and out["choices"][0]["finish_reason"] is None:
+        raise ValueError("the stream ended before the reply did")
+    out["choices"][0]["message"]["content"] = "".join(text)
+    return out
+
+
 def retry_delay(attempt: int, retry_after: float | None, rng: random.Random) -> float:
     if retry_after is not None:
         return retry_after
@@ -349,15 +386,30 @@ class Gateway:
     def complete(self, messages: list[dict], *, models: list[str], workload: str = "chat", tenant: str = "platform",
                  pool: str | None = None, json_mode: bool = False, max_tokens: int | None = None,
                  reasoning_effort: str | None = None, extra: dict | None = None,
-                 reasoning_for: Callable[[str, str], dict | None] | None = None) -> CallResult:
+                 reasoning_for: Callable[[str, str], dict | None] | None = None,
+                 on_delta: Callable[[str | None], None] | None = None) -> CallResult:
         """``reasoning_for(model, workload)`` may lower a model's reasoning for a quick call (``policy.quick_reasoning``).
         If the provider rejects that setting the model is remembered and never sent it again; the call moves to the
-        next model, or, on the last (or only, pinned) model, retries it once without the setting."""
+        next model, or, on the last (or only, pinned) model, retries it once without the setting.
+
+        ``on_delta`` streams the reply: the request is sent with ``stream: true`` and each piece of answer text is passed
+        to it as it arrives (reasoning is never passed on). Admission, retries, the model walk and accounting are the
+        same as for a plain call, and the result is the same ``CallResult``. Before a retry or the next model, after
+        text was passed on, ``on_delta(None)`` says to discard it. JSON calls are never streamed."""
+        if json_mode:
+            on_delta = None
         pool = pool or DEFAULT_POOL.get(workload, "interactive")
         est = sum(len(m.get("content") or "") for m in messages) // 4 + (
             max_tokens or WORKLOAD_ROUTING.get(workload, {}).get("max_tokens") or 1024)
         tries_total = 0
         last_error = "no models to try"
+        emitted = [False]  # text was passed on since the caller last discarded
+        if on_delta is not None:
+            sink = on_delta
+
+            def on_delta(piece: str | None) -> None:
+                emitted[0] = piece is not None
+                sink(piece)
         for model in models:
             in_flight_budget_retried = False
             length_retried = False
@@ -366,17 +418,24 @@ class Gateway:
             while attempt < self.MAX_TRIES:
                 attempt += 1
                 tries_total += 1
+                if emitted[0]:  # text from an earlier attempt was passed on: the caller discards it first
+                    on_delta(None)
                 lease = self.admission.acquire(pool, tenant, est, model)
                 start = time.monotonic()
-                status, outcome, retry_after, resp = None, "error", None, None
+                status, outcome, retry_after, resp, streamed = None, "error", None, None, None
                 rec = CallRecord(model, pool, workload, tenant, None, "error", lease.queue_ms, 0, tries_total)
+                body = self._body(model, messages, workload, json_mode=json_mode, max_tokens=max_tokens,
+                                  reasoning_effort=reasoning_effort, extra=extra, pool=pool, reasoning=reasoning)
                 try:
-                    resp = self.http.post(f"{self.base_url}/chat/completions", headers=self._headers(tenant),
-                                          json=self._body(model, messages, workload, json_mode=json_mode,
-                                                          max_tokens=max_tokens, reasoning_effort=reasoning_effort,
-                                                          extra=extra, pool=pool, reasoning=reasoning),
-                                          timeout=self.timeout_s)
+                    if on_delta is None:
+                        resp = self.http.post(f"{self.base_url}/chat/completions", headers=self._headers(tenant),
+                                              json=body, timeout=self.timeout_s)
+                    else:
+                        resp, streamed = self._stream(body, tenant, on_delta)
                     status = resp.status_code
+                    if streamed is not None and streamed.get("error"):
+                        # an error inside a 200 stream (the provider failed mid-reply): retried like a 5xx, or a 429
+                        status = 429 if str((streamed["error"] or {}).get("code")) == "429" else 502
                     retry_after = _retry_after(resp)
                     if status == 200:
                         outcome = "ok"
@@ -390,14 +449,14 @@ class Gateway:
                         outcome = "rejected"
                 except httpx.TimeoutException:
                     outcome = "timeout"
-                except httpx.HTTPError:
+                except (httpx.HTTPError, ValueError):  # ValueError: a stream cut mid-event
                     outcome = "network"
                 finally:
                     latency = int((time.monotonic() - start) * 1000)
                     self.admission.release(lease, outcome, retry_after if outcome == "throttled" else None)
                 rec.status, rec.outcome, rec.latency_ms = status, outcome, latency
                 if outcome == "ok":
-                    data = resp.json()
+                    data = streamed if streamed is not None else resp.json()
                     usage = data.get("usage") or {}
                     rec.provider = data.get("provider")
                     rec.input_tokens = usage.get("prompt_tokens")
@@ -454,6 +513,29 @@ class Gateway:
                 if attempt < self.MAX_TRIES:
                     self.sleep(retry_delay(attempt, retry_after, self.rng))
         raise Exhausted(f"every model failed; last: {last_error}")
+
+    def _stream(self, body: dict[str, Any], tenant: str,
+                on_delta: Callable[[str | None], None]) -> tuple[httpx.Response, dict[str, Any] | None]:
+        """One streamed request. Returns the response and, for a 200, the reply assembled into the shape of a plain
+        completion (``choices[0].message.content``, ``finish_reason``, ``usage``, ``model``, ``provider``), so the
+        caller treats both alike. A provider error sent inside the stream is returned under ``error``."""
+        body = {**body, "stream": True}
+        if self.provider != "openrouter":  # OpenAI-compatible servers report usage in the last chunk only on request
+            body["stream_options"] = {"include_usage": True}
+        with self.http.stream("POST", f"{self.base_url}/chat/completions", headers=self._headers(tenant), json=body,
+                              timeout=self.timeout_s) as resp:
+            if resp.status_code != 200:
+                resp.read()
+                return resp, None
+            if "text/event-stream" not in resp.headers.get("content-type", ""):
+                # a server that ignored ``stream`` and answered with one completion: pass its text on whole
+                resp.read()
+                data = resp.json()
+                content = ((data.get("choices") or [{}])[0].get("message") or {}).get("content")
+                if content:
+                    on_delta(content)
+                return resp, data
+            return resp, read_stream(resp.iter_lines(), on_delta)
 
     def embed(self, texts: list[str], *, model: str, tenant: str = "platform") -> tuple[list[list[float]], CallRecord]:
         """Embeddings through the same admission and accounting (background pool, workload embed)."""

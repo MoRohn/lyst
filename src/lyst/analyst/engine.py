@@ -27,6 +27,7 @@ import pandas as pd
 from .. import studio as studio_mod
 from ..analytics import drivers, timeseries
 from ..data import DataService
+from ..live import DRAFTS, DraftGuard
 from ..llm import LLMClient, LLMUnavailable
 from ..memory import MemoryService
 from ..security import Guard, untrusted
@@ -1207,9 +1208,8 @@ _NUMBER = re.compile(r"-?\$?\d[\d,]*\.?\d*(?:\s*(?:%|per ?cent\b|percent\b|(?:pe
                      r"(?:thousand|million|billion|mn|bn)\b|[KMB]\b))?")
 
 
-def _numbers(text: str) -> list[float]:
-    """Figures in text, scaled: "$2.69M", "$2.69 million", "1.3%", "3.5 pts" and "3.5 percentage points" all parse.
-    Spelled-out scales are how a model words money, so leaving them unscaled rejected correct wording (N1)."""
+def _figures(text: str) -> list[tuple[int, int, float]]:
+    """Each figure in text with where it is: ``(start, end, value)``, scaled as :func:`_numbers` scales it."""
     out = []
     for m in _NUMBER.finditer(text):
         tok = m.group(0).replace("$", "").replace(",", "")
@@ -1222,10 +1222,16 @@ def _numbers(text: str) -> list[float]:
         else:
             mult = _SCALE_WORDS.get(unit, 1.0)
         try:
-            out.append(float(num.group(0)) * mult)
+            out.append((m.start(), m.end(), float(num.group(0)) * mult))
         except ValueError:
             pass
     return out
+
+
+def _numbers(text: str) -> list[float]:
+    """Figures in text, scaled: "$2.69M", "$2.69 million", "1.3%", "3.5 pts" and "3.5 percentage points" all parse.
+    Spelled-out scales are how a model words money, so leaving them unscaled rejected correct wording (N1)."""
+    return [v for _, _, v in _figures(text)]
 
 
 def _same_figures(prior: str, template: str, final: str) -> bool | None:
@@ -1242,10 +1248,14 @@ def _same_figures(prior: str, template: str, final: str) -> bool | None:
 
 def unbacked_numbers(text: str, allowed: list[float]) -> list[float]:
     """Numbers in model text that match no tool-produced value (within display rounding)."""
+    return _unbacked(_numbers(text), allowed)
+
+
+def _unbacked(values: list[float], allowed: list[float]) -> list[float]:
     from decimal import Decimal  # noqa: PLC0415
 
     bad = []
-    for n in _numbers(text):
+    for n in values:
         if n in (0, 1, 2, 3, 4) or 1900 <= n <= 2100:
             continue
         # the sign is carried by the words ("fell 3.5 points" for a change of -0.035); the magnitude must be backed,
@@ -1254,6 +1264,11 @@ def unbacked_numbers(text: str, allowed: list[float]) -> list[float]:
         if not any(math.isclose(abs(n), abs(a), rel_tol=0.006, abs_tol=0.0006) or round(abs(a), places) == abs(n) for a in allowed):
             bad.append(n)
     return bad
+
+
+def _draft_guard(ctx: Context, allowed: list[float]) -> DraftGuard:
+    """Streams a model's wording to the people watching this task, figure-checked as it is written (``lyst.live``)."""
+    return DraftGuard(ctx.task_id, _figures, lambda v: not _unbacked([v], allowed))
 
 
 def _collect_numbers(obj: Any, out: list[float]) -> None:
@@ -1295,20 +1310,22 @@ def converse(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                       if x.get(f) not in (None, [], "")} for x in v] if isinstance(v, list) else v) for k, v in inv.items()}
         try:
             recent = converse_mod.recent_turns(s.runtime.db, ctx.actor, ctx.workspace_id, ctx.task_id) if s.runtime else []
-            text = s.llm.chat(ctx.workspace_id, [
-                {"role": "system", "content": CONVERSE_SYSTEM},
-                {"role": "user", "content": json.dumps({"inventory": slim, "draft_reply": reply["answer"],
-                                                        "offers": reply["suggestions"], "earlier_in_this_conversation": recent},
-                                                       default=str)
-                 + "\n" + untrusted("user_request", u["question"])},
-            ], purpose="converse", task_id=ctx.task_id, max_tokens=400, workload="chat", pool="interactive")
-            text = " ".join((text or "").split())
             # the figures already said in this conversation came from checked analyses, so a reply may refer back to them
             allowed = converse_mod.counts(inv)
             for turn in recent:
                 _collect_numbers(turn.get("answer"), allowed)
                 for n in _numbers(str(turn.get("answer") or "")):
                     allowed += [n, n / 100, n * 100]
+            guard = _draft_guard(ctx, allowed)
+            text = s.llm.chat(ctx.workspace_id, [
+                {"role": "system", "content": CONVERSE_SYSTEM},
+                {"role": "user", "content": json.dumps({"inventory": slim, "draft_reply": reply["answer"],
+                                                        "offers": reply["suggestions"], "earlier_in_this_conversation": recent},
+                                                       default=str)
+                 + "\n" + untrusted("user_request", u["question"])},
+            ], purpose="converse", task_id=ctx.task_id, max_tokens=400, workload="chat", pool="interactive",
+               on_delta=guard)
+            text = " ".join((text or "").split())
             bad = unbacked_numbers(text, allowed)
             if len(text) < 12 or not any(ch.isalpha() for ch in text):
                 narrative_by = "template (model returned no wording)"
@@ -1316,7 +1333,10 @@ def converse(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 narrative_by = "template (model wording dropped: it stated numbers)"
             else:
                 reply["answer"], narrative_by = text[:1200], "model (no figures; grounded in the workspace catalog)"
+            guard.finish(reply["answer"] if narrative_by.startswith("model") else None)
         except LLMUnavailable as exc:
+            if ctx.task_id and DRAFTS.get(ctx.task_id):  # a reply cut off mid-stream: withdraw what was shown
+                DRAFTS.set(ctx.task_id, "")
             narrative_by = f"template (model unavailable: {str(exc)[:80]})"
     reply["narrative_by"] = narrative_by
     reply["inventory"] = {k: len(v) for k, v in inv.items() if isinstance(v, list)}
@@ -1741,12 +1761,13 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if reused and not unbacked_numbers(reused[0]["text"], allowed):
         answer, narrative_by = reused[0]["text"], "model (numbers verified; reused for identical findings)"
     elif status == "complete" and ctx.services.llm.allowed_for(ctx.workspace_id) and findings:
+        guard = _draft_guard(ctx, allowed)
         try:
             text = ctx.services.llm.chat(ctx.workspace_id, [
                 {"role": "system", "content": "Rewrite the answer and findings as two short executive sentences. "
                  "Use only numbers given. Do not add numbers."},
                 {"role": "user", "content": json.dumps({"answer": answer, "findings": findings})},
-            ], purpose="deliver", task_id=ctx.task_id, max_tokens=600, workload="chat")
+            ], purpose="deliver", task_id=ctx.task_id, max_tokens=600, workload="chat", on_delta=guard)
             text = (text or "").strip()
             bad = unbacked_numbers(text, allowed)
             if len(text) < 20 or not any(ch.isalpha() for ch in text):
@@ -1756,7 +1777,9 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 answer, narrative_by = text, "model (numbers verified)"
             else:  # the computed answer stands; say why the model's wording was not used, without quoting it
                 narrative_by = "template (model wording dropped: unverified numbers " + ", ".join(f"{b:g}" for b in bad[:4]) + ")"
+            guard.finish(answer if narrative_by.startswith("model") else None)
         except LLMUnavailable as exc:
+            guard.finish(None)
             narrative_by = f"template (model unavailable: {str(exc)[:80]})"
 
     confidence = {"passed": "verified", "passed_with_warnings": "verified with warnings",

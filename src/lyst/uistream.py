@@ -23,6 +23,9 @@ each engine step (a capability)        ``start-step``, ``tool-input-available`` 
                                        ``tool-output-error``, then ``finish-step``
 a pending approval on the task         ``data-lyst-approval`` (decided only through ``POST /v1/approvals/{id}``
                                        by a person with the right role; never by the stream or the model)
+the answer as a model writes it        its own step: ``text-start`` / ``text-delta`` as the figure-checked draft
+                                       grows (``lyst.live``), then ``text-end`` if it is exactly the stored answer,
+                                       else ``reset-step`` (removed) and the stored answer follows
 the answer                             ``text-start`` / ``text-delta`` / ``text-end``
 each dataset version it read           ``source-document`` (``sourceId`` = ``dataset@version``)
 each chart, the confidence, the        ``data-lyst-chart``, message metadata (``messageMetadata``)
@@ -105,6 +108,8 @@ class TaskStream:
         self._status: str | None = None
         self._steps: dict[str, str] = {}  # step id -> "running" | "done" | "failed"
         self._approvals: dict[str, str] = {}  # approval id -> status
+        self._draft: dict[str, Any] | None = None  # the open draft step: {epoch, id, text}
+        self._answered = False  # the draft became the answer, so the answer is not sent again
 
     # -- the pieces ------------------------------------------------------------------------------------------------
 
@@ -159,11 +164,40 @@ class TaskStream:
                  "data": {"approvalId": aid, "action": ap.get("action"), "summary": ap.get("summary"),
                           "status": status, "decide": f"/v1/approvals/{aid}"}}]
 
+    def _drafting(self, draft: dict[str, Any]) -> list[dict[str, Any]]:
+        """The answer as the model writes it, in a step of its own (``lyst.live``). A new epoch (the model call was
+        retried, or its wording withdrawn) removes what was shown with ``reset-step``; the task's end decides whether
+        the draft stays (:meth:`_settle`)."""
+        out: list[dict[str, Any]] = []
+        epoch, text = draft.get("epoch"), str(draft.get("text") or "")
+        if self._draft and self._draft["epoch"] != epoch:
+            out.append({"type": "reset-step"})
+            self._draft = None
+        if self._draft is None and text:
+            pid = f"{self.task_id}:draft:{epoch}"
+            self._draft = {"epoch": epoch, "id": pid, "text": ""}
+            out += [{"type": "start-step"}, {"type": "text-start", "id": pid}]
+        if self._draft and len(text) > len(self._draft["text"]) and text.startswith(self._draft["text"]):
+            out.append({"type": "text-delta", "id": self._draft["id"], "delta": text[len(self._draft["text"]):]})
+            self._draft["text"] = text
+        return out
+
+    def _settle(self, task: dict[str, Any]) -> list[dict[str, Any]]:
+        """At the task's end the stored answer decides: a draft that is exactly the answer stays; any other is removed."""
+        if not self._draft:
+            return []
+        d, self._draft = self._draft, None
+        answer = (task.get("result") or {}).get("answer") if task.get("status") == "done" else None
+        if isinstance(answer, str) and answer == d["text"]:
+            self._answered = True
+            return [{"type": "text-end", "id": d["id"]}, {"type": "finish-step"}]
+        return [{"type": "reset-step"}]
+
     def _result(self, task: dict[str, Any]) -> list[dict[str, Any]]:
         r = task.get("result") or {}
         out: list[dict[str, Any]] = []
         answer = r.get("answer")
-        if isinstance(answer, str) and answer.strip():
+        if isinstance(answer, str) and answer.strip() and not self._answered:
             tid = f"{self.task_id}:answer"
             out += [{"type": "text-start", "id": tid}, {"type": "text-delta", "id": tid, "delta": answer},
                     {"type": "text-end", "id": tid}]
@@ -206,17 +240,26 @@ class TaskStream:
 
     # -- the diff --------------------------------------------------------------------------------------------------
 
-    def update(self, task: dict[str, Any], approvals: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-        """The chunks that describe what changed since the previous snapshot."""
+    def update(self, task: dict[str, Any], approvals: list[dict[str, Any]] | None = None,
+               draft: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        """The chunks that describe what changed since the previous snapshot. ``draft`` is the task's live draft
+        (``lyst.live.DRAFTS.get``), if any. While a draft is open, step and approval changes wait (they are diffs, so
+        nothing is lost): the draft stays the newest step, which is what lets ``reset-step`` remove exactly it."""
         if self.finished:
             return []
         out = [] if self.started else self._start(task)
         out += self._lifecycle(task)
-        for step in task.get("steps") or []:
-            out += self._step(step)
-        for ap in approvals or []:
-            out += self._approval(ap)
-        if task.get("status") in _TERMINAL:
+        terminal = task.get("status") in _TERMINAL
+        if draft is not None and (not terminal or self._draft):  # at the end, only catch up a draft already shown
+            out += self._drafting(draft)
+        if terminal:
+            out += self._settle(task)
+        if self._draft is None:
+            for step in task.get("steps") or []:
+                out += self._step(step)
+            for ap in approvals or []:
+                out += self._approval(ap)
+        if terminal:
             out += self._finish(task)
         return out
 

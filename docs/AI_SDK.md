@@ -60,20 +60,40 @@ answers 204 when none is running.
 Every value is copied from the stored task, its steps and its result. The stream re-reads the task through
 `runtime.get`, which checks `workspace.read` on every poll.
 
+## The answer as the model writes it (shipped)
+
+When a model words the answer (`deliver`) or a conversational reply (`converse`), the call streams: `Gateway.complete`
+with `on_delta` sends `stream: true` and passes each piece of answer text on as it arrives. Admission, retries, the
+model walk and the `llm_calls` row are unchanged, and the call still returns the whole reply. Reasoning is never
+passed on. JSON calls never stream, so a whole object is checked before anyone sees it. Before a retry or the next
+model, the gateway calls `on_delta(None)` so the text already shown is discarded. A server that ignores `stream` and
+answers with one completion still works: its text is passed on whole.
+
+The text goes through a **figure check as it is written** (`lyst.live.DraftGuard`). A figure is judged only after
+three more words have arrived, so its unit and scale ("2.69 million", "3.5 percentage points") are read with it. Text
+is passed on only while every figure in it matches a tool-produced value, using the analyst's own rule
+(`unbacked_numbers`). The first unbacked figure stops the draft: nothing after it is shown. The analyst's check on the
+whole reply then decides as before. If it keeps its computed answer, the draft is withdrawn at once.
+
+Drafts live in memory per task (`lyst.live.DRAFTS`, 15 minutes after their last change). They are never stored,
+never sent as events and never treated as evidence. In the UI message stream, a draft is a step of its own: a
+`text-start` followed by `text-delta` chunks as it grows. Step and approval changes wait while it is open, so the
+draft stays the newest step. At the task's end the stored answer decides. A draft that is exactly the stored answer
+gets `text-end`, and the answer is not sent twice. Any other draft is removed with `reset-step` and the stored answer
+follows. A new epoch (a retry, or the wording withdrawn) removes the draft the same way. If workers run in another
+process, the stream has no draft and shows the answer when the task ends.
+
 ## Next, in order
 
-1. **Token streaming in the gateway.** `Gateway.stream` streams from OpenRouter and keeps the same admission, retries
-   and cost ledger. Narrative and conversational steps then emit `text-delta` and `reasoning-delta` as they are
-   written, not when the task ends.
-2. **A live answer component.** A bundled Streamlit component built on the AI SDK's `Chat` that renders the stream:
+1. **A live answer component.** A bundled Streamlit component built on the AI SDK's `Chat` that renders the stream:
    steps as they run, sources and charts, approvals inline. Steering (`steering-message`) lets a person add
    "also by region" mid-run as a follow-up. Its placement on pages is the Redesign lane's call.
-3. **Generative micro-apps (Lyst Apps).** The model streams an app spec as structured output, rendered live while
+2. **Generative micro-apps (Lyst Apps).** The model streams an app spec as structured output, rendered live while
    it is generated (`tool-input-delta` / partial JSON), against a closed component catalog: KPI, trend, breakdown,
    table, filter, what-if slider, note. The model never writes code and never supplies a number. Every value is a
    binding to a governed metric or dataset that the semantic layer resolves, as with Studio dashboards. Apps render
    in a sandboxed iframe (`sandbox="allow-scripts"`, `default-src 'none'`, data by `postMessage`). Each app is a
    versioned asset with dependencies and health scans (workspace migration 130).
-4. **Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
+3. **Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
    works in any client. The response is enforced by `runtime.decide`: role checks still apply, and the proposer of
    a capability still cannot approve it.
