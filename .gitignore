@@ -11,3 +11,4 @@ var/
 .env.*
 !.env.example
 /secrets/
+tests/aisdk/node_modules/
