@@ -78,9 +78,23 @@ def test_picking_a_dataset_reveals_it_with_three_moves(ui):  # noqa: F811
     assert objects_of(at)["selected"] is None
 
 
+def test_data_opens_as_a_flow_from_sources_to_what_the_data_feeds(ui):  # noqa: F811
+    o = objects_of(_open_data())
+    assert all(d["from"] for d in o["datasets"])  # every dataset is wired to where it came from
+    ids = {s["id"] for s in o["sources"]}
+    assert all(d["from"] in ids for d in o["datasets"])
+    uses = {u["id"]: u for u in o["uses"]}  # and to the approved metrics it feeds
+    assert "operating_margin" in uses and "pnl" in uses["operating_margin"]["from"]
+    assert next(d for d in o["datasets"] if d["name"] == "pnl")["feeds"] >= 1
+
+
 def test_a_source_brings_its_datasets_forward_and_search_narrows(ui):  # noqa: F811
     at = _open_data(data_source="files")
     assert objects_of(at)["source"] == "files" and objects_of(at)["datasets"]
+    keys = {b.key for b in at.button}
+    assert "data_src_all" in keys  # a picked source says what it gives, with a way back to everything
+    at.button(key="data_src_all").click().run()
+    assert objects_of(at)["source"] == "all"
     at.session_state["data_source"] = "all"
     at.text_input(key="ds_find").set_value("ledger").run()
     assert [d["name"] for d in objects_of(at)["datasets"]] == ["pnl_ledger"]
