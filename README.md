@@ -92,26 +92,32 @@ understanding and wording, never the numbers.
 ## A tour of the interface
 
 One navigation with four areas (Home, Data, Brain and Settings), and one visual language behind every screen: a
-calm canvas with raised, softly lit surfaces, a translucent sidebar, dialogs that rise as sheets, native-style
+calm canvas with raised, softly lit surfaces, a slim icon rail, dialogs that rise as sheets, native-style
 segmented controls and buttons, the system typeface, and motion that respects reduced-motion settings, in light
 and dark. A single set of design tokens drives Streamlit's widgets, Lyst's own components and every chart, every
 screen is checked by an automated render with WCAG 2.2 AA accessibility scanning, and text and status colours meet
-4.5:1 contrast in both themes. At the top of every page is the **Lyst agent bar**: ask by typing or speaking
-(asked from Data, Brain or Settings, the answer follows in a panel without leaving the page), go anywhere by name
-("go to SQL", "open definitions"), and watch Lyst work: a **Watch** chip for what is running, a **Live** panel
-with each step and the event feed, and an opt-in **Follow Lyst**. Below it, every page has the same **activity
-board**, which folds to one quiet line when nothing needs you, with Suggested, Needs you, In progress and Done,
-scoped to the page with an **Everywhere** switch: click a card to open it, hold it (or press M) for its actions,
-or drag it to another column to propose that move, with each column saying what a drop would do; the keyboard
-works too (arrows, and Space to pick up and drop), every change asks for confirmation and goes through the usual
-approvals and permissions, and viewers can only open cards. The sidebar stays calm: the four areas lead, Pinned
-and Recent fold away as quiet one-line links (only a status worth noticing gets an icon), and one foot holds a
-workspace menu (account, role, switcher, sign out) and three quiet icons for search (Ctrl/⌘+K opens the palette
-from anywhere), notifications and the glossary.
+4.5:1 contrast in both themes. Home is one composer that fills the page: Lyst's own mark sits
+above it as its presence, still while idle, catching light while it works, rippling while it listens and glowing
+amber when something waits on you. Below it are at most three starters drawn from your approved metrics, at most
+one line for the single thing that most wants you, and a floating dock for what is in flight, what needs you,
+**Get started** and **Recent** (pinned items and recent answers). Everywhere else, the **Lyst agent bar** sits at
+the top of the page: ask by typing or speaking (asked from Data, Brain or Settings, the answer follows in a panel
+without leaving the page), go anywhere by name ("go to SQL", "open definitions"), and watch Lyst work: a
+**Watch** chip for what is running, a **Live** panel with each step and the event feed, and an opt-in **Follow
+Lyst**; a running answer shows Lyst's mark and the current step over a hairline of progress. Data, Brain and
+Settings each have the same **activity board**, which folds to one quiet line when nothing needs you, with
+Suggested, Needs you, In progress and Done, scoped to the page with an **Everywhere** switch: click a card to open
+it, hold it (or press M) for its actions, or drag it to another column to propose that move, with each column
+saying what a drop would do; the keyboard works too (arrows, and Space to pick up and drop), every change asks for
+confirmation and goes through the usual approvals and permissions, and viewers can only open cards. On desktop
+the navigation is a 72px icon rail: Lyst's mark, then Home, Data, Brain and Settings, with search (Ctrl/⌘+K opens
+the palette from anywhere), notifications, the glossary and your account (role, workspace switcher, sign out) at
+its foot. Every icon shows its label on hover and keyboard focus; on a phone the menu opens as a sheet with
+words.
 
 | Area | What you do there |
 |---|---|
-| **Home** | Ask in the agent bar and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows a few suggested questions, one suggested next step, **Latest answers** as cards (*Why, and what to do* folds open in place) and **Made for you**. Get started and earlier answers fold into one line each, and the activity line stays quiet unless something needs you |
+| **Home** | One question, "What should Lyst work on?", and a composer that grows as you write (Shift+Enter for a new line; on focus it offers **Add data** and keyboard hints). Ask, and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows up to three starters and at most one focus line (a question that needs your input, an answer that did not verify, a blocked run, or "add data" on an empty workspace), never a list. The dock at the foot holds work in progress, what needs you, **Get started** (the guide opens as a sheet) and **Recent** |
 | **Data** | Opens with Lyst's read on the data in one line ("1 of 4 datasets needs attention…", with **Review**), then a library rail of datasets, approved metrics and dashboards, and tabs for Datasets (as cards, a map of shared columns, or a list), Sources, Dashboards, Saved analyses and SQL (with a sandboxed **Python** tab), plus **Ask about the data**. Each dataset card says what matters (sensitivity, what it is, rows, how recent, which measures it feeds) and offers **Explore** (the full record, schema included), **Insights** (Lyst says what stands out) and **More** (check data quality, or ask a question about this dataset). **Add data** uploads a file, connects a source, or proposes connections from an API description |
 | **Brain** | One calm line on what Lyst knows and is doing, then four sections. **Overview** (the default) searches everything Lyst knows (definitions, datasets, earlier answers, documents), each result with **Open** and **Ask**, and lists the measures and expertise used lately and what it learned lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **Knowledge** holds Definitions, Documents, Memory (with memories waiting for review) and the **Map** of how everything links, with graph runs. **Specializations** is the catalog of 136 kinds of analyst work |
 | **Settings** | A native two-pane screen with grouped settings: Models (level and costs), Connections (keys and sources), Workspace (members, autonomy, data policy, webhooks, audit trail), Voice, and Advanced (skills, capabilities, evaluation runs, and how working ahead went) |
@@ -119,7 +125,7 @@ from anywhere), notifications and the glossary.
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.png">
-  <img src="docs/images/home.png" alt="Home: the agent bar, one suggested question row, the quiet activity line, a suggested next step, latest answers as cards and Made for you">
+  <img src="docs/images/home.png" alt="Home: Lyst's mark over What should Lyst work on?, the composer, three starter questions, the dock with Get started and Recent, and the slim icon rail">
 </picture>
 </p>
 
@@ -143,7 +149,7 @@ Dashboards, charts, briefings, slides, workbooks and saved analyses appear as pr
 content, and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides
 as slides, a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to
 refine it in words ("break that down by region", "compare it to last year", "every Monday", however you phrase or
-quote it), see its versions, pin it to your sidebar, and return exactly where you were. Every chart in an answer
+quote it), see its versions, pin it to Home's **Recent**, and return exactly where you were. Every chart in an answer
 appears under **Made in this answer**, Data › Dashboards is the gallery of everything made, and ⌘K finds artifacts
 by title.
 
@@ -375,13 +381,13 @@ says a person is needed.
   arrive in one list with platform notices, and each kind can be switched off per person.
 
 On screen: **Share** and **Discuss** sit on every answer; **Brain › Work › Needs you** adds *Assigned to you* (Open, Done)
-and *Reviews waiting* (Open, Approve, Reject), counted in the sidebar; and **Notifications** in the sidebar open
+and *Reviews waiting* (Open, Approve, Reject), counted on the rail; and **Notifications** on the rail open
 where they point, with Mark all read and "What to tell me about".
 
 <table>
   <tr>
     <td width="45%"><img src="docs/images/discuss.png" alt="An answer's discussion: a mention, an open change request with Mark resolved, and a recorded decision"><br><b>Discuss</b>: comments, change requests and decisions</td>
-    <td width="55%"><img src="docs/images/notifications.png" alt="Sidebar notifications for a change request and a mention, over an answer with Share and Discuss in its act bar"><br><b>Notifications</b>: open where they point</td>
+    <td width="55%"><img src="docs/images/notifications.png" alt="Notifications for a change request and a mention, over an answer with Share and Discuss in its act bar"><br><b>Notifications</b>: open where they point</td>
   </tr>
 </table>
 
@@ -645,7 +651,7 @@ where they point, with Mark all read and "What to tell me about".
   business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
   resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
   shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer. On
-  screen: the Get started card on Home, **Suggestions** in Data › Datasets (with **Study the data again**), and
+  screen: **Get started** in Home's dock, **Suggestions** in Data › Datasets (with **Study the data again**), and
   the industry picker and **Business profile** in Settings › Workspace ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
   shared definitions or contracts change, sharing and ownership handover, and per-person notifications.
