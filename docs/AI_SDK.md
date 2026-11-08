@@ -112,14 +112,54 @@ on a license Lyst may not ship. The bundle is committed, so installing Lyst need
 `tests/test_chat_tickets.py` checks that the bundle carries the pinned version and only allowed licenses. It was also
 checked in Chromium against a running engine, cross-origin with a ticket, in light and dark.
 
+## Lyst Apps: generated micro-apps (shipped)
+
+A sentence ("an app to watch operating margin and revenue by region") becomes a small interactive app. The app is a
+**spec, never code**: a title and up to 24 blocks from a closed catalog (`lyst.apps.CATALOG`).
+
+| Block | Binds | Shows |
+|---|---|---|
+| `kpi` | metric (grain) | the latest value and its change against the prior period |
+| `trend` | metric (grain, 2 to 60 periods) | the metric over its last periods |
+| `breakdown` | metric, dimension (grain) | the latest period split by the dimension |
+| `table` | metric, dimension (grain, 1 to 24 periods) | the metric by period and dimension |
+| `filter` | dimension | narrows every block whose metric has the dimension to one value (one filter per app) |
+| `whatif` | metric (min and max percent) | a slider moving the latest value; a projection, labelled as one |
+| `note` | none | a short text |
+
+**The model never supplies a number.** Blocks bind only to approved metrics, their own dimensions and a grain. Text
+the model writes (titles, notes) may not hold figures; years and quarter names are allowed. Every value is resolved by
+the semantic layer's compiled SQL through the guard (`data.query`), as for Studio dashboards. A filter's values for
+each block are computed by the same SQL per dimension value, so a ratio is never re-aggregated in the browser.
+
+**Rendered while it is written.** The model writes the spec as JSON through the gateway (`stream_json`: the caller
+checks each piece itself, so JSON may stream). `SpecReader` reads each block the moment its object closes; it is
+checked, resolved, and shown. A block that breaks a rule is left out and the reason is reported. A retry by the
+gateway removes what was shown. Without a model, or when the model's spec has no usable block, the rules build an app
+from the metrics the request names.
+
+`POST /v1/workspaces/{ws}/apps/generate` takes what `useChat` sends and answers a UI message stream:
+
+| App | UI message stream |
+|---|---|
+| the app | one dynamic tool call, `lyst_app`; `useChat` shows `part.input` growing while `state` is `input-streaming` |
+| the spec as it grows | `tool-input-delta`, written from checked blocks only, so the client's partial JSON is always a checked prefix |
+| each block with its values | `data-lyst-app-block` (id `{call}:{block}`) |
+| a block left out | `data-lyst-app-dropped` with the reason |
+| a retry, or the rules replacing the model | `reset-step`, then a new call |
+| the end | `tool-input-available` (the whole spec), `tool-output-available` (the saved app), a `source-document` per dataset version |
+
+A viewer can generate an app to look at; saving needs an editor. A retried request saves no second app. Saved apps
+keep every version (`apps`, `app_versions`, workspace migration 130) and are assets of kind `app`: they read current
+data when opened, so a new dataset version does not make them stale, but a bound metric redefined or retired does
+(`invalidated`), and the repair saves the app again, re-checking every binding. Routes: `GET .../apps/catalog`,
+`GET|POST .../apps`, `GET|PUT .../apps/{id}`, `GET .../apps/{id}/open` (values read now), `POST .../apps/{id}/retire`.
+
 ## Next, in order
 
-1. **Generative micro-apps (Lyst Apps).** The model streams an app spec as structured output, rendered live while
-   it is generated (`tool-input-delta` / partial JSON), against a closed component catalog: KPI, trend, breakdown,
-   table, filter, what-if slider, note. The model never writes code and never supplies a number. Every value is a
-   binding to a governed metric or dataset that the semantic layer resolves, as with Studio dashboards. Apps render
-   in a sandboxed iframe (`sandbox="allow-scripts"`, `default-src 'none'`, data by `postMessage`). Each app is a
-   versioned asset with dependencies and health scans (workspace migration 130).
+1. **Apps in the interface.** A renderer for the spec in a sandboxed iframe (`sandbox="allow-scripts"`,
+   `default-src 'none'`, values by `postMessage`), drawn block by block from the stream, with chat tickets extended
+   to the generate and open routes.
 2. **Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
    works in any client. The response is enforced by `runtime.decide`: role checks still apply, and the proposer of
    a capability still cannot approve it.

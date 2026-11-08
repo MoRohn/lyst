@@ -82,3 +82,9 @@ def attach(lyst) -> None:
     from .learning import LearningService  # noqa: PLC0415 - learning lane
 
     lyst.learning = LearningService(lyst.stores, lyst.guard, lyst.feedback)
+    from .apps import AppService  # noqa: PLC0415 - AI SDK lane
+
+    lyst.apps = AppService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lyst.llm)
+    if getattr(lyst, "assets", None) is not None:
+        lyst.apps.assets = lyst.assets
+        lyst.assets.apps = lyst.apps

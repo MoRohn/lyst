@@ -62,6 +62,8 @@ def test_migration_versions_are_unique_and_lanes_stay_in_range():
             assert 110 <= v <= 119
         if "answer_feedback" in sql:
             assert 120 <= v <= 129
+        if "app_versions" in sql:
+            assert 130 <= v <= 139
 
 
 def test_the_run_loop_ends_tasks_only_through_fail_and_finish():

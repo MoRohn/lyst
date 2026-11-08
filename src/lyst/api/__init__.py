@@ -1771,6 +1771,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .aisdk import routes as aisdk_routes  # noqa: PLC0415
 
     aisdk_routes(app, L, User)
+    from .apps import routes as apps_routes  # noqa: PLC0415 - Lyst Apps: generated micro-apps on governed metrics
+
+    apps_routes(app, L, User)
 
     return app
 

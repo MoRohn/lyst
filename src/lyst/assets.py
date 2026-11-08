@@ -40,7 +40,7 @@ from .store import Stores
 log = logging.getLogger("lyst.assets")
 
 REPORT_KINDS = {"pdf": "report", "xlsx": "workbook", "pptx": "presentation", "md": "briefing"}
-KINDS = ("report", "workbook", "presentation", "briefing", "dashboard", "workflow", "data_model")
+KINDS = ("report", "workbook", "presentation", "briefing", "dashboard", "workflow", "data_model", "app")
 HEALTH = ("current", "stale", "invalidated", "broken", "repairing")
 
 
@@ -58,6 +58,7 @@ class AssetService:
         self.artifacts = artifacts
         self.studio = studio
         self.transforms = None  # transforms.TransformService, set by the composition root
+        self.apps = None  # apps.AppService (lane.attach)
         self.events = None  # the event service (lane.attach): a health change is staged with the update
 
     def _db(self, ws: str):
@@ -171,6 +172,16 @@ class AssetService:
             log.exception("asset registration for workflow %s failed", wf_id)
             return None
 
+    def on_app(self, actor: Principal, ws: str, app_id: str, title: str, depends: dict[str, Any], *,
+               question: str | None, note: str) -> dict[str, Any] | None:
+        """A saved app version. Every value in it is bound to a governed metric and was resolved before saving."""
+        try:
+            return self._upsert(ws, actor, kind="app", ref_kind="app", ref_id=app_id, title=title, task_id=None,
+                                question=question, depends=depends, validation="verified", sha256=None, note=note)
+        except Exception:  # noqa: BLE001 - the app is saved; the registry is bookkeeping
+            log.exception("could not register app %s", app_id)
+            return None
+
     def on_transform(self, actor: Principal, ws: str, name: str, *, failed: str | None = None) -> dict[str, Any] | None:
         """A transformation's derived dataset as a data model asset: a new version per successful run of a new definition,
         broken with the reason when a run fails (the last good dataset version stays in place)."""
@@ -255,7 +266,7 @@ class AssetService:
                 continue
             if contracts.get(ds) in ("breaking", "fail"):
                 reasons["broken"].append(f"the current version of {ds} {'breaks' if contracts[ds] == 'breaking' else 'fails'} its data contract")
-            if dv[ds] > ver:
+            if dv[ds] > ver and a["kind"] != "app":  # an app reads current data whenever it is opened
                 reasons["stale"].append(f"{ds} is now v{dv[ds]}; this was built on v{ver}")
         for m, ver in (deps.get("metrics") or {}).items():
             cur = mv.get(m)
@@ -275,6 +286,8 @@ class AssetService:
                 reasons["broken"].append("its transformation was retired")
             elif st[0]["status"] == "failed":
                 reasons["broken"].append(f"its last run failed: {st[0]['last_error']}")
+        if a["kind"] == "app" and self._db(ws).scalar("SELECT status FROM apps WHERE id = ?", [a["ref_id"]]) != "active":
+            reasons["broken"].append("the app was retired")
         if a["kind"] == "dashboard":
             st = self._db(ws).scalar("SELECT status FROM dashboards WHERE id = ?", [a["ref_id"]])
             if st == "failed":
@@ -361,6 +374,9 @@ class AssetService:
             return {"action": "rerun", "automatic": True, "text": "Run the transformation again on the current inputs; its checks must pass."}
         if a["kind"] == "dashboard":
             return {"action": "refresh", "automatic": True, "text": "Refresh it: Lyst re-materializes its data with the current definitions and verifies every page."}
+        if a["kind"] == "app":
+            return {"action": "resave", "automatic": True,
+                    "text": "Save it again: Lyst re-checks every binding against the current definitions and keeps a new version."}
         if a["kind"] == "workflow":
             return {"action": "recompile", "automatic": True, "text": "Re-run its question: a verified run recompiles the workflow on the current definitions."}
         return {"action": "rebuild", "automatic": True,
@@ -395,6 +411,12 @@ class AssetService:
             self.scan(ws, actor)
             return {"asset_id": asset_id, "action": "refresh", "status": out["status"], "checks": out["checks"],
                     "version": self.get(actor, ws, asset_id)["version"]}
+        if a["kind"] == "app":
+            app = self.apps.get(actor, ws, a["ref_id"])
+            out = self.apps.save(actor, ws, app["spec"], app_id=a["ref_id"], note="repair: saved again on current definitions")
+            self.scan(ws, actor)
+            return {"asset_id": asset_id, "action": "resave", "status": "ok", "version": self.get(actor, ws, asset_id)["version"],
+                    "app_version": out["version"]}
         if not a.get("question"):
             raise ValueError("this asset does not record the question that produced it, so it cannot be rebuilt automatically")
         task_id = self.runtime.submit(actor, ws, a["question"])
@@ -458,6 +480,8 @@ class AssetService:
         a = self.get(actor, ws, asset_id)
         if a["kind"] == "dashboard" and self.studio is not None:
             self.studio.retire(actor, ws, a["ref_id"])
+        if a["kind"] == "app" and self.apps is not None:
+            self.apps.retire(actor, ws, a["ref_id"])
         self._db(ws).execute("UPDATE assets SET status = 'retired', updated_at = now() WHERE id = ?", [asset_id])
         self.guard.audit(actor, ws, "asset.retire", asset_id, "ok")
         return {"asset_id": asset_id, "status": "retired"}

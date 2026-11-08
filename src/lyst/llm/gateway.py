@@ -387,7 +387,7 @@ class Gateway:
                  pool: str | None = None, json_mode: bool = False, max_tokens: int | None = None,
                  reasoning_effort: str | None = None, extra: dict | None = None,
                  reasoning_for: Callable[[str, str], dict | None] | None = None,
-                 on_delta: Callable[[str | None], None] | None = None) -> CallResult:
+                 on_delta: Callable[[str | None], None] | None = None, stream_json: bool = False) -> CallResult:
         """``reasoning_for(model, workload)`` may lower a model's reasoning for a quick call (``policy.quick_reasoning``).
         If the provider rejects that setting the model is remembered and never sent it again; the call moves to the
         next model, or, on the last (or only, pinned) model, retries it once without the setting.
@@ -395,8 +395,9 @@ class Gateway:
         ``on_delta`` streams the reply: the request is sent with ``stream: true`` and each piece of answer text is passed
         to it as it arrives (reasoning is never passed on). Admission, retries, the model walk and accounting are the
         same as for a plain call, and the result is the same ``CallResult``. Before a retry or the next model, after
-        text was passed on, ``on_delta(None)`` says to discard it. JSON calls are never streamed."""
-        if json_mode:
+        text was passed on, ``on_delta(None)`` says to discard it. JSON calls are not streamed, unless the caller opts in
+        with ``stream_json`` because it checks each piece of the object itself before showing it (``lyst.apps``)."""
+        if json_mode and not stream_json:
             on_delta = None
         pool = pool or DEFAULT_POOL.get(workload, "interactive")
         est = sum(len(m.get("content") or "") for m in messages) // 4 + (

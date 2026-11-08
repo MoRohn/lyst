@@ -1706,3 +1706,33 @@ WORKSPACE.append((
     CREATE INDEX answer_feedback_by_analysis ON answer_feedback (analysis_id, withdrawn_at)
     """,
 ))
+
+# AI SDK lane (130-139). Lyst Apps (lyst.apps): generated micro-apps kept as specs, never code. Each saved version keeps
+# its spec and what it was built on; the app is also registered as an asset (kind 'app').
+WORKSPACE.append((
+    130,
+    """
+    CREATE TABLE apps (
+        id VARCHAR PRIMARY KEY,
+        title VARCHAR NOT NULL,
+        spec JSON NOT NULL,
+        version INTEGER NOT NULL,
+        status VARCHAR NOT NULL DEFAULT 'active',
+        prompt VARCHAR,
+        prompt_id VARCHAR UNIQUE,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE app_versions (
+        app_id VARCHAR NOT NULL,
+        version INTEGER NOT NULL,
+        spec JSON NOT NULL,
+        depends JSON NOT NULL,
+        note VARCHAR,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (app_id, version)
+    )
+    """,
+))
