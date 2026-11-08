@@ -1,0 +1,115 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Copyright (C) 2026 Rohn Springfield */
+/* Brain's field. Every colour, radius, shadow and duration is a design token from the page (--lyst-*). A thing's kind
+   is told by its shape as well as its colour (metrics round and filled, datasets square, terms diamonds, memories and
+   answers rings), and health colours never mark a kind. */
+:host, .k {
+  --k-text: var(--lyst-text, #16181d); --k-muted: var(--lyst-text-muted, #5f6470); --k-raised: var(--lyst-raised, #fff);
+  --k-surface: var(--lyst-surface, #f5f6f8); --k-edge: var(--lyst-edge, transparent); --k-border: var(--lyst-border, #e3e5ea);
+  --k-accent: var(--lyst-accent, #0b6b64); --k-link: var(--lyst-link, #0b6b64); --k-neutral: var(--lyst-neutral, #5b6577);
+  --k-floor: var(--lyst-mark-floor-a, #12a79b); --k-floor-b: var(--lyst-mark-floor-b, #7fd4c2);
+  --k-warn: var(--lyst-warn, #865a00); --k-bad: var(--lyst-bad, #b42318); --k-focus: var(--lyst-focus, #0b6b64);
+  --k-s1: var(--lyst-shadow-1, none); --k-s2: var(--lyst-shadow-2, none);
+  --k-ease: var(--lyst-motion-ease, ease); --k-fast: var(--lyst-motion-fast, 120ms); --k-base: var(--lyst-motion-base, 200ms);
+  --k-slow: var(--lyst-motion-slow, 320ms); --k-pill: var(--lyst-radius-pill, 999px);
+}
+.k { color: var(--k-text); font: inherit; container-type: inline-size; }
+.k *, .k *::before, .k *::after { box-sizing: border-box; }
+.k button { font: inherit; color: inherit; }
+.k :focus-visible { outline: 2px solid var(--k-focus); outline-offset: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* each kind's colour, used by its dot in the field and in the collections */
+.k-metric { --c: var(--k-accent); }
+.k-dataset { --c: var(--k-neutral); }
+.k-term { --c: var(--k-floor); }
+.k-document { --c: color-mix(in srgb, var(--k-neutral) 60%, var(--k-surface)); }
+.k-memory { --c: var(--k-floor-b); }
+.k-analysis, .k-artifact { --c: var(--k-link); }
+.k-team, .k-person, .k-system, .k-process, .k-objective, .k-business_unit { --c: color-mix(in srgb, var(--k-neutral) 55%, var(--k-surface)); }
+
+/* collections: quiet pills; the open one raised */
+.k-cols { display: flex; gap: .35rem; margin: 0 0 .9rem; overflow-x: auto; scrollbar-width: none; }
+.k-col { display: inline-flex; align-items: center; gap: .45rem; height: 2.15rem; padding: 0 .85rem; flex: none;
+         border: 1px solid transparent; border-radius: var(--k-pill); background: transparent; cursor: pointer; white-space: nowrap;
+         color: var(--k-muted); font-size: var(--lyst-size-sm, .84rem);
+         transition: background var(--k-base) var(--k-ease), box-shadow var(--k-base) var(--k-ease), color var(--k-fast); }
+.k-col:hover { background: color-mix(in srgb, var(--k-raised) 70%, transparent); color: var(--k-text); }
+.k-col.on { background: var(--k-raised); box-shadow: var(--k-s2); color: var(--k-text); font-weight: var(--lyst-weight-medium, 560); }
+.k-col span { font-variant-numeric: tabular-nums; color: var(--k-muted); font-weight: 400; }
+.k-col .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--c, var(--k-muted)); }
+.k-col[data-col="all"] .dot { background: conic-gradient(var(--k-accent) 0 33%, var(--k-neutral) 0 66%, var(--k-floor-b) 0); }
+
+/* the field: a soft lit ground, no grid lines, no chrome */
+.k-field { position: relative; height: clamp(22rem, 54vh, 33rem); border-radius: 26px; overflow: hidden; isolation: isolate;
+           background: radial-gradient(ellipse 60% 55% at 50% 50%, color-mix(in srgb, var(--k-accent) 7%, var(--k-raised)), var(--k-raised) 70%);
+           border: 1px solid var(--k-edge); box-shadow: var(--k-s1); }
+.k-field::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: .55;
+           background-image: radial-gradient(color-mix(in srgb, var(--k-muted) 20%, transparent) 1px, transparent 1px);
+           background-size: 22px 22px; mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%); }
+.k-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.k-links path { fill: none; stroke: color-mix(in srgb, var(--k-accent) 55%, transparent); stroke-width: 1.4; stroke-linecap: round;
+                stroke-dasharray: 1; stroke-dashoffset: 1; animation: k-draw var(--k-slow) var(--k-ease) forwards;
+                animation-delay: calc(var(--i) * 25ms); }
+@keyframes k-draw { to { stroke-dashoffset: 0; } }
+.k-caps { position: absolute; inset: 0; pointer-events: none; }
+.k-cap { position: absolute; transform: translate(-50%, -50%); font-size: var(--lyst-size-xs, .72rem); color: var(--k-muted);
+         text-transform: uppercase; letter-spacing: var(--lyst-tracking-label, .06em); font-weight: 600; white-space: nowrap;
+         transition: opacity var(--k-base) var(--k-ease), left var(--k-slow) var(--k-ease), top var(--k-slow) var(--k-ease); }
+.k-cap b { font-weight: 400; font-variant-numeric: tabular-nums; margin-left: .2rem; }
+.k.has-sel .k-cap { opacity: .35; }
+.k-hint { position: absolute; left: 0; right: 0; bottom: .8rem; margin: 0; text-align: center; pointer-events: none;
+          font-size: var(--lyst-size-xs, .72rem); color: var(--k-muted); transition: opacity var(--k-base); }
+.k.has-sel .k-hint { opacity: 0; }
+
+/* a thing: its mark, and its name beside it when it matters */
+.k-n { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: .45rem;
+       padding: .3rem; margin: 0; border: 0; background: none; cursor: pointer; border-radius: var(--k-pill);
+       transition: left var(--k-slow) var(--k-ease), top var(--k-slow) var(--k-ease), opacity var(--k-base) var(--k-ease); }
+.k-n i { width: var(--s); height: var(--s); flex: none; border-radius: 50%; background: var(--c);
+         box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 14%, transparent);
+         transition: transform var(--k-base) var(--k-ease), box-shadow var(--k-base) var(--k-ease); }
+.k-dataset i { border-radius: 28%; }
+.k-term i { border-radius: 2px; transform: rotate(45deg) scale(.8); }
+.k-memory i, .k-analysis i, .k-artifact i, .k-document i { background: var(--k-raised); box-shadow: inset 0 0 0 2px var(--c); }
+.k-n span { position: absolute; left: calc(100% - .1rem); top: 50%; transform: translateY(-50%); white-space: nowrap;
+            max-width: 13rem; overflow: hidden; text-overflow: ellipsis; font-size: var(--lyst-size-sm, .84rem); line-height: 1.2;
+            padding: .15rem .45rem; border-radius: 8px; color: var(--k-text); opacity: 0; pointer-events: none;
+            transition: opacity var(--k-base) var(--k-ease), background var(--k-base); }
+.k-n.west span { left: auto; right: calc(100% - .1rem); }
+.k-n.say span { opacity: .85; }
+.k-n:hover span, .k-n:focus-visible span, .k-n[aria-pressed="true"].say span, .k-n.near.say span, .k-n.hit.say span { opacity: 1; }
+.k-n:hover span, .k-n:focus-visible span { background: color-mix(in srgb, var(--k-raised) 88%, transparent); box-shadow: var(--k-s1); z-index: 3; }
+.k-n:hover, .k-n:focus-visible { z-index: 4; }
+.k-n:hover i { transform: scale(1.18); }
+.k-term:hover i { transform: rotate(45deg) scale(.95); }
+.k-n.off { opacity: 0; pointer-events: none; visibility: hidden; }
+
+/* picked: the thing glows, what it relates to stays, the rest steps back */
+.k-n[aria-pressed="true"] { z-index: 5; }
+.k-n[aria-pressed="true"] i { box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 22%, transparent), 0 0 22px 4px color-mix(in srgb, var(--c) 35%, transparent); }
+.k-n[aria-pressed="true"] span { font-weight: var(--lyst-weight-strong, 680); background: var(--k-raised); box-shadow: var(--k-s2); }
+.k-n.near span { background: color-mix(in srgb, var(--k-raised) 80%, transparent); }
+.k.has-sel .k-n:not([aria-pressed="true"]):not(.near) { opacity: .22; }
+.k.has-sel .k-n:not([aria-pressed="true"]):not(.near):hover { opacity: .8; }
+/* searching: matches light up */
+.k.has-q:not(.has-sel) .k-n:not(.hit) { opacity: .3; }
+.k-n.hit i { box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 25%, transparent); }
+/* health only as a small ring, never as a kind */
+.k-n.s-warn i { outline: 2px solid var(--k-warn); outline-offset: 2px; }
+.k-n.s-bad i { outline: 2px solid var(--k-bad); outline-offset: 2px; }
+
+@container (max-width: 560px) {
+  .k-field { height: 30rem; border-radius: 20px; }
+  .k-n span { max-width: 9rem; font-size: var(--lyst-size-xs, .72rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k *, .k *::before, .k *::after { animation: none !important; transition: none !important; }
+  .k-links path { stroke-dashoffset: 0; }
+}
+@media (forced-colors: active) {
+  .k-n i { forced-color-adjust: none; background: CanvasText; }
+  .k-n[aria-pressed="true"] i { outline: 3px solid Highlight; }
+  .k-col.on { outline: 2px solid Highlight; }
+  .k-links path { stroke: CanvasText; }
+}

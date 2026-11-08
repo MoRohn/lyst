@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (C) 2026 Rohn Springfield
 """The agentic layer as people see it: Home leads with what Lyst is doing and the answers themselves (details fold
-open, Open shows the full artifact), Data leads with Lyst's read on the data, and Brain opens on a band of what Lyst
-knows, does and runs on its own, with Work as one of its sections."""
+open, Open shows the full artifact), Data leads with Lyst's read on the data, and Brain opens on one line of what Lyst
+knows and does, the field of what it knows, and Work as its other section."""
 
 import base64
 import json
@@ -105,7 +105,7 @@ def test_brain_opens_calm_with_search_and_work_as_a_section(ui):  # noqa: F811
         "Overview" in str(nav.proto.options[0])
     at.text_input(key="brain_q").input("margin").run()
     assert not at.exception, [e.value for e in at.exception]
-    assert "Operating margin" in _texts(at)
+    assert any("Operating margin" in b.label for b in at.button)  # what matches, one step from the field
     nav.set_value("Work").run()
     assert not at.exception, [e.value for e in at.exception]
     assert "Waiting on you" in _texts(at)  # the fixture's ambiguous question waits on the person  # the fixture's ambiguous question waits on the person

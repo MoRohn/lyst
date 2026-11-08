@@ -18,10 +18,13 @@ def _brain(at, **params):
     return at
 
 
-def test_the_graph_has_its_place_in_the_brain(ui):  # noqa: F811
+def test_the_graph_is_one_gesture_from_the_brain(ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
-    _brain(at, view="graph")
+    _brain(at)
+    at.button(key="brain_go_graph").click().run()  # More › Graph
+    assert not at.exception, [e.value for e in at.exception]
+    assert at.query_params.get("view") in ("graph", ["graph"])
     assert any(t.label == "Show graph runs" for t in at.toggle)
     assert "Every dataset, approved metric" in _texts(at)
 
