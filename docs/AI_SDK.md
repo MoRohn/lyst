@@ -51,7 +51,7 @@ answers 204 when none is running.
 | the task | `start` (`messageId` = task id) ... `finish` (`stop` or `error`), `abort` when cancelled |
 | where it is (lifecycle) | `data-lyst-status`, one part updated in place by id |
 | each engine step (capability) | `start-step`, dynamic `tool-input-available` (tool = capability, input = its arguments), then `tool-output-available` or `tool-output-error`, `finish-step` |
-| an approval on the task | `data-lyst-approval` with `decide: /v1/approvals/{id}`. A person decides through that route, under its role checks. The stream never approves anything, and neither does a model |
+| an approval on the task | a `lyst_approval` tool part with `tool-approval-request`: any client answers it with `addToolApprovalResponse`, and Lyst applies the answer only through `runtime.decide` (see below). Also `data-lyst-approval` with `decide: /v1/approvals/{id}`. The stream never approves anything, and neither does a model |
 | the answer | `text-start`, `text-delta`, `text-end` |
 | each dataset version read | `source-document` (`sourceId` `dataset@version`, `mediaType` `application/vnd.lyst.dataset`) |
 | each chart | `data-lyst-chart` |
@@ -175,8 +175,28 @@ one with its values read now. It is a `st.components.v2` component in two parts 
 `npm run build` in `ui-src/live` writes `src/lyst/ui/apps_component/apps.js` (about 196 KB) with the renderer inlined,
 and its third-party licenses beside it. Where an app sits on each page is the page owner's decision.
 
-## Next
+## Approvals in the chat (shipped)
 
-**Approvals in the chat.** Lyst approvals become AI SDK `tool-approval-request` parts, so `addToolApprovalResponse`
-works in any client. The response is enforced by `runtime.decide`: role checks still apply, and the proposer of a
-capability still cannot approve it.
+A Lyst approval (a step gated by a harness rule, a schedule to activate, a capability to register) is the AI SDK's own
+tool approval. The task's stream shows it as a `lyst_approval` dynamic tool part in `approval-requested` state, so any
+client answers it the AI SDK way:
+
+```ts
+const { messages, addToolApprovalResponse } = useChat({
+  transport, sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+});
+// for a part with part.toolName === 'lyst_approval' && part.state === 'approval-requested':
+addToolApprovalResponse({ id: part.approval.id, approved: true });
+```
+
+The next request carries the answer (`uistream.approval_responses` reads it from the last assistant message only). The
+engine applies it through `runtime.decide` as the person who sent it, under the same checks as
+`POST /v1/approvals/{id}`: the role the action needs (`approval.decide`, or `skill.approve`), and the rule that a
+capability's proposer cannot approve it. An approval from another workspace is refused, and one already decided keeps
+its decision. The stream then continues the same message (`TaskStream.continues`): what the client already shows is
+not sent again, the approval turns `output-available` (approved) or `output-denied` (rejected, and the task is
+cancelled), and the answer follows. Checked with the real `ai` 7.0.165 continuing the message.
+
+**A chat ticket never decides.** The page's credential can ask and watch, but an approval in the chat needs a
+signed-in session (an SDK client with a token). In the interface, approvals stay in Work › Approvals, and the live
+answer points there.

@@ -21,8 +21,10 @@ where the task is (lifecycle)          ``data-lyst-status`` with a stable id, so
 each engine step (a capability)        ``start-step``, ``tool-input-available`` (dynamic tool named after the
                                        capability, input = its arguments), then ``tool-output-available`` or
                                        ``tool-output-error``, then ``finish-step``
-a pending approval on the task         ``data-lyst-approval`` (decided only through ``POST /v1/approvals/{id}``
-                                       by a person with the right role; never by the stream or the model)
+a pending approval on the task         a ``lyst_approval`` tool part with ``tool-approval-request``, so any client
+                                       answers it with ``addToolApprovalResponse``; the answer is applied only by
+                                       ``runtime.decide`` under its role checks, never by the stream or a model
+                                       (also ``data-lyst-approval``; ``POST /v1/approvals/{id}`` still works)
 the answer as a model writes it        its own step: ``text-start`` / ``text-delta`` as the figure-checked draft
                                        grows (``lyst.live``), then ``text-end`` if it is exactly the stored answer,
                                        else ``reset-step`` (removed) and the stored answer follows
@@ -81,6 +83,32 @@ def question_from(messages: list[dict[str, Any]]) -> tuple[str | None, str | Non
     return None, None
 
 
+APPROVAL_TOOL = "lyst_approval"
+
+
+def approval_call_id(approval_id: str) -> str:
+    return f"approval:{approval_id}"
+
+
+def approval_responses(messages: list[dict[str, Any]]) -> list[tuple[str, bool]]:
+    """The answers a client gave to Lyst's approvals with ``addToolApprovalResponse``: ``(approval id, approved)`` for
+    each ``lyst_approval`` tool part in ``approval-responded`` state in the last assistant message. They are only
+    requests: the API decides each through ``runtime.decide``, under its role checks, as the person who sent them."""
+    for m in reversed(messages or []):
+        if m.get("role") == "user":
+            return []
+        if m.get("role") != "assistant":
+            continue
+        out = []
+        for p in m.get("parts") or []:
+            approval = p.get("approval") if isinstance(p.get("approval"), dict) else {}
+            if (p.get("type") == "dynamic-tool" and p.get("toolName") == APPROVAL_TOOL and p.get("state") == "approval-responded"
+                    and isinstance(approval.get("approved"), bool) and approval.get("id")):
+                out.append((str(approval["id"]), approval["approved"]))
+        return out
+    return []
+
+
 def _step_id(task_id: str, step: dict[str, Any]) -> str:
     return f"{task_id}:{step.get('seq')}"
 
@@ -119,6 +147,24 @@ class TaskStream:
         self._approvals: dict[str, str] = {}  # approval id -> status
         self._draft: dict[str, Any] | None = None  # the open draft step: {epoch, id, text}
         self._answered = False  # the draft became the answer, so the answer is not sent again
+
+    def continues(self, message: dict[str, Any] | None) -> TaskStream:
+        """Continue a message the client already shows (after ``addToolApprovalResponse``, ``useChat`` sends its
+        messages and reads the answer into its last assistant message): what that message holds is not sent again, so
+        no step or approval appears twice. Only a message for this task is taken; anything else is ignored."""
+        if not message or message.get("id") != self.task_id:
+            return self
+        self.started = True
+        for p in message.get("parts") or []:
+            cid, state = str(p.get("toolCallId") or ""), p.get("state")
+            if p.get("type") != "dynamic-tool" or not cid:
+                continue
+            if cid.startswith("approval:"):
+                self._approvals[cid[len("approval:"):]] = {"output-available": "approved", "output-denied": "rejected"}.get(
+                    state, "pending")
+            elif cid.startswith(f"{self.task_id}:"):
+                self._steps[cid] = {"output-available": "done", "output-error": "failed"}.get(state, "running")
+        return self
 
     # -- the pieces ------------------------------------------------------------------------------------------------
 
@@ -165,13 +211,32 @@ class TaskStream:
         return out
 
     def _approval(self, ap: dict[str, Any]) -> list[dict[str, Any]]:
+        """An approval as the AI SDK's own tool approval (``lyst_approval``, see :func:`approval_responses`), and as
+        ``data-lyst-approval`` for clients that read Lyst's data parts."""
         aid, status = str(ap.get("id")), str(ap.get("status") or "pending")
-        if self._approvals.get(aid) == status:
+        before = self._approvals.get(aid)
+        if before == status:
             return []
         self._approvals[aid] = status
-        return [{"type": "data-lyst-approval", "id": f"approval:{aid}",
-                 "data": {"approvalId": aid, "action": ap.get("action"), "summary": ap.get("summary"),
-                          "status": status, "decide": f"/v1/approvals/{aid}"}}]
+        call = approval_call_id(aid)
+        out: list[dict[str, Any]] = []
+        if before is None:
+            out += [{"type": "tool-input-available", "toolCallId": call, "toolName": APPROVAL_TOOL, "dynamic": True,
+                     "title": str(ap.get("summary") or ap.get("action") or "Approval"),
+                     "input": {"approvalId": aid, "action": ap.get("action"), "summary": ap.get("summary")}},
+                    {"type": "tool-approval-request", "approvalId": aid, "toolCallId": call}]
+        if status in ("approved", "rejected"):
+            out.append({"type": "tool-approval-response", "approvalId": aid, "approved": status == "approved"})
+            out.append({"type": "tool-output-available", "toolCallId": call, "dynamic": True,
+                        "output": {"status": status, "decidedBy": ap.get("decided_by")}} if status == "approved"
+                       else {"type": "tool-output-denied", "toolCallId": call})
+        elif status != "pending":  # expired, or withdrawn with its task
+            out.append({"type": "tool-output-error", "toolCallId": call, "dynamic": True,
+                        "errorText": f"This approval is {status}."})
+        out.append({"type": "data-lyst-approval", "id": f"approval:{aid}",
+                    "data": {"approvalId": aid, "action": ap.get("action"), "summary": ap.get("summary"),
+                             "status": status, "decide": f"/v1/approvals/{aid}"}})
+        return out
 
     def _drafting(self, draft: dict[str, Any]) -> list[dict[str, Any]]:
         """The answer as the model writes it, in a step of its own (``lyst.live``). A new epoch (the model call was

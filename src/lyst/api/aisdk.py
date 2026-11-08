@@ -17,6 +17,13 @@
     origins (``LYST_UI_ORIGINS``, comma-separated; by default the local interface at ``lyst.localhost``, ``localhost``
     and ``127.0.0.1`` on ``LYST_UI_PORT``).
 
+Approvals in the chat
+    A pending approval on the task is a ``lyst_approval`` tool part in ``approval-requested`` state, so any AI SDK
+    client answers it with ``addToolApprovalResponse`` (and ``sendAutomaticallyWhen:
+    lastAssistantMessageIsCompleteWithApprovalResponses``). The next request carries the answers; each is applied
+    through ``runtime.decide`` as the person who sent it, under the same role checks as ``POST /v1/approvals/{id}``,
+    and the task's stream continues. A chat ticket cannot decide: a page's credential never approves anything.
+
 ``GET /v1/workspaces/{ws}/chat/{chat_id}/stream``
     ``useChat({resume: true})``: the chat's task that is still running, replayed from its start and then live;
     ``204`` when nothing is running, as the AI SDK expects.
@@ -77,13 +84,31 @@ def _cors(origin: str) -> dict[str, str]:
 
 
 def _approvals(lyst, task_id: str) -> list[dict[str, Any]]:
-    return lyst.runtime.db.query("SELECT id, action, summary, status FROM approvals WHERE task_id = ? ORDER BY created_at",
-                                 [task_id])
+    return lyst.runtime.db.query("SELECT id, action, summary, status, decided_by FROM approvals WHERE task_id = ? "
+                                 "ORDER BY created_at", [task_id])
 
 
-def _stream(request: Request, lyst, user, task_id: str) -> StreamingResponse:
+def _decide(lyst, user: Principal, ws: str, responses: list[tuple[str, bool]]) -> str | None:
+    """Apply a client's answers to Lyst's approvals (``addToolApprovalResponse``) through ``runtime.decide``: its role
+    checks, and the rule that a capability's proposer cannot approve it, apply as for ``POST /v1/approvals/{id}``. An
+    approval already decided keeps its decision. Returns the task the approvals belong to, to stream on."""
+    task_id = None
+    for aid, approved in responses:
+        rows = lyst.runtime.db.query("SELECT id, task_id, status FROM approvals WHERE id = ? AND workspace_id = ?", [aid, ws])
+        if not rows:
+            raise HTTPException(404, f"no approval {aid} in this workspace")
+        if rows[0]["status"] == "pending":
+            lyst.runtime.decide(user, aid, approved)
+        task_id = task_id or rows[0]["task_id"]
+    return task_id
+
+
+def _stream(request: Request, lyst, user, task_id: str, shown: dict[str, Any] | None = None) -> StreamingResponse:
+    """The task as a UI message stream; ``shown`` is the assistant message the client already has for it, which the
+    stream continues instead of replaying."""
+
     async def gen():
-        ts = uistream.TaskStream(task_id)
+        ts = uistream.TaskStream(task_id).continues(shown)
         end = time.monotonic() + MAX_SECONDS
         beat = time.monotonic()
         while time.monotonic() < end:
@@ -151,6 +176,16 @@ def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names use
     @app.post("/v1/workspaces/{ws}/chat")
     async def chat(request: Request, ws: str, body: ChatIn, user: ChatUser):
         lyst = L(request)
+        responses = uistream.approval_responses(body.messages)
+        if responses:  # the person answered Lyst's approvals in the chat: decide them, then keep streaming their task
+            if user.token_label == tickets.LABEL:
+                raise AccessDenied("approvals are decided with a signed-in session, not a chat ticket: "
+                                   "use Work › Approvals")
+            task_id = await run_in_threadpool(_decide, lyst, user, ws, responses)
+            if task_id is None:
+                return Response(status_code=204)
+            shown = next((m for m in reversed(body.messages) if m.get("role") == "assistant"), None)
+            return _stream(request, lyst, user, task_id, shown)
         question, message_id = uistream.question_from(body.messages)
         if not question:
             raise HTTPException(422, "the last user message has no text to ask")

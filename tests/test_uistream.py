@@ -95,8 +95,9 @@ def test_failures_cancellations_and_approvals():
     assert ap["data"]["status"] == "pending"
     failed = ts.update(_snapshot(status="failed", steps=[STEP_DONE, STEP2_FAILED], error="no data"),
                        [{"id": "ap_1", "action": "schedule.create", "summary": "Run weekly", "status": "rejected"}])
-    assert _types(failed) == ["data-lyst-status", "tool-output-error", "finish-step", "data-lyst-approval", "error", "finish"]
-    assert failed[1]["errorText"] == "boom" and failed[4]["errorText"] == "no data"
+    assert _types(failed) == ["data-lyst-status", "tool-output-error", "finish-step", "tool-approval-response",
+                              "tool-output-denied", "data-lyst-approval", "error", "finish"]
+    assert failed[1]["errorText"] == "boom" and failed[6]["errorText"] == "no data"
     assert failed[-1]["finishReason"] == "error"
     assert _types(uistream.TaskStream("t_2").chunks(_snapshot(status="cancelled")))[-1] == "abort"
 
@@ -135,7 +136,9 @@ def test_the_ai_sdk_reads_every_chunk_and_assembles_the_answer():
     assert kinds.count("step-start") == 2
     tools = [p for p in msg["parts"] if p["type"] == "dynamic-tool"]
     assert [(t["toolName"], t["state"]) for t in tools] == [("understand", "output-available"),
+                                                            ("lyst_approval", "output-available"),
                                                             ("metric_query", "output-available")]
+    assert tools[1]["approval"] == {"id": "ap_1", "approved": True}  # the AI SDK's own approval, already decided
     assert tools[0]["input"] == {"q": "revenue"}
     text = [p for p in msg["parts"] if p["type"] == "text"]
     assert text == [{"type": "text", "text": RESULT["answer"], "state": "done"}]
