@@ -8,16 +8,18 @@ import homeLight from '../assets/product/home-light.png';
 import homeDark from '../assets/product/home-dark.png';
 import whatifLight from '../assets/product/explorer-light.png';
 import whatifDark from '../assets/product/explorer-dark.png';
-import dataLight from '../assets/product/data-map-light.png';
-import dataDark from '../assets/product/data-map-dark.png';
+import dataLight from '../assets/product/data-cards-light.png';
+import dataDark from '../assets/product/data-cards-dark.png';
+import verdictLight from '../assets/product/verdict-light.png';
+import verdictDark from '../assets/product/verdict-dark.png';
+import brainLight from '../assets/product/brain-overview-light.png';
+import brainDark from '../assets/product/brain-overview-dark.png';
 import graphLight from '../assets/product/brain-graph-light.png';
 import graphDark from '../assets/product/brain-graph-dark.png';
 import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
 import healthLight from '../assets/product/health-light.png';
 import healthDark from '../assets/product/health-dark.png';
-import needsLight from '../assets/product/needsyou-light.png';
-import needsDark from '../assets/product/needsyou-dark.png';
 import paletteLight from '../assets/product/palette-light.png';
 import paletteDark from '../assets/product/palette-dark.png';
 import convoLight from '../assets/product/conversation-light.png';
@@ -31,28 +33,37 @@ type View = { id: string; tab: string; img: ImageMetadata; dark?: ImageMetadata;
 const views: View[] = [
   {
     id: 'home', tab: 'Home', img: homeLight, dark: homeDark,
-    alt: 'Lyst Home: the Lyst agent bar at the top (ask anything, speak, or go to a page; 2 need you), suggested questions, and an activity board with Suggested, Needs you, In progress and Done columns, holding next steps such as “Look inside EMEA by product line” and a finished analysis.',
+    alt: 'Lyst Home: the agent bar (ask anything, speak, or go to a page; 2 need you), “What should Lyst work on?” with three suggested questions, a one-line activity summary, the single top suggestion “Look inside EMEA by product line” with Run now, Later and Why, and the latest verified answer with its sparkline.',
     callouts: [
       { icon: 'Mic', text: 'One bar to ask, speak or go anywhere', x: '55%', y: '11.5%' },
-      { icon: 'KanbanSquare', text: 'An activity board on every page', x: '40%', y: '40.3%' },
-      { icon: 'MousePointerClick', text: 'Next steps, one click away', x: '42%', y: '56%' },
+      { icon: 'MousePointerClick', text: 'One next step, one click away', x: '50%', y: '36.7%' },
+      { icon: 'BadgeCheck', text: 'Latest answers, verified', x: '50%', y: '49.5%' },
     ],
   },
   {
     id: 'answer', tab: 'Answer', img: answerLight, dark: answerDark,
-    alt: 'Lyst answering “Why did operating margin change last quarter?” as a canvas under the agent bar, which shows the task’s live progress: a verified headline (32.5% in Q3 2026, down 3.5 points), evidence naming EMEA as the driver, a monthly trend, what it means and what to do, with Summary, Detail and Method views, a Brief, Focus and More, and an evidence rail listing the checks passed, the data and version used, assumptions and method.',
+    alt: 'Lyst answering “Why did operating margin change last quarter?”: a Verified badge, the finding (32.5% in Q3 2026, down 3.5 points on Q2), one line on why it matters (the decline is concentrated in EMEA), the trust line “All 10 checks passed”, a monthly trend, what to do, and two folded layers: “Why, and the details” and “Method, checks and queries”.',
     callouts: [
-      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '42%', y: '35.8%' },
-      { icon: 'PanelRight', text: 'Evidence rail: checks, data, assumptions', x: '70%', y: '69%' },
-      { icon: 'ListChecks', text: 'What it means, what to do', x: '63%', y: '91.5%' },
+      { icon: 'Target', text: 'The finding first', x: '50%', y: '21%' },
+      { icon: 'BadgeCheck', text: 'Every figure recomputed', x: '76%', y: '38%' },
+      { icon: 'ChevronsUpDown', text: 'Details and method, one click away', x: '62%', y: '88%' },
     ],
   },
   {
-    id: 'convo', tab: 'Conversation', img: convoLight, dark: convoDark,
-    alt: 'Lyst replying in conversation to “What can you help me with here?”: a plain answer about what it can do with this workspace’s approved metrics and datasets, labelled “A reply from what’s in this workspace. Nothing was computed, so there was nothing to verify.”, followed by offers under “Want me to”.',
+    id: 'verdict', tab: 'Verdict', img: verdictLight, dark: verdictDark,
+    alt: 'Under a Lyst answer: four menus (Keep watch, Download, Share, More) and “Is this right?” with Right, Partly and Wrong; Partly is selected, with Undo, and an optional “What should it have said?” correction box with Save and Skip.',
     callouts: [
-      { icon: 'MessageSquareText', text: 'Plain replies, honestly labelled', x: '70%', y: '46%' },
-      { icon: 'CornerDownRight', text: 'Say yes, or pick an offer', x: '45%', y: '56%' },
+      { icon: 'LayoutList', text: 'Four menus instead of a wall of buttons', x: '48%', y: '64%' },
+      { icon: 'ThumbsUp', text: 'Right, Partly or Wrong, with undo', x: '70%', y: '64%' },
+      { icon: 'PenLine', text: 'A correction Lyst recalls next time', x: '55%', y: '84%' },
+    ],
+  },
+  {
+    id: 'convo', tab: 'Chat', img: convoLight, dark: convoDark,
+    alt: 'Lyst replying in conversation to “What can you help me with here?”: a plain answer about what it can do with this workspace’s approved metrics and datasets, labelled “A reply from what’s in this workspace. Nothing was computed, so there was nothing to verify.”, followed by offers under “Want me to” and a follow-up box.',
+    callouts: [
+      { icon: 'MessageSquareText', text: 'Plain replies, honestly labelled', x: '70%', y: '33%' },
+      { icon: 'CornerDownRight', text: 'Say yes, or pick an offer', x: '62%', y: '47%' },
     ],
   },
   {
@@ -66,20 +77,21 @@ const views: View[] = [
   },
   {
     id: 'data', tab: 'Data', img: dataLight, dark: dataDark,
-    alt: 'Lyst Data: an answer-first header noting what needs attention, the activity strip, a library of datasets and approved metrics, and a map of how the five datasets connect through the columns they share, such as month, region and product line.',
+    alt: 'Lyst Data: a header noting 2 of 5 datasets need attention, a library of datasets and approved metrics, and dataset cards such as Opportunities, Support demand, Monthly P&L and P&L from the ledger, each with its sensitivity, rows, data-through date and the measures it feeds, and Explore, Insights and More.',
     callouts: [
-      { icon: 'Network', text: 'How datasets connect, through shared columns', x: '50%', y: '81.5%' },
+      { icon: 'LayoutGrid', text: 'What matters about each dataset', x: '58%', y: '37.2%' },
+      { icon: 'Sparkles', text: 'Explore, Insights or More', x: '74%', y: '91%' },
     ],
   },
   {
-    id: 'trust', tab: 'Data trust', img: trustLight, dark: trustDark,
+    id: 'trust', tab: 'Trust', img: trustLight, dark: trustDark,
     alt: 'A dataset in Lyst, “P&L from the ledger”, with its sensitivity level, source of truth, and “Before you rely on it · 3”: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look).',
     callouts: [
       { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '45%', y: '70%' },
     ],
   },
   {
-    id: 'health', tab: 'Out of date', img: healthLight, dark: healthDark,
+    id: 'health', tab: 'Stale', img: healthLight, dark: healthDark,
     alt: 'A saved analysis in Lyst marked Out of date: “Pnl is now v2; this was built on v1”, with a proposal to re-run its question and a Rebuild it button.',
     callouts: [
       { icon: 'RefreshCcw', text: 'Knows when its data changed', x: '58%', y: '62.5%' },
@@ -87,23 +99,23 @@ const views: View[] = [
     ],
   },
   {
-    id: 'team', tab: 'Brain · Work', img: needsLight, dark: needsDark,
-    alt: 'Lyst Brain: what Lyst knows (6 approved metrics, 5 datasets, memories and terms), what it is doing (2 need you, 4 finished this week) and what it runs on its own, then Work › Needs you: an answer Sam Ortiz assigned with a due date, and a review waiting with Approve and Reject.',
+    id: 'brain', tab: 'Brain', img: brainLight, dark: brainDark,
+    alt: 'Lyst Brain: one line on what it knows (6 approved metrics, 5 datasets, memories) and what needs you, four sections (Overview, Work, Knowledge, Specializations), and a search for “revenue” listing metrics, columns and a dataset, each with Open and Ask, then Used lately and Learned lately.',
     callouts: [
-      { icon: 'Brain', text: 'What it knows, what it is doing, what runs on its own', x: '30%', y: '46%' },
-      { icon: 'CalendarClock', text: 'Assigned, with a due date', x: '52%', y: '74.5%' },
+      { icon: 'Brain', text: 'What it knows, in one calm line', x: '78%', y: '25.6%' },
+      { icon: 'Search', text: 'Search first, then open it or ask', x: '50%', y: '38%' },
     ],
   },
   {
-    id: 'graph', tab: 'Graph', img: graphLight, dark: graphDark,
-    alt: 'Lyst Brain › Graph: an interactive map joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
+    id: 'graph', tab: 'Map', img: graphLight, dark: graphDark,
+    alt: 'Lyst Brain › Knowledge › Map: an interactive map joining approved metrics, datasets, analyses, a memory and a business term, linked only where Lyst recorded a relation or a literal mention, with search, zoom and a List view.',
     callouts: [
-      { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '30%', y: '80%' },
-      { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '28%', y: '33%' },
+      { icon: 'Share2', text: 'Everything Lyst knows, and how it links', x: '42%', y: '86%' },
+      { icon: 'ShieldCheck', text: 'Only recorded relations, never guesses', x: '42%', y: '55%' },
     ],
   },
   {
-    id: 'specs', tab: 'Specialists', img: specsLight, dark: specsDark,
+    id: 'specs', tab: 'Experts', img: specsLight, dark: specsDark,
     alt: 'Lyst Brain › Specializations: 136 kinds of analyst work across 11 areas, 136 operational, with a search box, an area filter, and specializations such as Data Analyst, Business Intelligence Analyst and Business Analyst, each marked Operational.',
     callouts: [
       { icon: 'GraduationCap', text: '136 kinds of analyst work', x: '45%', y: '23.6%' },

@@ -1,0 +1,283 @@
+---
+/** The three layers of an answer, drawn in HTML and CSS. Purely illustrative: no live controls. */
+import Icon from './Icon.astro';
+import { answerLayers as a } from '../data/content';
+---
+
+<section class="section layers" id="answers" aria-labelledby="layers-title">
+  <div class="container grid">
+    <div class="copy" data-reveal>
+      <p class="eyebrow">{a.eyebrow}</p>
+      <h2 id="layers-title" class="h2">{a.headline}</h2>
+      <p class="lede">{a.lede}</p>
+      <ol class="steps">
+        {
+          a.layers.map((l, i) => (
+            <li style={`--i:${i}`}>
+              <span class="ic"><Icon name={l.icon} size={18} /></span>
+              <div>
+                <h3><span class="n">{i + 1}</span>{l.title}</h3>
+                <p>{l.text}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="verdict-note">
+        <span class="ic"><Icon name="ThumbsUp" size={18} /></span>
+        <div>
+          <h3>{a.verdict.title}</h3>
+          <p>{a.verdict.text}</p>
+        </div>
+      </div>
+    </div>
+
+    <figure class="mock" data-reveal style="--reveal-delay:1">
+      <div class="card" aria-hidden="true">
+        <span class="badge"><Icon name="BadgeCheck" size={14} />Verified</span>
+        <p class="finding">Operating margin was 32.5% in Q3 2026, down 3.5 pts on Q2.</p>
+        <p class="why">The decline is concentrated in EMEA, so a company-wide response would treat the wrong problem.</p>
+        <p class="trust">All 10 checks passed: every figure was recomputed independently.</p>
+        <svg class="spark" viewBox="0 0 300 60" preserveAspectRatio="none">
+          <path d="M0 22 L20 34 L40 26 L60 14 L80 20 L100 26 L120 18 L140 24 L160 20 L180 17 L200 22 L220 10 L240 16 L255 20 L270 12 L280 48 L300 50" />
+        </svg>
+        <p class="todo"><b>What to do</b> Review EMEA’s cost and pricing lines with its owner.</p>
+        <div class="fold"><Icon name="ChevronsUpDown" size={14} />Why, and the details</div>
+        <div class="fold"><Icon name="FileSearch" size={14} />Method, checks and queries</div>
+        <div class="row">
+          <span class="menus"><i>Keep watch</i><i>Download</i><i>Share</i><i>More</i></span>
+          <span class="seg"><em>Is this right?</em><i>Right</i><i class="on">Partly</i><i>Wrong</i></span>
+        </div>
+      </div>
+      <figcaption>{a.note}</figcaption>
+    </figure>
+  </div>
+</section>
+
+<style>
+  .layers {
+    background:
+      radial-gradient(ellipse 45% 60% at 85% 30%, rgb(85 184 168 / 0.12), transparent 70%),
+      var(--offwhite);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: clamp(2rem, 1rem + 4vw, 4.5rem);
+    align-items: center;
+  }
+
+  .steps {
+    list-style: none;
+    margin-top: var(--space-6);
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .steps li,
+  .verdict-note {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: start;
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 10px;
+    background: var(--teal-wash);
+    color: var(--teal-deep);
+  }
+
+  h3 {
+    font-size: var(--step-0);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .n {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--teal-deep);
+    margin-right: 0.5rem;
+  }
+
+  .steps p,
+  .verdict-note p {
+    color: var(--ink-2);
+    font-size: var(--step--1);
+    margin-top: 0.15rem;
+  }
+
+  .verdict-note {
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--white);
+  }
+
+  .mock {
+    margin: 0;
+  }
+
+  .card {
+    position: relative;
+    padding: clamp(1.1rem, 0.8rem + 1.2vw, 1.75rem);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--white);
+    box-shadow:
+      0 1px 2px rgb(21 26 33 / 0.05),
+      0 24px 48px -24px rgb(21 26 33 / 0.22);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--good-wash);
+    color: var(--good);
+    font-size: 0.8125rem;
+    font-weight: 550;
+  }
+
+  .finding {
+    margin-top: var(--space-3);
+    font-size: var(--step-1);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .why {
+    margin-top: var(--space-2);
+    color: var(--ink-2);
+    font-size: var(--step--1);
+  }
+
+  .trust {
+    margin-top: var(--space-2);
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  .spark {
+    display: block;
+    width: 100%;
+    height: 56px;
+    margin: var(--space-4) 0 var(--space-3);
+  }
+
+  .spark path {
+    fill: none;
+    stroke: var(--teal-dark);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 600;
+    stroke-dashoffset: 0;
+  }
+
+  .todo {
+    font-size: var(--step--1);
+    color: var(--ink-2);
+  }
+
+  .todo b {
+    display: block;
+    color: var(--ink);
+    margin-bottom: 0.15rem;
+  }
+
+  .fold {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: var(--space-2);
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .fold:first-of-type {
+    margin-top: var(--space-4);
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+
+  .menus,
+  .seg {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .row i {
+    font-style: normal;
+    font-size: 0.8125rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink-2);
+  }
+
+  .seg em {
+    font-style: normal;
+    font-size: 0.8125rem;
+    color: var(--muted);
+    margin-right: 0.15rem;
+  }
+
+  .seg i {
+    border-color: transparent;
+    background: var(--subtle);
+  }
+
+  .seg i.on {
+    background: var(--teal-wash);
+    color: var(--teal-deep);
+    font-weight: 600;
+  }
+
+  figcaption {
+    margin-top: var(--space-3);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.is-visible) .spark path {
+      animation: draw 1.6s var(--ease) both;
+    }
+
+    @keyframes draw {
+      from {
+        stroke-dashoffset: 600;
+      }
+    }
+  }
+
+  @media (max-width: 880px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

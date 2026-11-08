@@ -5,10 +5,10 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 980,
+      "LCP_ms": 985,
       "CLS": 0,
       "TBT_ms": 0,
-      "FCP_ms": 980
+      "FCP_ms": 985
     },
     "runs": [
       {
@@ -16,30 +16,30 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 980,
-        "CLS": 0.049,
+        "LCP_ms": 987,
+        "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 980
+        "FCP_ms": 987
       },
       {
         "performance": 100,
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 980,
+        "LCP_ms": 985,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 980
+        "FCP_ms": 985
       },
       {
         "performance": 100,
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 979,
+        "LCP_ms": 981,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 979
+        "FCP_ms": 981
       }
     ]
   },
@@ -89,5 +89,5 @@
   },
   "url": "http://localhost:4399/",
   "lighthouse": "13.6.0",
-  "date": "2026-11-07T14:04:29.575Z"
+  "date": "2026-11-07T20:07:41.021Z"
 }

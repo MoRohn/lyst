@@ -19,7 +19,7 @@ The public product site for Lyst, the open-source AI Analyst (GNU AGPL v3.0). A 
 - Every figure in the product previews is synthetic and lives in [`src/data/demos.ts`](src/data/demos.ts).
   Nothing is generated or fetched at runtime, and the page says so next to each preview.
 
-Astro was chosen over plain HTML because the page has twelve sections that share tokens, icons, chart
+Astro was chosen over plain HTML because the page has thirteen sections that share tokens, icons, chart
 helpers and copy; components keep that maintainable while still shipping static HTML.
 
 ## Commands
