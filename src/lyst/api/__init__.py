@@ -1767,6 +1767,11 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
 
     learning_routes(app, L, User)
 
+    # -- AI SDK lane: ask from any AI SDK client (useChat) and watch the work as a UI message stream ------------------
+    from .aisdk import routes as aisdk_routes  # noqa: PLC0415
+
+    aisdk_routes(app, L, User)
+
     return app
 
 

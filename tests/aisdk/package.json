@@ -1,0 +1,10 @@
+{
+  "name": "lyst-aisdk-protocol-check",
+  "private": true,
+  "type": "module",
+  "description": "Checks that Lyst's UI message stream is read by the real AI SDK. Test-only; nothing here ships.",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "ai": "7.0.165"
+  }
+}

@@ -14,6 +14,8 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - Graph runs (planner, builders, checker, router, learned rules): `src/lyst/graphs.py`, `docs/GRAPH_RUNS.md`.
 - Events (envelope, transactional outbox, durable consumers, chains, SSE stream): `src/lyst/events.py`, `docs/EVENTS.md`.
 - Analyst capabilities: `src/lyst/analyst/registry.py` (the tool contract) and `src/lyst/analyst/engine.py`.
+- The AI SDK wire format (Lyst's work as a UI message stream for `useChat`): `src/lyst/uistream.py`, `src/lyst/api/aisdk.py`,
+  `docs/AI_SDK.md`; `tests/aisdk` reads it with the real `ai` package.
 - HTTP API: `src/lyst/api/__init__.py` plus one routes file per lane in `src/lyst/api/`; the compatibility record
   is `docs/api/contract.txt` (regenerate with `scripts/api_contract.py`).
 - Schema: `src/lyst/store/schema.py` (append a migration; never edit an applied one).

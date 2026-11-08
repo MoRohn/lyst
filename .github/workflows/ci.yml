@@ -51,6 +51,11 @@ jobs:
         run: |
           missing=$(grep -L "SPDX-License-Identifier: AGPL-3.0-only" $(git ls-files 'src/*.py' 'tests/*.py' 'scripts/*.py') || true)
           if [ -n "$missing" ]; then echo "Missing SPDX header:"; echo "$missing"; exit 1; fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: AI SDK used by the protocol tests (test-only, pinned; nothing ships)
+        run: npm ci --prefix tests/aisdk --no-audit --no-fund
       - name: Tests
         run: uv run pytest -q -rfE
       - name: Evaluation suite (golden questions)

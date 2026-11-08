@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (C) 2026 Rohn Springfield
+"""AI SDK lane routes: ask Lyst from any AI SDK client and watch the work as a UI message stream.
+
+``POST /v1/workspaces/{ws}/chat``
+    The request ``useChat`` (``DefaultChatTransport``) sends: ``{id, messages, trigger, messageId}``, plus optional
+    ``autonomy``. The text of the last user message is the question; it goes through the same pipeline as
+    ``POST /v1/workspaces/{ws}/tasks`` (including "yes" to a conversational reply's offer). The answer is the task,
+    streamed as it runs (``lyst.uistream``): header ``x-vercel-ai-ui-message-stream: v1``, ending ``data: [DONE]``.
+    A retried request for the same chat and user message returns the same task (idempotency), so a dropped
+    connection never runs the work twice.
+
+``GET /v1/workspaces/{ws}/chat/{chat_id}/stream``
+    ``useChat({resume: true})``: the chat's task that is still running, replayed from its start and then live;
+    ``204`` when nothing is running, as the AI SDK expects.
+
+The stream reads the task through ``runtime.get``, which checks ``workspace.read`` for the person on every poll;
+the task's own record decides everything shown. A stream ends at the task's end or after ``MAX_SECONDS`` (the
+client resumes), and a comment line every ``HEARTBEAT`` seconds keeps proxies from closing it.
+"""
+
+# no `from __future__ import annotations`: FastAPI resolves the User dependency from the real annotation
+
+import asyncio
+import time
+from typing import Any, Literal
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import Response, StreamingResponse
+from pydantic import BaseModel, Field
+
+from .. import uistream
+from ..analyst import converse as converse_mod
+from ..security import AccessDenied
+
+POLL = 0.4  # seconds between task snapshots
+HEARTBEAT = 15.0
+MAX_SECONDS = 900.0
+
+
+class ChatIn(BaseModel):
+    id: str = Field(min_length=1, max_length=200)
+    messages: list[dict[str, Any]] = Field(max_length=500)
+    trigger: Literal["submit-message", "submit-user-message", "regenerate-message",
+                     "regenerate-assistant-message"] | None = None
+    messageId: str | None = Field(None, max_length=200)  # noqa: N815 - the AI SDK's field name
+    autonomy: str | None = None
+
+
+def _approvals(lyst, task_id: str) -> list[dict[str, Any]]:
+    return lyst.runtime.db.query("SELECT id, action, summary, status FROM approvals WHERE task_id = ? ORDER BY created_at",
+                                 [task_id])
+
+
+def _stream(request: Request, lyst, user, task_id: str) -> StreamingResponse:
+    async def gen():
+        ts = uistream.TaskStream(task_id)
+        end = time.monotonic() + MAX_SECONDS
+        beat = time.monotonic()
+        while time.monotonic() < end:
+            if await request.is_disconnected():
+                return
+            try:
+                task = await run_in_threadpool(lyst.runtime.get, user, task_id)
+                approvals = await run_in_threadpool(_approvals, lyst, task_id)
+            except (AccessDenied, KeyError):
+                yield uistream.sse({"type": "error", "errorText": "This answer is no longer available to you."})
+                yield uistream.DONE
+                return
+            chunks = ts.update(task, approvals)
+            for c in chunks:
+                yield uistream.sse(c)
+            if ts.finished:
+                yield uistream.DONE
+                return
+            if not chunks and time.monotonic() - beat >= HEARTBEAT:
+                beat = time.monotonic()
+                yield ": keep-alive\n\n"
+            await asyncio.sleep(POLL)
+        # out of time while the task still runs: end without [DONE]; the client resumes with GET .../stream
+
+    return StreamingResponse(gen(), media_type=uistream.MEDIA_TYPE, headers=uistream.HEADERS)
+
+
+def routes(app: FastAPI, L, User) -> None:  # noqa: N803 - mirrors the names used in api/__init__.py
+    @app.post("/v1/workspaces/{ws}/chat")
+    async def chat(request: Request, ws: str, body: ChatIn, user: User):
+        lyst = L(request)
+        question, message_id = uistream.question_from(body.messages)
+        if not question:
+            raise HTTPException(422, "the last user message has no text to ask")
+        extra: dict[str, Any] = {"chat_id": body.id, "channel": "ai-sdk"}
+        regenerate = (body.trigger or "").startswith("regenerate")
+        took = await run_in_threadpool(converse_mod.follow_up, lyst.runtime.db, user, ws, question)
+        if took:
+            extra |= {"in_reply_to": took["task_id"], "said": question[:200]}
+            question = took["question"]
+        # one task per user message: a retry of the same request returns it; "regenerate" asks again on purpose
+        key = None if regenerate else f"chat:{body.id}:{body.messageId or message_id or ''}"[:200]
+        task_id = await run_in_threadpool(lambda: lyst.runtime.submit(user, ws, question, autonomy=body.autonomy,
+                                                                      extra=extra, idempotency_key=key))
+        return _stream(request, lyst, user, task_id)
+
+    @app.get("/v1/workspaces/{ws}/chat/{chat_id}/stream")
+    async def chat_resume(request: Request, ws: str, chat_id: str, user: User):
+        lyst = L(request)
+        await run_in_threadpool(lyst.guard.require, user, ws, "workspace.read")
+        rows = await run_in_threadpool(
+            lyst.runtime.db.query,
+            "SELECT id FROM tasks WHERE workspace_id = ? AND created_by = ? AND request->>'$.chat_id' = ? "
+            "AND status NOT IN ('done', 'failed', 'cancelled') ORDER BY created_at DESC LIMIT 1",
+            [ws, user.user_id, chat_id])
+        if not rows:
+            return Response(status_code=204)
+        return _stream(request, lyst, user, rows[0]["id"])
