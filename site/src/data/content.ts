@@ -240,7 +240,7 @@ export const proof = [
 export const studio = {
   eyebrow: 'From the private preview',
   headline: 'Real output, not a mockup.',
-  lede: 'Unedited screenshots from the private preview, on sample data: Home as a single composer, an answer that leads with the finding, “Is this right?”, a conversation, the What if explorer, data as a flow from source to metric, data that checks itself, analyses that know when they are out of date, Brain as a field of what Lyst knows, 136 specialisms, Settings that check themselves, the ⌘K palette, and a dashboard Studio built from one sentence.',
+  lede: 'Unedited screenshots from the private preview, on sample data. Pick a view, or switch it to the dark theme.',
   stepsLabel: 'How Studio builds a dashboard',
   steps: [
     { icon: 'MessageSquareText', title: 'One sentence', text: 'Metric, breakdown and refresh cadence, in plain language.' },
@@ -270,4 +270,17 @@ export const answerLayers = {
     text: 'Say Right, Partly or Wrong under any answer, add a correction if you like, and undo it later. A wrong answer is never reused, recalled or cited.',
   },
   note: 'Illustration of the answer layout, with figures from the sample data.',
+};
+
+export const surfaces = {
+  eyebrow: 'The new Lyst',
+  headline: 'Four calm places. One slim rail.',
+  lede: 'Lyst was redesigned around one idea: show the work, not the machinery. Each place opens on what matters, and everything else is one step away.',
+  items: [
+    { id: 'home', icon: 'Sparkles', title: 'Home', text: 'One composer. Ask, speak or pick a starter; work in flight waits in the dock.' },
+    { id: 'data', icon: 'Workflow', title: 'Data', text: 'A flow from where data comes from, through the datasets, to the metrics they feed.' },
+    { id: 'brain', icon: 'Orbit', title: 'Brain', text: 'A field of what Lyst knows. Pick anything to see what it connects to.' },
+    { id: 'settings', icon: 'Stethoscope', title: 'Settings', text: 'Seven sections in one list, and a setup that checks itself.' },
+  ],
+  note: 'Unedited screenshots from the private preview, on sample data, in the dark theme.',
 };
