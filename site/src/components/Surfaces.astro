@@ -1,0 +1,163 @@
+---
+/** The four redesigned places, as real dark-theme screenshots in a calm grid. */
+import { Picture } from 'astro:assets';
+import Icon from './Icon.astro';
+import { surfaces as s } from '../data/content';
+import home from '../assets/product/home-dark.png';
+import data from '../assets/product/data-flow-dark.png';
+import brain from '../assets/product/brain-field-dark.png';
+import settings from '../assets/product/settings-dark.png';
+
+const img: Record<string, ImageMetadata> = { home, data, brain, settings };
+const alt: Record<string, string> = {
+  home: 'Lyst Home in the dark theme: Lyst’s mark, “What should Lyst work on?”, the composer, three starter questions and the dock.',
+  data: 'Lyst Data in the dark theme: sources, datasets drawn by their shape and the metrics they feed, joined by lines.',
+  brain: 'Lyst Brain in the dark theme: the field of what Lyst knows with Operating margin picked and what it connects to.',
+  settings: 'Lyst Settings in the dark theme: seven sections in one list and Lyst’s own check of the setup.',
+};
+---
+
+<section class="section dark surfaces" id="surfaces" aria-labelledby="surfaces-title">
+  <div class="container">
+    <div class="head" data-reveal>
+      <p class="eyebrow">{s.eyebrow}</p>
+      <h2 id="surfaces-title" class="h2">{s.headline}</h2>
+      <p class="lede">{s.lede}</p>
+    </div>
+
+    <ul class="grid">
+      {
+        s.items.map((it, i) => (
+          <li class="card" data-reveal style={`--reveal-delay:${i % 2}`}>
+            <div class="cap">
+              <span class="ic"><Icon name={it.icon} size={18} /></span>
+              <div>
+                <h3>{it.title}</h3>
+                <p>{it.text}</p>
+              </div>
+            </div>
+            <div class="shot">
+              <Picture
+                src={img[it.id]}
+                formats={['avif', 'webp']}
+                widths={[600, 900, 1200]}
+                sizes="(max-width: 880px) 100vw, 580px"
+                alt={alt[it.id]}
+                loading="lazy"
+                decoding="async"
+                style={`aspect-ratio:${img[it.id].width} / ${img[it.id].height}`}
+              />
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="note">{s.note}</p>
+  </div>
+</section>
+
+<style>
+  .surfaces {
+    background:
+      radial-gradient(ellipse 60% 45% at 50% 0%, rgb(85 184 168 / 0.16), transparent 70%),
+      var(--d-bg);
+  }
+
+  .head {
+    max-width: 46rem;
+    margin: 0 auto var(--space-7);
+    text-align: center;
+  }
+
+  .head .eyebrow {
+    justify-content: center;
+  }
+
+  .grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1rem, 0.5rem + 1.5vw, 1.75rem);
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: clamp(1rem, 0.75rem + 1vw, 1.5rem);
+    border: 1px solid var(--d-line);
+    border-radius: 20px;
+    background: linear-gradient(180deg, var(--d-surface-2), var(--d-surface));
+    transition:
+      transform 0.35s var(--ease),
+      border-color 0.35s var(--ease);
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: rgb(85 184 168 / 0.45);
+  }
+
+  .cap {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: start;
+  }
+
+  .ic {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 10px;
+    background: rgb(85 184 168 / 0.14);
+    color: var(--teal);
+  }
+
+  h3 {
+    color: var(--d-ink);
+    font-size: var(--step-1);
+    letter-spacing: -0.015em;
+  }
+
+  .cap p {
+    color: var(--d-muted);
+    font-size: var(--step--1);
+    margin-top: 0.15rem;
+  }
+
+  .shot {
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--d-line);
+    box-shadow: 0 24px 48px -28px rgb(0 0 0 / 0.7);
+  }
+
+  .shot :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .note {
+    margin-top: var(--space-5);
+    text-align: center;
+    color: var(--d-muted);
+    font-size: 0.8125rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card,
+    .card:hover {
+      transition: none;
+      transform: none;
+    }
+  }
+
+  @media (max-width: 880px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
