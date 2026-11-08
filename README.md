@@ -41,7 +41,7 @@ a query, whether or not a model is involved.
 - **Yours to run.** Self-hosted, encrypted at rest, works with OpenRouter or a local model (or none), open source
   under AGPL-3.0.
 
-**Contents:** [Quick start](#quick-start) · [Tour](#a-tour-of-the-interface) · [What Lyst does](#what-lyst-does) ·
+**Contents:** [Quick start](#quick-start) · [Tour](#a-tour-of-the-interface) · [What Lyst does](#what-lyst-does) · [AI SDK](#build-on-lyst-with-the-ai-sdk) ·
 [Models](#models) · [Security](#security-and-secrets) · [Commands](#commands) · [Development](#development) ·
 [Documents](#documents)
 
@@ -736,6 +736,49 @@ where they point, with Mark all read and "What to tell me about".
 The [capability matrix](docs/CAPABILITY_MATRIX.md) lists each capability with its state and the test that proves
 it, and [known gaps](docs/GAPS.md) lists what is missing.
 
+## Build on Lyst with the AI SDK
+
+Lyst's engine speaks the [AI SDK](https://ai-sdk.dev)'s own wire format, the UI message stream, so any AI SDK client
+(`useChat`, `Chat`, `readUIMessageStream`) can ask Lyst and watch the work. Every model call still goes through
+Lyst's own gateway, guard and receipts. Node is used only to build and test the client pieces, and the package's own
+parser checks Lyst's stream in CI (`ai` 7.0.165).
+
+```ts
+const { messages, sendMessage, addToolApprovalResponse } = useChat({
+  id: chatId,
+  resume: true,
+  transport: new DefaultChatTransport({
+    api: `${LYST}/v1/workspaces/${ws}/chat`,
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+});
+```
+
+- **Answers that stream as they are written, each figure checked first.** One message is one Lyst task: each step
+  arrives as a tool part, the datasets read as sources, and the answer as text while the model writes it. A
+  figure is shown only once it matches a value Lyst computed (read with its unit and scale), and the first figure
+  that does not stops the draft. The stored, verified answer has the last word: a draft that differs from it is
+  withdrawn and replaced. A stream cut by a reload resumes.
+- **A live answer component.** A Streamlit component runs the AI SDK client in the browser and draws the status,
+  each step and what it worked on, the answer forming, the datasets read and any approval waited on, then offers
+  **Open answer**. The browser never holds the person's session, only a 15-minute chat ticket that opens one
+  workspace's chat routes, acts as that person under every permission check, and stops working when the engine
+  restarts.
+- **Lyst Apps.** One sentence ("an app to watch operating margin and revenue by region") becomes a small interactive
+  app built block by block as the model writes it: KPIs, trends, breakdowns, tables, a filter, a what-if and notes.
+  The app is a spec from a closed catalog, never code, and the model never supplies a number: every value comes
+  from an approved metric through the semantic layer's SQL, a filter narrows with Lyst's own per-value figures, and
+  the what-if is labelled "Projection, not data". Apps are drawn in a locked-down sandbox (no network, storage or
+  page access), follow light and dark, work without a model (the rules build one from the metrics you name), and
+  are saved as versioned assets that flag themselves when a metric they use is redefined.
+- **Approvals in the chat.** A step that needs a person arrives as the AI SDK's own tool approval, and any client
+  answers it with `addToolApprovalResponse`. Lyst applies the answer only as the person who sent it, under the same
+  role checks as everywhere else (a capability's proposer still cannot approve it), then continues the same message
+  with the answer. A chat ticket can ask and watch but never approve.
+
+The live answer and Lyst Apps are built and tested as components but are not placed on a page yet; today they are
+reached through the API. See [docs/AI_SDK.md](docs/AI_SDK.md) for the stream mapping, the routes and the build.
+
 ## Models
 
 Lyst calls models through OpenRouter on a gateway ported from Acumane's: workload routing, admission, adaptive
@@ -823,7 +866,7 @@ To run on a server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (Docker Compose
 [Architecture](docs/ARCHITECTURE.md) · [Data platform](docs/PLATFORM.md) · [Capability matrix](docs/CAPABILITY_MATRIX.md) ·
 [Models](docs/MODELS.md) · [Security](docs/SECURITY.md) · [Connectors](docs/CONNECTORS.md) ·
 [Skills](docs/SKILLS.md) · [DuckDB design](docs/DUCKDB.md) · [Deployment](docs/DEPLOYMENT.md) ·
-[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Learning](docs/LEARNING.md) · [Events](docs/EVENTS.md) · [Harness](docs/HARNESS.md) · [Voice](docs/VOICE.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
+[Performance](docs/PERFORMANCE.md) · [Operations](docs/OPERATIONS.md) · [Anticipation](docs/ANTICIPATION.md) · [Adaptability](docs/ADAPTABILITY.md) · [Extensibility](docs/EXTENSIBILITY.md) · [Specializations](docs/SPECIALIZATIONS.md) · [Specializations audit](docs/SPECIALIZATIONS_AUDIT.md) · [Graph runs](docs/GRAPH_RUNS.md) · [Learning](docs/LEARNING.md) · [Events](docs/EVENTS.md) · [Harness](docs/HARNESS.md) · [Voice](docs/VOICE.md) · [AI SDK](docs/AI_SDK.md) · [UX strategy](docs/UX_STRATEGY.md) · [Product excellence](docs/PRODUCT_EXCELLENCE.md) ·
 [Engineering excellence](docs/ENGINEERING_EXCELLENCE.md) · [Known gaps](docs/GAPS.md) ·
 [Roadmap](docs/ROADMAP.md) · [Acumane audit](docs/ACUMANE_AUDIT.md) · [SBOM](docs/SBOM.md) ·
 [Decisions](docs/decisions/)
