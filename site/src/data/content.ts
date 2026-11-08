@@ -90,14 +90,14 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Data as a flow: sources, datasets and the metrics they feed', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Data as a flow, from source to metric', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
     icon: 'Blocks',
     title: 'Build',
-    text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run.',
-    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Answers published as pages or expiring links', 'Datasets built from a sentence, verified', 'PDF, decks and workbooks, charts included'],
+    text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run. In a Lyst App, every number comes from governed metrics, drawn in a sandbox.',
+    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Answers published as pages or expiring links', 'Datasets built from a sentence, verified', 'Lyst Apps from one sentence', 'A live answer component on the AI SDK', 'PDF, decks and workbooks, charts included'],
     status: 'available',
   },
   {
@@ -118,7 +118,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
-    items: ['“Is this right?” under every answer: Right, Partly or Wrong, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain as a field of what Lyst knows: pick anything to see what it connects to', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
+    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain: pick anything to see what it connects to', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
@@ -134,7 +134,7 @@ export const openSource = {
     { icon: 'Server', title: 'Self-hostable', text: 'Deploy on a laptop, a server or your cloud.' },
     { icon: 'Cpu', title: 'Model choice, with real costs', text: 'Economy, Balanced or Frontier levels with measured routing and automatic fallback, or a local model. Cost per call is shown.' },
     { icon: 'Accessibility', title: 'Accessible by default', text: 'One design system, light and dark, with every screen checked for WCAG 2.2 AA.' },
-    { icon: 'Puzzle', title: 'Extensible integrations', text: 'A Python SDK, MCP, an event stream and signed webhooks, plus connectors and skills as plain code.' },
+    { icon: 'Puzzle', title: 'Extensible integrations', text: 'A Python SDK, MCP, an event stream and signed webhooks, plus connectors and skills as plain code. Any AI SDK client can ask Lyst and watch the work stream in.' },
     { icon: 'Unlock', title: 'No mandatory lock-in', text: 'No required proprietary AI or database service.' },
   ],
   attribution:
@@ -175,7 +175,7 @@ export const enterprise = {
   items: [
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Every object knows what can be done with it and by whom, the server re-checks each action, and anything that changes something asks a person first. Credentials stay encrypted and out of every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Any figure traces to its step, query, definition version, dataset version and source, and can be reproduced.', status: 'available' as Status },
-    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner.', status: 'available' as Status },
+    { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner. Approvals also work inside any AI SDK chat, under the same role checks.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost.', status: 'available' as Status },
@@ -253,7 +253,7 @@ export const studio = {
 export const verification = {
   eyebrow: 'Verification',
   headline: 'Every answer is checked before you see it.',
-  lede: 'Lyst plans the work as a graph, runs independent steps in parallel, then recomputes high-consequence results a second way and runs adversarial checks before it calls anything verified.',
+  lede: 'Lyst plans the work as a graph, runs independent steps in parallel, then recomputes high-consequence results a second way and runs adversarial checks before it calls anything verified. Answers stream as they are written, and a figure shows only once it matches a computed value.',
 };
 
 export const answerLayers = {
