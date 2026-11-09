@@ -130,7 +130,9 @@ def test_brief_phrases(text):
 
 
 @pytest.mark.parametrize("text", ["What was revenue last quarter?", "Top 3 regions by operating income",
-                                  "Forecast revenue for the next two quarters"])
+                                  "Forecast revenue for the next two quarters",
+                                  "Brief me on what our documents say about the Data Act regulation",
+                                  "Summarise the news briefing on our competitors"])
 def test_not_brief_phrases(text):
     assert not brief.asks_for_brief(text)
 

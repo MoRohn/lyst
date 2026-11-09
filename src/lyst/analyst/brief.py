@@ -47,8 +47,13 @@ MIN_HISTORY = 6  # changes needed before "unusual" is judged at all
 EXPLAIN_TOP = 3  # unusual moves that get a driver
 
 
+# "Brief me on what our documents say about the Data Act" asks about documents, not the business's numbers
+ELSEWHERE = re.compile(r"\b(documents?|docs|files?|contracts?|polic(y|ies)|regulations?|news|articles?|emails?|"
+                       r"(says?|said) about|transcripts?|filings?|web(site)?)\b", re.I)
+
+
 def asks_for_brief(text: str) -> bool:
-    return bool(ASKS.search(text or ""))
+    return bool(ASKS.search(text or "")) and not ELSEWHERE.search(text or "")
 
 
 # "Brief me on revenue" names a metric and still asks for a brief, scoped to it
@@ -56,7 +61,7 @@ NAMED = re.compile(r"\b(brief(ing)?|digest|recap|scorecard|round[- ]?up)\b", re.
 
 
 def asks_for_metric_brief(text: str) -> bool:
-    return bool(NAMED.search(text or ""))
+    return bool(NAMED.search(text or "")) and not ELSEWHERE.search(text or "")
 
 
 def understanding(text: str, metrics: list[str] | None = None) -> dict[str, Any]:

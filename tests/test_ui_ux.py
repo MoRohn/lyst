@@ -641,3 +641,26 @@ def test_the_next_row_offers_nothing_the_answer_already_shows():
     opts, picks = anticipate.follow_options(r, [lead, other])
     assert "Forecast operating margin" not in opts  # the card already asks it
     assert list(picks.values()) == [other]  # the card itself is not offered again
+
+
+def test_a_line_chart_with_series_draws_one_named_line_each():
+    import json  # noqa: PLC0415
+
+    from streamlit.testing.v1 import AppTest  # noqa: PLC0415
+
+    def page():
+        from lyst.ui.components import chart  # noqa: PLC0415
+
+        chart({"type": "line", "title": "Revenue by region", "format": "number", "x": ["2026-07", "2026-08", "2026-09"],
+               "y": [30, 33, 36], "series": [{"name": "EMEA", "y": [10, 11, 12]}, {"name": "Americas", "y": [20, 22, 24]}]})
+
+    at = AppTest.from_function(page)
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    fig = json.loads(at.get("plotly_chart")[0].proto.spec)
+    assert [t["name"] for t in fig["data"]] == ["EMEA", "Americas"]  # one line each, no latest-point marker
+    assert fig["layout"]["showlegend"] is True
+    from lyst.ui.components import _alt  # noqa: PLC0415
+
+    assert "EMEA ending at 12" in _alt({"type": "line", "title": "t", "x": [1, 2, 3], "y": [30, 33, 36],
+                                        "series": [{"name": "EMEA", "y": [10, 11, 12]}, {"name": "Americas", "y": [20, 22, 24]}]})

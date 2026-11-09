@@ -187,7 +187,7 @@ class FollowUps:
 
         u = json.loads(und[0]["output"])
         c = json.loads(ctxs[0]["output"]) if ctxs else {}
-        if u.get("intent") == "brief":
+        if u.get("intent") in ("brief", "close"):
             return self._brief(actor, ws, task_id, parent, u, text, timezone)
         if not u.get("metrics"):
             raise ValueError("the earlier answer has no metric to drill into; ask a full question instead")
@@ -225,11 +225,12 @@ class FollowUps:
         if wants_schedule:
             return {**base, "action": "unsupported", "message": "Say when it should run, for example \"every Monday at 8\"."}
         if m := _PERIOD.search(norm):
-            q = f"Brief me on {m.group('p')}"
+            q = f"Brief me on {m.group('p')}" if u.get("intent") == "brief" else f"Run the close checks for {m.group('p')}"
             tid = self.runtime.submit(actor, ws, q, extra={"derived_from": {
                 "task_id": task_id, "follow_up": text, "changed": {"period": m.group("p")}, "carried": base["carried"]}})
             return {**base, "action": "task", "question": q, "changed": {"period": m.group("p")}, "task_id": tid}
-        return {**base, "action": "unsupported", "message": "A brief covers every metric. Ask about one directly, for "
+        what = "A brief covers" if u.get("intent") == "brief" else "The close checks cover"
+        return {**base, "action": "unsupported", "message": f"{what} every metric. Ask about one directly, for "
                 "example \"why did operating margin fall?\", or say \"every Monday at 8\" to have it repeated."}
 
 
