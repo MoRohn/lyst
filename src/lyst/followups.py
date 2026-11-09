@@ -187,7 +187,7 @@ class FollowUps:
 
         u = json.loads(und[0]["output"])
         c = json.loads(ctxs[0]["output"]) if ctxs else {}
-        if u.get("intent") in ("brief", "close"):
+        if u.get("intent") in ("brief", "close", "receivables"):
             return self._brief(actor, ws, task_id, parent, u, text, timezone)
         if not u.get("metrics"):
             raise ValueError("the earlier answer has no metric to drill into; ask a full question instead")
@@ -224,6 +224,10 @@ class FollowUps:
                     "changed": {"schedule": when_text}, **res}
         if wants_schedule:
             return {**base, "action": "unsupported", "message": "Say when it should run, for example \"every Monday at 8\"."}
+        if u.get("intent") == "receivables":
+            return {**base, "action": "unsupported", "message": "This reads the invoices open today. Ask about one "
+                    "client directly, for example \"how much does Acme owe?\", or say \"every Monday at 8\" to have it "
+                    "repeated."}
         if m := _PERIOD.search(norm):
             q = f"Brief me on {m.group('p')}" if u.get("intent") == "brief" else f"Run the close checks for {m.group('p')}"
             tid = self.runtime.submit(actor, ws, q, extra={"derived_from": {
