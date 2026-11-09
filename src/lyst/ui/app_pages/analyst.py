@@ -82,48 +82,41 @@ suggestions = home_mod.suggestions  # kept here for older imports
 
 
 def get_started(datasets: list[dict], metrics: list[dict]) -> None:
-    """The first run teaches by doing: four steps, each linking to where it is done; gone once done or dismissed."""
+    """The first run teaches by doing: the essentials as a ring and a rail of steps with one lit next step, optional
+    extras apart (they never move the count), and a finished state once the essentials are done."""
     if st.session_state.get("hide_get_started"):
         return
     admin = st.session_state.get("role") in ("admin", "owner")
+    model = True
     if admin:
         try:
             model = bool(api.get("/health").get("model"))
         except APIError:
             model = True
-        extra = [("Connect a model (optional)", "Richer explanations. Every number still comes from your data.", model,
-                  "app_pages/settings.py")]
-    else:
-        extra = []
+    extra = ([{"key": "model", "title": "Connect a model", "detail": "Richer explanations. Every number still comes from your data.",
+               "done": model, "action": "Connect", "go": lambda: st.switch_page("app_pages/settings.py",
+                                                                              query_params={"view": "models"})}]
+             if admin else [])
     if onboarding.card(extra=extra):
         return
-    try:
+    try:  # no onboarding status from the engine: the same guide, from what this page can see
         asked = bool(api.get(f"/v1/workspaces/{ws}/tasks"))
         watching = bool(api.get(f"/v1/workspaces/{ws}/monitors") or api.get(f"/v1/workspaces/{ws}/schedules"))
-        model = bool(api.get("/health").get("model")) if admin else True
     except APIError:
         return
-    steps = [("Add your data", "Upload a spreadsheet or connect a database.", bool(datasets), "app_pages/data.py", None),
-             ("Ask a first question", "Pick a suggestion on Home, or type your own.", asked, None, None),
-             ("Keep watch", "From an answer: Watch this metric, or Repeat it weekly.", watching, "app_pages/brain.py",
-              {"view": "work", "work": "recurring"})]
-    if admin:
-        steps.append(("Connect a model (optional)", "Richer explanations. Every number still comes from your data.",
-                      model, "app_pages/settings.py", None))
-    left = sum(not s[2] for s in steps)
-    if not left:
+    steps = [{"key": "connect", "title": "Add your data", "detail": "Upload a spreadsheet or connect a database.",
+              "done": bool(datasets), "optional": False, "action": "Add data", "go": lambda: st.switch_page("app_pages/data.py")},
+             {"key": "first_answer", "title": "Ask a first question", "detail": "Pick a suggestion on Home, or type your own.",
+              "done": asked, "optional": False},
+             {"key": "watch", "title": "Keep watch", "detail": "From an answer: Watch this metric, or Repeat it weekly.",
+              "done": watching, "optional": False, "action": "Open", "go": lambda: st.switch_page(
+                  "app_pages/brain.py", query_params={"view": "work", "work": "recurring"})}]
+    steps += [dict(x, optional=True) for x in extra]
+    nxt = next((s["key"] for s in steps if not s["done"] and not s["optional"]), None)
+    if nxt is None:
         return
-    st.markdown(f"**Get started** · {len(steps) - left} of {len(steps)} done")
-    for i, (title, body, ok, page, qp) in enumerate(steps):
-        c = st.columns([0.35, 6, 1.4], vertical_alignment="center")
-        c[0].markdown(":material/check_circle:" if ok else ":material/radio_button_unchecked:")
-        c[1].markdown(f"~~{title}~~" if ok else f"**{title}**  \n{body}")
-        if not ok and page and c[2].button("Go", key=f"gs_{i}", type="tertiary", width="stretch"):
-            st.switch_page(page, query_params=qp)
-    if st.button("Hide this guide", type="tertiary", key="gs_hide"):
-        st.session_state.hide_get_started = True
-        home_mod.drop()
-        st.rerun()
+    onboarding.guide(steps, nxt=nxt, editor=True)
+    onboarding.footer()
 
 
 @st.dialog("Get started", width="medium")
@@ -134,6 +127,25 @@ def get_started_sheet() -> None:
     except APIError:
         metrics, datasets = [], []
     get_started(datasets, metrics)
+
+
+@st.dialog("You're set up", width="medium")
+def set_up_sheet() -> None:
+    """The finish, shown once when the last essential is done: the guide's ending rather than a silent vanish."""
+    get_started([], [])
+
+
+def _just_finished() -> bool:
+    """True once, the first time Home sees setup complete after this session saw it unfinished."""
+    if not st.session_state.get("_gs_seen") or st.session_state.get("_gs_finished") \
+            or st.session_state.get("hide_get_started"):
+        return False
+    hit = st.session_state.get("_home")
+    ob = hit[2].get("onboarding") if hit and hit[0] == ws else None
+    if (ob or {}).get("state") != "complete":
+        return False
+    st.session_state["_gs_finished"] = True
+    return True
 
 
 HOME_CSS = """<style>
@@ -153,6 +165,8 @@ def home() -> None:
     st.html(HOME_CSS)
     if st.session_state.pop("_home_setup", False):
         get_started_sheet()
+    elif _just_finished():
+        set_up_sheet()
 
 
 # ----------------------------------------------------------------------------------------- a task
