@@ -11,7 +11,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # src/, when run by `streamlit run`
 
-from lyst.ui import collab, glossary, kit, palette  # noqa: E402
+from lyst.ui import collab, foot, kit, palette  # noqa: E402
 from lyst.ui.client import APIError, client  # noqa: E402
 
 ASSETS = Path(__file__).parent / "assets"
@@ -191,30 +191,25 @@ def _ws_name(i: str) -> str:
     return next(w["name"] for w in spaces if w["id"] == i)
 
 
+def _sign_out() -> None:
+    try:
+        api.post("/auth/logout")
+    except APIError:
+        pass
+    st.session_state.pop("token", None)
+    st.rerun()
+
+
 def _footer() -> None:
-    """The rail's foot: search, notifications, the glossary, and who and where (workspace, account, sign out), as
-    four quiet icons. Every label stays in the accessible name and the tooltip; only the eye sees icons."""
-    with st.container(key="lyst_side_foot"), st.container(key="lyst_side_icons", gap="small"):
-        palette.trigger(spaces)
-        collab.bell()
-        with st.popover("What these words mean", icon=":material/help:", key="lyst_side_help",
-                        help="What these words mean"):
-            st.html(f"<style>{glossary.CSS}</style>" + glossary.html())
-        who = me.get("name") or me["email"]
-        with st.popover(f"{_ws_name(st.session_state.workspace)} · {who}", icon=":material/account_circle:",
-                        key="lyst_side_account", help=f"{who} · {_ws_name(st.session_state.workspace)}"):
-            st.html(f'<p class="lyst-side-who"><b>{kit._esc(who)}</b>'
-                    + (f'<br>{kit._esc(me["email"])}' if who != me["email"] else "")
-                    + f'<br>{kit._esc(role.capitalize())} · {kit._esc(_ws_name(st.session_state.workspace))}</p>')
-            if len(ids) > 1:
-                st.selectbox("Workspace", ids, key="workspace", format_func=_ws_name)
-            if st.button("Sign out", type="tertiary", icon=":material/logout:", key="lyst_side_signout"):
-                try:
-                    api.post("/auth/logout")
-                except APIError:
-                    pass
-                st.session_state.pop("token", None)
-                st.rerun()
+    """The rail's foot: search, notifications and help as the same square icons as the areas above, then the person
+    as an avatar a little apart. Every label stays in the accessible name and the floating label; on a phone each
+    one is a row with its words."""
+    with st.container(key="lyst_side_foot"):
+        with st.container(key="lyst_side_icons"):
+            palette.trigger(spaces)
+            collab.bell()
+            foot.help_menu(spaces)
+        foot.account_menu(me, spaces, st.session_state.workspace, role, _sign_out)
 
 
 with st.sidebar:

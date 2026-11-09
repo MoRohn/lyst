@@ -174,40 +174,20 @@ div[class*="st-key-lyst_recent_"] button {min-height: 0; padding: .3rem .6rem; j
 div[class*="st-key-lyst_recent_"] button:hover {background: var(--lyst-raised); color: var(--lyst-text);}
 div[class*="st-key-lyst_recent_"] button p {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
 div[class*="st-key-lyst_recent_"] button [data-testid="stIconMaterial"] {font-size: 1rem;}
-/* the foot: pinned to the bottom, one menu for workspace and account, then three quiet icons */
+/* the foot: pinned to the bottom; its icons, badge, avatar and menus are styled in foot.py */
 [data-testid="stSidebarUserContent"] [data-testid="stLayoutWrapper"]:has(> .st-key-lyst_side_foot),
 .st-key-lyst_side_foot {margin-top: auto;}
 /* a hairline drawn as a shadow, so the surface observer does not raise the foot into a card */
-.st-key-lyst_side_foot {gap: .2rem; padding-top: .6rem; box-shadow: inset 0 1px 0 var(--lyst-edge);}
+.st-key-lyst_side_foot {padding-top: .6rem; box-shadow: inset 0 1px 0 var(--lyst-edge);}
 .st-key-lyst_side_foot [data-testid="stPopoverButton"], .st-key-lyst_side_foot [data-testid^="stBaseButton"] {
   background: transparent !important; box-shadow: none !important; border-color: transparent !important;
   min-height: 2.25rem; border-radius: var(--lyst-radius-md);}
 .st-key-lyst_side_foot [data-testid="stPopoverButton"]:hover, .st-key-lyst_side_foot [data-testid^="stBaseButton"]:hover {
   background: var(--lyst-raised) !important; box-shadow: var(--lyst-shadow-1) !important;}
-.st-key-lyst_side_account [data-testid="stPopoverButton"] {justify-content: flex-start; padding: .35rem .6rem;}
-.st-key-lyst_side_account [data-testid="stPopoverButton"] div {justify-content: flex-start; min-width: 0;}
-.st-key-lyst_side_account [data-testid="stPopoverButton"] > div {width: 100%;}
-.st-key-lyst_side_account [data-testid="stPopoverButton"] div[aria-hidden="true"] {margin-left: auto;
-  color: var(--lyst-text-muted);}
-.st-key-lyst_side_account [data-testid="stPopoverButton"] p {overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-weight: var(--lyst-weight-medium);}
 /* icons only for the eye: the words stay in the accessible name (visually hidden, not removed) */
-.st-key-lyst_side_icons {justify-content: flex-start; gap: .25rem;}
-.st-key-lyst_side_icons > [data-testid="stLayoutWrapper"] {width: auto !important; flex: 0 0 auto;}
-.st-key-lyst_side_icons [data-testid="stPopoverButton"] div[aria-hidden="true"] {display: none;}
-.st-key-lyst_side_icons [data-testid="stPopoverButton"], .st-key-lyst_side_icons [data-testid^="stBaseButton"] {
-  width: 2.25rem; min-width: 2.25rem; padding: 0; justify-content: center; color: var(--lyst-text-muted); position: relative;}
-.st-key-lyst_side_icons [data-testid="stPopoverButton"]:hover, .st-key-lyst_side_icons [data-testid^="stBaseButton"]:hover {
-  color: var(--lyst-text);}
-.st-key-lyst_side_icons [data-testid="stIconMaterial"] {font-size: 1.15rem;}
 .st-key-lyst_side_icons [data-testid="stMarkdownContainer"], .st-key-lyst_side_icons kbd,
 .st-key-lyst_side_icons [data-testid="stPopoverButton"] > div > span:last-child:not(:first-child) {
   position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}
-.st-key-lyst_side_bell_new [data-testid="stPopoverButton"]::after {content: ""; position: absolute; top: .45rem; right: .5rem;
-  width: .45rem; height: .45rem; border-radius: 50%; background: var(--lyst-accent);
-  box-shadow: 0 0 0 2px var(--lyst-surface, transparent);}
-p.lyst-side-who {margin: 0 0 .5rem 0; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); line-height: 1.45;}
-p.lyst-side-who b {color: var(--lyst-text); font-weight: var(--lyst-weight-strong);}
 /* ---------------------------------------------------------------- the rail
    On a desktop the four areas are a slim column of icons beside the page, not a sidebar of words: the mark on top,
    Home · Data · Brain · Settings, and the foot (search, notifications, glossary, account) at the bottom. Each icon
@@ -245,12 +225,8 @@ p.lyst-side-who b {color: var(--lyst-text); font-weight: var(--lyst-weight-stron
   [data-tip]:hover::after, [data-tip]:focus-visible::after {opacity: 1; translate: 0 -50%;}
   [data-testid="stSidebarUserContent"] {padding: 0 0 1rem 0 !important;}
   [data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"] {align-items: center;}
-  .st-key-lyst_side_foot {box-shadow: none; padding-top: 0; align-items: center;}
-  .st-key-lyst_side_foot, .st-key-lyst_side_icons {align-items: center !important; gap: .2rem !important; width: 100% !important;}
-  .st-key-lyst_side_icons > div, .st-key-lyst_side_foot > div {width: auto !important; display: flex; justify-content: center;}
-  .st-key-lyst_side_icons [data-testid="stPopoverButton"], .st-key-lyst_side_icons [data-testid^="stBaseButton"] {
-    width: 2.6rem !important; min-width: 2.6rem; height: 2.6rem; border-radius: 12px; overflow: visible;}
-  .st-key-lyst_side_account [data-testid="stPopoverButton"] [data-testid="stIconMaterial"] {font-size: 1.5rem !important;}
+  .st-key-lyst_side_foot {box-shadow: none; padding-top: 0; align-items: center !important;}
+  .st-key-lyst_side_icons {align-items: center !important; width: 100% !important;}
   .block-container {animation: lyst-page var(--lyst-motion-slow) var(--lyst-motion-ease);}
 }
 @keyframes lyst-page {from {opacity: 0; transform: translateY(4px);}}
@@ -279,21 +255,32 @@ _SURFACES = """<script>
     const t = (a.querySelector('[label]')?.getAttribute('label') || a.getAttribute('aria-label') || a.innerText || '').replace(/\\s+/g, ' ').trim();
     if (t) a.setAttribute('data-tip', t);
   });
-  new MutationObserver(() => requestAnimationFrame(tips)).observe(document.body, {childList: true, subtree: true});
-  tips();
+  // the rail's foot: the same floating label, named from the button's own words (and its key, for search); kept
+  // current, since the bell's count and the account's workspace change
+  const footTips = () => document.querySelectorAll('.st-key-lyst_side_foot button').forEach(b => {
+    const words = (b.querySelector('[data-testid="stMarkdownContainer"]')?.innerText || '').replace(/\\s+/g, ' ').trim();
+    const key = (b.querySelector('kbd')?.innerText || '').replace(/\\s+/g, '');
+    const t = key ? `${words} (${key})` : words;
+    if (t && b.getAttribute('data-tip') !== t) b.setAttribute('data-tip', t);
+  });
+  new MutationObserver(() => requestAnimationFrame(() => { tips(); footTips(); }))
+    .observe(document.body, {childList: true, subtree: true, characterData: true});
+  tips(); footTips();
 })();
 </script>"""
 
 
 def style() -> None:
     """The stylesheet, with the token block for the active theme (light or dark)."""
-    from lyst.ui import agent, agent_bar, artifacts, tokens, visuals, zone  # noqa: PLC0415
+    from lyst.ui import agent, agent_bar, artifacts, foot, tokens, visuals, zone  # noqa: PLC0415
 
     try:
         mode = st.context.theme.type or "light"
     except Exception:  # noqa: BLE001 - outside a browser session
         mode = "light"
-    st.html(_CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS + artifacts.CSS + agent.CSS + zone.CSS + agent_bar.CSS, 1))
+    css = _CSS.replace("<style>", "<style>\n" + tokens.css(mode) + "\n" + visuals.CSS + artifacts.CSS + agent.CSS
+                       + zone.CSS + agent_bar.CSS, 1)
+    st.html(css.replace("</style>", foot.CSS + "</style>"))  # last, so the rail's foot overrides the generic rules
     st.html(_SURFACES, unsafe_allow_javascript=True)
 
 
