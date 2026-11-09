@@ -51,10 +51,20 @@ def asks_for_brief(text: str) -> bool:
     return bool(ASKS.search(text or ""))
 
 
-def understanding(text: str) -> dict[str, Any]:
-    """What ``understand`` returns for a brief: no metric (it reads them all), the grain, and who it is for."""
+# "Brief me on revenue" names a metric and still asks for a brief, scoped to it
+NAMED = re.compile(r"\b(brief(ing)?|digest|recap|scorecard|round[- ]?up)\b", re.I)
+
+
+def asks_for_metric_brief(text: str) -> bool:
+    return bool(NAMED.search(text or ""))
+
+
+def understanding(text: str, metrics: list[str] | None = None) -> dict[str, Any]:
+    """What ``understand`` returns for a brief: the metrics it covers (none named means all of them), the grain, and
+    who it is for."""
     grain = "quarter" if _QUARTER.search(text) else "month"
-    return {"question": text, "intent": "brief", "metrics": [], "matched": {}, "ambiguous": {}, "precedence": {},
+    return {"question": text, "intent": "brief", "metrics": list(metrics or []), "matched": {}, "ambiguous": {},
+            "precedence": {},
             "by": None, "dataset": None, "method": "rules", "grain": grain, "depth": "standard",
             "audience": "executive" if _EXEC.search(text) else "analyst", "filters": [], "workflow": None}
 
@@ -197,7 +207,8 @@ def business_brief(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     s = ctx.services
     u = ctx.outputs["understand"]
     fs = fiscal_start(s.semantic.stores.workspace(ctx.workspace_id))
-    specs = [m for m in s.semantic.metrics(ctx.actor, ctx.workspace_id) if m.time_column]
+    specs = [m for m in s.semantic.metrics(ctx.actor, ctx.workspace_id) if m.time_column
+             and (not u.get("metrics") or m.name in u["metrics"])]
     evidence: list[dict[str, Any]] = []
     covered: dict[str, date] = {}
     skipped: list[str] = []
@@ -270,8 +281,10 @@ def business_brief(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return abs(x["z"] if x["basis"] == "prior" else x["z_yoy"])
 
     unusual = sorted([x for x in live if x["unusual"]], key=lambda x: (x["good"] is not False, -size(x)))
-    for x in unusual[:EXPLAIN_TOP]:
-        drv, ev = _driver(ctx, x["spec"], p, prev if x["basis"] == "prior" else ya)
+    # a brief on one metric always says where its move came from, unusual or not
+    explain = unusual[:EXPLAIN_TOP] if len(live) > 1 else live
+    for x in explain:
+        drv, ev = _driver(ctx, x["spec"], p, prev if x["basis"] != "year_ago" else ya)
         x["driver"] = drv
         evidence += ev
     watched: set[str] = set()
@@ -342,13 +355,24 @@ def result(ctx: Context) -> dict[str, Any]:
     unusual = [next(x for x in rows if x["metric"] == m) for m in b["unusual"]]
     calm = [x for x in rows if x["metric"] not in b["unusual"]]
     lead: list[str] = []
-    if unusual:
+    if len(rows) == 1 and not late:
+        x = rows[0]
+        spec = specs[x["metric"]]
+        lead.append(f"{spec.title} in {p}: {_fmt(x['value'], spec)}, {_change_text(x['change'], spec)} vs {b['prior_label']}"
+                    + (f" and {_change_text(x['yoy'], spec)} vs {b['year_ago_label']}" if x.get("yoy") is not None else "")
+                    + (f" ({'an unusual gap to ' + b['year_ago_label'] if x['basis'] == 'year_ago' else 'a bigger move than usual'})"
+                       if x["unusual"] else ", within its normal range")
+                    + (_driver_text(x) if x.get("driver") and x.get("change") else "") + ".")
+        if x.get("streak", 0) >= 3:
+            lead.append(f"It has moved {'up' if (x['change'] or 0) > 0 else 'down'} {x['streak']} "
+                        f"{b['period']['grain']}s in a row.")
+    elif unusual:
         lead.append(f"{p}: {len(unusual)} of {len(rows)} metrics moved more than usual.")
         lead.append("; ".join(_move(x, specs[x["metric"]], b) + _driver_text(x) for x in unusual[:3]) + ".")
         if calm:
             lead.append(f"The other {len(calm)} stayed within their normal range.")
     else:
-        lead.append(f"{p}: nothing moved more than usual across {len(rows)} metrics.")
+        lead.append(f"{p}: nothing moved more than usual across {len(rows)} metric{'s' if len(rows) != 1 else ''}.")
         big = max(rows, key=lambda x: abs(x["change"] or 0), default=None)
         if big and big["change"]:
             lead.append(f"The biggest move: {_move(big, specs[big['metric']], b)}.")

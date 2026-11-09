@@ -164,10 +164,12 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     text: str = args["question"]
     s = ctx.services
     resolved = s.semantic.resolve(ctx.actor, ctx.workspace_id, text)
-    if not resolved["metrics"] and not resolved["ambiguous"] and not ctx.request.get("workflow") \
-            and brief_mod.asks_for_brief(text):
-        # "Give me a weekly KPI brief" / "What changed this month?" asks about every metric, not one (brief.py)
-        return brief_mod.understanding(text)
+    if not resolved["ambiguous"] and not ctx.request.get("workflow") and (
+            brief_mod.asks_for_brief(text) if not resolved["metrics"]
+            else brief_mod.asks_for_metric_brief(text) and rule_intent(text) == "value"):
+        # "Give me a weekly KPI brief" / "What changed this month?" asks about every metric; "brief me on revenue" about
+        # the ones it names (brief.py)
+        return brief_mod.understanding(text, resolved["metrics"])
     # expertise is now assembled for every task (runtime.before_submit), so it no longer marks an explicit analysis;
     # a request sent to the Analyst Core's own entry point (analyst_request_id) still does
     if not ctx.request.get("workflow") and not ctx.request.get("analyst_request_id"):

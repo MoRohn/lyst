@@ -73,9 +73,22 @@ def test_an_incomplete_period_falls_back_to_the_last_complete_one(seeded):
     assert "Oct 2026 is not complete in the data yet" in r["supporting"]["assumptions"][0]
 
 
-def test_a_named_metric_or_an_ambiguous_term_is_not_a_brief(seeded):
+def test_a_brief_on_a_named_metric_covers_only_that_metric(seeded):
     lyst, owner = seeded
-    assert _understanding(lyst, ask(lyst, owner, "Give me a brief on revenue last quarter"))["intent"] != "brief"
+    t = ask(lyst, owner, "Brief me on revenue")
+    u, r = _understanding(lyst, t), t["result"]
+    assert u["intent"] == "brief" and u["metrics"] == ["revenue"]
+    assert [row[0] for row in r["tables"][0]["rows"]] == ["Revenue"]
+    assert r["answer"].startswith("Revenue in Sep 2026: $8.23M, -3.4% vs Aug 2026 and +11.5% vs Sep 2025")
+    assert "of the change)" in r["answer"] or "spread across segments" in r["answer"]  # where the move came from
+    # "what changed in revenue" and "why ... prepare a briefing" are still the engine's own explanation, not a brief
+    t = ask(lyst, owner, "Why did operating margin decline last quarter? Prepare a briefing for the board.")
+    assert _understanding(lyst, t)["intent"] == "explain"
+    assert _understanding(lyst, ask(lyst, owner, "What changed in revenue last quarter?"))["intent"] != "brief"
+
+
+def test_an_ambiguous_term_is_not_a_brief(seeded):
+    lyst, owner = seeded
     # an ambiguous term still blocks with its question instead of turning into a brief of everything
     t = ask(lyst, owner, "What changed in margin?")
     assert _understanding(lyst, t)["intent"] != "brief"
