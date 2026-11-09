@@ -377,10 +377,11 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
     sup = r.get("supporting", {}) or {}
     exec_ = r.get("audience") == "executive" and bool(r.get("brief"))
     with st.container(border=True, key=f"lyst_answer_{key}"):
-        top = st.columns([6, 1], vertical_alignment="center")
+        with st.container(key=f"lyst_answer_top_{key}"):  # one line on a phone too (the page's CSS keeps it from wrapping)
+            top = st.columns([6, 1], vertical_alignment="center")
         with top[0]:
             _badge(r)
-        if top[1].button("Brief", icon=":material/summarize:", type="tertiary", key=f"brief_{key}", width="stretch",
+        if top[1].button("Brief", icon=":material/summarize:", type="tertiary", key=f"brief_{key}", width="content",
                          help="The two-line version, with what to do and a PDF to forward"):
             brief(r, pdf, key)
         st.markdown("#### " + md(r["brief"] if exec_ else r["answer"]))

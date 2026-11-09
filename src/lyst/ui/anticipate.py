@@ -5,6 +5,7 @@ may do on its own. Used by Work, Home and Settings; reads the session on every c
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 
 import streamlit as st
@@ -154,17 +155,54 @@ def prepared_for_you() -> list[dict]:
     return [a for a in items() if _wants_person(a)]
 
 
-def next_steps(task_id: str) -> None:
-    """Under an answer: what Lyst suggests doing next with it (a follow-up question, watching, repeating)."""
-    found = items(subject=task_id)
-    found = [a for a in found if a.get("kind") == NEXT]
+def _primary(a: dict) -> str | None:
+    ids = [x["id"] if isinstance(x, dict) else x for x in a.get("actions") or []]
+    return next((x for x in PRIMARY if x in ids), None)
+
+
+def short_reason(a: dict) -> str:
+    """The first reason, without the echo of the question it came from: the answer is right above it."""
+    first = (a.get("reasons") or [""])[0]
+    return re.sub(r'\s*\(your question: ".*?"\)', "", first).strip()
+
+
+def lead(a: dict, *, key: str) -> None:
+    """The one suggestion worth a click: what, why in a line, one button for it, and the rest in a small menu."""
+    act = _primary(a)
+    with st.container(border=True, key=f"lyst_next_{key}"):
+        c = st.columns([7, 1.5, 0.45], vertical_alignment="center", gap="small")
+        c[0].html('<div class="lyst-next-lead"><span class="lyst-next-icon" aria-hidden="true"></span><div>'
+                  f'<b>{kit._esc(a.get("objective") or "")}</b>'
+                  + (f'<p>{kit._esc(short_reason(a))}</p>' if short_reason(a) else "") + "</div></div>")
+        if act and c[1].button(ACTION[act], type="primary", key=f"{key}_go", width="stretch"):
+            _act(a, act)
+        with c[2].popover("More", icon=":material/more_horiz:", width="stretch"):  # the word is for screen readers
+            if st.button("Why Lyst suggests it", icon=":material/info:", type="tertiary", key=f"{key}_why"):
+                why(a)
+            if act != "snooze" and st.button("Later", icon=":material/schedule:", type="tertiary", key=f"{key}_later"):
+                _act(a, "snooze")
+            if st.button("Dismiss", icon=":material/close:", type="tertiary", key=f"{key}_dismiss"):
+                _act(a, "dismiss")
+
+
+def run(a: dict) -> None:
+    """A suggestion picked from a row of choices: do its main action, or say why when it has none."""
+    act = _primary(a)
+    if act:
+        _act(a, act)
+    else:
+        why(a)
+
+
+def next_steps(task_id: str) -> list[dict]:
+    """Under an answer: the suggestion Lyst ranks first, as a card with one button. The next few are returned so
+    the page can offer them beside its follow-up questions, as one row of choices."""
+    found = [a for a in items(subject=task_id) if a.get("kind") == NEXT]
     if not found:
-        return
-    kit.label("Suggested next")
-    rows(found[:1], key=f"nx{task_id}")  # one suggestion leads; the rest wait one click away
-    if len(found) > 1:
-        with st.expander(f"{len(found) - 1} more suggestion{'s' * (len(found) > 2)}"):
-            rows(found[1:4], key=f"nx{task_id}_more")
+        return []
+    kit.label("Next")
+    lead(found[0], key=f"nx{task_id}")
+    return found[1:4]
 
 
 def top_suggestion() -> None:
