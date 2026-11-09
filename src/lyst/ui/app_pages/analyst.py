@@ -454,19 +454,11 @@ def reply_view(task: str, r: dict) -> None:
             st.rerun()
 
 
-def follow_ups(task: str, r: dict, more: list[dict] | tuple = ()) -> None:
-    """One row of choices: Lyst's other suggestions for this answer, how the answer was figured (its trust questions
-    open together), then the metric's next questions."""
-    metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
-    picks = {f":material/auto_awesome: {a['objective']}": a for a in more if a.get("objective")}
-    opts = [*picks, governance.ASK["how"]]
-    if metric:
-        m = kit.lower(metric["title"])
-        opts += [f"Forecast {m}", f"Show the {m} trend over time"]
-        opts += [f"What was {m} last quarter by {d.replace('_', ' ')}?" for d in metric.get("dimensions", [])][:1]
-    asked = [str(x.get("question") or "").lower() for a in picks.values() for x in a.get("actions") or [] if isinstance(x, dict)]
-    opts = [o for o in opts if not any(q.startswith(o.lower()) for q in asked)]  # a suggestion already asks it
-    if not picks:
+def follow_ups(task: str, r: dict, found: list[dict] | None = None) -> None:
+    """One row of choices under the answer. It carries the "Next" label only when no suggestion card was drawn
+    above it, so the block has one heading."""
+    opts, picks = anticipate.follow_options(r, found)
+    if found is None:
         kit.label("Next")
     nxt = st.pills("Follow up", opts, label_visibility="collapsed", key=f"fu_{task}")
     if nxt in picks:

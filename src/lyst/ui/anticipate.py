@@ -194,15 +194,34 @@ def run(a: dict) -> None:
         why(a)
 
 
-def next_steps(task_id: str) -> list[dict]:
-    """Under an answer: the suggestion Lyst ranks first, as a card with one button. The next few are returned so
-    the page can offer them beside its follow-up questions, as one row of choices."""
+def next_steps(task_id: str) -> list[dict] | None:
+    """Under an answer: the suggestion Lyst ranks first, as a card with one button under the "Next" label. Returns
+    None when there is none (the page then labels its own row of choices), otherwise the first few suggestions, the
+    one shown first included, so the page can offer the rest beside its follow-up questions without repeating any."""
     found = [a for a in items(subject=task_id) if a.get("kind") == NEXT]
     if not found:
-        return []
+        return None
     kit.label("Next")
     lead(found[0], key=f"nx{task_id}")
-    return found[1:4]
+    return found[:4]
+
+
+def follow_options(r: dict, found: list[dict] | None) -> tuple[list[str], dict[str, dict]]:
+    """The row of choices under an answer and the suggestion behind each ✦ choice. ``found`` is what next_steps
+    returned (None, or the suggestions with the one already shown as a card first). A choice is left out when a
+    suggestion already asks it or the answer already draws it (a trend chart, a forecast)."""
+    from lyst.ui import governance  # noqa: PLC0415
+
+    metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
+    picks = {f":material/auto_awesome: {a['objective']}": a for a in (found or [])[1:] if a.get("objective")}
+    opts = [*picks, governance.ASK["how"]]
+    if metric:
+        m = kit.lower(metric["title"])
+        shown = {c.get("type") for c in r.get("charts") or []}
+        opts += [f"Forecast {m}"] * ("forecast" not in shown) + [f"Show the {m} trend over time"] * ("line" not in shown)
+        opts += [f"What was {m} last quarter by {d.replace('_', ' ')}?" for d in metric.get("dimensions", [])][:1]
+    asked = [str(x.get("question") or "").lower() for a in found or [] for x in a.get("actions") or [] if isinstance(x, dict)]
+    return [o for o in opts if not any(q.startswith(o.lower()) for q in asked)], picks
 
 
 def top_suggestion() -> None:
