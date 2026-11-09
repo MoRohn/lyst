@@ -3,6 +3,9 @@
 // Brain, as a place: everything Lyst knows drawn as one calm field, gathered by collection (metrics, datasets, terms,
 // documents, memories, answers). Nothing is wired up at rest; picking a thing draws only its own relationships and
 // steps everything else back, so structure appears when it is asked for, not before.
+// With one collection open, a picked thing's relationships still reach outside it: the things it connects to in other
+// collections come in around the edge of the field, dimmed, with their lines drawn fainter (picking one follows the
+// link into its own collection).
 //
 // Drawn in the page (st.components.v2, no iframe, no library, no network). Python decides everything; this reports:
 //   {type: "pick", id}         a thing picked ("" puts it down)
@@ -89,7 +92,7 @@ class Field {
       const members = (d.nodes || []).filter((x) => x.kind === g.id);
       const a = Math.PI + (slotOf.get(g.id) / Math.max(n, 1)) * Math.PI * 2;
       const gx = cx + ring * rx * Math.cos(a), gy = cy + ring * ry * Math.sin(a);
-      const room = n <= 1 ? Math.min(W, H) * 0.42 : Math.min(W / (n <= 3 ? 3.2 : 4.2), H / 3.2);
+      const room = n <= 1 ? Math.min(W, H) * 0.36 : Math.min(W / (n <= 3 ? 3.2 : 4.2), H / 3.2);
       const step = Math.max(24, Math.min(n <= 1 ? 72 : 44, room / Math.sqrt(members.length + 0.5)));
       const box = [Infinity, Infinity, -Infinity, -Infinity];
       members.forEach((m, i) => {
@@ -117,6 +120,7 @@ class Field {
     this.nodes.querySelectorAll(".k-n").forEach((b) => {
       const p = pos[b.dataset.id];
       b.classList.toggle("off", !p);
+      b.classList.remove("ghost");
       b.setAttribute("aria-hidden", String(!p));
       if (p) {
         b.style.left = `${p[0]}px`; b.style.top = `${p[1]}px`;
@@ -132,7 +136,8 @@ class Field {
   declutter() {
     const boxes = [];
     const live = [...this.nodes.querySelectorAll(".k-n:not(.off)")];
-    const dot = (b) => { const p = this.pos[b.dataset.id]; const r = b.firstElementChild.offsetWidth / 2 + 3; return [p[0] - r, p[1] - r, p[0] + r, p[1] + r]; };
+    const where = (id) => this.pos[id] || (this.ghosts || {})[id];
+    const dot = (b) => { const p = where(b.dataset.id); const r = b.firstElementChild.offsetWidth / 2 + 3; return [p[0] - r, p[1] - r, p[0] + r, p[1] + r]; };
     live.forEach((b) => boxes.push(dot(b)));
     (this.capList || []).forEach((c) => { const w = (c.label.length + 3) * 7.2; boxes.push([c.x - w / 2, c.y - 9, c.x + w / 2, c.y + 9]); });
     const size = (b) => +b.style.getPropertyValue("--s").replace("rem", "");
@@ -142,7 +147,7 @@ class Field {
       || (!sel && (b.classList.contains("named") || focused))).sort((a, b) => rank(b) - rank(a));
     live.forEach((b) => b.classList.remove("crowd", "say"));
     want.forEach((b) => {
-      const p = this.pos[b.dataset.id];
+      const p = where(b.dataset.id);
       const own = dot(b);
       const w = b.lastElementChild.offsetWidth, r = b.firstElementChild.offsetWidth / 2 + 6;
       const east = [p[0] + r, p[1] - 10, p[0] + r + w, p[1] + 10], west = [p[0] - r - w, p[1] - 10, p[0] - r, p[1] + 10];
@@ -154,25 +159,66 @@ class Field {
     });
   }
 
+  // With a collection open, the picked thing's relations outside it: placed on an orbit just inside the field's edge,
+  // grouped by kind and gathered on the picked thing's side (wrapping round when there are many).
+  outside(sel) {
+    const d = this.data;
+    const out = {};
+    if (!sel || !this.pos || !this.pos[sel]) return out;
+    const kinds = (d.collections || []).map((c) => c.id);
+    const kindOf = new Map((d.nodes || []).map((x) => [x.id, x.kind]));
+    const ids = [];
+    (d.links || []).forEach((l) => {
+      const o = l.source === sel ? l.target : l.target === sel ? l.source : null;
+      if (o && !this.pos[o] && kindOf.has(o) && !ids.includes(o)) ids.push(o);
+    });
+    if (!ids.length) return out;
+    ids.sort((a, b) => kinds.indexOf(kindOf.get(a)) - kinds.indexOf(kindOf.get(b)));
+    const shown = ids.slice(0, 48);
+    const W = this.W, H = this.H, cx = W / 2, cy = H / 2;
+    const rx = W / 2 - 28, ry = H / 2 - 26;
+    const [sx, sy] = this.pos[sel];
+    const toward = Math.atan2((sy - cy) / ry, (sx - cx) / rx);
+    const step = Math.min((Math.PI * 2) / shown.length, 0.26);
+    const start = toward - (step * (shown.length - 1)) / 2;
+    shown.forEach((id, i) => {
+      const a = start + i * step;
+      out[id] = [cx + rx * Math.cos(a), cy + ry * Math.sin(a)];
+    });
+    return out;
+  }
+
   // The picked thing's own relationships, drawn as soft curves; everything else steps back.
   wire() {
     const d = this.data;
     const sel = this.sel;
     const near = new Set();
+    const ghost = this.outside(sel);
+    this.ghosts = ghost;
+    const at = (id) => (this.pos && this.pos[id]) || ghost[id];
     let paths = "";
     if (sel && this.pos && this.pos[sel]) {
       const [x1, y1] = this.pos[sel];
       (d.links || []).forEach((l, i) => {
         const other = l.source === sel ? l.target : l.target === sel ? l.source : null;
-        if (!other || !this.pos[other]) return;
+        if (!other || !at(other)) return;
         near.add(other);
-        const [x2, y2] = this.pos[other];
+        const [x2, y2] = at(other);
         const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
         const bend = 0.18 * Math.hypot(x2 - x1, y2 - y1);
         const nx = -(y2 - y1), ny = x2 - x1, nl = Math.hypot(nx, ny) || 1;
-        paths += `<path pathLength="1" style="--i:${i % 12}" d="M${x1},${y1} Q${mx + (nx / nl) * bend},${my + (ny / nl) * bend} ${x2},${y2}"/>`;
+        paths += `<path pathLength="1" class="${ghost[other] ? "out" : ""}" style="--i:${i % 12}" d="M${x1},${y1} Q${mx + (nx / nl) * bend},${my + (ny / nl) * bend} ${x2},${y2}"/>`;
       });
     }
+    this.nodes.querySelectorAll(".k-n").forEach((b) => {
+      const id = b.dataset.id;
+      if (this.pos && this.pos[id]) return;
+      const g = ghost[id];
+      b.classList.toggle("ghost", !!g);
+      b.classList.toggle("off", !g);
+      b.setAttribute("aria-hidden", String(!g));
+      if (g) { b.style.left = `${g[0]}px`; b.style.top = `${g[1]}px`; }
+    });
     this.links.setAttribute("viewBox", `0 0 ${this.W || 1} ${this.H || 1}`);
     this.links.innerHTML = paths;
     this.el.classList.toggle("has-sel", !!sel);

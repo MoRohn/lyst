@@ -102,3 +102,21 @@ def test_the_field_uses_only_tokens_and_no_network():
     assert not re.findall(r"#[0-9a-fA-F]{3,8}\b", body) and not re.findall(r"rgba?\(", body)
     assert "prefers-reduced-motion" in css and "forced-colors" in css
     assert "fetch(" not in js and "http" not in js
+
+
+def test_a_filtered_field_still_draws_a_picks_relationships():
+    """With one collection open, a picked thing's lines are drawn to what is shown and to what it connects to in other
+    collections (brought in dimmed at the edge), not dropped because the other end is filtered out."""
+    js = (HERE / "field.js").read_text()
+    css = (HERE / "field.css").read_text()
+    assert "outside(sel)" in js and "ghost[other]" in js
+    assert ".k-n.ghost" in css and ".k-links path.out" in css
+
+
+def test_following_a_link_out_of_a_collection_opens_its_collection(ui):  # noqa: F811
+    at = _open_brain(brain_coll="metric", brain_sel="metric:operating_margin")
+    assert field_of(at)["collection"] == "metric"
+    next(b for b in at.button if b.label == "Reads Monthly P&L").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    f = field_of(at)
+    assert f["selected"] == "dataset:pnl" and f["collection"] == "dataset"

@@ -51,6 +51,7 @@
 .k-links path { fill: none; stroke: color-mix(in srgb, var(--k-accent) 55%, transparent); stroke-width: 1.4; stroke-linecap: round;
                 stroke-dasharray: 1; stroke-dashoffset: 1; animation: k-draw var(--k-slow) var(--k-ease) forwards;
                 animation-delay: calc(var(--i) * 25ms); }
+.k-links path.out { stroke: color-mix(in srgb, var(--k-accent) 30%, transparent); stroke-width: 1.1; }
 @keyframes k-draw { to { stroke-dashoffset: 0; } }
 .k-caps { position: absolute; inset: 0; pointer-events: none; }
 .k-cap { position: absolute; transform: translate(-50%, -50%); font-size: var(--lyst-size-xs, .72rem); color: var(--k-muted);
@@ -83,6 +84,9 @@
 .k-n:hover, .k-n:focus-visible { z-index: 4; }
 .k-n:hover i { transform: scale(1.18); }
 .k-term:hover i { transform: rotate(45deg) scale(.95); }
+/* related things from outside the open collection: dimmed until hovered or focused */
+.k-n.ghost { opacity: .6; }
+.k-n.ghost:hover, .k-n.ghost:focus-visible { opacity: 1; }
 .k-n.off { opacity: 0; pointer-events: none; visibility: hidden; }
 
 /* picked: the thing glows, what it relates to stays, the rest steps back */
@@ -91,6 +95,7 @@
 .k-n[aria-pressed="true"] span { font-weight: var(--lyst-weight-strong, 680); background: var(--k-raised); box-shadow: var(--k-s2); }
 .k-n.near span { background: color-mix(in srgb, var(--k-raised) 80%, transparent); }
 .k.has-sel .k-n:not([aria-pressed="true"]):not(.near) { opacity: .22; }
+.k.has-sel .k-n.ghost.near:not(:hover):not(:focus-visible) { opacity: .6; }
 .k.has-sel .k-n:not([aria-pressed="true"]):not(.near):hover { opacity: .8; }
 /* searching: matches light up */
 .k.has-q:not(.has-sel) .k-n:not(.hit) { opacity: .3; }
@@ -112,4 +117,5 @@
   .k-n[aria-pressed="true"] i { outline: 3px solid Highlight; }
   .k-col.on { outline: 2px solid Highlight; }
   .k-links path { stroke: CanvasText; }
+  .k-links path.out { stroke: GrayText; }
 }
