@@ -419,6 +419,10 @@ def field(g: dict, hits: list[str]) -> None:
     sel = st.session_state.get("brain_sel")
     if sel and not any(n["id"] == sel for n in g["nodes"]):
         sel = st.session_state["brain_sel"] = None
+    if sel and coll != "all" and not sel.startswith(coll + ":"):
+        # followed a link out of the open collection (a dimmed thing at the field's edge, or a relationship in the
+        # panel): open the collection it lives in, so it stays picked with its own relationships drawn
+        coll = st.session_state["brain_coll"] = next((n["kind"] for n in g["nodes"] if n["id"] == sel), "all")
     ranked = sorted(g["nodes"], key=lambda n: (n["kind"] != "metric", -(n.get("degree") or 0)))
     named = {n["id"] for n in ranked[:10] if n["kind"] in ("metric", "dataset") or (n.get("degree") or 0) >= 3}
     nodes = [{"id": n["id"], "kind": n["kind"], "label": n["label"], "short": short(n["label"]),
