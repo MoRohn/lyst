@@ -731,5 +731,6 @@ try:
             work.section(agent.state(ws)["tasks"], agent.waiting(agent.state(ws)))
         else:
             overview()
+        zone.board("brain", place="bottom")
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")

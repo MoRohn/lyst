@@ -626,12 +626,16 @@ def _still(page: str) -> None:
     _draw(page)
 
 
-def board(page: str) -> None:
-    """The page's activity zone: its own cards by default, everything with one switch. Gestures are handled here,
-    outside the board's fragment, so a confirmation stays open while the board keeps itself current."""
+def board(page: str, *, place: str = "top") -> None:
+    """The page's activity zone: its own cards by default, everything with one switch. Every page calls it twice, the
+    same way: under its header (``place="top"``) and at its end (``place="bottom"``). When something wants the person
+    or is moving, the board opens under the header; when all is quiet it folds into one line at the page's end, so the
+    page itself leads. Gestures are handled at the top, outside the board's fragment, so a confirmation stays open
+    while the board keeps itself current."""
     if page not in PAGES:
         raise ValueError(f"unknown page {page!r}")
-    ev = st.session_state.pop("_zone_do", None) or st.session_state.get("_zone_open")
+    top = place == "top"
+    ev = (st.session_state.pop("_zone_do", None) or st.session_state.get("_zone_open")) if top else None
     if ev:
         handle(ev)
     try:
@@ -639,17 +643,25 @@ def board(page: str) -> None:
     except APIError:
         return
     draw = _live if any(c["col"] == "working" for c in cards) else _still
-    if ev or any(c["col"] in ("needs", "working") for c in cards):
-        draw(page)  # something wants the person or is moving: the board is in view
+    loud = bool(ev) or any(c["col"] in ("needs", "working") for c in cards)
+    if top:
+        st.session_state["_zone_loud"] = loud  # the bottom call this run says nothing when the top one drew
+        if loud:
+            draw(page)  # something wants the person or is moving: the board is in view
+        return
+    if st.session_state.get("_zone_loud", loud):
         return
     # quiet: nothing waits on the person and nothing runs, so the board folds into one line until asked for
     n = {col: sum(c["col"] == col for c in cards) for col, *_ in COLUMNS}
     said = " · ".join(f"{n[k]} {w}" for k, w in (("suggested", "suggested"), ("done", "done this week")) if n[k])
-    with st.expander(f"Activity · {said}" if said else "Activity · all quiet", icon=":material/bolt:"):
+    with st.container(key=f"lyst_zone_foot_{page}"), \
+            st.expander(f"Activity · {said}" if said else "Activity · all quiet", icon=":material/bolt:"):
         draw(page)
 
 
 CSS = """
+/* the quiet activity line closes every page the same way, set apart from what the page shows */
+[class*="st-key-lyst_zone_foot_"] {margin-top: 1.25rem;}
 /* the activity zone's confirmation: the card, where it moves, what happens, how it is governed */
 .lyst-zone-confirm {display: flex; flex-direction: column; gap: .75rem;}
 .lyst-zone-card {border: 1px solid var(--lyst-border); border-radius: var(--lyst-radius-md); padding: .7rem .85rem;
