@@ -491,7 +491,10 @@ def _fmt(v: float | None, kind: str | None) -> str:
 def summary(result: dict[str, Any]) -> str:
     """One plain sentence per output, the changes assumed, and the hypothetical label."""
     parts = []
-    for o in result["outputs"]:
+    # the base is a real period: say which, so "36% to 35%" is not read as this quarter's figure when it is another's
+    labels = {(v.get("period") or {}).get("label") for v in (result.get("observed") or {}).values()}
+    basis = labels.pop() if len(labels) == 1 and None not in labels else None
+    for i, o in enumerate(result["outputs"]):
         if o["delta"] is None:
             parts.append(f"{o['label']} cannot be computed under this scenario")
             continue
@@ -500,7 +503,8 @@ def summary(result: dict[str, Any]) -> str:
         else:
             move = f"{_fmt(o['delta'], o.get('format'))}" + (f", {o['delta_pct']:+.1f}%" if o["delta_pct"] is not None else "")
             move = ("+" if o["delta"] > 0 else "") + move
-        parts.append(f"{o['label']} would go from {_fmt(o['base'], o.get('format'))} to "
+        parts.append(f"{o['label']} would go from {_fmt(o['base'], o.get('format'))}"
+                     + (f" ({basis} actual)" if basis and i == 0 else "") + " to "
                      f"{_fmt(o['scenario'], o.get('format'))} ({move})")
     described = result.get("described") or {}
     changes = ", ".join(described.get(k) or (
@@ -600,10 +604,16 @@ class ScenarioService:
             return self._observed[key]
         period, through = None, None
         if tcol:
-            mx = self.data.query(actor, ws, f'SELECT max("{tcol}") FROM "{dataset}"').rows[0][0]
-            through = mx.isoformat() if hasattr(mx, "isoformat") else str(mx)
+            # read the data's end the way every metric answer does: monthly rows dated the 1st cover the whole month,
+            # so "last quarter" is the same quarter here as in "what was revenue last quarter?"
+            try:
+                mx, mday = self.data.query(actor, ws, f'SELECT max("{tcol}"), max(day("{tcol}")) FROM "{dataset}"').rows[0]
+            except Exception:  # noqa: BLE001 - a time column stored as text has no day(); read its maximum as it is
+                mx, mday = self.data.query(actor, ws, f'SELECT max("{tcol}") FROM "{dataset}"').rows[0][0], None
+            end = periods.covered_through(mx, mday) if mx is not None else None
+            through = end.isoformat() if end else str(mx)
             if src.get("period"):
-                p = periods.parse(src["period"], mx if isinstance(mx, date) else date.fromisoformat(str(mx)[:10]))
+                p = periods.parse(src["period"], end or date.fromisoformat(str(mx)[:10]))
                 if p is None:
                     raise ModelError(f"period {src['period']!r} is not understood")
                 period = {"label": p.label, "start": p.start.isoformat(), "end": p.end.isoformat()}
@@ -646,7 +656,8 @@ class ScenarioService:
         base, observed = self.base(actor, ws, model)
         base_values, _ = model.evaluate(base)
         prev_vals, changed = None, None
-        if previous and previous.get("model") == {"name": name, "version": row["version"]}:
+        prev_model = (previous or {}).get("model") or {}
+        if previous and (prev_model.get("name"), prev_model.get("version")) == (name, row["version"]):
             before = previous.get("overrides") or {}
             changed = {k for k in set(before) | set(overrides) if before.get(k) != overrides.get(k)}
             prev_vals = previous.get("values")
@@ -654,7 +665,7 @@ class ScenarioService:
         return {
             "kind": "hypothetical",
             "note": "Scenario values are hypothetical: computed from the observed base and the stated changes, not observed results.",
-            "model": {"name": name, "version": row["version"]},
+            "model": {"name": name, "version": row["version"], "title": model.spec.get("title") or name},
             "overrides": overrides,
             "observed": {n: {"value": base[n], **observed[n]} for n in observed},
             "assumptions": {n: dict(zip(("value", "low", "high"), (float(i["value"]), *bounds(i, float(i["value"]))), strict=True))

@@ -101,8 +101,10 @@ def horizon_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     grain, n = args.get("grain", "quarter"), int(args.get("periods", 6))
     period = ctx.outputs["contextualize"]["period"]
     anchor = date.fromisoformat(period["anchor"])
-    last = periods.last_complete(grain, anchor, period.get("fiscal_start", 1)) if grain != "week" else None
-    end = last.end
+    if args.get("until"):  # a series that ends with the period the request named, not the latest one
+        end = date.fromisoformat(str(args["until"]["end"]))
+    else:
+        end = periods.last_complete(grain, anchor, period.get("fiscal_start", 1)).end
     start = pd.Timestamp(end) - pd.DateOffset(**{f"{grain}s": n}) if grain != "quarter" else \
         pd.Timestamp(end) - pd.DateOffset(months=3 * n)
     fs = period.get("fiscal_start", 1)
