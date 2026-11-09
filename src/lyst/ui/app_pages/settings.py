@@ -791,3 +791,4 @@ with _body:
     title, _icon, line = SECTIONS[pick]
     st.html(f'<h2 class="lyst-set-h">{kit._esc(title)}</h2><p class="lyst-set-sub">{kit._esc(line)}</p>')
     DRAW[pick]()
+zone.board("settings", place="bottom")
