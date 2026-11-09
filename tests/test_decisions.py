@@ -88,7 +88,9 @@ def test_scenario_e_what_if_from_home_is_correct_hypothetical_and_traceable(seed
     from lyst import demo
 
     df = demo.pnl()
-    q = df[(pd.to_datetime(df.month) >= "2026-04-01") & (pd.to_datetime(df.month) < "2026-07-01")]
+    # "last quarter" is the last complete quarter, the same one a plain metric answer uses: monthly rows dated the 1st
+    # cover the whole month, so September's rows complete Q3 2026
+    q = df[(pd.to_datetime(df.month) >= "2026-07-01") & (pd.to_datetime(df.month) < "2026-10-01")]
     rev, cogs, opex = q.revenue.sum(), q.cogs.sum(), q.opex.sum()
     rev2 = rev * 1.03
     labor2 = opex * 0.55 * 1.06
@@ -98,7 +100,7 @@ def test_scenario_e_what_if_from_home_is_correct_hypothetical_and_traceable(seed
     assert out["operating_margin"]["scenario"] == pytest.approx(oi2 / rev2, rel=1e-9)
     assert out["operating_margin"]["base"] == pytest.approx((rev - cogs - opex) / rev, rel=1e-9)
     assert sc["kind"] == "hypothetical" and set(sc["observed"]) == {"revenue", "cogs_ratio", "opex"}
-    assert all(v["period"]["label"] == "Q2 2026" and v["dataset_version"] == 1 for v in sc["observed"].values())
+    assert all(v["period"]["label"] == "Q3 2026" and v["dataset_version"] == 1 for v in sc["observed"].values())
     assert len(r["supporting"]["queries"]) == 3  # each observed input's query is evidence
 
 

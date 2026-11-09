@@ -340,7 +340,8 @@ def demo_bank() -> list[EvalCase]:
     y2025 = between("2025-01-01", "2026-01-01")
     margin = lambda d: d.operating_income.sum() / d.revenue.sum()  # noqa: E731
     # the what-if case's expected value, computed here from raw rows (labor share 0.55 is the model's stated assumption)
-    rev, cogs, opex = q2.revenue.sum(), q2.cogs.sum(), q2.opex.sum()
+    # on the last complete quarter, Q3 2026, the same quarter every other "last quarter" answer uses
+    rev, cogs, opex = q3.revenue.sum(), q3.cogs.sum(), q3.opex.sum()
     rev2 = rev * 1.03
     whatif_margin = (rev2 - rev2 * cogs / rev - opex * 0.55 * 1.06 - opex * 0.45) / rev2
     cases = [
