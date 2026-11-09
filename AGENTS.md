@@ -14,6 +14,7 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - Graph runs (planner, builders, checker, router, learned rules): `src/lyst/graphs.py`, `docs/GRAPH_RUNS.md`.
 - Events (envelope, transactional outbox, durable consumers, chains, SSE stream): `src/lyst/events.py`, `docs/EVENTS.md`.
 - Analyst capabilities: `src/lyst/analyst/registry.py` (the tool contract) and `src/lyst/analyst/engine.py`.
+- The business brief (every metric for one period, what moved more than usual and why): `src/lyst/analyst/brief.py`.
 - The AI SDK wire format (Lyst's work as a UI message stream for `useChat`): `src/lyst/uistream.py`, `src/lyst/api/aisdk.py`,
   `docs/AI_SDK.md`; `tests/aisdk` reads it with the real `ai` package.
 - Lyst Apps (generated micro-apps, specs bound to governed metrics): `src/lyst/apps.py`, `src/lyst/api/apps.py`.
