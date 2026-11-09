@@ -12,6 +12,7 @@ from lyst.ui import (
     decisions,
     governance,
     kit,
+    needs,
     onboarding,
     publish,
     scenarios,
@@ -531,12 +532,15 @@ def task_view(task: str) -> None:
         r = t["result"]
         voice.read_back(task)
         answer(r, key=task, pdf=_export(task, "pdf") if r["status"] == "complete" else None)
+        # an answer that needs someone asks its one question here, as choices Lyst carries out
+        asking = r["status"] in ("needs_input", "unverified") and needs.panel(task) and not t.get("resolution")
         act_bar(task, t, r)
         verdict_fix(task)
         if (did := st.session_state.pop("open_decision", None)):
             decisions.detail(did)
         anticipate.next_steps(task)
-        follow_ups(task, r)
+        if not (asking and r["status"] == "needs_input"):  # the choices are the next step; guesses would compete
+            follow_ups(task, r)
     ask_box()
 
 

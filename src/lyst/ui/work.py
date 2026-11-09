@@ -11,7 +11,7 @@ import datetime
 import streamlit as st
 
 from lyst.ui import activity as auto
-from lyst.ui import anticipate, collab, decisions, kit, publish, visuals
+from lyst.ui import anticipate, collab, decisions, kit, needs, publish, visuals
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import task_state
 
@@ -132,8 +132,13 @@ def needs_you() -> None:
         kit.label(f"Waiting on you · {len(tasks)}")
         for i, t in enumerate(tasks):
             text, color, _ = task_state(t["status"], t["outcome"])
-            if kit.row(t["title"], kit.when(t["created_at"]), status=(text, TONE.get(color, "info")),
-                       actions=[("Open", "open")], key=f"nt{t['id']}", divider=i < len(tasks) - 1):
+            # each one opens as Lyst's question with choices; the answer itself is a click further
+            hit = kit.row(t["title"], kit.when(t["created_at"]), status=(text, TONE.get(color, "info")),
+                          actions=[("Resolve", "resolve"), ("Open", "open")], key=f"nt{t['id']}",
+                          divider=i < len(tasks) - 1)
+            if hit == "resolve":
+                needs.sheet(t["id"], t["title"])
+            elif hit == "open":
                 open_in_analyst(t["id"])
 
 

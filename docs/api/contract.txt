@@ -44,6 +44,7 @@ GET /v1/tasks/{task_id}/evidence | query: - | body: -
 GET /v1/tasks/{task_id}/expertise | query: - | body: -
 GET /v1/tasks/{task_id}/explain | query: - | body: -
 GET /v1/tasks/{task_id}/lifecycle | query: - | body: -
+GET /v1/tasks/{task_id}/needs | query: - | body: -
 GET /v1/tasks/{task_id}/receipts | query: - | body: -
 GET /v1/tasks/{task_id}/state | query: - | body: -
 GET /v1/tasks/{task_id}/trace | query: - | body: -
@@ -214,6 +215,7 @@ POST /v1/installation/backups/{name}/drill | query: - | body: -
 POST /v1/models/catalog/refresh | query: - | body: -
 POST /v1/tasks/{task_id}/artifacts/{kind} | query: - | body: -
 POST /v1/tasks/{task_id}/follow-up | query: - | body: text
+POST /v1/tasks/{task_id}/needs/resolve | query: - | body: -
 POST /v1/tasks/{task_id}/{action} | query: - | body: -
 POST /v1/workspaces/{ws}/activities/{aid}/dismiss | query: - | body: -
 POST /v1/workspaces/{ws}/activities/{aid}/run | query: - | body: -

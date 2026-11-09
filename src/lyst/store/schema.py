@@ -1778,3 +1778,25 @@ WORKSPACE.append((
     CREATE INDEX quality_resolutions_by_dataset ON quality_resolutions (dataset, requested_at)
     """,
 ))
+
+# Needs-you lane (160-169). How each answer that needed a person (needs input, or not verified) was resolved from its
+# choices (lyst.needs): the choice, what it started (a new task, a review) and who chose it. A resolved answer stops
+# counting as waiting on anyone; the answer itself is never changed.
+CONTROL.append((
+    160,
+    """
+    CREATE TABLE task_resolutions (
+        task_id VARCHAR PRIMARY KEY,
+        workspace_id VARCHAR NOT NULL,
+        choice_id VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        label VARCHAR NOT NULL,
+        text VARCHAR,
+        follow_task_id VARCHAR,
+        review_id VARCHAR,
+        resolved_by VARCHAR NOT NULL,
+        resolved_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX task_resolutions_by_workspace ON task_resolutions (workspace_id, resolved_at)
+    """,
+))

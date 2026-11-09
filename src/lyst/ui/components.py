@@ -38,6 +38,7 @@ def bullets(items: list) -> str:
 OUTCOME = {
     "needs_input": ("Needs your input", "orange", ":material/help:"),
     "unverified": ("Not verified", "red", ":material/gpp_maybe:"),
+    "resolved": ("Resolved", "gray", ":material/task_alt:"),  # needed someone; they picked what Lyst should do
 }
 
 

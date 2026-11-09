@@ -44,6 +44,8 @@ ACTIONS: dict[str, tuple[str, str, str]] = {
                          "A repaired artifact keeps its previous version; an investigation can be cancelled in Work."),
     "asset.publish": ("medium", "More people can see this report or dashboard, and the data in it.",
                       "Share it back to its owner only."),
+    "glossary.map": ("medium", "Every request that uses this term is read as the mapped metric, for everyone in the workspace.",
+                     "Map the term to another metric in Brain › Definitions; earlier answers keep what they used."),
     "look": ("low", "Someone is asked to look at it; nothing changes.", "Nothing to undo."),
 }
 _STEP_RISK = ("medium", "Lyst runs this step of the task, which changes something rather than only reading data.",
@@ -157,7 +159,8 @@ class StandingService:
         self.guard.require(actor, ws, "workspace.read")
         since = datetime.now(UTC) - timedelta(days=days)
         ctl = self.runtime.db
-        mine = ctl.query("SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, error, created_at, updated_at "
+        mine = ctl.query("SELECT id, title, status, CASE WHEN status = 'done' THEN CASE WHEN id IN (SELECT task_id FROM task_resolutions) "
+                         "THEN 'resolved' ELSE result->>'$.status' END END AS outcome, error, created_at, updated_at "
                          "FROM tasks WHERE workspace_id = ? AND created_by = ? AND created_at >= ? ORDER BY created_at DESC",
                          [ws, actor.user_id, since])
         item = lambda t, extra="": {"text": t["title"] + extra, "task_id": t["id"], "when": _ago(t["updated_at"] or t["created_at"])}  # noqa: E731
