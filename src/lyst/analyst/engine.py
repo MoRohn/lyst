@@ -625,6 +625,11 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             + (["each hypothesis has a computed verdict"] if u.get("depth") == "deep" else [])}
 
 
+def _lower_first(text: str) -> str:
+    """"Revenue was" -> "revenue was", but "COGS ratio was" keeps its acronym."""
+    return text if text[:2].isupper() else text[:1].lower() + text[1:]
+
+
 def _plural(word: str) -> str:
     return word if word.endswith("s") else (word[:-1] + "ies" if word.endswith("y") and word[-2:-1] not in "aeiou" else word + "s")
 
@@ -632,10 +637,14 @@ def _plural(word: str) -> str:
 def _subject(spec: MetricSpec, filters: list[dict[str, Any]] | None) -> str:
     """"Revenue was", "Support tickets (chat) were": the metric, any filter the request applied, and the verb."""
     title = spec.title
-    vals = [str(f["value"]) for f in filters or [] if f.get("value") is not None]
     plural = title.endswith("s") and not title.endswith(("ss", "us", "is"))
-    named = f"{title} ({', '.join(vals)})" if vals else title
-    return f"{named} {'were' if plural else 'was'}"
+    return f"{_named(spec, filters)} {'were' if plural else 'was'}"
+
+
+def _named(spec: MetricSpec, filters: list[dict[str, Any]] | None) -> str:
+    """"COGS ratio (EMEA)": the metric with the segment the request named, for headlines and chart titles."""
+    vals = [str(f["value"]) for f in filters or [] if f.get("value") is not None]
+    return f"{spec.title} ({', '.join(vals)})" if vals else spec.title
 
 
 def _month_label(value: Any) -> str:
@@ -1284,7 +1293,8 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             d0, d1 = parts["numbers"]["denominator"]
             ok = (n1 / d1 if d1 else None) is not None and math.isclose(n1 / d1, o["current"]["value"], rel_tol=1e-9) \
                 and math.isclose(n0 / d0, o["prior"]["value"], rel_tol=1e-9)
-            check("parts_reconcile", ok, "numerator ÷ denominator equals the metric in both periods")
+            check("parts_reconcile", ok, "numerator ÷ denominator equals the metric in both periods" if ok
+                  else "numerator ÷ denominator does not equal the metric")
     cp = o.get("changepoints")
     if cp and cp.get("latest") and "current" in o:
         check("changepoint_consistent", cp["points"] >= 4, f"{cp['points']} periods scanned, {len(cp['breaks'])} break(s)", "warning")
@@ -1839,7 +1849,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                "the change is within the range of normal variation.")
         if o.get("horizon"):
             hz = o["horizon"]
-            charts.insert(0, {"type": "bar", "title": f"{spec.title} by {hz['grain']}", "x": [p["label"] for p in hz["points"]],
+            charts.insert(0, {"type": "bar", "title": f"{_named(spec, u.get('filters'))} by {hz['grain']}", "x": [p["label"] for p in hz["points"]],
                               "y": [p["value"] for p in hz["points"]], "format": spec.format})
             rank = u.get("rank") or {}
             pts = [p for p in hz["points"] if p["value"] is not None]
@@ -1928,11 +1938,11 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                     answer = (answer.rstrip(".") + ". " if answer else "") + f"By {bd['by'].replace('_', ' ')}: {members}{more}."
         window = _trend_window(o["series"]["points"], u) if o.get("series") else []
         if o.get("series") and not o.get("forecast"):
-            chart = {"type": "line", "title": f"{spec.title} by month",
+            chart = {"type": "line", "title": f"{_named(spec, u.get('filters'))} by month",
                      "x": [p["period"] for p in window], "y": [p["value"] for p in window], "format": spec.format}
             if o.get("series_by") and window:
                 # a line per member on the same months; "y" stays the total for any viewer that draws one line
-                chart["title"] = f"{spec.title} by month and {o['series_by']['by'].replace('_', ' ')}"
+                chart["title"] = f"{_named(spec, u.get('filters'))} by month and {o['series_by']['by'].replace('_', ' ')}"
                 chart["series"] = _member_series(o["series_by"], [p["period"] for p in window])
             charts.append(chart)
         if o.get("anomalies", {}).get("anomalies"):
@@ -1950,7 +1960,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             if f.get("backtest_mape") is not None:
                 findings.append(f"Method: {f['method']}; backtest error {f['backtest_mape']:.1%} on the last "
                                 f"{f['backtest_points']} months.")
-            charts.append({"type": "forecast", "title": f"{spec.title} forecast", "x": [r["period"] for r in f["table"]],
+            charts.append({"type": "forecast", "title": f"{_named(spec, u.get('filters'))} forecast", "x": [r["period"] for r in f["table"]],
                            "y": [r["yhat"] for r in f["table"]], "lo": [r["lo"] for r in f["table"]],
                            "hi": [r["hi"] for r in f["table"]], "format": spec.format,
                            "history_x": [p["period"] for p in o["series"]["points"]],
@@ -1966,7 +1976,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                 f"{fp['backtest_points']} months. The interval treats months as independent.")
             tables.append({"title": f"Monthly forecast for {fp['period_label']}", "columns": ["month", "forecast", "low", "high"],
                            "rows": [[m["period"], m["yhat"], m["lo"], m["hi"]] for m in fp["monthly"]]})
-            charts.append({"type": "forecast", "title": f"{spec.title} forecast", "x": [m["period"] for m in fp["monthly"]],
+            charts.append({"type": "forecast", "title": f"{_named(spec, u.get('filters'))} forecast", "x": [m["period"] for m in fp["monthly"]],
                            "y": [m["yhat"] for m in fp["monthly"]], "lo": [m["lo"] for m in fp["monthly"]],
                            "hi": [m["hi"] for m in fp["monthly"]], "format": spec.format,
                            "history_x": [h["period"] for h in fp["history"]], "history_y": [h["value"] for h in fp["history"]]})
@@ -2011,7 +2021,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 assumptions += [f"Identification ({im['method']}): {a}" for a in im["assumptions"]]
                 for w in im["warnings"]:
                     findings.append(f"Caution: {w}.")
-                charts.append({"type": "line", "title": f"{spec.title} by month", "x": [p["period"] for p in im["series"]],
+                charts.append({"type": "line", "title": f"{_named(spec, u.get('filters'))} by month", "x": [p["period"] for p in im["series"]],
                                "y": [p["value"] for p in im["series"]], "format": spec.format})
         if not answer and window:
             answer = _trend_headline(spec, window, u)
@@ -2023,7 +2033,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         # a number that failed verification is never presented first: the reason is (missing data already says so)
         failed = [c for c in v["checks"] if not c["passed"] and c["severity"] == "error" and not c["name"].startswith("coverage")]
         if status == "unverified" and answer and failed:
-            answer = f"Not verified: {failed[0]['detail']}. As computed, " + answer[0].lower() + answer[1:]
+            answer = f"Not verified: {failed[0]['detail']}. As computed, " + _lower_first(answer)
             if any(c["name"] in ("duplicate_rows", "single_currency") or c["name"].startswith(("freshness", "period_start"))
                    for c in failed):
                 implications.insert(0, "Do not use these figures for decisions until the data problem above is fixed.")
