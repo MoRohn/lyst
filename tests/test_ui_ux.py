@@ -617,3 +617,13 @@ def test_an_answers_next_step_is_one_card_without_echoing_the_question():
     assert anticipate.short_reason(a) == "EMEA accounts for 107% of the change in Q3 2026."
     assert anticipate._primary(a) == "run_now"
     assert anticipate._primary({"actions": ["dismiss"]}) is None
+
+
+def test_how_an_answer_was_figured_reads_as_words_not_sql():
+    from lyst.ui import governance  # noqa: PLC0415
+
+    assert governance.readable('CAST(SUM("operating_income") AS DOUBLE) / NULLIF(SUM("revenue"), 0)') == \
+        "Operating income ÷ revenue"
+    assert governance.readable("COUNT(DISTINCT x)") == "COUNT(DISTINCT x)"  # left as written when it can't simplify
+    assert governance._dataset("pnl v1", {"pnl": "Monthly P&L"}) == "Monthly P&L, version 1"
+    assert governance._dataset("other v2", {}) == "other v2"
