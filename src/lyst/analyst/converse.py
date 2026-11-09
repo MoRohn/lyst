@@ -117,6 +117,18 @@ _DISCUSS = re.compile(r"^(what\s+do\s+you\s+think|do\s+you\s+think|should\s+(we|
                       r"suggestions|recommendations)|what\s+would\s+you|let'?s\s+(talk|discuss|chat)|i'?m\s+(thinking|wondering|"
                       r"curious)|i\s+(wonder|was\s+wondering)|tell\s+me\s+about\s+(yourself|lyst|this\s+workspace|"
                       r"the\s+workspace|our\s+data|my\s+data))", re.I)
+# "Open the dash", "pull up the executive overview", "can you show me the board deck": open a thing that exists. "Show
+# me" counts only with a word for an artifact, so "show me revenue by region" stays an analysis.
+_OPEN = re.compile(r"^(please\s+)?((can|could|would|will)\s+(you|lyst)\s+)?(please\s+)?(open|launch|pull\s+up|bring\s+up|"
+                   r"view|display|reopen|re-open)\b", re.I)
+# one artifact ("show me the dashboard"); a plural ("show me our dashboards") asks what exists, which discovery answers
+_SHOW_ARTIFACT = re.compile(r"^(please\s+)?((can|could|would|will)\s+(you|lyst)\s+)?(show|let\s+me\s+see|take\s+me\s+to|"
+                            r"go\s+to)\s+(me\s+)?(the|my|our|that|this)\s+(.+\s+)?(dash(board)?|app|scorecard|report|pdf|"
+                            r"deck|presentation|workbook|spreadsheet|briefing|brief)\b", re.I)
+# which kind of artifact a word asks for
+_KIND_OF = [("dashboard", r"dash(board)?s?|apps?|scorecards?"), ("presentation", r"decks?|slides?|presentations?"),
+            ("workbook", r"workbooks?|spreadsheets?|excel"), ("briefing", r"briefings?|briefs?"), ("report", r"reports?|pdfs?")]
+OPENABLE = ("dashboard", "report", "briefing", "presentation", "workbook", "workflow")
 _BUILD = re.compile(r"\b(create|build|set\s+up|make|generate)\b.*\b(dashboard|report(ing)?|scorecard)\b", re.I)
 
 
@@ -146,6 +158,8 @@ def route(text: str, *, metrics_named: bool = False) -> dict[str, str] | None:
         return {"kind": "greeting", "topic": "general"}
     if _CAPABILITY.match(t):
         return {"kind": "capability", "topic": topic_of(t)}
+    if (_OPEN.match(t) and not (metrics_named and _ACTION.search(t))) or _SHOW_ARTIFACT.match(t):
+        return {"kind": "open_artifact", "topic": "outputs"}
     if _DEFINITION.search(t) and metrics_named:
         return {"kind": "definition", "topic": "metrics"}
     for pat in _DISCOVERY:
@@ -267,7 +281,9 @@ def build_suggestion(inv: dict[str, Any], question: str) -> str | None:
 def _relevant(items: list[dict[str, Any]], question: str) -> list[dict[str, Any]]:
     """Items whose title shares a meaningful word with the question ("executive" in "Executive overview")."""
     stop = {"the", "a", "an", "our", "we", "do", "have", "to", "in", "of", "for", "one", "place", "and", "is", "there",
-            "any", "dashboard", "dashboards", "report", "reports", "my", "me", "show", "list", "all", "what", "which",
+            "any", "dashboard", "dashboards", "report", "reports", "open", "launch", "pull", "bring", "view", "display",
+            "please", "dash", "app", "deck", "workbook", "briefing", "could", "would", "will", "lyst", "let", "see",
+            "take", "show", "my", "me", "list", "all", "what", "which",
             "monitor", "metrics", "top", "on", "that", "this", "with", "can", "you", "it"}
     words = {w for w in re.findall(r"[a-z]{3,}", question.lower()) if w not in stop}
     words |= {w[:-1] for w in words if w.endswith("s")}
@@ -311,12 +327,32 @@ def compose(question: str, route_: dict[str, str], inv: dict[str, Any], *, named
     suggestions: list[str] = []
     notes: list[str] = []
     parts: list[str] = []
+    opened: dict[str, Any] | None = None
 
     outputs = [{"kind": "dashboard", "id": d["id"], "title": d["title"], "note": d.get("status")} for d in inv["dashboards"]] + \
               [{"kind": a["kind"], "id": a["id"], "title": a["title"], "note": a.get("health")} for a in inv["assets"]]
     build = build_suggestion(inv, question)
 
-    if kind == "decline":
+    if kind == "open_artifact":
+        pick = pick_artifact(question, outputs)
+        if pick:
+            label = {"dashboard": "dashboard", "presentation": "deck", "workflow": "repeatable analysis"}.get(pick["kind"], pick["kind"])
+            parts.append(f"Here's {pick['title']}, the {label} as published.")
+            items.append(pick)
+            opened = pick
+        elif re.search(r"\b(home|data|brain|settings|work|approvals)\b", question, re.I):
+            parts.append("That's a page, not something built here. Type its name in the bar at the top, like \"Data\" "
+                         "or \"Settings\", and I'll take you there.")
+        elif outputs:
+            parts.append(f"I couldn't tell which one you mean. This workspace has {_join([o['title'] for o in outputs])}; "
+                         "name it and I'll open it.")
+            items += outputs
+        else:
+            parts.append("There's nothing to open yet: nobody has built a dashboard or report in this workspace.")
+            if build:
+                parts.append("I can build one from the approved metrics. Want me to?")
+                suggestions.append(build)
+    elif kind == "decline":
         parts.append("No problem, I'll leave it there. Ask whenever you want it, or ask me something else.")
     elif kind == "greeting":
         thanks = re.match(r"^\s*(thanks|thank\s+you|thx|cheers)", question, re.I)
@@ -458,7 +494,24 @@ def compose(question: str, route_: dict[str, str], inv: dict[str, Any], *, named
     seen: set[str] = set()
     suggestions = [x for x in suggestions if x and not (x in seen or seen.add(x))][:3]
     return {"answer": " ".join(parts), "items": items[:12], "suggestions": suggestions, "notes": notes,
-            "kind": kind, "topic": topic}
+            "kind": kind, "topic": topic, "open": opened}
+
+
+def pick_artifact(question: str, outputs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The one artifact an "open ..." request means, or None when it cannot be told apart. A title word in the request
+    decides first ("open the executive overview"); then a kind word ("open the dash") picks the newest of that kind;
+    a bare "open it" picks the newest artifact when there is only one, never a guess among several."""
+    pool = [o for o in outputs if o["kind"] in OPENABLE]
+    if not pool:
+        return None
+    wanted = next((k for k, pat in _KIND_OF if re.search(rf"\b({pat})\b", question, re.I)), None)
+    typed = [o for o in pool if o["kind"] == wanted] if wanted else pool
+    hits = _relevant(typed or pool, question)
+    if hits:
+        return hits[0]
+    if wanted and typed:
+        return typed[0]  # inventory lists the newest first
+    return pool[0] if len(pool) == 1 else None
 
 
 def recent_turns(db: Any, actor: Any, ws: str, task_id: str | None, *, limit: int = 3, minutes: int = 30) -> list[dict[str, str]]:
@@ -498,6 +551,7 @@ def result(question: str, reply: dict[str, Any], *, narrative_by: str) -> dict[s
         "tables": [],
         "conversation": {"kind": reply["kind"], "topic": reply["topic"], "items": reply["items"],
                          "suggestions": reply["suggestions"]},
+        "open": reply.get("open"),  # the artifact the person asked to see: viewers open it in place
         "confidence": {"level": "reply", "basis": "a conversational reply from the workspace's own catalog; no figures "
                                                   "were computed, so there was nothing to verify", "checks": []},
         "supporting": {"queries": [], "sources": [], "citations": [], "consistency": None, "metric": None,
@@ -507,4 +561,4 @@ def result(question: str, reply: dict[str, Any], *, narrative_by: str) -> dict[s
     }
 
 
-__all__ = ["build_suggestion", "compose", "counts", "headline_metrics", "inventory", "result", "route", "topic_of"]
+__all__ = ["build_suggestion", "compose", "counts", "headline_metrics", "inventory", "pick_artifact", "result", "route", "topic_of"]

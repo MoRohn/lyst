@@ -85,6 +85,22 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", s.lower()).strip()
 
 
+def _exact(words: str, p: dict) -> bool:
+    w = _norm(re.sub(r"^(the|my|our)\s+", "", words.strip(), flags=re.I))
+    return w in (_norm(p["label"].replace("›", " ")), _norm(p["label"].split("›")[-1]), _norm(p["area"]))
+
+
+# a request for one built thing ("open the dash", "show me the dashboard"): the engine's open_artifact route reads it
+# (the UI talks to the engine over HTTP only, so the words are kept here too)
+OPEN_ONE = re.compile(r"^(?:please\s+)?(?:(?:can|could|would|will)\s+(?:you|lyst)\s+)?(?:open|launch|pull\s+up|bring\s+up|"
+                      r"view|display|reopen|show(?:\s+me)?|take\s+me\s+to|go\s+to|let\s+me\s+see)\s+(?:the|my|our|that|this)\s+",
+                      re.I)
+
+
+def _opens_artifact(text: str) -> bool:
+    return bool(OPEN_ONE.match(text))
+
+
 def find_place(words: str, where: list[dict] | None = None) -> dict | None:
     """The place a person named: an exact section or area name first, then every word found in its words."""
     where = where or places()
@@ -111,7 +127,11 @@ def interpret(text: str, where: list[dict] | None = None) -> tuple[str, Any]:
         return "follow", True
     m = GO.match(t)
     if m and (p := find_place(m.group(1), where)):
-        return "go", p
+        # "open the dash" names a thing, not the Dashboards section: Lyst opens the dashboard itself. Only a place
+        # named exactly ("open dashboards", "go to settings") is a move to that page.
+        if _exact(m.group(1), p) or not _opens_artifact(t):
+            return "go", p
+        return "ask", t
     if len(t.split()) <= 3 and (p := find_place(t, where)) and _norm(t) in _norm(p["label"]).split(" ") + [
             _norm(p["label"].replace("›", " ")), _norm(p["label"].split("›")[-1])]:
         return "go", p

@@ -7,6 +7,7 @@ import streamlit as st
 
 from lyst.ui import (
     anticipate,
+    artifacts,
     collab,
     decisions,
     governance,
@@ -419,14 +420,16 @@ def reply_view(task: str, r: dict) -> None:
         st.markdown("##### " + md(r.get("answer") or ""))
         for note in r.get("actions") or []:
             st.caption(f":material/info: {md(note)}")
-        items = talk.get("items") or []
+        items = [] if r.get("open") else talk.get("items") or []  # what opened is shown, not listed
         if items:
             kit.label("In this workspace")
             for i, it in enumerate(items):
                 kit.row(it.get("title") or it.get("id") or "", " · ".join(x for x in (KIND_WORDS.get(it.get("kind"), ""),
                                                                                     str(it.get("note") or "")) if x),
                         key=f"talk_item_{task}_{i}", divider=i < len(items) - 1)
-        st.caption(":material/chat: A reply from what's in this workspace. Nothing was computed, so there was nothing to verify.")
+        if not (r.get("open") and artifacts.show_inline(r["open"], key=f"reply_{task}")):
+            st.caption(":material/chat: A reply from what's in this workspace. Nothing was computed, so there was "
+                       "nothing to verify.")
     offers = talk.get("suggestions") or []
     if offers:
         kit.label("Want me to")

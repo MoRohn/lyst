@@ -221,3 +221,52 @@ def test_an_unknown_metric_names_the_ones_that_exist(seeded):
     r = ask(lyst, owner, "What was EBITDA last quarter?")["result"]
     assert r["status"] == "needs_input" and "No approved metric" in r["answer"]
     assert "Revenue" in r["answer"] and "Operating income" in r["answer"]
+
+
+# -- opening what exists ("open the dash") ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,named", [
+    ("open the dash", False),
+    ("Open the executive overview", False),
+    ("can you open the dashboard?", False),
+    ("pull up the board deck", False),
+    ("Show me the dashboard", False),
+    ("show me the revenue dashboard", True),
+    ("view the report", False),
+])
+def test_open_requests_open_the_artifact(text, named):
+    assert converse.route(text, metrics_named=named) == {"kind": "open_artifact", "topic": "outputs"}
+
+
+def test_open_picks_the_artifact_by_title_then_by_kind():
+    inv = _inv(dashboards=[{"id": "db_new", "title": "Executive overview", "status": "published"},
+                           {"id": "db_old", "title": "Operations", "status": "published"}],
+               assets=[{"id": "as_1", "kind": "presentation", "title": "Board deck", "health": "current"}])
+    route = {"kind": "open_artifact", "topic": "outputs"}
+    dash = converse.compose("open the dash", route, inv)
+    assert dash["open"]["id"] == "db_new" and dash["answer"].startswith("Here's Executive overview")
+    assert "can't" not in dash["answer"]
+    assert converse.compose("open operations", route, inv)["open"]["id"] == "db_old"
+    assert converse.compose("pull up the deck", route, inv)["open"] == {"kind": "presentation", "id": "as_1",
+                                                                       "title": "Board deck", "note": "current"}
+    unsure = converse.compose("open it", route, inv)  # several things and nothing to tell them apart: ask, never guess
+    assert unsure["open"] is None and "Executive overview" in unsure["answer"]
+    out = converse.result("open the dash", dash, narrative_by="template")
+    assert out["open"]["id"] == "db_new" and out["confidence"]["level"] == "reply"
+
+
+def test_open_with_nothing_built_offers_to_build():
+    r = converse.compose("open the dash", {"kind": "open_artifact", "topic": "outputs"}, _inv())
+    assert r["open"] is None and r["suggestions"] and r["suggestions"][0].startswith("Build a dashboard")
+
+
+def test_open_the_dash_after_building_it_opens_it(seeded):
+    """The second screenshot: "open the dash" answered "I can't open the dashboard from here". It opens it now."""
+    lyst, owner = seeded
+    built = ask(lyst, owner, 'Build a dashboard called "Executive overview" with revenue and operating margin by region')
+    assert built["status"] == "done", built["error"]
+    t = ask(lyst, owner, "open the dash")
+    r = t["result"]
+    did = lyst.studio.list(owner, "northwind")[0]["id"]
+    assert r["mode"] == "conversation" and r["open"]["kind"] == "dashboard" and r["open"]["id"] == did
+    assert r["answer"].startswith("Here's Executive overview")

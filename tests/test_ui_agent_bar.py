@@ -52,6 +52,19 @@ def test_anything_else_is_a_question(text):
     assert interpret(text) == ("ask", text)
 
 
+@pytest.mark.parametrize("text", ["open the dash", "show me the dashboard", "take me to the dashboard",
+                                  "open the executive overview"])
+def test_opening_a_thing_asks_lyst_to_open_it_not_the_section(text):
+    """"open the dash" went to the Dashboards list; it is a request for the dashboard itself, which Lyst opens."""
+    assert interpret(text) == ("ask", text)
+
+
+@pytest.mark.parametrize("text,place", [("open dashboards", "Data › Dashboards"), ("open settings", "Settings")])
+def test_a_place_named_exactly_still_goes_there(text, place):
+    kind, arg = interpret(text)
+    assert kind == "go" and arg["label"] == place
+
+
 def test_empty_is_nothing():
     assert interpret("   ") == ("none", None)
 
