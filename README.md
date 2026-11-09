@@ -117,7 +117,7 @@ words.
 
 | Area | What you do there |
 |---|---|
-| **Home** | One question, "What should Lyst work on?", and a composer that grows as you write (Shift+Enter for a new line; on focus it offers **Add data** and keyboard hints). Ask, and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows up to three starters and at most one focus line (a question that needs your input, an answer that did not verify, a blocked run, or "add data" on an empty workspace), never a list. The dock at the foot holds work in progress, what needs you, **Get started** (the guide opens as a sheet) and **Recent** |
+| **Home** | One question, "What should Lyst work on?", and a composer that grows as you write (Shift+Enter for a new line; on focus it offers **Add data** and keyboard hints). Ask, and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows up to three starters and at most one focus line (a question that needs your input, an answer that did not verify, a blocked run, or "add data" on an empty workspace), never a list. The dock at the foot holds work in progress, what needs you, **Get started** (a progress ring and the one next step, in a sheet) and **Recent** |
 | **Data** | Opens as a flow: where the data comes from (**From**), the datasets, and the approved metrics they **Feed**, joined by lines (solid from source to dataset, dashed from dataset to metric). Each dataset's face is its *shape*, one bar per column coloured by what the column holds. Hover, focus or pick anything and its whole path lights up, upstream and downstream, so "what depends on this?" is answered by looking. Picking a dataset opens its panel below with one sentence on it (including the metrics it feeds) and **Explore** (preview, columns, quality, relationships, SQL and contract), **Analyze** (Lyst reads the dataset) and **More** (quality checks, ask about it, build a dataset, activity). Picking a source keeps the flow in view and adds its kind, health and **Manage source**; a metric opens its definition in Brain. Above the flow sit Lyst's one line on the data (a link straight to the quality checks when a dataset needs a look), **Find a dataset**, **Add data** and **More** (Sources, Dashboards, Saved analyses, SQL with a sandboxed **Python** tab, and How the data connects). The keyboard works throughout |
 | **Brain** | Opens on a map of what Lyst knows: metrics, datasets, terms, memories and answers, gathered by kind, with pills to filter and a search that highlights matches. Pick a thing and only its relationships are drawn; a panel says what it is (a metric shows its value and trend), what it connects to (each a step further), and offers **Ask about it** and **Open**. With nothing picked, the panel shows what Lyst learned and used lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **More** holds Definitions, Documents, Memory (with memories waiting for review), Graph (with graph runs and the harness) and Specializations, the catalog of 136 kinds of analyst work |
 | **Settings** | Seven sections in one native-style list: **Account** (who you are, your workspaces, personal keys, sign out), **Workspaces** (members, business profile, usage and limits, move or copy), **Connections** (credentials, notifications and webhooks), **Models & Voice**, **Privacy & Security** (the external-model switch, data policy and audit trail), **Preferences** (autonomy, working ahead, event rules, the Get started guide) and **Advanced** (skills, capabilities, evaluation runs, health, backups). Lyst checks the setup itself (no model connected, data not encrypted at rest, a failing health check) and opens the section that fixes it, or says in one quiet line that nothing needs a look. Technical controls such as the full model list and prices, installation policy, who reads what and the full audit trail open as sheets |
@@ -126,6 +126,13 @@ words.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.png">
   <img src="docs/images/home.png" alt="Home: Lyst's mark over What should Lyst work on?, the composer, three starter questions, the dock with Get started and Recent, and the slim icon rail">
+</picture>
+</p>
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/get-started-dark.png">
+  <img src="docs/images/get-started.png" alt="Get started: a progress ring at 2 of 4 with Two essentials left, the essentials with Let Lyst study the data lit as next up with Study it, and Make it yours (optional) with invite the team, objectives and connect a model" width="60%">
 </picture>
 </p>
 
@@ -659,8 +666,12 @@ where they point, with Mark all read and "What to tell me about".
   data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
   official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
   business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
-  resolves to the approved spend metric), its fiscal year, reporting period and objectives. A short guided set-up
-  shows what to do next, and Lyst measures time to first dataset, first analysis and first verified answer. On
+  resolves to the approved spend metric), its fiscal year, reporting period and objectives. **Get started** is a
+  short guided set-up: a progress ring counts the four essentials (connect or upload data, let Lyst study it,
+  confirm the business definitions, ask a first question), the next step is lit with the sheet's one main button,
+  and the optional extras (invite the team, say what matters this year, connect a model) sit apart and never
+  change the count. When setup is complete, Lyst opens a one-time **You're set up** screen with how long each
+  milestone took. The guide can be hidden and turned back on in Settings › Preferences, and Lyst measures time to first dataset, first analysis and first verified answer. On
   screen: **Get started** in Home's dock, **Suggestions** under the Data flow (with **Study the data again**), and
   the industry picker and **Business profile** in Settings › Workspaces ([docs/ADAPTABILITY.md](docs/ADAPTABILITY.md)).
 * **Works as a team.** Comments, change requests, decisions, assignments with due dates, admin review before
