@@ -617,3 +617,27 @@ def test_an_answers_next_step_is_one_card_without_echoing_the_question():
     assert anticipate.short_reason(a) == "EMEA accounts for 107% of the change in Q3 2026."
     assert anticipate._primary(a) == "run_now"
     assert anticipate._primary({"actions": ["dismiss"]}) is None
+
+
+def test_how_an_answer_was_figured_reads_as_words_not_sql():
+    from lyst.ui import governance  # noqa: PLC0415
+
+    assert governance.readable('CAST(SUM("operating_income") AS DOUBLE) / NULLIF(SUM("revenue"), 0)') == \
+        "Operating income ÷ revenue"
+    assert governance.readable("COUNT(DISTINCT x)") == "COUNT(DISTINCT x)"  # left as written when it can't simplify
+    assert governance._dataset("pnl v1", {"pnl": "Monthly P&L"}) == "Monthly P&L, version 1"
+    assert governance._dataset("other v2", {}) == "other v2"
+
+
+def test_the_next_row_offers_nothing_the_answer_already_shows():
+    from lyst.ui import anticipate  # noqa: PLC0415
+
+    r = {"supporting": {"metric": {"spec": {"title": "Operating margin", "dimensions": ["region"]}}},
+         "charts": [{"type": "line"}]}
+    opts, picks = anticipate.follow_options(r, None)
+    assert "Forecast operating margin" in opts and not any("trend" in o for o in opts) and not picks
+    lead = {"objective": "See where it is heading", "actions": [{"id": "run_now", "question": "Forecast operating margin for 2 quarters"}]}
+    other = {"objective": "Watch it", "actions": [{"id": "watch"}]}
+    opts, picks = anticipate.follow_options(r, [lead, other])
+    assert "Forecast operating margin" not in opts  # the card already asks it
+    assert list(picks.values()) == [other]  # the card itself is not offered again
