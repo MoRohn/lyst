@@ -103,8 +103,8 @@ export const capabilities: {
   {
     icon: 'Workflow',
     title: 'Automate',
-    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Graph runs that plan, build, check and fix', 'Event rules, tried by dry run first', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets'],
+    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up. Ask for a brief and Lyst reads every approved metric for the last complete month or quarter, flags what moved more than it usually does and names the segment behind each move.',
+    items: ['Business briefs, repeated on a schedule after approval', 'Graph runs that plan, build, check and fix', 'Event rules, tried by dry run first', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets'],
     status: 'available',
   },
   {
