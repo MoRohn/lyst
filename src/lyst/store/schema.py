@@ -1736,3 +1736,45 @@ WORKSPACE.append((
     )
     """,
 ))
+
+# Data quality lane (150-159). A person's review of each flagged row or cell (lyst.quality): accepted as valid, or a
+# fix or an exclusion staged for a resolution; and each resolution, applied only after an approval, as a new version of
+# the dataset (the earlier version is kept, so a resolution can be undone).
+WORKSPACE.append((
+    150,
+    """
+    CREATE TABLE quality_reviews (
+        dataset VARCHAR NOT NULL,
+        issue_key VARCHAR NOT NULL,
+        kind VARCHAR NOT NULL,
+        column_name VARCHAR,
+        decision VARCHAR NOT NULL,
+        value JSON,
+        origin VARCHAR NOT NULL DEFAULT 'person',
+        reason VARCHAR,
+        note VARCHAR,
+        resolution_id VARCHAR,
+        decided_by VARCHAR NOT NULL,
+        decided_at TIMESTAMPTZ DEFAULT now(),
+        PRIMARY KEY (dataset, issue_key)
+    );
+    CREATE TABLE quality_resolutions (
+        id VARCHAR PRIMARY KEY,
+        dataset VARCHAR NOT NULL,
+        base_version INTEGER NOT NULL,
+        changes JSON NOT NULL,
+        summary VARCHAR NOT NULL,
+        status VARCHAR NOT NULL,
+        approval_id VARCHAR,
+        result_version INTEGER,
+        error VARCHAR,
+        note VARCHAR,
+        requested_by VARCHAR NOT NULL,
+        requested_at TIMESTAMPTZ DEFAULT now(),
+        decided_by VARCHAR,
+        decided_at TIMESTAMPTZ,
+        undone_version INTEGER
+    );
+    CREATE INDEX quality_resolutions_by_dataset ON quality_resolutions (dataset, requested_at)
+    """,
+))

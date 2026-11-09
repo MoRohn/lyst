@@ -104,6 +104,7 @@ class TaskRuntime:
         self.on_finish: list = []  # callbacks (task_id, state) after a run ends: done, failed or cancelled
         self.harness = None  # the harness service (lane.attach): applies approved harness rules
         self.autonomy = None  # event rules and activities (lane.attach): applies approved rule activations and proposals
+        self.quality = None  # data quality (lane.attach): applies an approved resolution as a new dataset version
         self._last_prune = time.monotonic()
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
@@ -410,6 +411,8 @@ class TaskRuntime:
             self.monitors.on_approved(actor, ap["workspace_id"], json.loads(ap["payload"])["monitor_id"])
         if ap["action"] in ("rule.activate", "activity.execute") and self.autonomy:
             self.autonomy.on_decided(actor, ap["workspace_id"], json.loads(ap["payload"]), approve, ap["action"])
+        if ap["action"] == "quality.resolve" and self.quality:
+            self.quality.on_decided(actor, ap["workspace_id"], json.loads(ap["payload"]), approve)
         if ap["action"] == "harness.update" and self.harness:
             self.harness.on_decided(actor, ap["workspace_id"], json.loads(ap["payload"])["rule_id"], approve)
         if ap["action"] == "skill.register" and approve and self.services.skills:

@@ -108,3 +108,59 @@ def test_the_deeper_places_are_one_menu_away_and_come_back(ui):  # noqa: F811
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.key == "sql_run" for b in at.button) and any(b.key == "data_back" for b in at.button)
+
+
+def quality_of(at) -> list[dict]:
+    """Every data quality review drawn on the page, as Python sent it."""
+    found = []
+
+    def walk(node):
+        for ch in (getattr(node, "children", None) or {}).values():
+            if getattr(ch, "type", None) == "bidi_component" and ch.proto.component_name.endswith("lyst_quality"):
+                found.append(json.loads(ch.proto.json))
+            walk(ch)
+
+    walk(at._tree)
+    return found
+
+
+def test_the_ledgers_flagged_rows_open_as_a_review_table_from_the_one_line(ui):  # noqa: F811
+    at = _open_data()
+    at.session_state["_data_nonce"] = None
+    # Lyst's line about the data leads to the ledger's quality, which is the review table, not a list of words
+    next(b for b in at.button if b.key == "read_pnl_ledger_open").click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    [q] = quality_of(at)
+    assert q["dataset"] == "pnl_ledger" and q["open"] == 3 and q["canEdit"] and q["canApprove"]
+    assert {i["kind"] for i in q["issues"]} == {"duplicate", "null", "negative"}
+    assert all(i["proposal"]["reason"] for i in q["issues"]) and q["fixable"] == 3
+    assert "3 of 3 flagged rows need review" in q["say"]
+    # the table-level risks the rows already show are not listed again underneath
+    assert "negative value in cogs" not in _texts(at)
+
+
+def test_review_data_quality_is_a_link_from_anywhere(ui):  # noqa: F811
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.switch_page("app_pages/data.py")
+    at.query_params["dataset"] = "pnl_ledger"
+    at.query_params["review"] = "quality"
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert [q["dataset"] for q in quality_of(at)] == ["pnl_ledger"]
+
+
+def test_a_quality_answer_opens_the_review_in_place(ui, seeded):  # noqa: F811
+    from .conftest import ask  # noqa: PLC0415
+
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Profile pnl_ledger for data quality issues")
+    at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+    at.run()
+    at.session_state["task_id"] = t["id"]
+    at.query_params["task"] = t["id"]
+    at.run()
+    assert not at.exception, [e.value for e in at.exception]
+    qs = quality_of(at)
+    assert qs and qs[0]["dataset"] == "pnl_ledger" and qs[0]["compact"]
+    assert "Check not passed: duplicates" not in _texts(at)  # the table says it, row by row

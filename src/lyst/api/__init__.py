@@ -1774,6 +1774,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .apps import routes as apps_routes  # noqa: PLC0415 - Lyst Apps: generated micro-apps on governed metrics
 
     apps_routes(app, L, User)
+    from .quality import routes as quality_routes  # noqa: PLC0415 - data quality: review flagged rows, resolve with Lyst
+
+    quality_routes(app, L, User)
 
     return app
 

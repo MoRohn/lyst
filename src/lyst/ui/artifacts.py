@@ -438,6 +438,8 @@ def opened(ref: dict | None) -> dict | None:
 def show_inline(ref: dict | None, *, key: str) -> bool:
     """Open the artifact an answer made or asked for, in place: the thing itself, not a description of it, with a way
     to open it full size. Returns False (and shows nothing) when there is nothing Lyst can show."""
+    if ref and ref.get("kind") == "quality":
+        return quality_inline(str(ref.get("id") or ""), key=key)
     item = opened(ref)
     if not item:
         return False
@@ -454,6 +456,23 @@ def show_inline(ref: dict | None, *, key: str) -> bool:
             view_dashboard(item, key=f"{key}_", actions=True)
         else:
             VIEWERS[item["kind"]](item)
+    return True
+
+
+def quality_inline(dataset: str, *, key: str) -> bool:
+    """An answer that profiled a dataset opens its flagged rows as the review table, in place: each row to accept, fix
+    or exclude, and Let Lyst resolve, with a way to open the dataset on Data."""
+    from lyst.ui import quality  # noqa: PLC0415
+
+    if not dataset:
+        return False
+    with st.container(border=True, key=f"lyst_open_{key}"):
+        top = st.columns([6, 1.4], vertical_alignment="center")
+        top[0].html('<div class="lyst-card-kicker">Data quality review</div>'
+                    f'<div class="lyst-card-title">Flagged rows in {escape(dataset)}</div>')
+        if top[1].button("Open on Data", icon=":material/open_in_new:", type="tertiary", key=f"openq_{key}", width="stretch"):
+            st.switch_page("app_pages/data.py", query_params={"dataset": dataset, "review": "quality"})
+        quality.review(dataset, key=f"ans_{key}", compact=True)
     return True
 
 

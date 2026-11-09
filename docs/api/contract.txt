@@ -98,6 +98,7 @@ GET /v1/workspaces/{ws}/datasets/{name}/contract/draft | query: - | body: -
 GET /v1/workspaces/{ws}/datasets/{name}/impact | query: - | body: -
 GET /v1/workspaces/{ws}/datasets/{name}/insights | query: - | body: -
 GET /v1/workspaces/{ws}/datasets/{name}/profile | query: - | body: -
+GET /v1/workspaces/{ws}/datasets/{name}/quality | query: - | body: -
 GET /v1/workspaces/{ws}/datasets/{name}/row-policies | query: - | body: -
 GET /v1/workspaces/{ws}/decision-records | query: - | body: -
 GET /v1/workspaces/{ws}/decision-records/{decision_id} | query: - | body: -
@@ -245,6 +246,9 @@ POST /v1/workspaces/{ws}/dashboards/{dashboard_id}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/datasets | query: - | body: file,name
 POST /v1/workspaces/{ws}/datasets/{name}/contract | query: - | body: spec
 POST /v1/workspaces/{ws}/datasets/{name}/contract/check | query: - | body: -
+POST /v1/workspaces/{ws}/datasets/{name}/quality/apply | query: - | body: -
+POST /v1/workspaces/{ws}/datasets/{name}/quality/propose | query: - | body: -
+POST /v1/workspaces/{ws}/datasets/{name}/quality/review | query: - | body: decision,issue_ids
 POST /v1/workspaces/{ws}/datasets/{name}/row-policies | query: - | body: allowed_values,column,principal,principal_kind
 POST /v1/workspaces/{ws}/decision-records | query: - | body: spec,title
 POST /v1/workspaces/{ws}/decision-records/allocate | query: - | body: budget,items
@@ -293,6 +297,7 @@ POST /v1/workspaces/{ws}/policy/check | query: - | body: -
 POST /v1/workspaces/{ws}/publications | query: - | body: task_id
 POST /v1/workspaces/{ws}/publications/{pid}/republish | query: - | body: task_id
 POST /v1/workspaces/{ws}/publications/{pid}/revoke | query: - | body: -
+POST /v1/workspaces/{ws}/quality/resolutions/{rid}/undo | query: - | body: -
 POST /v1/workspaces/{ws}/query | query: - | body: sql
 POST /v1/workspaces/{ws}/relations | query: - | body: from_kind,from_name,rel,to_kind,to_name
 POST /v1/workspaces/{ws}/reviews | query: - | body: action,object_id,object_kind,summary
