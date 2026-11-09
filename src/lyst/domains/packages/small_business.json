@@ -1,0 +1,257 @@
+{
+ "id": "small_business",
+ "version": "1.0.0",
+ "title": "Small business and freelance",
+ "summary": "What a freelancer or small business owner keeps in invoicing and expense exports: income invoiced, spending, clients and invoice counts.",
+ "signals": [
+  "invoice",
+  "client",
+  "customer",
+  "expense",
+  "vendor",
+  "receipt",
+  "bill",
+  "paid",
+  "paid_date",
+  "due_date",
+  "issue_date",
+  "payment",
+  "deposit",
+  "transaction",
+  "bank",
+  "income",
+  "freelance",
+  "payout",
+  "amount",
+  "category",
+  "tax",
+  "outstanding"
+ ],
+ "concepts": [
+  {
+   "name": "client",
+   "synonyms": [
+    "client",
+    "customer",
+    "client_name",
+    "customer_name",
+    "client_id",
+    "customer_id"
+   ]
+  },
+  {
+   "name": "invoice",
+   "synonyms": [
+    "invoice",
+    "invoice_no",
+    "invoice_number",
+    "invoice_id"
+   ]
+  },
+  {
+   "name": "expense category",
+   "synonyms": [
+    "category",
+    "expense_category",
+    "account"
+   ]
+  },
+  {
+   "name": "vendor",
+   "synonyms": [
+    "vendor",
+    "supplier",
+    "payee",
+    "merchant"
+   ]
+  }
+ ],
+ "metrics": [
+  {
+   "name": "invoiced",
+   "title": "Invoiced",
+   "agg": "sum",
+   "columns": [
+    "amount",
+    "total",
+    "total_amount",
+    "invoice_amount",
+    "amount_due",
+    "net_amount",
+    "gross_amount",
+    "value"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": "Income billed to clients, by the date each invoice was issued.",
+   "datasets": [
+    "invoice",
+    "sale",
+    "income",
+    "revenue",
+    "billing"
+   ],
+   "synonyms": [
+    "income",
+    "billed",
+    "billings",
+    "earnings",
+    "earned",
+    "earn",
+    "revenue",
+    "sales"
+   ]
+  },
+  {
+   "name": "expenses",
+   "title": "Expenses",
+   "agg": "sum",
+   "columns": [
+    "amount",
+    "total",
+    "total_amount",
+    "invoice_amount",
+    "amount_due",
+    "net_amount",
+    "gross_amount",
+    "value",
+    "cost",
+    "debit",
+    "spend"
+   ],
+   "format": "currency",
+   "higher_is_better": false,
+   "description": "Money spent running the business.",
+   "datasets": [
+    "expense",
+    "bill",
+    "cost",
+    "purchase",
+    "receipt",
+    "spend",
+    "spending"
+   ],
+   "synonyms": [
+    "expense",
+    "spending",
+    "spent",
+    "costs"
+   ]
+  },
+  {
+   "name": "invoice_count",
+   "title": "Invoices sent",
+   "agg": "count_distinct",
+   "columns": [
+    "invoice_no",
+    "invoice_number",
+    "invoice_id",
+    "invoice"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": "How many invoices went out.",
+   "datasets": [
+    "invoice",
+    "billing"
+   ],
+   "synonyms": [
+    "invoices",
+    "number of invoices",
+    "invoice count"
+   ]
+  },
+  {
+   "name": "active_clients",
+   "title": "Active clients",
+   "agg": "count_distinct",
+   "columns": [
+    "client",
+    "customer",
+    "client_name",
+    "customer_name",
+    "client_id",
+    "customer_id"
+   ],
+   "format": "number",
+   "higher_is_better": true,
+   "description": "Clients billed in the period.",
+   "datasets": [
+    "invoice",
+    "sale",
+    "income",
+    "revenue",
+    "billing"
+   ]
+  },
+  {
+   "name": "average_invoice",
+   "title": "Average invoice",
+   "agg": "avg",
+   "columns": [
+    "amount",
+    "total",
+    "total_amount",
+    "invoice_amount",
+    "amount_due",
+    "net_amount",
+    "gross_amount",
+    "value"
+   ],
+   "format": "currency",
+   "higher_is_better": true,
+   "description": "The typical size of an invoice.",
+   "datasets": [
+    "invoice",
+    "billing"
+   ]
+  }
+ ],
+ "questions": [
+  "How much income did I invoice last month compared with a year ago?",
+  "Which clients bring in the most income?",
+  "What are my biggest expense categories?"
+ ],
+ "sources": [
+  {
+   "name": "Invoicing",
+   "signals": [
+    "invoice",
+    "client"
+   ]
+  },
+  {
+   "name": "Expenses or bank",
+   "signals": [
+    "expense",
+    "bank",
+    "transaction",
+    "receipt"
+   ]
+  },
+  {
+   "name": "Payments",
+   "signals": [
+    "payment",
+    "payout",
+    "deposit"
+   ]
+  }
+ ],
+ "glossary": [
+  {
+   "term": "invoiced",
+   "definition": "Income billed to clients, counted on the date each invoice was issued, whether or not it has been paid yet.",
+   "metric": "invoiced"
+  },
+  {
+   "term": "outstanding",
+   "definition": "Invoices sent but not yet paid (accounts receivable)."
+  },
+  {
+   "term": "client concentration",
+   "definition": "The share of income that comes from the largest client; a high share means the business depends on one relationship."
+  }
+ ],
+ "notes": "Many small businesses keep one export per tool (an invoicing app, a bank or card). Amount columns are told apart by the export they sit in."
+}
