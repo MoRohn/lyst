@@ -138,15 +138,12 @@ INTENT_RULES: list[tuple[str, re.Pattern]] = [
 ]
 
 
-<<<<<<< HEAD
 _QUALITY_ASK = re.compile(r"\b(issues?|problems?|errors?|wrong|bad|dirty|clean|duplicat\w*|nulls?|missing|"
                           r"inconsisten\w*|gaps?|outliers?|reliable|trust)\b", re.I)
 _VS_YEAR = re.compile(r"\b(year[- ]over[- ]year|yoy|y/y|(vs\.?|versus|against|compared (to|with)) (the same \w+ )?"
                       r"(last|a|the previous|the prior) year|a year (ago|earlier)|year[- ]on[- ]year)\b", re.I)
 _VS_PRIOR = re.compile(r"\b((quarter|month)[- ](over|on)[- ](quarter|month)|qoq|q/q|mom|(vs\.?|versus|against|compared "
                        r"(to|with)) (the )?(previous|prior|last) (quarter|month))\b", re.I)
-=======
->>>>>>> origin/claude/project-thread-57dlsv
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 _BOTTOM = {"bottom", "lowest", "smallest", "weakest"}
 _RANK = re.compile(r"\b(top(?![ -]line)|bottom|highest|lowest|largest|biggest|smallest|leading|strongest|weakest)"
@@ -248,7 +245,6 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 rank = {"order": "bottom" if word in _BOTTOM else "top",
                         "n": (_NUM_WORDS.get(count.lower()) or int(count)) if count else 1}
                 intent = "breakdown"
-<<<<<<< HEAD
     compare = None
     if resolved["metrics"] and by and intent in ("value", "breakdown", "trend"):
         # "hardware revenue by region year over year": each member against the same period a year earlier (or the
@@ -256,8 +252,6 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         compare = "year_ago" if _VS_YEAR.search(text) else ("prior" if _VS_PRIOR.search(text) else None)
         if compare:
             intent = "breakdown"
-=======
->>>>>>> origin/claude/project-thread-57dlsv
     if intent == "breakdown" and not by:
         intent = "value"
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
@@ -339,11 +333,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "ambiguous": resolved["ambiguous"], "precedence": resolved.get("precedence") or {}, "by": by, "dataset": dataset, "method": method,
             "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
-<<<<<<< HEAD
             "filters": filters, "rank": rank, "compare": compare, "scenarios": prescriptive.wants_scenarios(text),
-=======
-            "filters": filters, "rank": rank, "scenarios": prescriptive.wants_scenarios(text),
->>>>>>> origin/claude/project-thread-57dlsv
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
             "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
             "refresh_dashboard": refresh.group(1) if refresh else None, "second_metric": second,
@@ -566,12 +556,9 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 values.append("year_ago")
             if u["intent"] == "breakdown" and u["by"]:
                 add("metric_breakdown", "breakdown", metric=m, period=p, by=u["by"])
-<<<<<<< HEAD
                 against = {"year_ago": ya, "prior": prev}.get(u.get("compare") or "")
                 if against:
                     add("metric_breakdown", "breakdown_compare", metric=m, period=against, by=u["by"])
-=======
->>>>>>> origin/claude/project-thread-57dlsv
             if u["intent"] == "value" and p.get("grain") in _VALUE_CONTEXT:
                 # a single figure is read against its recent history: the answer carries the periods leading up to it
                 # (the period itself, not its end date, so a compiled workflow fills in each run's own period)
@@ -667,7 +654,6 @@ def _trend_headline(spec: MetricSpec, pts: list[dict[str, Any]], u: dict[str, An
     return text
 
 
-<<<<<<< HEAD
 def _compare_members(spec: MetricSpec, now: dict[str, Any], then: dict[str, Any], now_label: str,
                      then_label: str) -> tuple[str, dict[str, Any], dict[str, Any]]:
     """Each member of a split against an earlier period: the headline names every member's change (largest first),
@@ -701,8 +687,6 @@ def _compare_members(spec: MetricSpec, now: dict[str, Any], then: dict[str, Any]
     return answer, chart, table
 
 
-=======
->>>>>>> origin/claude/project-thread-57dlsv
 _VALUE_CONTEXT = {"quarter": 8, "month": 12, "year": 5}  # how many periods a plain value's chart shows
 
 
@@ -1808,16 +1792,12 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 return f"{r[bd['by']]} {fmt(r['value'], spec)}" + (f" ({r['value'] / total:.0%})" if additive and total else "")
 
             rank = u.get("rank")
-<<<<<<< HEAD
             then = o.get("breakdown_compare")
             if then and rows and cur:
                 answer, chart, table = _compare_members(spec, bd, then, cur["period"]["label"], then["period"]["label"])
                 charts.append(chart)
                 tables.insert(0, table)
             elif rank and rows and cur:
-=======
-            if rank and rows and cur:
->>>>>>> origin/claude/project-thread-57dlsv
                 # "top 3 regions by operating income": the ranking is the answer, led by the members asked for
                 ordered = sorted(rows, key=lambda r: r["value"], reverse=rank["order"] == "top")
                 n = min(rank.get("n") or 1, len(ordered))
