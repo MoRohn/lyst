@@ -1777,6 +1777,9 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     from .quality import routes as quality_routes  # noqa: PLC0415 - data quality: review flagged rows, resolve with Lyst
 
     quality_routes(app, L, User)
+    from .needs import routes as needs_routes  # noqa: PLC0415 - needs you: resolve an answer from Lyst's choices
+
+    needs_routes(app, L, User)
 
     return app
 

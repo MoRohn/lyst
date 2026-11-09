@@ -36,7 +36,7 @@ OBJECT_KINDS = ("task", "analysis", "asset", "metric", "dataset")
 COMMENT_KINDS = ("comment", "change_request", "decision")
 NOTIFICATION_KINDS = ("mention", "assignment", "assignment_done", "review_requested", "review_decided", "comment_on_owned",
                       "contract_breaking", "contract_failed", "connection_needs_action", "asset_broken", "asset_invalidated")
-REVIEW_ACTIONS = ("metric.define", "contract.define", "asset.publish", "look")
+REVIEW_ACTIONS = ("metric.define", "contract.define", "asset.publish", "glossary.map", "look")
 _MENTION = re.compile(r"@([\w.+-]+@[\w-]+\.[\w.-]+)")
 
 
@@ -278,6 +278,11 @@ class CollaborationService:
 
             ContractSpec.model_validate(payload)
             self._object(actor, ws, "dataset", object_id)
+        elif action == "glossary.map":
+            # "always read this term as that metric": the target must be an approved metric now, not at approval
+            if not str(payload.get("term") or "").strip() or not payload.get("maps_to_metric"):
+                raise ValueError("a glossary mapping names a term and the metric it means")
+            self._object(actor, ws, "metric", payload["maps_to_metric"])
         else:
             self._object(actor, ws, object_kind, object_id)
         if reviewer and not self._member(ws, reviewer):
@@ -341,6 +346,10 @@ class CollaborationService:
 
                 out = self.contracts.define(actor, ws, r["object_id"], ContractSpec.model_validate(payload), note=f"approved review {review_id}")
                 applied = {"dataset": r["object_id"], "version": out["version"], "check": out["check"]["outcome"]}
+            elif r["action"] == "glossary.map":
+                self.semantic.set_term(actor, ws, payload["term"], payload.get("definition") or "",
+                                       payload["maps_to_metric"], source=f"review {review_id}")
+                applied = {"term": payload["term"].lower().strip(), "maps_to_metric": payload["maps_to_metric"]}
             elif r["action"] == "asset.publish":
                 self._db(ws).execute("UPDATE assets SET visibility = 'workspace', updated_at = now() WHERE id = ?", [r["object_id"]])
                 applied = {"asset": r["object_id"], "visibility": "workspace"}

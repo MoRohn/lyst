@@ -258,6 +258,12 @@ class TaskRuntime:
         # "done" means the run finished; the outcome says whether it produced a verified answer, needs the
         # person's input, or finished without passing verification. The UI must never show the last two as Done.
         task["outcome"] = (task["result"] or {}).get("status") if task["status"] == "done" else None
+        # an answer that needed someone and was resolved from its choices (lyst.needs) no longer waits on anyone
+        res = self.db.query("SELECT choice_id, kind, label, text, follow_task_id, review_id, resolved_by, resolved_at "
+                            "FROM task_resolutions WHERE task_id = ?", [task_id])
+        task["resolution"] = res[0] if res else None
+        if res and task["outcome"] in ("needs_input", "unverified"):
+            task["outcome"] = "resolved"
         task["steps"] = [
             {**s, "args": json.loads(s["args"]) if s["args"] else None}
             for s in self.db.query("SELECT task_id, seq, phase, capability, agent, args, status, error, started_at, "
@@ -273,7 +279,8 @@ class TaskRuntime:
     def list(self, actor: Principal, workspace_id: str, limit: int = 100) -> list[dict[str, Any]]:
         self.services.guard.require(actor, workspace_id, "workspace.read")
         rows = self.db.query(
-            "SELECT id, title, status, CASE WHEN status = 'done' THEN result->>'$.status' END AS outcome, autonomy, kind, "
+            "SELECT id, title, status, CASE WHEN status = 'done' THEN CASE WHEN id IN (SELECT task_id FROM task_resolutions) "
+            "THEN 'resolved' ELSE result->>'$.status' END END AS outcome, autonomy, kind, "
             "created_by, created_at, updated_at, schedule_id, error, "
             "json_extract_string(request, '$.expertise.roles[0].name') AS specialist "
             "FROM tasks WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?", [workspace_id, max(1, min(int(limit), 500))])

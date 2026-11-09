@@ -86,6 +86,10 @@ def attach(lyst) -> None:
 
     lyst.quality = QualityService(lyst.stores, lyst.guard, lyst.data, lyst.runtime)
     lyst.runtime.quality = lyst.quality  # applies a quality.resolve approval when an admin decides it
+    from .needs import NeedsService  # noqa: PLC0415 - needs-you lane
+
+    lyst.needs = NeedsService(lyst.stores, lyst.guard, lyst.runtime, lyst.semantic, lyst.data,
+                              collab=getattr(lyst, "collab", None))
     from .apps import AppService  # noqa: PLC0415 - AI SDK lane
 
     lyst.apps = AppService(lyst.stores, lyst.guard, lyst.data, lyst.semantic, lyst.llm)
