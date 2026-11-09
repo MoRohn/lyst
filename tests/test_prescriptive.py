@@ -62,7 +62,7 @@ def test_member_filters_apply_everywhere(seeded):
     emea = df[(m >= "2026-07-01") & (m < "2026-10-01") & (df.region == "EMEA")].revenue.sum()
     assert f"${emea / 1e6:.2f}M" in r["answer"]
     r = ask(lyst, owner, "Why did operating margin decline in EMEA last quarter?")["result"]
-    assert "product_line" in r["evidence"][0] and "region" not in r["evidence"][0]  # region is fixed, so not a driver
+    assert "product line" in r["evidence"][0] and "region" not in r["evidence"][0]  # region is fixed, so not a driver
 
 
 def test_interrupted_time_series_recovers_a_step():
