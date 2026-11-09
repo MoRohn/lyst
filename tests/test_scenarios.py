@@ -62,7 +62,7 @@ def test_a_values_match_pandas(seeded, frame):
 def test_ambiguous_term_asks_instead_of_guessing(seeded):
     lyst, owner = seeded
     r = ask(lyst, owner, "What is our margin?")["result"]
-    assert r["status"] == "needs_input" and "cogs_ratio" in r["answer"] and "operating_margin" in r["answer"]
+    assert r["status"] == "needs_input" and "COGS ratio" in r["answer"] and "operating margin" in r["answer"]
 
 
 def test_c_ledger_discrepancies_are_found(seeded):

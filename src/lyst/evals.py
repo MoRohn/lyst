@@ -362,7 +362,7 @@ def demo_bank() -> list[EvalCase]:
                  value=float(q3[q3.product_line == "Hardware"].revenue.sum())),
         EvalCase("cogs-why", "Why did the COGS ratio change last quarter?", metric="cogs_ratio",
                  value=q3.cogs.sum() / q3.revenue.sum(), driver="EMEA"),
-        EvalCase("ambiguous", "What is our margin?", status="needs_input", contains=["operating_margin", "cogs_ratio"],
+        EvalCase("ambiguous", "What is our margin?", status="needs_input", contains=["operating margin", "COGS ratio"],
                  validation=None),
         EvalCase("unknown-metric", "What was EBITDA last quarter?", status="needs_input",
                  contains=["No approved metric"], validation=None),
