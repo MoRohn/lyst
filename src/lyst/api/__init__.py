@@ -1276,6 +1276,14 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
         return L(request).runtime.create_schedule(user, ws, body.title, body.question, body.every_seconds, at=body.at,
                                                   weekdays=body.weekdays, timezone=body.timezone, overlap=body.overlap)
 
+    @app.post("/v1/workspaces/{ws}/schedules/{schedule_id}/pause")
+    def pause_schedule(request: Request, ws: str, schedule_id: str, user: User):
+        return L(request).runtime.pause_schedule(user, ws, schedule_id)
+
+    @app.post("/v1/workspaces/{ws}/schedules/{schedule_id}/resume")
+    def resume_schedule(request: Request, ws: str, schedule_id: str, user: User):
+        return L(request).runtime.resume_schedule(user, ws, schedule_id)
+
     # -- scenarios and decisions ------------------------------------------------------------
 
     @app.get("/v1/workspaces/{ws}/scenario-models")
