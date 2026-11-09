@@ -70,8 +70,14 @@ def _alt(c: dict[str, Any]) -> str:
     fmt = c.get("format", "number")
     show = (lambda v: f"{v:.1%}") if fmt == "percent" else (lambda v: f"{v:,.4g}")
     kind = {"forecast": "Forecast", "bar": "Bar chart"}.get(c.get("type"), "Line chart")
-    return (f"{kind}: {c.get('title', '')}. {len(ys)} points from {xs[0] if xs else ''} to {xs[-1] if xs else ''}; "
+    text = (f"{kind}: {c.get('title', '')}. {len(ys)} points from {xs[0] if xs else ''} to {xs[-1] if xs else ''}; "
             f"lowest {show(min(ys))}, highest {show(max(ys))}, last {show(ys[-1])}.")
+    lines = [x for x in c.get("series") or [] if isinstance(x, dict) and x.get("y")]
+    if len(lines) > 1:  # name each line and where it ends
+        text += " Lines: " + "; ".join(
+            f"{x.get('name') or f'Series {i + 1}'} ending at {show(x['y'][-1])}" for i, x in enumerate(lines)
+            if isinstance(x["y"][-1], int | float)) + "."
+    return text
 
 
 def chart(c: dict[str, Any]) -> None:
@@ -92,13 +98,21 @@ def chart(c: dict[str, Any]) -> None:
                         name="Forecast")
     elif c["type"] == "bar":
         fig.add_bar(x=c["x"], y=c["y"], name=c["title"], marker={"color": accent})
+    elif lines := [x for x in c.get("series") or [] if isinstance(x, dict) and x.get("y")]:
+        # one line per series on the shared x (a trend by region, two metrics indexed to 100), in the categorical
+        # colours in order, named in the legend; no latest-point marker, which would mean nothing among several
+        palette = tokens.series(mode)
+        for i, ln in enumerate(lines):
+            fig.add_scatter(x=c["x"], y=ln["y"], mode="lines", name=str(ln.get("name") or f"Series {i + 1}"),
+                            line={"color": palette[i % len(palette)], "width": 2})
     else:
         fig.add_scatter(x=c["x"], y=c["y"], mode="lines", line={"color": accent, "width": 2}, name=c["title"])
         if c.get("x") and c.get("y"):  # the latest observation, marked
             fig.add_scatter(x=[c["x"][-1]], y=[c["y"][-1]], mode="markers", showlegend=False, hoverinfo="skip",
                             marker={"size": 7, "color": accent, "line": {"color": col["bg"], "width": 2}})
-    fig.update_layout(**tokens.plotly_layout(mode, fmt=c.get("format", "number")), height=280,
-                      showlegend=c["type"] == "forecast", hovermode="x unified")
+    multi = c["type"] == "line" and len(c.get("series") or []) > 1
+    fig.update_layout(**tokens.plotly_layout(mode, fmt=c.get("format", "number")), height=300 if multi else 280,
+                      showlegend=c["type"] == "forecast" or multi, hovermode="x unified")
     st.caption(c["title"])
     st.plotly_chart(fig, width="stretch", theme=None, config={"displayModeBar": False}, alt=_alt(c))
 
