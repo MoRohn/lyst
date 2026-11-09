@@ -219,8 +219,8 @@ test.describe('studio showcase and verification', () => {
     await expect.poll(() => overview.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     expect(await page.locator('#st-view-overview source[type="image/avif"]').count()).toBe(1);
     await page.keyboard.press('ArrowLeft');
-    await expect(page.locator('#st-view-palette img.light-img')).toBeHidden();
-    await expect(page.locator('#st-view-palette img.dark-img')).toBeVisible();
+    await expect(page.locator('#st-view-settings img.light-img')).toBeHidden();
+    await expect(page.locator('#st-view-settings img.dark-img')).toBeVisible();
     await expect(page.getByText('Real output · sample data')).toBeVisible();
     expect(errors).toEqual([]);
   });
