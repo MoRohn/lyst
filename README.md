@@ -118,8 +118,8 @@ words.
 | Area | What you do there |
 |---|---|
 | **Home** | One question, "What should Lyst work on?", and a composer that grows as you write (Shift+Enter for a new line; on focus it offers **Add data** and keyboard hints). Ask, and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows up to three starters and at most one focus line (a question that needs your input, an answer that did not verify, a blocked run, or "add data" on an empty workspace), never a list. The dock at the foot holds work in progress, what needs you, **Get started** (a progress ring and the one next step, in a sheet) and **Recent** |
-| **Data** | Opens as a flow: where the data comes from (**From**), the datasets, and the approved metrics they **Feed**, joined by lines (solid from source to dataset, dashed from dataset to metric). Each dataset's face is its *shape*, one bar per column coloured by what the column holds. Hover, focus or pick anything and its whole path lights up, upstream and downstream, so "what depends on this?" is answered by looking. Picking a dataset opens its panel below with one sentence on it (including the metrics it feeds) and **Explore** (preview, columns, quality, relationships, SQL and contract), **Analyze** (Lyst reads the dataset) and **More** (quality checks, ask about it, build a dataset, activity). Picking a source keeps the flow in view and adds its kind, health and **Manage source**; a metric opens its definition in Brain. Above the flow sit Lyst's one line on the data (a link straight to the quality checks when a dataset needs a look), **Find a dataset**, **Add data** and **More** (Sources, Dashboards, Saved analyses, SQL with a sandboxed **Python** tab, and How the data connects). The keyboard works throughout |
-| **Brain** | Opens on a map of what Lyst knows: metrics, datasets, terms, memories and answers, gathered by kind, with pills to filter and a search that highlights matches. Pick a thing and only its relationships are drawn; a panel says what it is (a metric shows its value and trend), what it connects to (each a step further), and offers **Ask about it** and **Open**. With nothing picked, the panel shows what Lyst learned and used lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **More** holds Definitions, Documents, Memory (with memories waiting for review), Graph (with graph runs and the harness) and Specializations, the catalog of 136 kinds of analyst work |
+| **Data** | Opens as a flow: where the data comes from (**From**), the datasets, and the approved metrics they **Feed**, joined by lines (solid from source to dataset, dashed from dataset to metric). Each dataset's face is its *shape*, one bar per column coloured by what the column holds. Hover, focus or pick anything and its whole path lights up, upstream and downstream, so "what depends on this?" is answered by looking. Click anything and it opens as a sheet over the page, laid out for what it is. A dataset shows its shape, one sentence on it, its state (Ready to use, or **Review: 1 to fix** first), rows, columns, how recent it is and what it feeds, with **Analyze**, **Ask about it** and **More**, and Preview, Columns, Quality, Relationships, SQL and Contract inside the sheet. A source lists the datasets it gives (or, for a connection, its health, **Test** and **Sync a table**), and a metric shows its latest value, trend, how it is calculated, the dataset it reads and **Open in Brain**. Sheets lead to each other (source, dataset, metric), and closing one puts the flow back as it was. Above the flow sit Lyst's one line on the data (a link straight to the quality checks when a dataset needs a look), **Find a dataset**, **Add data** and **More** (Sources, Dashboards, Saved analyses, SQL with a sandboxed **Python** tab, and How the data connects). The keyboard works throughout |
+| **Brain** | Opens on a map of what Lyst knows: metrics, datasets, terms, memories and answers, gathered by kind, with pills to filter and a search that highlights matches. Pick a thing and only its relationships are drawn (with a filter open, what it connects to in other kinds comes in dimmed at the edge, and picking one opens its kind); a panel says what it is (a metric shows its value and trend), what it connects to (each a step further), and offers **Ask about it** and **Open**. With nothing picked, the panel shows what Lyst learned and used lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **More** holds Definitions, Documents, Memory (with memories waiting for review), Graph (with graph runs and the harness) and Specializations, the catalog of 136 kinds of analyst work |
 | **Settings** | Seven sections in one native-style list: **Account** (who you are, your workspaces, personal keys, sign out), **Workspaces** (members, business profile, usage and limits, move or copy), **Connections** (credentials, notifications and webhooks), **Models & Voice**, **Privacy & Security** (the external-model switch, data policy and audit trail), **Preferences** (autonomy, working ahead, event rules, the Get started guide) and **Advanced** (skills, capabilities, evaluation runs, health, backups). Lyst checks the setup itself (no model connected, data not encrypted at rest, a failing health check) and opens the section that fixes it, or says in one quiet line that nothing needs a look. Technical controls such as the full model list and prices, installation policy, who reads what and the full audit trail open as sheets |
 
 <p align="center">
@@ -243,6 +243,20 @@ change it and whether it can be repeated, from the engine's own records.
 **Is this right?** Mark the answer **Right**, **Partly** or **Wrong**, add what it should have said if you like, and
 **Undo** any time. A wrong answer stops being reused, recalled or cited; a right one becomes validated memory.
 
+**When Lyst needs you, it asks one plain question with choices.** An answer that needs your input or did not verify
+asks, for example, *Which "gross margin" do you mean?*, offering the approved metrics it could be (each with its
+definition), a way to map the word for everyone (admins confirm it in place; editors ask an admin, and nothing changes
+until another admin approves), *Not needed any more* and **Something else** for your own words. Lyst carries out the
+pick: it asks again with the metric you chose, offers the closest metrics for one it does not know, or opens the data
+quality review when checks failed. The choices come from the workspace (approved metrics, the glossary, datasets,
+failed checks), never from a model's guess; every pick is checked again by the engine, the original answer is never
+rewritten, and each resolution is recorded and audited. The same choices are on each item in Brain › Work › Needs
+you (**Resolve**).
+
+<p align="center">
+  <img src="docs/images/needs-you.png" alt="An answer that needs your input: Which gross margin do you mean? with I mean COGS ratio, I mean operating margin, Always read gross margin as either one, Not needed any more and Something else" width="75%">
+</p>
+
 <p align="center">
   <img src="docs/images/verdict.png" alt="Under an answer: Keep watch, Download, Share and More, and Is this right? with Right, Partly (selected), Wrong and Undo" width="85%">
 </p>
@@ -346,6 +360,25 @@ dimensions, and overlapping sources reconciled by their totals.
     <td colspan="2" align="center"><img src="docs/images/dataset-sensitivity.png" alt="A dataset's Overview: its sensitivity in words, marked as the source of truth for P&L, no quality risks, and what depends on it" width="70%"><br><b>Sensitivity and source of truth</b>: on every dataset</td>
   </tr>
 </table>
+
+### Review data quality with Lyst
+
+Every flagged row in a dataset (a duplicate, an empty cell, a stray negative, an unusual value) is a row in one
+review table: the dataset's own columns with the flagged cell lit, the issue and why, and what Lyst suggests with
+its confidence. Mark each **Valid** (a real edge case, nothing changes), **Fix** it inline or **Exclude** it, one at a
+time or in bulk. **Let Lyst resolve** stages a fix for each open issue it can, with its reason, from the data itself:
+drop a duplicate (naming the row it copies), reconcile a cell from an identity the data carries (when `revenue =
+cogs + opex + operating_income` holds in 395 of 396 rows, the empty revenue is the value that makes it hold), or
+estimate from neighbouring periods and say it is an estimate; otherwise it says a person is needed, and it never
+overrides a person's call. Staged changes show as a diff with row counts and totals before and after. Applying them
+needs an approval; once approved they become a new dataset version with the same schema, the earlier version is
+kept, and **Undo** puts it back. If the data changed after staging, the resolution is refused as stale. Open it from
+Lyst's one line on Data, a dataset's **Review** or **More › Review data quality**, or straight from a profiling
+answer, which shows the table in place.
+
+<p align="center">
+  <img src="docs/images/quality-review.png" alt="P&L from the ledger as a sheet over Data, on its Quality view: 3 of 3 flagged rows need review (a duplicate, a negative, an empty cell), Let Lyst resolve, and a table where the negative COGS cell is lit with Lyst suggesting 165,915.02 at high confidence, with Valid, Fix and Exclude" width="85%">
+</p>
 
 ### Sources that tell you what is wrong
 
