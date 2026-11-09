@@ -160,13 +160,17 @@ def rule_intent(text: str) -> str:
     return "value"
 
 
+_ASKS_DOCUMENTS = re.compile(r"\b(documents?|docs|says?|said|according to)\b", re.I)
+
+
 @capability(REGISTRY, "understand", agent="business_analyst", phase="understand", permission="analyst.ask",
             description="Read the request: intent, metrics, period, split and audience.")
 def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     text: str = args["question"]
     s = ctx.services
     resolved = s.semantic.resolve(ctx.actor, ctx.workspace_id, text)
-    if not resolved["ambiguous"] and not ctx.request.get("workflow") and (
+    # "Brief me on what our documents say about X" asks the documents, not for a KPI brief
+    if not resolved["ambiguous"] and not ctx.request.get("workflow") and not _ASKS_DOCUMENTS.search(text) and (
             brief_mod.asks_for_brief(text) if not resolved["metrics"]
             else brief_mod.asks_for_metric_brief(text) and rule_intent(text) == "value"):
         # "Give me a weekly KPI brief" / "What changed this month?" asks about every metric; "brief me on revenue" about
