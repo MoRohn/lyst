@@ -30,11 +30,13 @@ _CSS = """
 .block-container {max-width: var(--lyst-content-max); padding-top: 2.2rem; padding-bottom: 4rem;}
 @media (max-width: 640px) {
   .block-container {padding-left: var(--lyst-gutter-mobile); padding-right: var(--lyst-gutter-mobile); padding-top: 4rem;}
-  /* list rows stay one line on a phone: title, status and action side by side, not stacked */
-  div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title) {flex-wrap: nowrap !important; gap: .4rem;}
-  div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title) > div[data-testid="stColumn"] {
+  /* list rows stay one line on a phone: title, status and action side by side, not stacked. Only the row's own
+     columns: a page layout that holds rows (Settings' list and section) still stacks, or its second column sits
+     off-screen to the right */
+  div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) {flex-wrap: nowrap !important; gap: .4rem;}
+  div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) > div[data-testid="stColumn"] {
     min-width: 0 !important; width: auto !important; flex: 1 1 auto !important;}
-  div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title) > div[data-testid="stColumn"]:first-child {flex: 4 1 0 !important;}
+  div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) > div[data-testid="stColumn"]:first-child {flex: 4 1 0 !important;}
   /* an empty status slot takes no room on a phone */
   div[data-testid="stColumn"]:has(div.lyst-slot) {display: none;}
 }
