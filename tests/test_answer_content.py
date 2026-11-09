@@ -125,3 +125,38 @@ def test_an_ambiguous_term_names_the_metrics_in_words(seeded):
     r = ask(lyst, owner, "Show me margin")["result"]
     assert r["status"] == "needs_input"
     assert r["answer"] == "“Margin” matches more than one approved metric: COGS ratio or operating margin. Pick the one you mean."
+
+
+def test_a_rise_in_a_lower_is_better_metric_is_called_a_rise(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Why did support tickets increase in August 2026?")["result"]
+    assert r["implications"][0].startswith("The rise is concentrated in channel chat")
+    assert "pricing" not in " ".join(r["actions"])
+    assert r["evidence"][0].startswith("The largest driver is channel chat")
+    assert r["tables"][0]["title"] == "Change in support tickets by channel"
+
+
+def test_year_to_date_is_compared_with_the_same_months_a_year_earlier(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What's the revenue split by product line this year?")["result"]
+    df = demo.pnl()
+    now, then = _q(df, "2026-01-01", "2026-10-01").revenue.sum(), _q(df, "2025-01-01", "2025-10-01").revenue.sum()
+    assert r["answer"].startswith("Revenue was ") and "in 2026 YTD" in r["answer"]
+    assert "versus 2025 YTD" in r["answer"] and "prior period" not in r["answer"]
+    assert f"({(now - then) / then:+.1%})" in r["answer"]
+    assert r["tables"][0]["title"] == "Revenue by product line"
+
+
+def test_a_quarter_forecast_is_read_against_the_last_quarter(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Forecast revenue for next quarter")["result"]
+    assert "for Q4 2026" in r["answer"] and r["answer"].endswith("against $25.41M in Q3 2026.")
+
+
+def test_which_month_was_highest_names_the_month(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Which month had the highest revenue in 2025?")["result"]
+    by_month = _q(demo.pnl(), "2025-01-01", "2026-01-01").groupby("month").revenue.sum()
+    best = pd.Timestamp(by_month.idxmax()).strftime("%b %Y")
+    assert r["answer"].startswith(f"{best} had the highest revenue in 2025: ")
+    assert r["charts"][0]["title"] == "Revenue by month" and len(r["charts"][0]["x"]) == 12

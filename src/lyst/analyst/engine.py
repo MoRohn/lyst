@@ -238,7 +238,12 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             lowered = text.lower()
             named = [d for d in metrics[resolved["metrics"][0]].dimensions
                      if re.search(rf"\b{re.escape(d.replace('_', ' '))}(s|es)?\b", lowered)]
-            if by or named:
+            when = re.search(r"\b(?:which|what)\s+(month|quarter)\b", lowered)
+            if when and not by and not named:
+                # "which month had the highest revenue in 2025?": a ranking of the periods inside the one asked about
+                word = rm.group(1).lower()
+                rank = {"order": "bottom" if word in _BOTTOM else "top", "n": 1, "grain": when.group(1)}
+            elif by or named:
                 by = by or named[0]
                 word = rm.group(1).lower()
                 count = rm.group(2)
@@ -549,7 +554,7 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             add("metric_value", "current", metric=m, period=p)
             prev = _prev_period(p)
             add("metric_value", "prior", metric=m, period=prev)
-            ya = _year_ago(p)
+            ya = _year_ago(p) if p.get("grain") != "ytd" else None  # a YTD's prior already is the year-earlier YTD
             values = ["current", "prior"]
             if ya:
                 add("metric_value", "year_ago", metric=m, period=ya)
@@ -559,7 +564,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 against = {"year_ago": ya, "prior": prev}.get(u.get("compare") or "")
                 if against:
                     add("metric_breakdown", "breakdown_compare", metric=m, period=against, by=u["by"])
-            if u["intent"] == "value" and p.get("grain") in _VALUE_CONTEXT:
+            ranked = (u.get("rank") or {}).get("grain")
+            if u["intent"] == "value" and ranked and p.get("grain") in ("year", "quarter") and ranked != p["grain"]:
+                # the months (or quarters) inside the period, so the answer can name the highest or lowest
+                inside = {"month": 12 if p["grain"] == "year" else 3, "quarter": 4}[ranked]
+                add("horizon_series", "horizon", metric=m, grain=ranked, periods=inside, until=p)
+            elif u["intent"] == "value" and p.get("grain") in _VALUE_CONTEXT:
                 # a single figure is read against its recent history: the answer carries the periods leading up to it
                 # (the period itself, not its end date, so a compiled workflow fills in each run's own period)
                 add("horizon_series", "horizon", metric=m, grain=p["grain"], periods=_VALUE_CONTEXT[p["grain"]], until=p)
@@ -687,6 +697,18 @@ def _compare_members(spec: MetricSpec, now: dict[str, Any], then: dict[str, Any]
     return answer, chart, table
 
 
+def _forecast_basis(spec: MetricSpec, fp: dict[str, Any]) -> str:
+    """What a period forecast is read against: the last complete quarter for a quarter (a sum of months, for an
+    additive metric), else the latest month."""
+    hist = [h for h in fp.get("history") or [] if h.get("value") is not None]
+    additive = spec.format != "percent" and getattr(spec, "kind", "simple") == "simple"
+    if len(fp.get("monthly") or []) == 3 and additive and len(hist) >= 3 and "FY" not in fp.get("period_label", ""):
+        last = pd.Timestamp(str(hist[-1]["period"])[:10])
+        if last.month % 3 == 0:  # the history ends on a calendar quarter's last month
+            return f"{fmt(sum(h['value'] for h in hist[-3:]), spec)} in Q{(last.month - 1) // 3 + 1} {last.year}"
+    return f"{fmt(fp['history_last']['value'], spec)} in {_month_label(fp['history_last'].get('period'))}"
+
+
 _VALUE_CONTEXT = {"quarter": 8, "month": 12, "year": 5}  # how many periods a plain value's chart shows
 
 
@@ -731,9 +753,20 @@ def _prev_period(p: dict[str, Any]) -> dict[str, Any]:
         q = periods.previous(periods.Period(p["label"], start, end, p["grain"]), fs)
         return {"label": q.label, "start": q.start.isoformat(), "end": q.end.isoformat(), "grain": q.grain,
                 **({"fiscal_start": fs} if fs != 1 else {})}
-    # YTD or custom: same length immediately before
+    if p["grain"] == "ytd":
+        # a year-to-date is compared with the same months a year earlier ("2025 YTD"), not the months just before it
+        ya = _year_ago(p)
+        if ya:
+            return ya
+    # custom: same length immediately before
     span = end - start
     return {"label": "prior period", "start": (start - span).isoformat(), "end": start.isoformat(), "grain": "custom"}
+
+
+def _year_earlier_label(label: str) -> str:
+    """"2026 YTD" a year earlier is "2025 YTD"; a label with no year says so in words."""
+    shifted, n = re.subn(r"(?<!\d)(20\d{2})(?!\d)", lambda m: str(int(m.group(1)) - 1), label, count=1)
+    return shifted if n else f"{label} a year earlier"
 
 
 def _year_ago(p: dict[str, Any]) -> dict[str, Any] | None:
@@ -745,7 +778,7 @@ def _year_ago(p: dict[str, Any]) -> dict[str, Any] | None:
     except ValueError:
         return None
     label = (periods.year_ago(periods.Period(p["label"], start, end, p["grain"]), p.get("fiscal_start", 1)).label
-             if p["grain"] in ("quarter", "month") else f"{p['label']} a year earlier")
+             if p["grain"] in ("quarter", "month") else _year_earlier_label(p["label"]))
     fs = p.get("fiscal_start", 1)  # carried on, so the period before the year-ago period is labelled fiscally too
     return {"label": label, "start": s2.isoformat(), "end": e2.isoformat(), "grain": p["grain"], **({"fiscal_start": fs} if fs != 1 else {})}
 
@@ -1684,7 +1717,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if d and d.get("best"):
             b = d["best"]
             if d["kind"] == "rate":
-                findings.append(f"The largest driver is {b['dimension']} = {b['member']}: its own rate change moved "
+                findings.append(f"The largest driver is {b['dimension'].replace('_', ' ')} {b['member']}: its own rate change moved "
                                 f"{spec.title.lower()} by {fmt(b['effect'], spec, delta=True)}, "
                                 f"{b['share']:.0%} of the total change.")
                 t = d["by_dimension"][b["dimension"]]["table"]
@@ -1692,23 +1725,24 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 findings.append(f"{b['member']}'s {spec.title.lower()} went from {fmt(row['prior_rate'], spec)} to "
                                 f"{fmt(row['current_rate'], spec)}; mix shifts between members contributed "
                                 f"{fmt(sum(r['mix_effect'] or 0 for r in t), spec, delta=True)} in total.")
-                tables.append({"title": f"Change in {spec.title} by {b['dimension']}",
+                tables.append({"title": f"Change in {spec.title.lower()} by {b['dimension'].replace('_', ' ')}",
                                "columns": [b["dimension"], "prior_rate", "current_rate", "rate_effect", "mix_effect", "contribution"],
                                "rows": [[r[b["dimension"]], r["prior_rate"], r["current_rate"], r["rate_effect"],
                                          r["mix_effect"], r["contribution"]] for r in t]})
             else:
-                findings.append(f"The largest driver is {b['dimension']} = {b['member']}, which changed by "
+                findings.append(f"The largest driver is {b['dimension'].replace('_', ' ')} {b['member']}, which changed by "
                                 f"{fmt(b['change'], spec, delta=True)} ({b['share']:.0%} of the total change).")
                 t = d["by_dimension"][b["dimension"]]["table"]
-                tables.append({"title": f"Change in {spec.title} by {b['dimension']}",
+                tables.append({"title": f"Change in {spec.title.lower()} by {b['dimension'].replace('_', ' ')}",
                                "columns": [b["dimension"], "prior", "current", "change", "share_of_change"],
                                "rows": [[r[b["dimension"]], r["prior"], r["current"], r["change"], r.get("share_of_change")] for r in t]})
             worse = (cur and prev and cur["value"] is not None and prev["value"] is not None
                      and ((cur["value"] < prev["value"]) == spec.higher_is_better))
             if worse:
-                implications.append(f"The decline is concentrated in {b['dimension']} {b['member']}, so a company-wide "
-                                    "response would treat the wrong problem.")
-                actions.append(f"Review {b['member']}'s cost and pricing lines for {cur['period']['label']} with its owner.")
+                move = "rise" if cur["value"] > prev["value"] else "decline"
+                implications.append(f"The {move} is concentrated in {b['dimension'].replace('_', ' ')} {b['member']}, so a "
+                                    "company-wide response would treat the wrong problem.")
+                actions.append(f"Review what changed in {b['member']} in {cur['period']['label']} with its owner.")
                 actions.append(f"Set a monitor on {spec.title.lower()} for {b['member']} so the next move is caught early.")
             else:
                 implications.append(f"{b['member']} is carrying the change; check whether it is repeatable.")
@@ -1736,6 +1770,14 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             hz = o["horizon"]
             charts.insert(0, {"type": "bar", "title": f"{spec.title} by {hz['grain']}", "x": [p["label"] for p in hz["points"]],
                               "y": [p["value"] for p in hz["points"]], "format": spec.format})
+            rank = u.get("rank") or {}
+            pts = [p for p in hz["points"] if p["value"] is not None]
+            if rank.get("grain") == hz["grain"] and pts and cur:
+                pick = (max if rank["order"] == "top" else min)(pts, key=lambda p: p["value"])
+                answer = (f"{pick['label']} had the {'highest' if rank['order'] == 'top' else 'lowest'} "
+                          f"{spec.title.lower()} in {cur['period']['label']}: {fmt(pick['value'], spec)}"
+                          + (f", of {fmt(cur['value'], spec)} for the {cur['period']['grain']}."
+                             if spec.format != "percent" and getattr(spec, "kind", "simple") == "simple" else "."))
         t = o.get("tests")
         if t:
             fav = t.get("favoured")
@@ -1777,7 +1819,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                            "rows": [[m["title"], m["prior"], m["current"], m["change"]] for m in rel["metrics"]]})
         if o.get("breakdown"):
             bd = o["breakdown"]
-            tables.append({"title": f"{spec.title} by {bd['by']}", "columns": [bd["by"], "value"],
+            tables.append({"title": f"{spec.title} by {bd['by'].replace('_', ' ')}", "columns": [bd["by"], "value"],
                            "rows": [[r[bd["by"]], r["value"]] for r in bd["table"]]})
             rows = [r for r in bd["table"] if r["value"] is not None]
             if rows:  # the table runs best first, which for a lower-is-better metric is the smallest value
@@ -1840,8 +1882,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             fp = o["forecast_period"]
             tot = fp["total"]
             answer = (f"Lyst forecasts {spec.title.lower()} of {fmt(tot['total'], spec)} for {fp['period_label']} "
-                      f"(80% interval {fmt(tot['lo'], spec)} to {fmt(tot['hi'], spec)}), against {fmt(fp['history_last']['value'], spec)} "
-                      f"in the latest month.")
+                      f"(80% interval {fmt(tot['lo'], spec)} to {fmt(tot['hi'], spec)}), against "
+                      + _forecast_basis(spec, fp) + ".")
             if fp.get("backtest_mape") is not None:
                 findings.append(f"Method: {fp['method']}; backtest error {fp['backtest_mape']:.1%} over the last "
                                 f"{fp['backtest_points']} months. The interval treats months as independent.")
