@@ -32,10 +32,14 @@ from . import brief as brief_mod
 from . import periods
 from .registry import REGISTRY, Context, capability
 
+# "the ledger" as the books, not a dataset named ledger_bank: "reconcile the ledger erp postings against the ledger bank"
+# is a reconciliation between two named datasets, which the reconciliation method answers
+_END = r"(?=\s*($|[?.!,;]|(for|in|at|this|last|as of)\b))"
 ASKS = re.compile(
     r"\b((month|quarter|period|year)[- ]end( close)?|close checks?|closing checks?|ready to close|close the (books|month|"
-    r"quarter)|(is|are) (\w+ ){0,3}(closed|ready to (report|close))|tie[sd]?[- ]out|ties? (out )?to the ledger|"
-    r"reconcil\w* (\w+ ){0,4}(to|with|against) (the )?(ledger|gl|general ledger|books)|flux (review|analysis))\b", re.I)
+    r"quarter)|(is|are) (\w+ ){0,3}(closed|ready to (report|close))|tie[sd]?[- ]out|ties? (out )?to the ledger{END}|"
+    r"reconcil\w* (\w+ ){0,4}(to|with|against) the (ledger|gl|general ledger|books){END}|flux (review|analysis))\b"
+    .replace("{END}", _END), re.I)
 
 TOLERANCE = 0.005  # relative difference a tie-out accepts per key
 ROWS_LOW = 0.9  # a period with fewer rows than this share of its recent median is flagged as possibly incomplete

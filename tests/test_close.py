@@ -86,7 +86,8 @@ def test_close_phrases(text):
 
 
 @pytest.mark.parametrize("text", ["What was revenue last quarter?", "Give me a weekly KPI brief",
-                                  "How close are we to target?"])
+                                  "How close are we to target?", "Reconcile ledger erp against ledger bank",
+                                  "Reconcile the ledger erp postings against the ledger bank"])
 def test_not_close_phrases(text):
     assert not close.asks_for_close(text)
 
