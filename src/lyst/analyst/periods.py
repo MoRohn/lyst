@@ -67,6 +67,19 @@ def _fiscal_year(fy: int, fs: int) -> Period:
     return Period(f"FY{fy}", start, _add_months(start, 12), "year")
 
 
+def covered_through(max_value, max_day: int | None) -> date | None:
+    """The last day the data covers. When every date is the first of a month (``max_day`` is 1), rows stand for
+    whole months, so the data runs to the end of the last month: September rows dated 2026-09-01 cover September."""
+    if max_value is None:
+        return None
+    ts = pd.Timestamp(max_value)
+    if ts.tzinfo is not None:
+        ts = ts.tz_localize(None)
+    if max_day == 1:
+        ts = ts + pd.offsets.MonthEnd(0)
+    return ts.date()
+
+
 def last_complete(grain: str, max_date: date, fs: int = 1) -> Period:
     """The last period of ``grain`` that the data covers fully (max_date is the last day seen)."""
     nxt = pd.Timestamp(max_date) + pd.Timedelta(days=1)

@@ -110,15 +110,9 @@ def _max_date(ctx: Context, spec: MetricSpec) -> date | None:
     r = ctx.services.data.query(ctx.actor, ctx.workspace_id,
                                 f'SELECT max({col}) AS d, max(day({col})) AS maxday FROM {_q(spec.dataset)}',
                                 task_id=ctx.task_id)
-    d = r.rows[0][0] if r.rows else None
-    if d is None:
+    if not r.rows:
         return None
-    ts = pd.Timestamp(d)
-    if r.rows[0][1] == 1:
-        # Every date is the first of a month: rows stand for whole months, so the data runs to
-        # the end of the last month.
-        ts = ts + pd.offsets.MonthEnd(0)
-    return ts.date()
+    return periods.covered_through(r.rows[0][0], r.rows[0][1])
 
 
 def _query(ctx: Context, sql: str):
@@ -142,6 +136,12 @@ INTENT_RULES: list[tuple[str, re.Pattern]] = [
     ("breakdown", re.compile(r"\bby (\w+)|\bper (\w+)|\bsplit\b|\bbreak ?down\b", re.I)),
     ("value", re.compile(r"\b(what|how much|how many|total|value|was|is)\b", re.I)),
 ]
+
+
+_NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+_BOTTOM = {"bottom", "lowest", "smallest", "weakest"}
+_RANK = re.compile(r"\b(top(?![ -]line)|bottom|highest|lowest|largest|biggest|smallest|leading|strongest|weakest)"
+                   r"(?:\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\b)?", re.I)
 
 
 def rule_intent(text: str) -> str:
@@ -219,6 +219,22 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             for d in dims:
                 if cand.startswith(d) or d.startswith(cand.rstrip("s")):
                     by = d
+    rank = None
+    if resolved["metrics"] and intent in ("value", "breakdown"):
+        # "top 3 regions by operating income", "which region had the lowest margin": a ranking of a dimension the
+        # request names (singular or plural), even when "by" is followed by the metric rather than the split
+        rm = _RANK.search(text)
+        if rm:
+            lowered = text.lower()
+            named = [d for d in metrics[resolved["metrics"][0]].dimensions
+                     if re.search(rf"\b{re.escape(d.replace('_', ' '))}(s|es)?\b", lowered)]
+            if by or named:
+                by = by or named[0]
+                word = rm.group(1).lower()
+                count = rm.group(2)
+                rank = {"order": "bottom" if word in _BOTTOM else "top",
+                        "n": (_NUM_WORDS.get(count.lower()) or int(count)) if count else 1}
+                intent = "breakdown"
     if intent == "breakdown" and not by:
         intent = "value"
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
@@ -300,7 +316,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "ambiguous": resolved["ambiguous"], "precedence": resolved.get("precedence") or {}, "by": by, "dataset": dataset, "method": method,
             "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
-            "filters": filters, "scenarios": prescriptive.wants_scenarios(text),
+            "filters": filters, "rank": rank, "scenarios": prescriptive.wants_scenarios(text),
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
             "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
             "refresh_dashboard": refresh.group(1) if refresh else None, "second_metric": second,
@@ -520,6 +536,10 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 values.append("year_ago")
             if u["intent"] == "breakdown" and u["by"]:
                 add("metric_breakdown", "breakdown", metric=m, period=p, by=u["by"])
+            if u["intent"] == "value" and p.get("grain") in _VALUE_CONTEXT:
+                # a single figure is read against its recent history: the answer carries the periods leading up to it
+                # (the period itself, not its end date, so a compiled workflow fills in each run's own period)
+                add("horizon_series", "horizon", metric=m, grain=p["grain"], periods=_VALUE_CONTEXT[p["grain"]], until=p)
             if u["intent"] == "explain":
                 add("driver_analysis", "drivers", metric=m, current=p, prior=prev, after=["current", "prior"])
                 if u["depth"] == "deep":
@@ -560,6 +580,58 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "success_criteria": ["every number comes from an executed query", "all validation checks pass",
                                  "the answer follows Answer, Evidence, Implications, Actions"]
             + (["each hypothesis has a computed verdict"] if u.get("depth") == "deep" else [])}
+
+
+def _plural(word: str) -> str:
+    return word if word.endswith("s") else (word[:-1] + "ies" if word.endswith("y") and word[-2:-1] not in "aeiou" else word + "s")
+
+
+def _subject(spec: MetricSpec, filters: list[dict[str, Any]] | None) -> str:
+    """"Revenue was", "Support tickets (chat) were": the metric, any filter the request applied, and the verb."""
+    title = spec.title
+    vals = [str(f["value"]) for f in filters or [] if f.get("value") is not None]
+    plural = title.endswith("s") and not title.endswith(("ss", "us", "is"))
+    named = f"{title} ({', '.join(vals)})" if vals else title
+    return f"{named} {'were' if plural else 'was'}"
+
+
+def _month_label(value: Any) -> str:
+    try:
+        return pd.Timestamp(str(value)[:10]).strftime("%b %Y")
+    except (ValueError, TypeError):
+        return str(value)
+
+
+def _trend_window(points: list[dict[str, Any]], u: dict[str, Any]) -> list[dict[str, Any]]:
+    """The months a trend question asked about ("over the last 12 months"), or the whole series if it named none."""
+    pts = [p for p in points if p.get("value") is not None]
+    h = u.get("horizon") or {}
+    months = (h.get("periods") or 0) * {"month": 1, "quarter": 3, "year": 12}.get(h.get("grain"), 0)
+    return pts[-months:] if months and u.get("intent") == "trend" and len(pts) > months else pts
+
+
+def _trend_headline(spec: MetricSpec, pts: list[dict[str, Any]], u: dict[str, Any]) -> str:
+    """Where the series went over the window, in one sentence, and the month that moved it if one stands out."""
+    first, last = pts[0], pts[-1]
+    if len(pts) < 2:
+        return f"{_subject(spec, u.get('filters'))} {fmt(last['value'], spec)} in {_month_label(last['period'])}."
+    dlt = last["value"] - first["value"]
+    verb = "rose" if dlt > 0 else ("fell" if dlt < 0 else "was flat")
+    rel = f", {dlt / abs(first['value']):+.1%}" if first["value"] and spec.format != "percent" and dlt else ""
+    vals = [str(f["value"]) for f in u.get("filters") or []]
+    who = spec.title + (f" ({', '.join(vals)})" if vals else "")
+    text = (f"{who} {verb} from {fmt(first['value'], spec)} in {_month_label(first['period'])} to "
+            f"{fmt(last['value'], spec)} in {_month_label(last['period'])}"
+            + (f" ({fmt(dlt, spec, delta=True)}{rel})" if dlt else "") + f" over {len(pts)} months.")
+    steps = [(pts[i]["period"], pts[i]["value"] - pts[i - 1]["value"]) for i in range(1, len(pts))]
+    typical = sorted(abs(d) for _, d in steps)[len(steps) // 2]
+    when, move = max(steps, key=lambda x: abs(x[1]))
+    if len(steps) >= 4 and abs(move) > 3 * typical and abs(move) >= 0.25 * abs(dlt or move):
+        text += f" The biggest move was {_month_label(when)}: {fmt(move, spec, delta=True)}."
+    return text
+
+
+_VALUE_CONTEXT = {"quarter": 8, "month": 12, "year": 5}  # how many periods a plain value's chart shows
 
 
 def _compiled_plan(ctx: Context, u: dict[str, Any], c: dict[str, Any]) -> dict[str, Any]:
@@ -1010,7 +1082,9 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         to_date = bool(_TO_DATE.search(ctx.outputs["understand"]["question"])) or c["period"].get("grain") == "ytd"
         # comparing a period the data covers only partly with a complete one manufactures a change; that is an
         # error unless the person asked for period-to-date
-        check("freshness", anchor >= end - pd.Timedelta(days=1),
+        covered = anchor >= end - pd.Timedelta(days=1)
+        check("freshness", covered,
+              f"data runs to {anchor.isoformat()}, covering all of {c['period']['label']}" if covered else
               f"data runs to {anchor.isoformat()}; {c['period']['label']} ends {end.isoformat()} (exclusive), so it is "
               "incomplete" + ("" if to_date else " and not comparable with a complete period"),
               "warning" if to_date else "error")
@@ -1444,7 +1518,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if sc.get("unmatched"):
             findings.append("Not modelled (no matching driver): " + ", ".join(sc["unmatched"]))
         findings += [f"⚠ Not applied: {x['phrase']} ({x['reason']})" for x in sc.get("unapplied") or []]
-        actions.append(f"Explore ranges, sensitivity and best/worst cases for {sc['model']['name']} under Data › Saved analyses.")
+        actions.append(f"See ranges, sensitivity and best and worst cases in Data › Saved analyses › "
+                       f"{sc['model'].get('title') or sc['model']['name']}.")
         tables.append({"title": "Scenario vs observed basis", "columns": ["output", "observed basis", "scenario", "change"],
                        "rows": [[x["label"], x["base"], x["scenario"], x["delta"]] for x in sc["outputs"]]})
         # a stated change that was not applied means the figures answer a different question: never Verified
@@ -1527,7 +1602,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             implications.append("Ask for a period inside the data's range, or load the missing period.")
             cur = None
         if cur:
-            parts.append(f"{spec.title} was {fmt(cur['value'], spec)} in {cur['period']['label']}")
+            parts.append(f"{_subject(spec, u.get('filters'))} {fmt(cur['value'], spec)} in {cur['period']['label']}")
             if prev and prev["value"] is not None and cur["value"] is not None:
                 dlt = cur["value"] - prev["value"]
                 rel = f" ({dlt / abs(prev['value']):+.1%})" if prev["value"] and spec.format != "percent" else ""
@@ -1644,28 +1719,45 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             bd = o["breakdown"]
             tables.append({"title": f"{spec.title} by {bd['by']}", "columns": [bd["by"], "value"],
                            "rows": [[r[bd["by"]], r["value"]] for r in bd["table"]]})
-            top = bd["table"][0]
-            findings.append(f"Highest: {top[bd['by']]} at {fmt(top['value'], spec)}.")
+            rows = [r for r in bd["table"] if r["value"] is not None]
+            if rows:  # the table runs best first, which for a lower-is-better metric is the smallest value
+                top = max(rows, key=lambda r: r["value"])
+                findings.append(f"Highest: {top[bd['by']]} at {fmt(top['value'], spec)}.")
             # the question asked for the split, so the answer carries it: every member (up to six) with its share of an
             # additive total; rates get their values only, since shares of a ratio mean nothing
-            rows = [r for r in bd["table"] if r["value"] is not None]
             additive = spec.format != "percent" and getattr(spec, "kind", "simple") == "simple"
             total = sum(r["value"] for r in rows) if additive else 0
-            members = ", ".join(f"{r[bd['by']]} {fmt(r['value'], spec)}" + (f" ({r['value'] / total:.0%})" if additive and total else "")
-                                for r in rows[:6])
-            more = f", and {len(rows) - 6} more" if len(rows) > 6 else ""
-            if members:
-                answer = (answer.rstrip(".") + ". " if answer else "") + f"By {bd['by'].replace('_', ' ')}: {members}{more}."
+
+            def member(r):
+                return f"{r[bd['by']]} {fmt(r['value'], spec)}" + (f" ({r['value'] / total:.0%})" if additive and total else "")
+
+            rank = u.get("rank")
+            if rank and rows and cur:
+                # "top 3 regions by operating income": the ranking is the answer, led by the members asked for
+                ordered = sorted(rows, key=lambda r: r["value"], reverse=rank["order"] == "top")
+                n = min(rank.get("n") or 1, len(ordered))
+                dim = bd["by"].replace("_", " ")
+                head = (f"{'Top' if rank['order'] == 'top' else 'Bottom'} {n} {_plural(dim)}" if n > 1 else
+                        f"{'Highest' if rank['order'] == 'top' else 'Lowest'} {dim}")
+                answer = (f"{head} by {spec.title.lower()} in {cur['period']['label']}: "
+                          + ", ".join(member(r) for r in ordered[:n])
+                          + (f", of {fmt(total, spec)} in total." if additive and total else "."))
+            else:
+                members = ", ".join(member(r) for r in rows[:6])
+                more = f", and {len(rows) - 6} more" if len(rows) > 6 else ""
+                if members:
+                    answer = (answer.rstrip(".") + ". " if answer else "") + f"By {bd['by'].replace('_', ' ')}: {members}{more}."
+        window = _trend_window(o["series"]["points"], u) if o.get("series") else []
         if o.get("series") and not o.get("forecast"):
             charts.append({"type": "line", "title": f"{spec.title} by month",
-                           "x": [p["period"] for p in o["series"]["points"]],
-                           "y": [p["value"] for p in o["series"]["points"]], "format": spec.format})
+                           "x": [p["period"] for p in window], "y": [p["value"] for p in window], "format": spec.format})
         if o.get("anomalies", {}).get("anomalies"):
-            recent = [a for a in o["anomalies"]["anomalies"]
-                      if not c.get("period") or a["period"] >= _shift_months(c["period"]["anchor"], -12)]
+            since = str(window[0]["period"])[:10] if u.get("horizon") and window else (
+                _shift_months(c["period"]["anchor"], -12) if c.get("period") else "")
+            recent = [a for a in o["anomalies"]["anomalies"] if str(a["period"])[:10] >= since]
             for a in recent[-3:]:
-                findings.append(f"{a['period']} is an anomaly ({a['direction']}): {fmt(a['value'], spec)} against "
-                                f"an expected {fmt(a['expected'], spec)}.")
+                findings.append(f"{_month_label(a['period'])} is an anomaly ({a['direction']}): {fmt(a['value'], spec)} "
+                                f"against an expected {fmt(a['expected'], spec)}.")
         if o.get("forecast"):
             f = o["forecast"]
             last = f["table"][-1]
@@ -1737,9 +1829,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                     findings.append(f"Caution: {w}.")
                 charts.append({"type": "line", "title": f"{spec.title} by month", "x": [p["period"] for p in im["series"]],
                                "y": [p["value"] for p in im["series"]], "format": spec.format})
-        if not answer and o.get("series"):
-            pts = o["series"]["points"]
-            answer = f"{spec.title} over {len(pts)} months, latest {fmt(pts[-1]['value'], spec)} ({pts[-1]['period']})."
+        if not answer and window:
+            answer = _trend_headline(spec, window, u)
         if u.get("filters") and spec:
             assumptions.append("Filtered to " + ", ".join(f"{f['column']} = {f['value']}" for f in u["filters"]) + ".")
         status = "complete" if v["status"] != "failed" else "unverified"
