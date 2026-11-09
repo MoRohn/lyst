@@ -291,7 +291,8 @@ you (**Resolve**).
 
 Ask a what-if in plain words on Home, such as "What happens to operating margin if labor costs increase 6% while
 revenue grows 3%?". Lyst answers from a driver model whose observed inputs are read from governed data for a named
-period, with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
+period (the same "last quarter" as every other answer, named in the headline: "from 32.49% (Q3 2026 actual)"),
+with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
 hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
 formulas as evidence, and is recomputed independently. Changes can be given as percentages or in points ("COGS
 ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, any change
@@ -451,8 +452,10 @@ where they point, with Mark all read and "What to tell me about".
 
 ### Analysis you can rely on
 
-* **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
-  anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
+* **Answers and investigations.** Values with prior-period and year-ago comparisons (a single figure comes with
+  its recent history as a chart), breakdowns, rankings ("top 3 regions by operating income", "which channel had the
+  fewest tickets"), trends over the window you ask for, with a headline that says where the metric went and its
+  biggest move, anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
