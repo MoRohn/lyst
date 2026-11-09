@@ -607,3 +607,13 @@ def test_a_finished_answer_can_be_published_and_found_in_work(seeded, ui):  # no
     at.button_group(key="act_filter").set_value("Published").run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Revoke" for b in at.button) and any(b.label == "View" for b in at.button)
+
+
+def test_an_answers_next_step_is_one_card_without_echoing_the_question():
+    from lyst.ui import anticipate  # noqa: PLC0415
+
+    a = {"objective": "Look inside EMEA by product line", "actions": [{"id": "dismiss"}, {"id": "run_now"}],
+         "reasons": ['EMEA accounts for 107% of the change in Q3 2026 (your question: "Why did (it) decline?").', "x"]}
+    assert anticipate.short_reason(a) == "EMEA accounts for 107% of the change in Q3 2026."
+    assert anticipate._primary(a) == "run_now"
+    assert anticipate._primary({"actions": ["dismiss"]}) is None

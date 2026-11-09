@@ -454,22 +454,54 @@ def reply_view(task: str, r: dict) -> None:
             st.rerun()
 
 
-def follow_ups(task: str, r: dict) -> None:
-    """One row of follow-ups: how the answer was figured (its trust questions open together), then the metric's
-    next questions."""
+def follow_ups(task: str, r: dict, more: list[dict] | tuple = ()) -> None:
+    """One row of choices: Lyst's other suggestions for this answer, how the answer was figured (its trust questions
+    open together), then the metric's next questions."""
     metric = ((r.get("supporting") or {}).get("metric") or {}).get("spec", {})
-    opts = [governance.ASK["how"]]
+    picks = {f":material/auto_awesome: {a['objective']}": a for a in more if a.get("objective")}
+    opts = [*picks, governance.ASK["how"]]
     if metric:
         m = kit.lower(metric["title"])
         opts += [f"Forecast {m}", f"Show the {m} trend over time"]
         opts += [f"What was {m} last quarter by {d.replace('_', ' ')}?" for d in metric.get("dimensions", [])][:1]
+    asked = [str(x.get("question") or "").lower() for a in picks.values() for x in a.get("actions") or [] if isinstance(x, dict)]
+    opts = [o for o in opts if not any(q.startswith(o.lower()) for q in asked)]  # a suggestion already asks it
+    if not picks:
+        kit.label("Next")
     nxt = st.pills("Follow up", opts, label_visibility="collapsed", key=f"fu_{task}")
-    if nxt == governance.ASK["how"]:
+    if nxt in picks:
+        st.session_state.pop(f"fu_{task}", None)
+        anticipate.run(picks[nxt])
+    elif nxt == governance.ASK["how"]:
         st.session_state.pop(f"fu_{task}", None)
         governance.explain(task, "how")
     elif nxt:
         submit(nxt)
         st.rerun()
+
+
+NEXT_CSS = """<style>
+/* Under an answer: one "Next" block. The suggestion Lyst ranks first is a card with one button, then one row of
+   choices, then the follow-up box. The answer's top line (badge, Brief) stays one line on a phone. */
+[class*="st-key-lyst_next_"] {background: var(--lyst-raised); border-radius: var(--lyst-radius-lg);}
+[class*="st-key-lyst_next_"] [data-testid="stHorizontalBlock"],
+[class*="st-key-lyst_answer_top_"] [data-testid="stHorizontalBlock"] {flex-wrap: nowrap !important; align-items: center;}
+[class*="st-key-lyst_next_"] [data-testid="stColumn"],
+[class*="st-key-lyst_answer_top_"] [data-testid="stColumn"] {min-width: 0 !important; width: auto !important; flex: 0 0 auto !important;}
+[class*="st-key-lyst_next_"] [data-testid="stColumn"]:first-child,
+[class*="st-key-lyst_answer_top_"] [data-testid="stColumn"]:first-child {flex: 1 1 auto !important;}
+[class*="st-key-lyst_next_"] [data-testid="stPopoverButton"] [data-testid="stMarkdownContainer"] {position: absolute;
+  width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;}
+.lyst-next-lead {display: flex; gap: .8rem; align-items: center;}
+.lyst-next-lead b {display: block; font-weight: var(--lyst-weight-medium, 600); line-height: 1.35;}
+.lyst-next-lead p {margin: .15rem 0 0; color: var(--lyst-text-muted); font-size: .86rem; line-height: 1.4;}
+.lyst-next-icon {flex: 0 0 2.1rem; height: 2.1rem; border-radius: .65rem; position: relative;
+  background: color-mix(in srgb, var(--lyst-accent) 12%, transparent);}
+.lyst-next-icon::after {content: ""; position: absolute; inset: .5rem; background: var(--lyst-accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l2.3 6.4L21 11l-6.7 2.5L12 20l-2.3-6.5L3 11l6.7-2.6z'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l2.3 6.4L21 11l-6.7 2.5L12 20l-2.3-6.5L3 11l6.7-2.6z'/%3E%3C/svg%3E") center/contain no-repeat;}
+@media (max-width: 640px) {.lyst-next-icon {display: none;}}
+</style>"""
 
 
 # Streamlit keeps the query string when the rail link of the page already open is clicked, so the Home icon alone
@@ -538,9 +570,10 @@ def task_view(task: str) -> None:
         verdict_fix(task)
         if (did := st.session_state.pop("open_decision", None)):
             decisions.detail(did)
-        anticipate.next_steps(task)
+        st.html(NEXT_CSS)
+        more = anticipate.next_steps(task)
         if not (asking and r["status"] == "needs_input"):  # the choices are the next step; guesses would compete
-            follow_ups(task, r)
+            follow_ups(task, r, more)
     ask_box()
 
 
