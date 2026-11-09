@@ -1461,6 +1461,7 @@ try:
         advanced(view, catalog, src)
     else:
         header(every)
+        zone.board("data")
         if st.query_params.get("add") and editor:  # "Add data" from Home's composer opens the same sheet here
             st.query_params.pop("add", None)
             st.session_state["add_how_pick"] = "Upload a file"
@@ -1482,6 +1483,6 @@ try:
             else:
                 sheet(every, src)
             onboarding.data_suggestions()
-        zone.board("data")
+        zone.board("data", place="bottom")
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")
