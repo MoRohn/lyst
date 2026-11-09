@@ -187,6 +187,8 @@ class FollowUps:
 
         u = json.loads(und[0]["output"])
         c = json.loads(ctxs[0]["output"]) if ctxs else {}
+        if u.get("intent") == "brief":
+            return self._brief(actor, ws, task_id, parent, u, text, timezone)
         if not u.get("metrics"):
             raise ValueError("the earlier answer has no metric to drill into; ask a full question instead")
         spec = self.semantic.get(actor, ws, u["metrics"][0])
@@ -205,6 +207,30 @@ class FollowUps:
         tid = self.runtime.submit(actor, ws, plan["question"], extra={"derived_from": {
             "task_id": task_id, "follow_up": text, "changed": plan["changed"], "carried": carried}})
         return {**base, "task_id": tid}
+
+    def _brief(self, actor: Principal, ws: str, task_id: str, parent: dict[str, Any], u: dict[str, Any], text: str,
+               timezone: str | None) -> dict[str, Any]:
+        """A brief covers every metric, so it can be repeated or moved to another period, not drilled into: a question
+        about one metric is a new question."""
+        base = {"parent_task": task_id, "follow_up": text, "carried": {"metric": None, "brief": True}}
+        norm = normalize(text)
+        when_text, wants_schedule = _cadence(norm)
+        if when_text:
+            sch = _schedule(when_text)
+            res = self.runtime.create_schedule(actor, ws, f"Recurring: {parent['title'][:80]}", u["question"],
+                                               sch.get("every_seconds"), at=sch.get("at"), weekdays=sch.get("weekdays"),
+                                               timezone=timezone)
+            return {**base, "action": "schedule", "question": u["question"], "schedule": sch,
+                    "changed": {"schedule": when_text}, **res}
+        if wants_schedule:
+            return {**base, "action": "unsupported", "message": "Say when it should run, for example \"every Monday at 8\"."}
+        if m := _PERIOD.search(norm):
+            q = f"Brief me on {m.group('p')}"
+            tid = self.runtime.submit(actor, ws, q, extra={"derived_from": {
+                "task_id": task_id, "follow_up": text, "changed": {"period": m.group("p")}, "carried": base["carried"]}})
+            return {**base, "action": "task", "question": q, "changed": {"period": m.group("p")}, "task_id": tid}
+        return {**base, "action": "unsupported", "message": "A brief covers every metric. Ask about one directly, for "
+                "example \"why did operating margin fall?\", or say \"every Monday at 8\" to have it repeated."}
 
 
 __all__ = ["FollowUps", "resolve"]

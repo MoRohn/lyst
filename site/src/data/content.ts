@@ -82,15 +82,15 @@ export const capabilities: {
   {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
-    text: 'Rigorous quantitative work, end to end.',
-    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
+    text: 'Rigorous quantitative work, end to end. A single figure comes with its recent history, and what-ifs and forecasts read against the same last quarter as every other answer.',
+    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings', 'Year over year, for each member', 'Year to date against last year’s', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Data as a flow, from source to metric', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', 'Quality questions that run the check', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -118,7 +118,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
-    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain: pick anything to see what it connects to, across collections', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
+    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain: pick anything, see its links across collections', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
