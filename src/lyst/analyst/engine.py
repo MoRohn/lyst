@@ -138,6 +138,12 @@ INTENT_RULES: list[tuple[str, re.Pattern]] = [
 ]
 
 
+_QUALITY_ASK = re.compile(r"\b(issues?|problems?|errors?|wrong|bad|dirty|clean|duplicat\w*|nulls?|missing|"
+                          r"inconsisten\w*|gaps?|outliers?|reliable|trust)\b", re.I)
+_VS_YEAR = re.compile(r"\b(year[- ]over[- ]year|yoy|y/y|(vs\.?|versus|against|compared (to|with)) (the same \w+ )?"
+                      r"(last|a|the previous|the prior) year|a year (ago|earlier)|year[- ]on[- ]year)\b", re.I)
+_VS_PRIOR = re.compile(r"\b((quarter|month)[- ](over|on)[- ](quarter|month)|qoq|q/q|mom|(vs\.?|versus|against|compared "
+                       r"(to|with)) (the )?(previous|prior|last) (quarter|month))\b", re.I)
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 _BOTTOM = {"bottom", "lowest", "smallest", "weakest"}
 _RANK = re.compile(r"\b(top(?![ -]line)|bottom|highest|lowest|largest|biggest|smallest|leading|strongest|weakest)"
@@ -163,6 +169,10 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         # "Do we have an executive dashboard?" asks what exists, not for a figure: answer it in conversation instead of
         # forcing it onto a metric. A scheduled or workflow run is always analysis.
         talk = converse_mod.route(text, metrics_named=bool(resolved["metrics"] or resolved["ambiguous"]))
+        if talk and _QUALITY_ASK.search(text) and rule_intent(text) == "profile":
+            # "are there any data quality issues in pnl?" asks Lyst to check the data, not what exists: it runs the
+            # profile and quality scan (and asks which dataset when none is named)
+            talk = None
         if talk:
             return _conversation(text, talk, resolved, method="rules")
     compiled = _compiled_understanding(ctx, text)
@@ -235,6 +245,13 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 rank = {"order": "bottom" if word in _BOTTOM else "top",
                         "n": (_NUM_WORDS.get(count.lower()) or int(count)) if count else 1}
                 intent = "breakdown"
+    compare = None
+    if resolved["metrics"] and by and intent in ("value", "breakdown", "trend"):
+        # "hardware revenue by region year over year": each member against the same period a year earlier (or the
+        # period before), not one total
+        compare = "year_ago" if _VS_YEAR.search(text) else ("prior" if _VS_PRIOR.search(text) else None)
+        if compare:
+            intent = "breakdown"
     if intent == "breakdown" and not by:
         intent = "value"
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
@@ -316,7 +333,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "ambiguous": resolved["ambiguous"], "precedence": resolved.get("precedence") or {}, "by": by, "dataset": dataset, "method": method,
             "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
-            "filters": filters, "rank": rank, "scenarios": prescriptive.wants_scenarios(text),
+            "filters": filters, "rank": rank, "compare": compare, "scenarios": prescriptive.wants_scenarios(text),
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
             "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
             "refresh_dashboard": refresh.group(1) if refresh else None, "second_metric": second,
@@ -465,9 +482,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                       "has. Lyst did not compute it on a changed schema. An admin can update the metric in "
                       "Intelligence, or the data owner can restore the column." for m in drift]
     if u["ambiguous"]:
+        titles = {m.name: m.title if m.title[:2].isupper() else m.title[:1].lower() + m.title[1:]
+                  for m in ctx.services.semantic.metrics(ctx.actor, ctx.workspace_id)}
         for term, names in u["ambiguous"].items():
-            blockers.append(f"'{term}' matches more than one approved metric ({', '.join(names)}). "
-                            "Name the one you mean, or ask an admin to map the term in the glossary.")
+            options = [titles.get(n, n) for n in names]
+            blockers.append(f"\u201c{term.capitalize()}\u201d matches more than one approved metric: "
+                            f"{', '.join(options[:-1])} or {options[-1]}. Pick the one you mean.")
     if drift and u["intent"] in ("correlate", "dashboard", "gap"):
         # these read an approved metric too: a definition on a changed schema blocks them like a plain value
         blockers.extend(drift_blockers)
@@ -536,6 +556,9 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 values.append("year_ago")
             if u["intent"] == "breakdown" and u["by"]:
                 add("metric_breakdown", "breakdown", metric=m, period=p, by=u["by"])
+                against = {"year_ago": ya, "prior": prev}.get(u.get("compare") or "")
+                if against:
+                    add("metric_breakdown", "breakdown_compare", metric=m, period=against, by=u["by"])
             if u["intent"] == "value" and p.get("grain") in _VALUE_CONTEXT:
                 # a single figure is read against its recent history: the answer carries the periods leading up to it
                 # (the period itself, not its end date, so a compiled workflow fills in each run's own period)
@@ -629,6 +652,39 @@ def _trend_headline(spec: MetricSpec, pts: list[dict[str, Any]], u: dict[str, An
     if len(steps) >= 4 and abs(move) > 3 * typical and abs(move) >= 0.25 * abs(dlt or move):
         text += f" The biggest move was {_month_label(when)}: {fmt(move, spec, delta=True)}."
     return text
+
+
+def _compare_members(spec: MetricSpec, now: dict[str, Any], then: dict[str, Any], now_label: str,
+                     then_label: str) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """Each member of a split against an earlier period: the headline names every member's change (largest first),
+    a bar chart draws the changes, and the table holds both periods."""
+    by = now["by"]
+    before = {str(r[by]): r["value"] for r in then["table"]}
+    rows = []
+    for r in now["table"]:
+        prior = before.get(str(r[by]))
+        dlt = None if r["value"] is None or prior is None else r["value"] - prior
+        rel = dlt / abs(prior) if dlt is not None and prior and spec.format != "percent" else None
+        rows.append((str(r[by]), prior, r["value"], dlt, rel))
+    rows.sort(key=lambda x: (x[3] is None, -(x[3] or 0)))
+    dim = by.replace("_", " ")
+
+    def said(x):
+        return f"{x[0]} {fmt(x[3], spec, delta=True)}" + (f" ({x[4]:+.1%})" if x[4] is not None else "")
+
+    moved = [x for x in rows if x[3] is not None]
+    answer = f"{spec.title} by {dim}, {now_label} versus {then_label}: " + ", ".join(said(x) for x in moved[:6])
+    answer += (f", and {len(moved) - 6} more." if len(moved) > 6 else ".")
+    additive = spec.format != "percent" and getattr(spec, "kind", "simple") == "simple"
+    if additive and moved:
+        t_now, t_then = sum(x[2] for x in moved), sum(x[1] for x in moved)
+        answer += f" In total {fmt(t_now - t_then, spec, delta=True)}" + (
+            f" ({(t_now - t_then) / abs(t_then):+.1%})." if t_then else ".")
+    chart = {"type": "bar", "title": f"Change in {spec.title.lower()} by {dim}, {now_label} versus {then_label}",
+             "x": [x[0] for x in moved], "y": [x[3] for x in moved], "format": spec.format}
+    table = {"title": f"{spec.title} by {dim}, {now_label} versus {then_label}",
+             "columns": [by, then_label, now_label, "change", "change_pct"], "rows": [list(x) for x in rows]}
+    return answer, chart, table
 
 
 _VALUE_CONTEXT = {"quarter": 8, "month": 12, "year": 5}  # how many periods a plain value's chart shows
@@ -752,7 +808,7 @@ def metric_breakdown(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     p = args["period"]
     r = _query(ctx, compile_metric(spec, start=p["start"], end=p["end"], by=[args["by"]]))
     df = r.frame().sort_values("value", ascending=not spec.higher_is_better)
-    return {"metric": spec.name, "by": args["by"], "table": _frame_records(df),
+    return {"metric": spec.name, "by": args["by"], "period": p, "table": _frame_records(df),
             "evidence": [_evidence(r, f"{spec.name} by {args['by']}")]}
 
 
@@ -1152,8 +1208,12 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
               + ", ".join(o["method"]["datasets"]))
     und = o.get("understand") or {}
     sm = und.get("specialist_method") or {}
+    covers = None if sm.get("method") == "brief" else (set(sm.get("task_classes") or []) or None)
+    if covers is None and und.get("compare") and "breakdown_compare" in o:
+        # each member against an earlier period is a comparison over time, not a bare report
+        covers = expertise_rules.INTENT_COVERS["breakdown"] | {"trend_analysis", "variance_explanation"}
     fitted = expertise_rules.fit(ctx.request.get("expertise"), und.get("intent"),  # a brief answers from the document asked about
-                                 None if sm.get("method") == "brief" else (set(sm.get("task_classes") or []) or None))
+                                 covers)
     if fitted is not None and not fitted[0]:  # an answer to a different question is never presented as verified
         check("fits_request", False, fitted[1])
     errors = [c for c in checks if not c["passed"] and c["severity"] == "error"]
@@ -1732,7 +1792,12 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 return f"{r[bd['by']]} {fmt(r['value'], spec)}" + (f" ({r['value'] / total:.0%})" if additive and total else "")
 
             rank = u.get("rank")
-            if rank and rows and cur:
+            then = o.get("breakdown_compare")
+            if then and rows and cur:
+                answer, chart, table = _compare_members(spec, bd, then, cur["period"]["label"], then["period"]["label"])
+                charts.append(chart)
+                tables.insert(0, table)
+            elif rank and rows and cur:
                 # "top 3 regions by operating income": the ranking is the answer, led by the members asked for
                 ordered = sorted(rows, key=lambda r: r["value"], reverse=rank["order"] == "top")
                 n = min(rank.get("n") or 1, len(ordered))
