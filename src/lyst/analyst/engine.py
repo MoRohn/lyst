@@ -145,8 +145,10 @@ _VS_YEAR = re.compile(r"\b(year[- ]over[- ]year|yoy|y/y|(vs\.?|versus|against|co
 _VS_PRIOR = re.compile(r"\b((quarter|month)[- ](over|on)[- ](quarter|month)|qoq|q/q|mom|(vs\.?|versus|against|compared "
                        r"(to|with)) (the )?(previous|prior|last) (quarter|month))\b", re.I)
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
-_BOTTOM = {"bottom", "lowest", "smallest", "weakest"}
-_RANK = re.compile(r"\b(top(?![ -]line)|bottom|highest|lowest|largest|biggest|smallest|leading|strongest|weakest)"
+_BOTTOM = {"bottom", "lowest", "smallest", "weakest", "slowest"}
+_GROWTH = re.compile(r"\b(fastest|slowest|gr[eo]w\w*|growth|increas\w*|declin\w*|shr[iau]nk\w*|improv\w*)\b", re.I)
+_RANK = re.compile(r"\b(top(?![ -]line)|bottom|highest|lowest|largest|biggest|smallest|leading|strongest|weakest|"
+                   r"fastest|slowest)"
                    r"(?:\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\b)?", re.I)
 
 
@@ -249,12 +251,16 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 count = rm.group(2)
                 rank = {"order": "bottom" if word in _BOTTOM else "top",
                         "n": (_NUM_WORDS.get(count.lower()) or int(count)) if count else 1}
+                if _GROWTH.search(text):
+                    # "which region grew fastest": ranked by growth against a year earlier, not by size
+                    rank["growth"] = True
                 intent = "breakdown"
     compare = None
     if resolved["metrics"] and by and intent in ("value", "breakdown", "trend"):
         # "hardware revenue by region year over year": each member against the same period a year earlier (or the
         # period before), not one total
-        compare = "year_ago" if _VS_YEAR.search(text) else ("prior" if _VS_PRIOR.search(text) else None)
+        compare = "year_ago" if _VS_YEAR.search(text) else ("prior" if _VS_PRIOR.search(text) else
+                                                            ("year_ago" if (rank or {}).get("growth") else None))
         if compare:
             intent = "breakdown"
     if intent == "breakdown" and not by:
@@ -561,7 +567,9 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 values.append("year_ago")
             if u["intent"] == "breakdown" and u["by"]:
                 add("metric_breakdown", "breakdown", metric=m, period=p, by=u["by"])
-                against = {"year_ago": ya, "prior": prev}.get(u.get("compare") or "")
+                # a year-to-date's prior already is the same months a year earlier
+                against = {"year_ago": ya or (prev if p.get("grain") == "ytd" else None),
+                           "prior": prev}.get(u.get("compare") or "")
                 if against:
                     add("metric_breakdown", "breakdown_compare", metric=m, period=against, by=u["by"])
             ranked = (u.get("rank") or {}).get("grain")
@@ -586,6 +594,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                     add("related_metrics", "related", metric=m, current=p, prior=prev)
         if u["intent"] in ("trend", "explain"):
             add("metric_series", "series", metric=m, grain="month")
+            if u["intent"] == "trend" and u.get("by"):
+                add("metric_series", "series_by", metric=m, grain="month", by=u["by"])
             add("anomaly_scan", "anomalies", series_key="series", after=["series"])
         if u["intent"] == "forecast" and (u.get("next_period") or u.get("scenarios")):
             add("forecast_period", "forecast_period", metric=m, grain="quarter" if "month" not in u["question"].lower() else "month")
@@ -665,7 +675,7 @@ def _trend_headline(spec: MetricSpec, pts: list[dict[str, Any]], u: dict[str, An
 
 
 def _compare_members(spec: MetricSpec, now: dict[str, Any], then: dict[str, Any], now_label: str,
-                     then_label: str) -> tuple[str, dict[str, Any], dict[str, Any]]:
+                     then_label: str, rank: dict[str, Any] | None = None) -> tuple[str, dict[str, Any], dict[str, Any]]:
     """Each member of a split against an earlier period: the headline names every member's change (largest first),
     a bar chart draws the changes, and the table holds both periods."""
     by = now["by"]
@@ -683,8 +693,24 @@ def _compare_members(spec: MetricSpec, now: dict[str, Any], then: dict[str, Any]
         return f"{x[0]} {fmt(x[3], spec, delta=True)}" + (f" ({x[4]:+.1%})" if x[4] is not None else "")
 
     moved = [x for x in rows if x[3] is not None]
-    answer = f"{spec.title} by {dim}, {now_label} versus {then_label}: " + ", ".join(said(x) for x in moved[:6])
-    answer += (f", and {len(moved) - 6} more." if len(moved) > 6 else ".")
+    if rank:
+        # "which region grew fastest": ordered by growth rate (points for a ratio), the members asked for first
+        rate = (lambda x: x[4]) if spec.format != "percent" and all(x[4] is not None for x in moved) else (lambda x: x[3])
+        moved.sort(key=rate, reverse=rank["order"] == "top")
+        n = min(rank.get("n") or 1, len(moved))
+        word = "Fastest" if rank["order"] == "top" else "Slowest"
+        head = f"{word} growth in {spec.title.lower()} by {dim}, {now_label} versus {then_label}: "
+
+        def grew(x):
+            return (f"{x[0]} {x[4]:+.1%} ({fmt(x[3], spec, delta=True)})" if x[4] is not None
+                    else f"{x[0]} {fmt(x[3], spec, delta=True)}")
+
+        answer = head + ", ".join(grew(x) for x in moved[:n])
+        others = moved[n:]
+        answer += (f"; then {', '.join(grew(x) for x in others[:5])}." if others else ".")
+    else:
+        answer = f"{spec.title} by {dim}, {now_label} versus {then_label}: " + ", ".join(said(x) for x in moved[:6])
+        answer += (f", and {len(moved) - 6} more." if len(moved) > 6 else ".")
     additive = spec.format != "percent" and getattr(spec, "kind", "simple") == "simple"
     if additive and moved:
         t_now, t_then = sum(x[2] for x in moved), sum(x[1] for x in moved)
@@ -707,6 +733,37 @@ def _forecast_basis(spec: MetricSpec, fp: dict[str, Any]) -> str:
         if last.month % 3 == 0:  # the history ends on a calendar quarter's last month
             return f"{fmt(sum(h['value'] for h in hist[-3:]), spec)} in Q{(last.month - 1) // 3 + 1} {last.year}"
     return f"{fmt(fp['history_last']['value'], spec)} in {_month_label(fp['history_last'].get('period'))}"
+
+
+def _member_series(sb: dict[str, Any], months: list[Any]) -> list[dict[str, Any]]:
+    """Each member's values on the given months (None where it has no row), largest last value first."""
+    out = []
+    for name, pts in sb["members"].items():
+        at = {str(p["period"])[:10]: p["value"] for p in pts}
+        out.append({"name": name, "y": [at.get(str(m)[:10]) for m in months]})
+    out.sort(key=lambda s_: -(s_["y"][-1] if s_["y"] and s_["y"][-1] is not None else float("-inf")))
+    return out[:8]
+
+
+def _member_moves(spec: MetricSpec, series: list[dict[str, Any]], by: str) -> str:
+    """The members that moved most and least over the window, in a few words."""
+    moves = []
+    for s_ in series:
+        ys = [v for v in s_["y"] if v is not None]
+        if len(ys) >= 2:
+            dlt = ys[-1] - ys[0]
+            rel = dlt / abs(ys[0]) if ys[0] and spec.format != "percent" else None
+            moves.append((s_["name"], dlt, rel))
+    if len(moves) < 2:
+        return ""
+    key = (lambda m: m[2]) if all(m[2] is not None for m in moves) else (lambda m: m[1])
+    moves.sort(key=key, reverse=True)
+
+    def said(m):
+        return f"{m[0]} ({m[2]:+.1%})" if m[2] is not None else f"{m[0]} ({fmt(m[1], spec, delta=True)})"
+
+    word = "growth" if spec.format != "percent" else "change"
+    return f" By {by.replace('_', ' ')}: highest {word} in {said(moves[0])}, lowest in {said(moves[-1])}."
 
 
 _VALUE_CONTEXT = {"quarter": 8, "month": 12, "year": 5}  # how many periods a plain value's chart shows
@@ -850,9 +907,14 @@ def metric_breakdown(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 def metric_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     spec = _spec(ctx, args["metric"])
     fs = ((ctx.outputs.get("contextualize") or {}).get("period") or {}).get("fiscal_start", 1)
-    r = _query(ctx, compile_metric(spec, grain=args.get("grain", "month"), fiscal_start=fs))
+    by = args.get("by")
+    r = _query(ctx, compile_metric(spec, grain=args.get("grain", "month"), fiscal_start=fs, by=[by] if by else None))
     df = r.frame()
     df["period"] = pd.to_datetime(df["period"]).dt.tz_localize(None)
+    if by:  # one series per member of the split, on the same months
+        members = {str(k): _frame_records(g.drop(columns=[by]).sort_values("period")) for k, g in df.groupby(by, sort=False)}
+        return {"metric": spec.name, "grain": args.get("grain", "month"), "by": by, "members": members,
+                "evidence": [_evidence(r, f"{spec.name} by month and {by}")]}
     return {"metric": spec.name, "grain": args.get("grain", "month"), "points": _frame_records(df),
             "evidence": [_evidence(r, f"{spec.name} by month")]}
 
@@ -966,6 +1028,7 @@ def correlate_metrics(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     p_raw = float(sps.pearsonr(sa, sb).pvalue)
     p_det = float(sps.pearsonr(da, dbv).pvalue)
     return _clean({"a": a.name, "b": b.name, "a_title": a.title, "b_title": b.title, "months": len(idx), "raw": raw, "raw_p": p_raw,
+                   "periods": list(idx), "a_values": [float(v) for v in sa], "b_values": [float(v) for v in sb],
                    "detrended": detrended, "detrended_p": p_det,
                    "evidence": [_evidence(ra, f"{a.name} by month"), _evidence(rb, f"{b.name} by month")]})
 
@@ -1571,6 +1634,14 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                       + ("Most of the raw correlation is shared growth, not a month-to-month relationship. " if shared else "")
                       + "Correlation is not causation; an intervention date or a control group would be needed to estimate an effect.")
             findings = [f"Raw Pearson r = {co['raw']:.2f} (p = {co['raw_p']:.3f}); detrended r = {co['detrended']:.2f} (p = {co['detrended_p']:.3f})."]
+            if co.get("periods") and co["a_values"][0] and co["b_values"][0]:
+                # two metrics in different units on one chart: each indexed to 100 in the first month
+                ia = [100 * v / co["a_values"][0] for v in co["a_values"]]
+                ib = [100 * v / co["b_values"][0] for v in co["b_values"]]
+                charts.append({"type": "line", "format": "number", "x": co["periods"], "y": ia,
+                               "title": f"{co['a_title']} and {co['b_title']}, indexed to 100 in "
+                                        f"{_month_label(co['periods'][0])}",
+                               "series": [{"name": co["a_title"], "y": ia}, {"name": co["b_title"], "y": ib}]})
         status = "complete"
     elif u["intent"] == "dashboard":
         db_ = o["dashboard"]
@@ -1836,7 +1907,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             rank = u.get("rank")
             then = o.get("breakdown_compare")
             if then and rows and cur:
-                answer, chart, table = _compare_members(spec, bd, then, cur["period"]["label"], then["period"]["label"])
+                answer, chart, table = _compare_members(spec, bd, then, cur["period"]["label"], then["period"]["label"],
+                                                        rank if rank and rank.get("growth") else None)
                 charts.append(chart)
                 tables.insert(0, table)
             elif rank and rows and cur:
@@ -1856,8 +1928,13 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                     answer = (answer.rstrip(".") + ". " if answer else "") + f"By {bd['by'].replace('_', ' ')}: {members}{more}."
         window = _trend_window(o["series"]["points"], u) if o.get("series") else []
         if o.get("series") and not o.get("forecast"):
-            charts.append({"type": "line", "title": f"{spec.title} by month",
-                           "x": [p["period"] for p in window], "y": [p["value"] for p in window], "format": spec.format})
+            chart = {"type": "line", "title": f"{spec.title} by month",
+                     "x": [p["period"] for p in window], "y": [p["value"] for p in window], "format": spec.format}
+            if o.get("series_by") and window:
+                # a line per member on the same months; "y" stays the total for any viewer that draws one line
+                chart["title"] = f"{spec.title} by month and {o['series_by']['by'].replace('_', ' ')}"
+                chart["series"] = _member_series(o["series_by"], [p["period"] for p in window])
+            charts.append(chart)
         if o.get("anomalies", {}).get("anomalies"):
             since = str(window[0]["period"])[:10] if u.get("horizon") and window else (
                 _shift_months(c["period"]["anchor"], -12) if c.get("period") else "")
@@ -1938,6 +2015,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                "y": [p["value"] for p in im["series"]], "format": spec.format})
         if not answer and window:
             answer = _trend_headline(spec, window, u)
+            if o.get("series_by") and charts and charts[-1].get("series"):
+                answer += _member_moves(spec, charts[-1]["series"], o["series_by"]["by"])
         if u.get("filters") and spec:
             assumptions.append("Filtered to " + ", ".join(f"{f['column']} = {f['value']}" for f in u["filters"]) + ".")
         status = "complete" if v["status"] != "failed" else "unverified"

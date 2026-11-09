@@ -2,8 +2,8 @@
  "cases": {
   "ambiguous": {
    "checks": {
-    "contains:cogs_ratio": true,
-    "contains:operating_margin": true,
+    "contains:COGS ratio": true,
+    "contains:operating margin": true,
     "finished": true,
     "status": true
    },
