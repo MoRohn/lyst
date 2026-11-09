@@ -14,16 +14,16 @@ import verdictLight from '../assets/product/verdict-light.png';
 import verdictDark from '../assets/product/verdict-dark.png';
 import brainLight from '../assets/product/brain-field-light.png';
 import brainDark from '../assets/product/brain-field-dark.png';
+import guideLight from '../assets/product/get-started-light.png';
+import guideDark from '../assets/product/get-started-dark.png';
+import choicesLight from '../assets/product/needs-choices-light.png';
+import choicesDark from '../assets/product/needs-choices-dark.png';
 import settingsLight from '../assets/product/settings-light.png';
 import settingsDark from '../assets/product/settings-dark.png';
 import trustLight from '../assets/product/data-trust-light.png';
 import trustDark from '../assets/product/data-trust-dark.png';
 import healthLight from '../assets/product/health-light.png';
 import healthDark from '../assets/product/health-dark.png';
-import paletteLight from '../assets/product/palette-light.png';
-import paletteDark from '../assets/product/palette-dark.png';
-import convoLight from '../assets/product/conversation-light.png';
-import convoDark from '../assets/product/conversation-dark.png';
 import specsLight from '../assets/product/specialists-light.png';
 import specsDark from '../assets/product/specialists-dark.png';
 
@@ -42,6 +42,15 @@ const views: View[] = [
     ],
   },
   {
+    id: 'setup', tab: 'Setup', img: guideLight, dark: guideDark,
+    alt: 'The Lyst Get started guide over Home: a progress ring at 3 of 4 with “One essential left”, a rail of essentials with the next one lit (“Let Lyst study the data”, with Study it), optional extras apart under “Make it yours” (invite the team, say what matters this year, connect a model), and Hide guide.',
+    callouts: [
+      { icon: 'CircleDashed', text: 'What is done, at a glance', x: '62%', y: '22%' },
+      { icon: 'MousePointerClick', text: 'One lit next step', x: '50%', y: '45%' },
+      { icon: 'Sparkle', text: 'Optional extras, kept apart', x: '52%', y: '61%' },
+    ],
+  },
+  {
     id: 'answer', tab: 'Answer', img: answerLight, dark: answerDark,
     alt: 'Lyst answering “Why did operating margin change last quarter?”: a Verified badge, the finding (32.5% in Q3 2026, down 3.5 points on Q2), one line on why it matters (the decline is concentrated in EMEA), the trust line “All 10 checks passed”, a monthly trend, what to do, and two folded layers: “Why, and the details” and “Method, checks and queries”.',
     callouts: [
@@ -54,17 +63,17 @@ const views: View[] = [
     id: 'verdict', tab: 'Verdict', img: verdictLight, dark: verdictDark,
     alt: 'Under a Lyst answer: four menus (Keep watch, Download, Share, More) and “Is this right?” with Right, Partly and Wrong; Partly is selected, with Undo, and an optional “What should it have said?” correction box with Save and Skip.',
     callouts: [
-      { icon: 'LayoutList', text: 'Four menus instead of a wall of buttons', x: '40%', y: '64%' },
-      { icon: 'ThumbsUp', text: 'Right, Partly or Wrong, with undo', x: '76%', y: '64%' },
-      { icon: 'PenLine', text: 'A correction Lyst recalls next time', x: '55%', y: '84%' },
+      { icon: 'LayoutList', text: 'Four menus instead of a wall of buttons', x: '48%', y: '52%' },
+      { icon: 'ThumbsUp', text: 'Right, Partly or Wrong, with undo', x: '78%', y: '52%' },
+      { icon: 'PenLine', text: 'A correction Lyst recalls next time', x: '60%', y: '76%' },
     ],
   },
   {
-    id: 'convo', tab: 'Chat', img: convoLight, dark: convoDark,
-    alt: 'Lyst replying in conversation to “What can you help me with here?”: a plain answer about what it can do with this workspace’s approved metrics and datasets, labelled “A reply from what’s in this workspace. Nothing was computed, so there was nothing to verify.”, followed by offers under “Want me to” and a follow-up box.',
+    id: 'choices', tab: 'Choices', img: choicesLight, dark: choicesDark,
+    alt: 'A Lyst answer marked Needs your input for “What was gross margin last quarter by product line?”: “margin” matches two approved metrics, so Lyst asks “Which gross margin do you mean?” with choices: I mean COGS ratio, I mean operating margin, always read it as either (adds it to the glossary), Not needed any more, and Something else.',
     callouts: [
-      { icon: 'MessageSquareText', text: 'Plain replies, honestly labelled', x: '70%', y: '33%' },
-      { icon: 'CornerDownRight', text: 'Say yes, or pick an offer', x: '62%', y: '47%' },
+      { icon: 'MessageCircleQuestion', text: 'One plain question', x: '62%', y: '37%' },
+      { icon: 'ListChecks', text: 'Pick a choice, and Lyst carries it out', x: '66%', y: '55%' },
     ],
   },
   {
@@ -85,11 +94,11 @@ const views: View[] = [
     ],
   },
   {
-    id: 'trust', tab: 'Trust', img: trustLight, dark: trustDark,
-    alt: 'A picked dataset in Lyst, “P&L from the ledger”, open below the flow with a one-sentence summary, Explore, Analyze and More, and its Quality tab: a repeated row at its grain that would double count sums (Fix first), a negative cost value and a missing revenue value (Worth a look), then its sensitivity and source of truth.',
+    id: 'trust', tab: 'Quality', img: trustLight, dark: trustDark,
+    alt: 'The “P&L from the ledger” dataset open as a sheet over Data, on its Quality view: rows, columns, data through and feeds as tiles, Review: 1 to fix, and “3 of 3 flagged rows need review” in a table: a negative COGS value with the flagged cell lit and Lyst’s suggested fix with its confidence, and a duplicate row Lyst suggests removing, each with Valid, Fix and Exclude, plus Let Lyst resolve.',
     callouts: [
-      { icon: 'TriangleAlert', text: 'Quality risks found on its own', x: '72%', y: '33.5%' },
-      { icon: 'MousePointerClick', text: 'Explore, Analyze or More', x: '50%', y: '30%' },
+      { icon: 'Table', text: 'Every flagged row, in one table', x: '40%', y: '52%' },
+      { icon: 'Sparkles', text: 'Lyst proposes; you approve', x: '62%', y: '45.5%' },
     ],
   },
   {
@@ -102,7 +111,7 @@ const views: View[] = [
   },
   {
     id: 'brain', tab: 'Brain', img: brainLight, dark: brainDark,
-    alt: 'Lyst Brain as a field of what it knows: collection pills (Everything 14, Metrics 6, Datasets 5, Terms, Memories, Answers), a search, and the field with Operating margin picked: lines to what it reads and where it is used, and a side panel with its value (32.4%), a trend, its definition, what it connects to, Ask about it and Open.',
+    alt: 'Lyst Brain as a field of what it knows, with the Metrics collection open and Operating margin picked: its links reach Monthly P&L and the answers it was used in, drawn dimmed at the field’s edge, and a side panel shows its value (32.4%), a trend, its definition, what it connects to, Ask about it and Open.',
     callouts: [
       { icon: 'Orbit', text: 'Everything Lyst knows, in one field', x: '18%', y: '78%' },
       { icon: 'Share2', text: 'Pick anything to see what it connects to', x: '33%', y: '47%' },
@@ -122,14 +131,6 @@ const views: View[] = [
     callouts: [
       { icon: 'ListChecks', text: 'Seven sections, one list', x: '19%', y: '72%' },
       { icon: 'Stethoscope', text: 'Lyst checks its own setup', x: '70%', y: '41%' },
-    ],
-  },
-  {
-    id: 'palette', tab: '⌘K', img: paletteLight, dark: paletteDark,
-    alt: 'The Lyst command palette (⌘K) searching “revenue forecast”: ask Lyst directly, matching metrics and saved analyses, and matching specialist expertise such as Forecasting Analyst and FP&A Analyst with their maturity levels.',
-    callouts: [
-      { icon: 'Command', text: 'Ask, jump or find from anywhere', x: '60%', y: '9%' },
-      { icon: 'GraduationCap', text: 'Expertise, with honest maturity', x: '58%', y: '79%' },
     ],
   },
   {
@@ -286,7 +287,7 @@ import { studio } from '../data/content';
     flex: none;
     white-space: nowrap;
     min-height: 32px;
-    padding: 0.2rem 0.8rem;
+    padding: 0.2rem 0.66rem;
     border: 0;
     border-radius: 6px;
     background: transparent;

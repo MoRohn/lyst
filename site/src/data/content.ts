@@ -90,7 +90,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Data as a flow, from source to metric', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Data as a flow, from source to metric', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -118,7 +118,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
-    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain: pick anything to see what it connects to', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
+    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain: pick anything to see what it connects to, across collections', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
 ];
@@ -176,7 +176,7 @@ export const enterprise = {
     { icon: 'ShieldHalf', title: 'Governed agent execution', text: 'Every object knows what can be done with it and by whom, the server re-checks each action, and anything that changes something asks a person first. Credentials stay encrypted and out of every error.', status: 'available' as Status },
     { icon: 'FileCheck', title: 'Evidence-based results', text: 'Any figure traces to its step, query, definition version, dataset version and source, and can be reproduced.', status: 'available' as Status },
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner. Approvals also work inside any AI SDK chat, under the same role checks.', status: 'available' as Status },
-    { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from.', status: 'available' as Status },
+    { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from. Flagged rows are reviewed in one table, and the fixes Lyst proposes apply only after approval, as a new dataset version you can undo.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
     { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable, governed learning', text: 'Verified analyses compile into versioned workflows that schedules can rerun; one that keeps failing, or gave an answer a person disputed, is held back with its reason. Only an admin takes back approved memory, and agent-observed memory expires after 365 days by default.', status: 'available' as Status },
@@ -189,8 +189,8 @@ export const workflow = {
   headline: 'A better way to get analytical work done.',
   steps: [
     { icon: 'MessageSquareText', title: 'Ask or assign', text: 'Type or speak in plain words. Lyst replies in conversation, offers next steps you accept with a yes, and turns a vague project into a living spec.' },
-    { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept.' },
-    { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze and verify each step, under one honest status from Preparing to Completed or Needs attention.' },
+    { icon: 'Map', title: 'Plan', text: 'Lyst discovers context and plans the work. On day one, it proposes your metrics and terms for an admin to accept, and a short Get started guide shows what is done and what is next.' },
+    { icon: 'Cog', title: 'Execute and verify', text: 'Agents execute, analyze and verify each step, under one honest status from Preparing to Completed or Needs attention. When Lyst needs a detail, it asks one plain question with choices and carries out your pick.' },
     { icon: 'PackageCheck', title: 'Deliver', text: 'Get the finding first, with the evidence one click away, then keep watch, download, share or say whether it was right. One next step is proposed for your approval.' },
   ],
 };
