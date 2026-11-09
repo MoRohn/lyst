@@ -15,6 +15,7 @@ from lyst.ui import (
     integrations,
     kit,
     onboarding,
+    quality,
     reports,
     scenarios,
     transforms,
@@ -354,6 +355,8 @@ def health(d: dict) -> tuple[str, str] | None:
 
 
 EXPLORE = ["Preview", "Columns", "Quality", "Relationships", "SQL", "Contract"]
+# risks the review table already shows row by row (lyst.quality); the rest (time gaps, personal data ...) stay listed
+ROW_LEVEL = ("missing_values", "negative_amount", "outliers")
 
 
 def explore(d: dict) -> None:
@@ -362,14 +365,14 @@ def explore(d: dict) -> None:
     view = st.segmented_control("Show", EXPLORE, default="Preview", label_visibility="collapsed",
                                 key=f"dsv_{name}") or "Preview"
     if view == "Quality":
-        ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
-        if not ins:
-            return
         anticipate.about("dataset", name, key=f"hf_d{name}")
-        risks = ins.get("risks") or []
-        if not risks:
-            st.caption(":material/check_circle: No quality risks found: no duplicate rows at its grain, no gaps in time, "
-                       "no unusual values.")
+        # the flagged rows themselves, for a person to review and Lyst to resolve; the table-level risks follow
+        q = quality.review(name, key=f"dq_{name}")
+        ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights")) or {}
+        listed = ROW_LEVEL + (("duplicates_at_grain",) if q and (q.get("counts") or {}).get("duplicate") else ())
+        risks = [r for r in ins.get("risks") or [] if q is None or r.get("kind") not in listed]
+        if risks:
+            kit.label("Also worth knowing")
         for k, r in enumerate(risks):
             text, tone = SEVERITY.get(r["severity"], (r["severity"], "info"))
             kit.row(r["text"], ", ".join(c.replace("_", " ") for c in r.get("columns", [])), status=(text, tone),
@@ -706,6 +709,14 @@ def objects(every: list[dict], src: dict) -> str | None:
     return pick
 
 
+def review_quality(name: str) -> None:
+    """Open a dataset's quality review in place: picked, explored, on its Quality view."""
+    st.session_state["data_pick"] = name
+    st.session_state["data_explore"] = name
+    st.session_state[f"dsv_{name}"] = "Quality"
+    st.rerun()
+
+
 def panel(d: dict, feeds: list[dict]) -> None:
     """The picked dataset, revealed below the objects: what it is in a sentence, then three moves. Explore opens
     its preview, columns, quality, relationships, SQL and contract; Analyze hands it to Lyst; More holds the rest."""
@@ -734,7 +745,10 @@ def panel(d: dict, feeds: list[dict]) -> None:
                          help=f"Lyst reads {d['title']} and reports what stands out"):
                 ask(f"Summarise {name}: what does it contain and what stands out?")
             with st.popover("More", icon=":material/more_horiz:", key=f"dm_{name}"):
-                if st.button("Check data quality", key=f"d{name}_dq", type="tertiary", icon=":material/rule:",
+                if st.button("Review data quality", key=f"d{name}_dq", type="tertiary", icon=":material/rule:",
+                             width="stretch", help="Flagged rows in one table: accept, fix, or let Lyst resolve them"):
+                    review_quality(name)
+                if st.button("Ask Lyst about its quality", key=f"d{name}_dqa", type="tertiary", icon=":material/fact_check:",
                              width="stretch"):
                     ask(f"Check {name} for gaps, duplicates and unusual values. What should I know before relying on it?")
                 qq = st.text_input("Ask about it", key=f"d{name}_q", placeholder=f"Ask about {d['title']}")
@@ -1207,6 +1221,9 @@ try:
     if (asked := st.query_params.get("dataset")) and any(d["name"] == asked for d in every):
         st.session_state["data_pick"] = asked  # a link from search, a pin or a source
         st.query_params.pop("dataset", None)
+        if st.query_params.pop("review", None) == "quality":  # "Review data quality" from anywhere opens it here
+            st.session_state["data_explore"] = asked
+            st.session_state[f"dsv_{asked}"] = "Quality"
     view = (st.query_params.get("view") or "").lower()
     if view in ADVANCED:
         advanced(view, catalog, src)

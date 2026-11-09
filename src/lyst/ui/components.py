@@ -349,11 +349,22 @@ def method(r: dict[str, Any]) -> None:
 
 def open_inline(r: dict[str, Any], key: str) -> bool:
     """Show the artifact the answer opens (its ``open`` pointer) in place. False when there is none to show."""
-    if not r.get("open"):
-        return False
     from lyst.ui import artifacts  # noqa: PLC0415
 
-    return artifacts.show_inline(r["open"], key=f"ans_{key}")
+    ref = r.get("open") or quality_ref(r)
+    if not ref:
+        return False
+    return artifacts.show_inline(ref, key=f"ans_{key}")
+
+
+def quality_ref(r: dict[str, Any]) -> dict[str, Any] | None:
+    """An answer made before quality answers carried their ``open`` pointer: one that ran the duplicate and empty-cell
+    checks on one dataset, with something flagged, still opens that dataset's review table."""
+    checks = {c.get("name"): c for c in (r.get("confidence") or {}).get("checks") or []}
+    sources = (r.get("supporting") or {}).get("sources") or []
+    if {"duplicates", "nulls"} <= set(checks) and len(sources) == 1 and not all(c.get("passed") for c in checks.values()):
+        return {"kind": "quality", "id": sources[0].get("dataset"), "title": "Flagged rows"}
+    return None
 
 
 def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
@@ -377,6 +388,8 @@ def answer(r: dict[str, Any], key: str = "answer", pdf: Any = None) -> None:
         if tl := trust_line(r):
             st.caption(md(tl))
         cav = caveats(r)
+        if (r.get("open") or quality_ref(r) or {}).get("kind") == "quality":  # the review table below shows them row by row
+            cav = [c for c in cav if not c.startswith(("Check not passed: duplicates", "Check not passed: nulls"))]
         if cav:
             st.warning(bullets(cav), icon=":material/info:")
         # an answer that made (or points to) an artifact opens it right here, the thing itself rather than a

@@ -180,6 +180,10 @@ class AmbientService:
         if name not in ds:
             raise KeyError(f"dataset {name}")
         out = [_action("dataset.open", "Open", "navigate", "See columns, health and contract", href=f"/data?dataset={name}")]
+        if self._can(actor, ws, "data.read"):
+            out.append(_action("dataset.quality", "Review data quality", "navigate",
+                               "Flagged rows in one table: accept each, fix it, or let Lyst propose the fixes",
+                               href=f"/data?dataset={name}&review=quality"))
         if self._can(actor, ws, "analyst.ask"):
             out.append(_action("dataset.profile", "Check data quality", "ask", "Profile it for duplicates, gaps, outliers and nulls",
                                question=f"Profile {name} for data quality issues"))

@@ -1040,7 +1040,8 @@ def validate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if q in o:
             qs = o[q]
             check("duplicates", qs["duplicate_rows"] == 0, f"{qs['duplicate_rows']} duplicate rows", "warning")
-            check("nulls", not qs["nulls"], f"null cells: {qs['nulls'] or 'none'}", "warning")
+            check("nulls", not qs["nulls"], "; ".join(f"{n:,} empty cell{'s' * (n != 1)} in {col}" for col, n in qs["nulls"].items())
+                  or "no empty cells", "warning")
     if "forecast" in o and o["forecast"].get("backtest_mape") is not None:
         mape = o["forecast"]["backtest_mape"]
         check("forecast_backtest", mape < 0.2, f"backtest MAPE {mape:.1%} over {o['forecast']['backtest_points']} months",
@@ -1509,7 +1510,10 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         findings = issues
         if issues:
             implications.append("Metrics built on the affected columns may be misstated until the issues are fixed.")
-            actions.append("Confirm with the dataset owner whether the flagged rows are errors or valid edge cases.")
+            actions.append("Review the flagged rows below: accept each as valid, fix it, or let Lyst propose the fixes. "
+                           "Nothing changes until a change is approved.")
+            # the flagged rows open in place as a review table, not a list of words
+            opens = {"kind": "quality", "id": p["dataset"], "title": f"Flagged rows in {p['dataset']}"}
         tables.append({"title": "Columns", "columns": ["name", "role", "dtype", "nulls", "unique"],
                        "rows": [[col["name"], col["role"], col["dtype"], col["nulls"], col["unique"]] for col in p["columns"]]})
         status = "complete"
