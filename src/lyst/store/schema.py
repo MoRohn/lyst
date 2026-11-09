@@ -1800,3 +1800,12 @@ CONTROL.append((
     CREATE INDEX task_resolutions_by_workspace ON task_resolutions (workspace_id, resolved_at)
     """,
 ))
+
+# Analyst autonomy lane (170-179). A monitor can watch one segment of a metric (an approved dimension and one of its
+# members, such as operating margin in EMEA): the follow-through an investigation recommends when a move is concentrated.
+WORKSPACE.append((
+    170,
+    """
+    ALTER TABLE monitors ADD COLUMN segment JSON
+    """,
+))

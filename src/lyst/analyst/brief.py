@@ -301,7 +301,8 @@ def business_brief(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     alerts: list[dict[str, Any]] = []
     if getattr(s, "monitors", None) is not None:
         try:
-            watched = {m["metric"] for m in s.monitors.list(ctx.actor, ctx.workspace_id) if m.get("enabled")}
+            watched = {m["metric"] for m in s.monitors.list(ctx.actor, ctx.workspace_id)
+                       if m.get("enabled") and not m.get("segment")}
             alerts = [{"summary": f["summary"], "metric": f["metric"], "task_id": f.get("task_id")}
                       for f in s.monitors.findings(ctx.actor, ctx.workspace_id, status="new", limit=5)]
         except Exception:  # noqa: BLE001 - alerts are context; a reader without access just gets none

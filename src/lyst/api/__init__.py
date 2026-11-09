@@ -170,6 +170,7 @@ class MonitorIn(BaseModel):
     every_seconds: int = 3600
     title: str | None = None
     investigate: bool = True
+    segment: dict[str, str] | None = None  # {"dimension": "region", "member": "EMEA"}: watch one segment
 
 
 class FindingStatus(BaseModel):
