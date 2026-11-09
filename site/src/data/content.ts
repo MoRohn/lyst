@@ -83,14 +83,14 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end. A single figure comes with its recent history, and what-ifs and forecasts read against the same last quarter as every other answer.',
-    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings', 'Year over year, for each member', 'Year to date against last year’s', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
+    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings', 'One named line per region', 'Year over year, for each member', 'Year to date against last year’s', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', 'Quality questions that run the check', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', '“Why did it change?” within one segment', 'Quality questions that run the check', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
@@ -103,8 +103,8 @@ export const capabilities: {
   {
     icon: 'Workflow',
     title: 'Automate',
-    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up. Ask for a brief and Lyst reads every approved metric for the last complete month or quarter, flags what moved more than it usually does and names the segment behind each move.',
-    items: ['Business briefs, repeated on a schedule after approval', 'Graph runs that plan, build, check and fix', 'Event rules, tried by dry run first', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets'],
+    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
+    items: ['Business briefs: what moved more than usual, and why', 'Briefs repeated on a schedule, after approval', 'Close checks: arrived, clean, ties out, flux', 'Graph runs that plan, build, check and fix', 'Event rules, tried by dry run first', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets'],
     status: 'available',
   },
   {
