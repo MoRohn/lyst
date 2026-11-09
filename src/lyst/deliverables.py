@@ -142,6 +142,8 @@ def workbook(result: dict[str, Any], task: dict[str, Any]) -> bytes:
                     ws.cell(row=i, column=col, value=v)
                 ws.column_dimensions[get_column_letter(col)].hidden = True
             colmap = helper
+        elif c.get("series"):
+            colmap = {"value": 2, "series": list(range(2, len(cols) + 1))}
         else:
             colmap = {"value": 2}
         chart = excel_chart(ws, c, first_row=start + 1, last_row=last, cols=colmap)

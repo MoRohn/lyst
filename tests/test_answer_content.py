@@ -160,3 +160,64 @@ def test_which_month_was_highest_names_the_month(seeded):
     best = pd.Timestamp(by_month.idxmax()).strftime("%b %Y")
     assert r["answer"].startswith(f"{best} had the highest revenue in 2025: ")
     assert r["charts"][0]["title"] == "Revenue by month" and len(r["charts"][0]["x"]) == 12
+
+
+def test_which_member_grew_fastest_is_ranked_by_growth(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Which product line grew revenue fastest this year?")["result"]
+    df = demo.pnl()
+    now = _q(df, "2026-01-01", "2026-10-01").groupby("product_line").revenue.sum()
+    then = _q(df, "2025-01-01", "2025-10-01").groupby("product_line").revenue.sum()
+    growth = ((now - then) / then).sort_values(ascending=False)
+    assert r["answer"].startswith(f"Fastest growth in revenue by product line, 2026 YTD versus 2025 YTD: {growth.index[0]} "
+                                  f"{growth.iloc[0]:+.1%}")
+    assert r["confidence"]["level"] == "verified"
+    assert r["charts"][0]["x"] == list(growth.index)  # the chart runs in the same order
+
+
+def test_a_trend_by_region_draws_a_line_per_region(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Show revenue trend by region")["result"]
+    df = demo.pnl()
+    chart = r["charts"][0]
+    assert chart["title"] == "Revenue by month and region" and len(chart["x"]) == 33
+    by = {s["name"]: s["y"] for s in chart["series"]}
+    assert set(by) == set(df.region.unique())
+    last = df[pd.to_datetime(df.month) == "2026-09-01"].groupby("region").revenue.sum()
+    assert {k: v[-1] for k, v in by.items()} == pytest.approx(last.to_dict(), rel=1e-9)
+    # the total stays as the chart's single line for viewers that draw one, and the headline names the extremes
+    assert chart["y"][-1] == pytest.approx(last.sum(), rel=1e-9)
+    first = df[pd.to_datetime(df.month) == "2024-01-01"].groupby("region").revenue.sum()
+    growth = ((last - first) / first).sort_values()
+    assert f"highest growth in {growth.index[-1]} ({growth.iloc[-1]:+.1%}), lowest in {growth.index[0]}" in r["answer"]
+
+
+def test_a_correlation_draws_both_series_on_one_indexed_chart(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Is revenue correlated with support tickets?")["result"]
+    chart = r["charts"][0]
+    assert chart["type"] == "line" and "indexed to 100 in Jan 2024" in chart["title"]
+    assert [s["y"][0] for s in chart["series"]] == pytest.approx([100.0, 100.0])
+    assert len(chart["series"]) == 2 and len(chart["x"]) == 33
+
+
+def test_downloads_draw_every_line(seeded):
+    import io
+
+    from openpyxl import load_workbook
+    from pptx import Presentation
+    from pypdf import PdfReader
+
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Show revenue trend by region")
+    regions = set(demo.pnl().region.unique())
+    _, xlsx = lyst.artifacts.get(owner, lyst.artifacts.build(owner, t, "xlsx")["id"])
+    wb = load_workbook(io.BytesIO(xlsx))
+    ws = next(wb[n] for n in wb.sheetnames if n.startswith("Revenue by month and"))
+    assert len(ws._charts[0].series) == len(regions)
+    _, pptx = lyst.artifacts.get(owner, lyst.artifacts.build(owner, t, "pptx")["id"])
+    chart = next(sh.chart for s in Presentation(io.BytesIO(pptx)).slides for sh in s.shapes if sh.has_chart)
+    assert {s.name for s in chart.plots[0].series} == regions and chart.has_legend
+    _, pdf = lyst.artifacts.get(owner, lyst.artifacts.build(owner, t, "pdf")["id"])
+    text = " ".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
+    assert all(region in text for region in regions)

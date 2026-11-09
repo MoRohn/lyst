@@ -201,6 +201,9 @@ def chart_rows(c: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
         rows += [[x, None, y, a, b] for x, y, a, b in zip(c["x"], c["y"], lo, hi, strict=False)]
         return cols, rows
     label = "category" if c.get("type") == "bar" else "period"
+    if c.get("series"):  # a line per member: one column each
+        cols = [label] + [str(s["name"]) for s in c["series"]]
+        return cols, [[x] + [s["y"][i] if i < len(s["y"]) else None for s in c["series"]] for i, x in enumerate(c["x"])]
     return [label, "value"], [[x, y] for x, y in zip(c["x"], c["y"], strict=False)]
 
 
@@ -214,6 +217,10 @@ def chart_alt(c: dict[str, Any]) -> str:
     name = {"forecast": "Forecast", "bar": "Bar chart"}.get(c.get("type"), "Line chart")
     text = (f"{name}: {c.get('title', '')}. {len(ys)} points from {period_label(xs[0])} to {period_label(xs[-1])}; "
             f"lowest {fmt(min(ys), kind)}, highest {fmt(max(ys), kind)}, last {fmt(ys[-1], kind)}.")
+    if c.get("series"):
+        last = [(str(s_["name"]), next((v for v in reversed(s_["y"]) if isinstance(v, int | float)), None)) for s_ in c["series"]]
+        return (f"{name}: {c.get('title', '')}. {len(c['series'])} lines from {period_label(xs[0])} to "
+                f"{period_label(xs[-1])}; last values " + ", ".join(f"{n} {fmt(v, kind)}" for n, v in last if v is not None) + ".")
     if c.get("type") == "forecast" and c.get("lo") and c.get("hi"):
         text += f" Interval at {period_label(c['x'][-1])}: {fmt(c['lo'][-1], kind)} to {fmt(c['hi'][-1], kind)}."
     return text

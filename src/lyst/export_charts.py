@@ -16,6 +16,8 @@ from typing import Any
 from .answer_view import ACCENT, BAND, BORDER, MUTED, TEXT, as_date, fmt, mix, period_label
 
 GRID = mix("#ffffff", BORDER, 0.9)
+# a line per member, in the light theme's categorical order (ui/tokens.py chartCategoricalColors): the accent first
+SERIES = ["#0B6B64", "#5b6577", "#d9822b", "#8a63d2", "#d64550", "#12A79B"]
 
 
 def nice_range(values: list[float], *, include_zero: bool = False, ticks: int = 5) -> tuple[float, float, float]:
@@ -80,7 +82,7 @@ def drawing(c: dict[str, Any], width: float = 480, height: float = 230, *, title
     kind = c.get("format", "number")
     d = Drawing(width, height)
     top_pad = 22 if title else 6
-    legend_h = 16 if c.get("type") == "forecast" else 0
+    legend_h = 16 if c.get("type") == "forecast" or c.get("series") else 0
     if title:
         d.add(String(0, height - 13, str(c.get("title", "")), fontName="Helvetica-Bold", fontSize=10, fillColor=col(TEXT)))
     left, bottom, right = 46.0, 24.0, 8.0
@@ -90,6 +92,8 @@ def drawing(c: dict[str, Any], width: float = 480, height: float = 230, *, title
         lo, hi, step = nice_range(ys, include_zero=True)
     else:
         allv = list(c.get("history_y") or []) + list(c.get("y") or []) + list(c.get("lo") or []) + list(c.get("hi") or [])
+        if c.get("series"):
+            allv = [v for s_ in c["series"] for v in s_["y"]]
         lo, hi, step = nice_range([v for v in allv if v is not None])
 
     def Y(v: float) -> float:  # noqa: N802
@@ -161,6 +165,17 @@ def drawing(c: dict[str, Any], width: float = 480, height: float = 230, *, title
                            strokeWidth=1.6, strokeDashArray=[2.5, 2.5] if draw == "dash" else None))
             d.add(String(lx + 20, ly - 3, name, fontName="Helvetica", fontSize=7.5, fillColor=col(TEXT)))
             lx += 26 + len(name) * 4.4
+    elif c.get("series"):
+        ly, lx = height - top_pad - 8, left
+        for i, s_ in enumerate(c["series"]):
+            color = col(SERIES[i % len(SERIES)])
+            line = pts(pos, s_["y"])
+            if len(line) >= 4:
+                d.add(PolyLine(line, strokeColor=color, strokeWidth=1.6, strokeLineJoin=1))
+            d.add(Line(lx, ly, lx + 12, ly, strokeColor=color, strokeWidth=1.8))
+            name = str(s_["name"])
+            d.add(String(lx + 15, ly - 3, name, fontName="Helvetica", fontSize=7.5, fillColor=col(TEXT)))
+            lx += 22 + len(name) * 4.4
     else:
         line = pts(pos, c["y"])
         if len(line) >= 4:
@@ -257,6 +272,22 @@ def excel_chart(ws, c: dict[str, Any], *, first_row: int, last_row: int, cols: d
         finish(ch)
         return ch
 
+    if c.get("series") and cols.get("series"):
+        ch = LineChart()
+        for i, col_ in enumerate(cols["series"]):
+            ch.add_data(Reference(ws, min_col=col_, min_row=first_row - 1, max_row=last_row), titles_from_data=True)
+            s = ch.series[i]
+            s.graphicalProperties.line.solidFill = SERIES[i % len(SERIES)].lstrip("#")
+            s.graphicalProperties.line.width = 19000
+            s.smooth = False
+            s.marker.symbol = "none"
+        ch.set_categories(cats)
+        ch.legend = Legend()
+        ch.legend.position = "t"
+        lo, hi, _ = nice_range([v for s_ in c["series"] for v in s_["y"] if v is not None])
+        finish(ch, lo, hi)
+        return ch
+
     if c.get("type") != "forecast":
         ch = LineChart()
         ch.add_data(ref("value"), titles_from_data=True)
@@ -334,6 +365,11 @@ def slide_chart(slide, c: dict[str, Any], x, y, w, h):
         data.categories = [str(x_) for x_ in c["x"]]
         data.add_series(str(c.get("title", "Value")), c["y"])
         ctype = XL_CHART_TYPE.COLUMN_CLUSTERED
+    elif c.get("series"):
+        data.categories = [period_label(x_) for x_ in c["x"]]
+        for s_ in c["series"]:
+            data.add_series(str(s_["name"]), s_["y"])
+        ctype = XL_CHART_TYPE.LINE
     else:
         data.categories = [period_label(x_) for x_ in c["x"]]
         data.add_series(str(c.get("title", "Value")), c["y"])
@@ -373,6 +409,16 @@ def slide_chart(slide, c: dict[str, Any], x, y, w, h):
 
     for ser in plot.series:
         ser.marker.style = XL_MARKER_STYLE.NONE
+    if c.get("series"):
+        for i, ser in enumerate(plot.series):
+            ser.format.line.color.rgb = rgb(SERIES[i % len(SERIES)])
+        chart.has_legend = True
+        chart.legend.position = XL_LEGEND_POSITION.TOP
+        chart.legend.include_in_layout = False
+        lo, hi, _ = nice_range([v for s_ in c["series"] for v in s_["y"] if v is not None])
+        va.minimum_scale, va.maximum_scale = lo, hi
+        _skip_labels(chart, len(c["x"]))
+        return gf
     if c.get("type") != "forecast":
         plot.series[0].format.line.color.rgb = rgb(ACCENT)
         chart.has_legend = False
