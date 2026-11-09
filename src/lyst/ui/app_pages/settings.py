@@ -34,8 +34,7 @@ def _providers():
 def credential_panel(scope_kind: str, scope_id: str | None, *, title: str, intro: str, key: str) -> None:
     """One scope's credentials: connect (masked, tested before it is saved), test, replace, revoke, history."""
     providers = _providers()
-    st.markdown(f"**{title}**")
-    st.caption(intro)
+    st.markdown(f"**{title}**", help=intro)  # who uses these, a hover away
     try:
         data = api.get("/v1/credentials", scope_kind=scope_kind, **({"scope_id": scope_id} if scope_id else {}))
     except APIError as e:
@@ -210,16 +209,18 @@ def models() -> None:
         where = "OpenRouter" if m["provider"] == "openrouter" else f"local endpoint {m['base_url']}"
         tier = f", {m['tier']} tier" if m.get("tier") else ", pinned model"
         via = cred.get("model_credential")
-        st.write(f"{where}{tier}. Calls walk: " + " → ".join(f"`{x}`" for x in m["attempts"])
-                 + (f". Credential: *{via['name']}* ({via['scope']} scope)." if via else "."))
-        st.caption("Every call goes through Lyst's gateway: pooled admission, adaptive limits, retries with fallback to "
-                   "the next model, and per-workload routing, as in Acumane. Models see definitions and computed findings, "
-                   "never dataset rows, and text is redacted before it leaves.")
+        more = len(m["attempts"]) - 1
+        st.markdown(f"{where}{tier}" + (f", then {more} fallback{'s' * (more != 1)} if a call fails." if more > 0 else "."),
+                    help="Calls go in this order: " + " → ".join(m["attempts"])
+                    + (f". Credential: {via['name']} ({via['scope']} scope)." if via else ".")
+                    + " Every call goes through Lyst's gateway: pooled admission, adaptive limits, retries with fallback "
+                      "to the next model, and per-workload routing. Models see definitions and computed findings, never "
+                      "dataset rows, and text is redacted before it leaves.")
         if not s.get("model_ready") and admin:
             st.info("This workspace is not allowed to use an external provider yet. Turn it on below.", icon=":material/toggle_off:")
     elif s.get("provider") == "openrouter":
-        st.write("No model credential is connected yet. Lyst plans with rules and writes answers from templates; every number "
-                 "comes from SQL either way.")
+        st.markdown("No model connected yet.", help="Without one, Lyst plans with rules and writes answers from "
+                    "templates. Every number comes from SQL either way.")
         quick_scope = ("installation", None) if cred.get("installation_admin") else \
             (("workspace", ws) if owner and (cred.get("policy") or {}).get("workspace_override") else None)
         if quick_scope:
@@ -259,8 +260,9 @@ def models() -> None:
                else f"the snapshot shipped with Lyst ({fetched}); it is replaced by OpenRouter's live catalog on the next refresh")
         basis_txt = (f"this workspace's average call over 30 days ({b['input_tokens']:,} tokens in, {b['output_tokens']:,} out)"
                      if b["observed"] else "a typical call of 800 tokens in and 400 out")
-        st.caption(md(f"Prices are OpenRouter's published per-token prices, from {src}. Estimates use {basis_txt}; "
-                      "the cost OpenRouter reports for each call is what Model usage records."))
+        st.caption("Estimated cost per call at each level.", help=f"Prices are OpenRouter's published per-token prices, "
+                   f"from {src}. Estimates use {basis_txt}; the cost OpenRouter reports for each call is what Model usage "
+                   "records.")
         cols = st.columns(3)
         for col, t in zip(cols, opts["tiers"], strict=True):
             with col.container(border=True):
@@ -283,9 +285,8 @@ def models() -> None:
                     icon=":material/push_pin:")
         where = {"workspace": "chosen for this workspace", "installation": "the installation default",
                  "default": "Lyst's default"}[sel["source"]]
-        st.caption(md(f"Now: {where}. Calls walk {' → '.join(f'`{x}`' for x in sel['attempts'][:6])}"
-                      + (" …" if len(sel["attempts"]) > 6 else "")
-                      + (f". This installation allows tiers up to {sel['ceiling']}." if sel["ceiling"] != "frontier" else ".")))
+        st.caption(f"Now: {where}" + (f", up to the {sel['ceiling']} level this installation allows." if sel["ceiling"] != "frontier" else "."),
+                   help="Calls go in this order: " + " → ".join(sel["attempts"][:6]) + (" …" if len(sel["attempts"]) > 6 else ""))
         with st.container(horizontal=True, gap="small", key="set_model_moves"):
             if admin and st.button("Choose a model", icon=":material/tune:", key="set_model_pick"):
                 model_sheet(opts)
@@ -370,8 +371,9 @@ def installation_sheet(inst: dict) -> None:
 
 def connections() -> None:
     """Users manage connections; Lyst manages the secrets."""
-    st.caption("Entered once, tested, sealed with AES-256-GCM under a master key kept outside the database, and never "
-               "shown again. Every connect, test, replace, revoke and use is on a tamper-evident record.")
+    st.caption(":material/lock: Tested, sealed and never shown again.", help="Entered once, tested, sealed with AES-256-GCM "
+               "under a master key kept outside the database, and never shown again. Every connect, test, replace, revoke "
+               "and use is on a tamper-evident record.")
     personal = bool((cred.get("policy") or {}).get("user_credentials"))
     names = ["This workspace"] + (["Installation"] if cred.get("installation_admin") else []) + (["Personal"] if personal else [])
     tabs = st.tabs(names)
@@ -513,9 +515,25 @@ def _audit_rows(log: list[dict]) -> pd.DataFrame:
 
 @st.dialog("Audit trail", width="large")
 def audit_sheet(log: list[dict]) -> None:
-    st.caption("Every change, query and decision in this workspace, newest first. The trail is hash-chained, so an "
-               "edit to a past entry is detected.")
+    st.caption("Every change, query and decision, newest first.", help="The trail is hash-chained, so an edit to a past "
+               "entry is detected.")
     st.dataframe(_audit_rows(log), hide_index=True, width="stretch", height=520)
+
+
+PAST = {"write": "saved", "create": "created", "version": "versioned", "compile": "compiled", "delete": "deleted",
+        "update": "updated", "approve": "approved", "reject": "rejected", "revoke": "revoked", "test": "tested",
+        "run": "ran", "publish": "published", "connect": "connected", "replace": "replaced", "use": "used",
+        "login": "signed in", "invite": "invited", "decide": "decided", "cancel": "stopped", "retry": "retried"}
+NOUN = {"task": "A question", "memory": "A memory", "asset": "An asset", "workflow": "A repeatable analysis",
+        "metric": "A metric", "dataset": "A dataset", "credential": "A credential", "policy": "The data policy"}
+
+
+def audit_title(action: str) -> str:
+    """'memory.write' reads 'A memory saved'; anything unknown reads 'Memory · write', as before."""
+    noun, _, verb = str(action).partition(".")
+    if noun in NOUN and verb in PAST:
+        return f"{NOUN[noun]} {PAST[verb]}"
+    return str(action).replace("_", " ").replace(".", " · ").capitalize()
 
 
 def audit() -> None:
@@ -529,10 +547,16 @@ def audit() -> None:
     if not log:
         st.caption("Nothing recorded yet.")
         return
+    try:
+        names = {p["user_id"]: p.get("name") or p["email"].split("@")[0] for p in api.get(f"/v1/workspaces/{ws}/members")}
+    except APIError:
+        names = {}
     with kit.card("grp_audit"):
-        for i, r in enumerate(log[:4]):
-            kit.row(str(r["action"]).replace("_", " ").replace(".", " · ").capitalize(),
-                    " · ".join(x for x in (r.get("target"), kit.when(r["occurred_at"]), r.get("outcome")) if x),
+        for i, r in enumerate(log[:4]):  # in words; the ids stay in the full trail
+            kit.row(audit_title(r["action"]),
+                    " · ".join(x for x in (names.get(r.get("actor"), "Lyst" if not r.get("actor") else "Someone"),
+                                           kit.when(r["occurred_at"]),
+                                           None if r.get("outcome") in (None, "ok") else str(r["outcome"])) if x),
                     key=f"aud_{i}", divider=i < min(len(log), 4) - 1)
     if st.button(f"All {len(log):,} entries", type="tertiary", icon=":material/history:", key="set_audit_all"):
         audit_sheet(log)

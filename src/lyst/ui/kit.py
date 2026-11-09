@@ -102,7 +102,7 @@ div[class*="st-key-sqlr_"] button {min-height: 0; padding: .1rem 0; justify-cont
 [data-testid="stSidebarNavLink"][aria-current="page"] span {font-weight: var(--lyst-weight-strong);}
 /* cards (kit.card): raised, soft edge, a gentle lift when they hold an action */
 div[class*="st-key-lyst_card"] {background: var(--lyst-raised); border: 1px solid var(--lyst-edge);
-  border-radius: var(--lyst-radius-lg); box-shadow: var(--lyst-shadow-1); padding: 1rem 1.1rem .7rem 1.1rem;
+  border-radius: var(--lyst-radius-lg); box-shadow: var(--lyst-shadow-1); padding: 1rem 1.1rem 1.05rem 1.1rem;
   transition: box-shadow var(--lyst-motion-base) var(--lyst-motion-ease), transform var(--lyst-motion-base) var(--lyst-motion-ease);}
 div[class*="st-key-lyst_card"]:hover {box-shadow: var(--lyst-shadow-2); transform: translateY(-1px);}
 div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
