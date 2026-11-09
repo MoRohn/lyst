@@ -464,6 +464,13 @@ where they point, with Mark all read and "What to tell me about".
   such as "product line Hardware"), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
+* **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
+  briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
+  month or quarter (or the one you name), flags what moved more than that metric usually does, against last period
+  or a year ago (so a step change that then holds flat is still caught), names runs in one direction and the segment
+  behind each big move, and lists open alerts, approvals waiting and how current the data is. Metrics with no data
+  for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
+  "Every Monday at 8" repeats it, after approval.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
   raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
   model wording verified against the computed numbers.
