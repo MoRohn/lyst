@@ -167,31 +167,43 @@ def needs_you_lists() -> None:
 
 
 def bell() -> None:
-    """Notifications in the sidebar foot: what was said to or about me, with preferences for what to hear about."""
+    """Notifications in the rail's foot: what was said to or about me, with preferences for what to hear about. The
+    icon carries the unread count; the menu opens beside the rail."""
+    from lyst.ui import foot  # noqa: PLC0415 - foot styles the rail's icons
+
     api, ws = _ctx()
     try:
         unread = api.get(f"/v1/workspaces/{ws}/notifications", unread=True)
     except APIError:
         return
     label = f"Notifications · {len(unread)}" if unread else "Notifications"
-    # an icon in the sidebar foot; the container's key lets the stylesheet show a dot while something is unread
+    foot.badge(len(unread))
+    # an icon in the rail's foot; the container's key lets the stylesheet draw the count while something is unread
     with st.container(key="lyst_side_bell_new" if unread else "lyst_side_bell"), \
-            st.popover(label, icon=":material/notifications:", help=label):
+            st.popover(label, icon=":material/notifications:"):
+        count = f'<span class="lyst-foot-count">{len(unread)} new</span>' if unread else "<span>Nothing new</span>"
+        st.html(f'<div class="lyst-foot-pop lyst-foot-bell lyst-foot-head"><b>Notifications</b>{count}</div>')
         if not unread:
-            st.caption("Nothing new.")
+            st.html('<div class="lyst-foot-empty"><span class="lyst-foot-ic" aria-hidden="true">notifications_off</span>'
+                    "<b>You're all caught up</b><span>Mentions, hand-offs and reviews for you show up here.</span></div>")
         for n in unread[:12]:
-            c = st.columns([5, 1.2], vertical_alignment="center")
-            c[0].markdown(md(f"{n['text']}  \n") + f":gray[{kit.when(n['created_at'])}]")
-            if c[1].button("Open", key=f"nt_{n['id']}", type="tertiary"):
-                kit.guarded(lambda x=n: api.post(f"/v1/workspaces/{ws}/notifications/{x['id']}/read", {}))
-                if n.get("object_kind") in ("task", "metric", "dataset", "asset"):
-                    open_object(n["object_kind"], n["object_id"])
-                elif n.get("object_kind") == "finding":
-                    from lyst.ui import work  # noqa: PLC0415
+            with st.container(key=f"lyst_note_{n['id']}"):
+                c = st.columns([5, 1.3], vertical_alignment="center", gap="small")
+                c[0].markdown(md(f"{n['text']}  \n") + f":gray[{kit.when(n['created_at'])}]")
+                if c[1].button("Open", key=f"nt_{n['id']}", type="tertiary"):
+                    kit.guarded(lambda x=n: api.post(f"/v1/workspaces/{ws}/notifications/{x['id']}/read", {}))
+                    if n.get("object_kind") in ("task", "metric", "dataset", "asset"):
+                        open_object(n["object_kind"], n["object_id"])
+                    elif n.get("object_kind") == "finding":
+                        from lyst.ui import work  # noqa: PLC0415
 
-                    work.go("recurring")
-                st.rerun()
-        if unread and st.button("Mark all read", type="tertiary", key="nt_all"):
+                        work.go("recurring")
+                    st.rerun()
+        if len(unread) > 12:
+            st.caption(f"and {len(unread) - 12} more")
+        st.html('<hr class="lyst-foot-rule">')
+        if unread and st.button("Mark all read", type="tertiary", key="nt_all", icon=":material/done_all:",
+                                width="stretch"):
             for n in unread:
                 kit.guarded(lambda x=n: api.post(f"/v1/workspaces/{ws}/notifications/{x['id']}/read", {}))
             st.rerun()

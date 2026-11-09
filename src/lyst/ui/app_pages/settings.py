@@ -7,7 +7,7 @@ Voice, Privacy & Security, Preferences, Advanced), Lyst's own check of the setup
 import pandas as pd
 import streamlit as st
 
-from lyst.ui import advanced, anticipate, governance, integrations, kit, onboarding, packs, voice, zone
+from lyst.ui import advanced, anticipate, foot, governance, integrations, kit, onboarding, packs, voice, zone
 from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
@@ -545,8 +545,9 @@ def account() -> None:
     me = api.get("/v1/me")
     spaces = me.get("workspaces") or []
     who = me.get("name") or me["email"]
-    st.html(f'<div class="lyst-set-me"><span class="lyst-set-avatar" aria-hidden="true">{kit._esc(who[:1].upper())}</span>'
-            f'<span><b>{kit._esc(who)}</b><br>{kit._esc(me["email"]) if who != me["email"] else ""}'
+    email = kit._esc(me["email"]) + "<br>" if who != me["email"] else ""
+    st.html(f'<div class="lyst-set-me"><span class="lyst-set-avatar" aria-hidden="true">{kit._esc(foot.initials(who))}'
+            f'</span><span><b>{kit._esc(who)}</b><br>{email}'
             f'{kit._esc(s["role"].capitalize())} of {kit._esc(s["workspace"]["name"])}</span></div>')
     with kit.group(f"Your workspaces · {len(spaces)}", "spaces"):
         for i, w in enumerate(spaces):

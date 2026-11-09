@@ -61,13 +61,16 @@ def _card(t: Term) -> str:
             f'</summary><p>{_esc(t.more)}</p></details>')
 
 
-def html() -> str:
-    """The glossary as one block of HTML for ``st.html``: groups of cards, each opening on its own."""
+def html(*, title: bool = True) -> str:
+    """The glossary as one block of HTML for ``st.html``: groups of cards, each opening on its own. Without its own
+    title it sits as a section of a larger menu (the rail's Help), under a quiet label."""
     groups = "".join(f'<section aria-label="{_esc(name)}"><p class="lyst-gloss-group">{_esc(name)}</p>'
                      f'<div class="lyst-gloss-grid">{"".join(_card(t) for t in terms)}</div></section>'
                      for name, terms in GROUPS)
-    return ('<div class="lyst-gloss"><p class="lyst-gloss-title">What these words mean</p>'
-            '<p class="lyst-gloss-hint">Tap a word for more.</p>' + groups + "</div>")
+    head = ('<p class="lyst-gloss-title">What these words mean</p>' if title
+            else '<p class="lyst-foot-label">What these words mean</p>')
+    cls = "lyst-gloss" if title else "lyst-gloss lyst-gloss-sub"
+    return f'<div class="{cls}">{head}<p class="lyst-gloss-hint">Tap a word for more.</p>{groups}</div>'
 
 
 CSS = """
