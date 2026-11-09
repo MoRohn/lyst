@@ -221,3 +221,16 @@ def test_downloads_draw_every_line(seeded):
     _, pdf = lyst.artifacts.get(owner, lyst.artifacts.build(owner, t, "pdf")["id"])
     text = " ".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
     assert all(region in text for region in regions)
+
+
+def test_a_segment_ratio_investigation_verifies_and_keeps_the_acronym(seeded):
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Investigate why cogs ratio in EMEA changed in Q3 2026 and test alternative explanations")
+    r = t["result"]
+    checks = {c["name"]: c for c in r["confidence"]["checks"]}
+    assert checks["parts_reconcile"]["passed"], checks["parts_reconcile"]
+    assert not r["answer"].startswith("Not verified") and "cOGS" not in r["answer"]
+    assert "COGS ratio (EMEA)" in r["answer"]
+    # the history behind it is EMEA's, not the whole company's
+    quarters = next(c for c in r["charts"] if c["title"] == "COGS ratio (EMEA) by quarter")
+    assert f"was {quarters['y'][-1]:.1%} in Q3 2026" in r["answer"]
