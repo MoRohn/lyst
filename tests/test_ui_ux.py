@@ -279,7 +279,7 @@ def test_a_built_dataset_explains_how_it_is_made(seeded, ui):  # noqa: F811
     at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
     at.run()
     at.switch_page("app_pages/data.py")
-    at.session_state["data_pick"] = "pnl"  # a picked dataset's More holds it
+    at.session_state["data_open"] = {"kind": "dataset", "id": "pnl"}  # an open dataset's More holds it
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     assert any(b.label == "Build a dataset from data Lyst has" for b in at.button)

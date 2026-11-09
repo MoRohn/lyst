@@ -119,8 +119,8 @@ div[class*="st-key-data_ask_s"] button:hover {background: var(--lyst-surface);}
   div[data-testid="stColumn"]:has(div.st-key-lyst_card_sql_library) {order: 2;}
 }
 /* ---------------------------------------------------------------- Data, as objects
-   A title, one search and one way in; Lyst's one line; the sources and datasets as objects; the picked dataset
-   opens below them, its depth (preview, columns, quality, SQL...) one more gesture away. */
+   A title, one search and one way in; Lyst's one line; the sources, datasets and metrics as a flow; whatever is
+   clicked opens as a sheet over the page (below), never under the flow. */
 .block-container:has(.lyst-data) {padding-top: 3.2rem;}
 h1.lyst-data-title {font-size: 2.6rem; letter-spacing: -.035em; font-weight: 640;}
 div.st-key-data_tools {gap: .5rem;}
@@ -128,32 +128,72 @@ div.st-key-data_tools [data-testid="stTextInputRootElement"] {border-radius: var
   background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1); border-color: var(--lyst-edge) !important;}
 div.st-key-data_tools button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.5rem;}
 div.st-key-data_more button {background: transparent !important; box-shadow: none !important; border-color: transparent !important;}
-div.st-key-data_src_strip {margin-top: .9rem; padding: .55rem .6rem .55rem 1rem; border-radius: var(--lyst-radius-pill);
-  background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1); width: fit-content; max-width: 100%; flex-wrap: wrap;}
-div.st-key-data_src_strip button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.1rem;}
-p.lyst-data-src {margin: 0; font-size: var(--lyst-size-sm); color: var(--lyst-text-muted);}
-p.lyst-data-src b {color: var(--lyst-text); font-weight: var(--lyst-weight-medium);}
 p.lyst-data-read {color: var(--lyst-text-muted); margin: .1rem 0 1.4rem 0; font-size: .95rem;}
 div[class*="st-key-read_"] {margin: -.2rem 0 1.1rem -.5rem;}
 div[class*="st-key-read_"] button {color: var(--lyst-text); font-size: .95rem; border-radius: var(--lyst-radius-pill);
   padding: .3rem .7rem; min-height: 0;}
 div[class*="st-key-read_"] button:hover {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);}
 div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .8rem;}
-div.st-key-data_panel {margin-top: 1.4rem; padding: 1.5rem 1.6rem 1.3rem; border-radius: 22px; background: var(--lyst-raised);
-  border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-3); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
-.lyst-panel-kicker {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted); text-transform: uppercase;
-  letter-spacing: var(--lyst-tracking-label); font-weight: 600;}
-.lyst-panel-kicker code {text-transform: none; letter-spacing: 0; font-size: .75rem; padding: .05rem .35rem;}
-h2.lyst-panel-title {font-size: 1.55rem; letter-spacing: -.02em; margin: .25rem 0 0 0; padding: 0; font-weight: 650;}
-p.lyst-panel-read {font-size: 1rem; line-height: 1.55; max-width: 48rem; margin: .4rem 0 .9rem 0;}
-div.st-key-data_moves button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.4rem; padding: 0 1rem;}
-div.st-key-data_close button {color: var(--lyst-text-muted); justify-content: flex-end;}
-div.st-key-data_close button p {position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);}
 div.st-key-data_back button {color: var(--lyst-text-muted); padding-left: 0;}
 @media (max-width: 640px) {
   .block-container:has(.lyst-data) {padding-top: 4rem;}
   h1.lyst-data-title {font-size: 2rem;}
-  div.st-key-data_panel {padding: 1.1rem 1rem; border-radius: 18px;}
+}
+/* ---------------------------------------------------------------- sheets over the flow
+   A dataset, a source or a metric opens over the page: its face, what it is in a sentence, its state as chips, its
+   numbers as tiles, then its moves, then its depth. */
+[data-testid="stDialog"]:has(.lyst-sh) [role="dialog"] > div:first-child {font-size: 1.45rem; font-weight: 650;
+  letter-spacing: -.02em;}
+.lyst-sh {display: flex; gap: 1.1rem; align-items: flex-start;}
+.lyst-sh-face {flex: none; width: 4.4rem; height: 4.4rem; border-radius: 20px; display: grid; place-items: center;
+  background: var(--lyst-surface); border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-1);}
+.lyst-sh-shape {display: flex; align-items: flex-end; gap: 3px; height: 2.1rem; max-width: 3.3rem; overflow: hidden;}
+.lyst-sh-shape i {flex: none; width: 5px; border-radius: 2px;}
+.lyst-sh-shape .k-n {background: var(--lyst-accent);}
+.lyst-sh-shape .k-t {background: color-mix(in srgb, var(--lyst-text-muted) 45%, transparent);}
+.lyst-sh-shape .k-d {background: color-mix(in srgb, var(--lyst-info) 70%, transparent);}
+.lyst-sh-shape .k-b, .lyst-sh-shape .k-o {background: color-mix(in srgb, var(--lyst-text-muted) 28%, transparent);}
+.lyst-sh-icon {font-family: "Material Symbols Rounded"; font-size: 2rem; line-height: 1; color: var(--lyst-accent); font-variation-settings: "FILL" 0, "wght" 400;}
+.lyst-sh-head {min-width: 0; flex: 1;}
+.lyst-sh-kicker {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted); text-transform: uppercase;
+  letter-spacing: var(--lyst-tracking-label); font-weight: 600; padding-top: .25rem;}
+.lyst-sh-kicker code {text-transform: none; letter-spacing: 0; font-size: .74rem; padding: .05rem .35rem;}
+p.lyst-sh-read {font-size: 1rem; line-height: 1.55; margin: .35rem 0 0 0; max-width: 46rem;}
+.lyst-sh-chips {display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .6rem;}
+.lyst-sh-chip {display: inline-flex; align-items: center; gap: .4rem; border-radius: var(--lyst-radius-pill);
+  padding: .18rem .7rem; font-size: var(--lyst-size-xs); font-weight: var(--lyst-weight-medium);
+  background: var(--lyst-surface); border: 1px solid var(--lyst-edge); color: var(--lyst-text-muted);}
+.lyst-sh-chip i {width: .45rem; height: .45rem; border-radius: 50%; background: currentColor; opacity: .9;}
+.lyst-sh-chip.ok, .lyst-sh-chip.verified {color: var(--lyst-good);}
+.lyst-sh-chip.warn {color: var(--lyst-warn); border-color: color-mix(in srgb, var(--lyst-warn) 40%, transparent);}
+.lyst-sh-chip.bad {color: var(--lyst-bad); border-color: color-mix(in srgb, var(--lyst-bad) 40%, transparent);}
+.lyst-sh-chip.off i {display: none;}
+.lyst-sh-stats {display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: .6rem; margin: 1.1rem 0 .2rem 0;}
+.lyst-sh-stat {background: var(--lyst-surface); border: 1px solid var(--lyst-edge); border-radius: 16px;
+  padding: .75rem .95rem .7rem; min-width: 0;}
+.lyst-sh-stat b {display: block; font-size: 1.3rem; font-weight: 650; letter-spacing: -.015em; line-height: 1.2;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.lyst-sh-stat span {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted);}
+.lyst-sh-label {font-size: var(--lyst-size-xs); color: var(--lyst-text-muted); text-transform: uppercase;
+  letter-spacing: var(--lyst-tracking-label); font-weight: 600; margin-right: .2rem;}
+hr.lyst-sh-rule {border: 0; border-top: 1px solid var(--lyst-border); margin: .2rem 0 .1rem 0;}
+.lyst-sh-trend {display: flex; flex-direction: column; gap: .3rem;}
+.lyst-sh-trend svg {width: 100%; height: auto;}
+div.st-key-dsh_moves {flex-wrap: wrap;}
+div.st-key-dsh_moves button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.4rem; padding: 0 1rem;}
+div.st-key-dsh_feeds {flex-wrap: wrap; gap: .4rem;}
+div[class*="st-key-dsf_"] button {border-radius: var(--lyst-radius-pill) !important; min-height: 2rem; padding: 0 .8rem;
+  font-size: var(--lyst-size-sm); background: var(--lyst-surface) !important; box-shadow: none !important;}
+div[class*="st-key-dsf_"] [data-testid="stIconMaterial"] {color: var(--lyst-accent);}
+div[class*="st-key-dsv_"] [role="radiogroup"] {gap: .3rem; flex-wrap: wrap;}
+div[class*="st-key-dsv_"] button[data-variant="segmented_control"] {border-radius: var(--lyst-radius-pill) !important;
+  padding: 0 .95rem; min-height: 2.2rem;}
+@media (max-width: 640px) {
+  .lyst-sh {gap: .8rem;}
+  .lyst-sh-face {width: 3.4rem; height: 3.4rem; border-radius: 16px;}
+  .lyst-sh-shape {height: 1.7rem; max-width: 2.6rem;}
+  .lyst-sh-stats {grid-template-columns: repeat(2, minmax(0, 1fr));}
+  .lyst-sh-stat b {font-size: 1.1rem;}
 }
 /* nothing here yet: a dashed panel, as on the canvas */
 div[class*="st-key-data_empty"] {border: 1px dashed var(--lyst-border); border-radius: var(--lyst-radius-xl);
@@ -190,6 +230,7 @@ def dataset_name(filename: str) -> str:
 
 
 def ask(question: str) -> None:
+    close_sheet()  # leaving the page: the sheet is not waiting here on the way back
     out = kit.guarded(lambda: api.ask(ws, question))
     if out:
         st.session_state.task_id = out["task_id"]
@@ -362,12 +403,12 @@ ROW_LEVEL = ("missing_values", "negative_amount", "outliers")
 def explore(d: dict) -> None:
     """A dataset, opened up: preview, columns, quality, relationships, SQL and contract, one at a time."""
     name = d["name"]
-    view = st.segmented_control("Show", EXPLORE, default="Preview", label_visibility="collapsed",
-                                key=f"dsv_{name}") or "Preview"
+    st.session_state.setdefault(f"dsv_{name}", "Preview")
+    view = st.segmented_control("Show", EXPLORE, label_visibility="collapsed", key=f"dsv_{name}") or "Preview"
     if view == "Quality":
         anticipate.about("dataset", name, key=f"hf_d{name}")
         # the flagged rows themselves, for a person to review and Lyst to resolve; the table-level risks follow
-        q = quality.review(name, key=f"dq_{name}")
+        q = quality.review(name, key=f"dq_{name}", in_dialog=True)  # drawn in the dataset's sheet
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights")) or {}
         listed = ROW_LEVEL + (("duplicates_at_grain",) if q and (q.get("counts") or {}).get("duplicate") else ())
         risks = [r for r in ins.get("risks") or [] if q is None or r.get("kind") not in listed]
@@ -409,6 +450,7 @@ def explore(d: dict) -> None:
         st.code(q, language="sql")
         if st.button("Open in the SQL workspace", icon=":material/terminal:", key=f"sqlo_{name}", type="tertiary"):
             _set_sql(q)
+            close_sheet()
             st.query_params["view"] = "sql"
             st.rerun()
     else:
@@ -519,8 +561,8 @@ def contract(name: str) -> None:
                            f"{OUTCOME.get(k['outcome'], (k['outcome'], ''))[0]}")
 
 
-@st.dialog("Sync a table", width="large")
-def sync(conn: dict) -> None:
+def sync_body(conn: dict, *, after: object = None) -> None:
+    """Load one of a source's tables as a dataset. ``after`` runs once it synced (a sheet goes back to the source)."""
     try:
         tables = api.get(f"/v1/workspaces/{ws}/connections/{conn['id']}/tables")
     except APIError as e:
@@ -544,7 +586,14 @@ def sync(conn: dict) -> None:
             if r:
                 st.toast(f"{r['dataset']}: {r['rows_added']:,} rows added, {r['rows_total']:,} in total"
                          + ("; the schedule awaits approval" if r.get("schedule") else ""), icon=":material/check:")
+                if callable(after):
+                    after()
                 st.rerun()
+
+
+@st.dialog("Sync a table", width="large")
+def sync(conn: dict) -> None:
+    sync_body(conn)
 
 
 def enrich(catalog: list[dict]) -> list[dict]:
@@ -640,33 +689,8 @@ def uses_for(feeds: dict[str, list[dict]], every: list[dict]) -> list[dict]:
     return sorted(out.values(), key=lambda u: (u["from"][0], u["title"]))
 
 
-def source_strip(every: list[dict], src: dict) -> None:
-    """With a source picked: one line about it, and the way into its detail (health, settings, sync) as a sheet."""
-    where = st.session_state.get("data_source") or "all"
-    if where in ("all", "+"):
-        return
-    n = sum(1 for d in every if source_of(d, src["conns"]) == where)
-    conn = next((c for c in src["conns"] if c["id"] == where), None)
-    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="data_src_strip"):
-        if conn:
-            state = _state(conn, src["health"].get(conn["id"]) or {})[0]
-            st.html(f'<p class="lyst-data-src"><b>{kit._esc(conn["name"])}</b> · {kit._esc(conn["kind"])} · '
-                    f'{kit._esc(state)} · gives {n} dataset{"s" * (n != 1)}</p>')
-            if st.button("Manage source", key="data_src_manage", icon=":material/tune:", type="secondary"):
-                source_detail(conn["id"])
-        else:
-            label = {"files": "Files you uploaded", "built": "Datasets Lyst built"}.get(where, where)
-            st.html(f'<p class="lyst-data-src"><b>{kit._esc(label)}</b> · gives {n} dataset{"s" * (n != 1)}</p>')
-            if where == "files" and editor and st.button("Upload a file", key="data_src_upload", icon=":material/upload:"):
-                st.session_state["add_how_pick"] = "Upload a file"
-                add_data()
-        if st.button("Show everything", key="data_src_all", type="tertiary", icon=":material/close:"):
-            st.session_state["data_source"] = "all"
-            st.rerun()
-
-
 def objects(every: list[dict], src: dict) -> str | None:
-    """Sources and datasets as objects. Returns the dataset picked, if any (kept across reruns and pages)."""
+    """Sources, datasets and what they feed, as a flow. A click opens the thing as a sheet over the page."""
     q = (st.session_state.get("ds_find") or "").strip().lower()
     where = st.session_state.get("data_source") or "all"
     # a picked source lights its path rather than hiding the rest, so the whole flow stays in view
@@ -693,75 +717,265 @@ def objects(every: list[dict], src: dict) -> str | None:
     ev = getattr(res, "action", None)
     if isinstance(ev, dict) and ev.get("nonce") != st.session_state.get("_data_nonce"):
         st.session_state["_data_nonce"] = ev.get("nonce")
-        if ev.get("type") == "source" and ev.get("id") == "+":
+        oid = str(ev.get("id") or ev.get("name") or "")
+        if ev.get("type") == "source" and oid == "+":
             st.session_state["add_how_pick"] = "Connect a source"
             add_data()
         elif ev.get("type") == "source":
-            st.session_state["data_source"] = str(ev.get("id") or "all")
+            if oid == "all":
+                close_sheet()
+            else:
+                open_sheet("source", oid)
             st.rerun()
-        elif ev.get("type") == "use":  # a metric the data feeds: its definition, where Brain keeps it
-            st.switch_page("app_pages/brain.py", query_params={"view": "definitions", "metric": str(ev.get("id") or "")})
-        elif ev.get("type") == "pick":
-            name = str(ev.get("name") or "")
-            st.session_state["data_pick"] = None if name == pick else name
-            st.session_state.pop("data_explore", None)
+        elif ev.get("type") == "use":  # a metric the data feeds: what it is and where its number comes from
+            open_sheet("metric", oid)
+            st.rerun()
+        elif ev.get("type") == "pick" and oid:
+            open_sheet("dataset", oid)
             st.rerun()
     return pick
 
 
-def review_quality(name: str) -> None:
-    """Open a dataset's quality review in place: picked, explored, on its Quality view."""
-    st.session_state["data_pick"] = name
-    st.session_state["data_explore"] = name
-    st.session_state[f"dsv_{name}"] = "Quality"
+# ------------------------------------------------------------------------------------------ sheets over the flow
+# Whatever is clicked in the flow opens as a sheet over the page, never below it: a dataset, a source, an approved
+# metric (and a source's Sync). What is open is kept in session state, so a sheet survives the reruns its own
+# controls cause, one sheet can lead to another (a source to its dataset, a dataset to the metric it feeds), and
+# closing it (×, Escape, a click outside) puts the flow back as it was.
+
+SHEET_ICON = {"dataset": ":material/table_chart:", "source": ":material/cable:", "metric": ":material/speed:",
+              "sync": ":material/sync:"}
+SOURCE_WORDS = {"files": ("Files", "Spreadsheets, tables and documents you uploaded."),
+                "built": ("Built by Lyst", "Datasets Lyst built from data it already has, each with the checks that "
+                          "prove it adds up.")}
+
+
+def open_sheet(kind: str, oid: str, *, view: str | None = None) -> None:
+    """Open ``kind``/``oid`` as the sheet over the flow (on the page's next run), lighting its path underneath."""
+    st.session_state["data_open"] = {"kind": kind, "id": oid}
+    if kind == "dataset":
+        st.session_state["data_pick"] = oid
+        if view:
+            st.session_state[f"dsv_{oid}"] = view
+    elif kind in ("source", "sync"):
+        st.session_state["data_pick"] = None
+        st.session_state["data_source"] = oid
+    else:
+        st.session_state["data_pick"] = None
+
+
+def close_sheet() -> None:
+    """The sheet is closed (or the page is left): nothing open, nothing picked, the whole flow in view."""
+    st.session_state.pop("data_open", None)
+    st.session_state["data_pick"] = None
+    st.session_state["data_source"] = "all"
+
+
+def _go_sheet(kind: str, oid: str, *, view: str | None = None) -> None:
+    """From one sheet to another: a full run, so the sheet's title and contents are the new thing's."""
+    open_sheet(kind, oid, view=view)
     st.rerun()
 
 
-def panel(d: dict, feeds: list[dict]) -> None:
-    """The picked dataset, revealed below the objects: what it is in a sentence, then three moves. Explore opens
-    its preview, columns, quality, relationships, SQL and contract; Analyze hands it to Lyst; More holds the rest."""
+def review_quality(name: str) -> None:
+    """Open a dataset's quality review: its sheet, on the Quality view."""
+    _go_sheet("dataset", name, view="Quality")
+
+
+def _face(types: list[str]) -> str:
+    """A dataset's face, as on its card in the flow: one bar per column, coloured by what the column holds. Drawn
+    in plain elements (the page's HTML drops inline SVG), so its colours follow the theme's tokens."""
+    bars = "".join(f'<i class="k-{t}" style="height:{h / 28:.0%}"></i>'
+                   for i, t in enumerate(types[:14] or ["o"])
+                   for h in [28 if t == "d" else 18 + ((i * 5) % 10) if t == "n" else 9 if t == "b" else 13])
+    return f'<span class="lyst-sh-shape" aria-hidden="true">{bars}</span>'
+
+
+def _hero(face: str, kicker: str, read: str, chips: list[tuple[str, str]], stats: list[tuple[str, str]]) -> None:
+    """A sheet's head: its face, what kind of thing it is, what it is in a sentence, its state, its numbers."""
+    chip = "".join(f'<span class="lyst-sh-chip {kit._esc(t)}"><i></i>{kit._esc(c)}</span>' for c, t in chips if c)
+    nums = "".join(f'<div class="lyst-sh-stat"><b>{kit._esc(v)}</b><span>{kit._esc(k)}</span></div>' for k, v in stats)
+    st.html(f'<div class="lyst-sh"><div class="lyst-sh-face">{face}</div><div class="lyst-sh-head">'
+            f'<div class="lyst-sh-kicker">{kicker}</div>'
+            + (f'<p class="lyst-sh-read">{kit._esc(read)}</p>' if read else "")
+            + (f'<div class="lyst-sh-chips">{chip}</div>' if chip else "") + "</div></div>"
+            + (f'<div class="lyst-sh-stats">{nums}</div>' if nums else ""))
+
+
+def _icon_face(name: str) -> str:
+    return f'<span class="material-symbols-rounded lyst-sh-icon" aria-hidden="true">{kit._esc(name)}</span>'
+
+
+def _source_label(sid: str, src: dict) -> str:
+    conn = next((c for c in src["conns"] if c["id"] == sid), None)
+    return conn["name"] if conn else SOURCE_WORDS.get(sid, (sid, ""))[0]
+
+
+def _rows_of(d: dict) -> int:
+    return int(d.get("rows") or d.get("row_count") or 0)
+
+
+def dataset_sheet(d: dict, feeds: list[dict], src: dict) -> None:
+    """A dataset, opened over the flow: what it is, whether to rely on it, what it feeds, the moves, then its depth
+    (preview, columns, quality, relationships, SQL, contract) one view at a time."""
     from lyst.ui import actions, activity  # noqa: PLC0415
 
     name = d["name"]
-    with st.container(key="data_panel"):
-        top = st.columns([6, 1], vertical_alignment="top")
-        top[0].html(f'<div class="lyst-panel-kicker">{kit._esc(str(d.get("classification", "")).capitalize())}'
-                    f' · <code>{kit._esc(name)}</code></div><h2 class="lyst-panel-title">{kit._esc(d["title"])}</h2>')
-        if top[1].button("Close", key="data_close", type="tertiary", icon=":material/close:", width="stretch"):
-            st.session_state["data_pick"] = None
-            st.rerun()
-        said = d.get("summary") or d.get("description") or ""
-        if feeds:
-            said += f" Feeds {', '.join(m['title'] for m in feeds[:3])}{' and more' if len(feeds) > 3 else ''}."
-        st.html(f'<p class="lyst-panel-read">{kit._esc(said.replace("_", " "))}</p>')
-        with st.container(horizontal=True, gap="small", vertical_alignment="center", key="data_moves"):
-            on = st.session_state.get("data_explore") == name
-            if st.button("Explore", key=f"dx_{name}", icon=":material/unfold_less:" if on else ":material/open_in_full:",
-                         type="primary" if not on else "secondary",
-                         help=f"Preview, columns, quality, relationships, SQL and contract of {d['title']}"):
-                st.session_state["data_explore"] = None if on else name
+    h = health(d)
+    fresh = (d.get("freshness") or {}).get("latest")
+    sid = source_of(d, src["conns"])
+    said = (d.get("summary") or d.get("description") or "").replace("_", " ")
+    kicker = (f'Dataset · from {kit._esc(_source_label(sid, src))} · <code>{kit._esc(name)}</code>')
+    chips = [h if h else ("Ready to use", "ok")]
+    if d.get("classification"):
+        chips.append((str(d["classification"]).capitalize(), "off"))
+    _hero(_face([kind_of(c.get("type", "")) for c in d.get("schema") or []]), kicker, said, chips,
+          [("rows", f"{_rows_of(d):,}"), ("columns", str(len(d.get("schema") or []))),
+           ("data through", _month(fresh) or "—"), ("feeds", f"{len(feeds)} metric{'s' * (len(feeds) != 1)}")])
+    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="dsh_moves"):
+        if h and h[1] in ("bad", "warn") and st.button(f"Review: {h[0].lower()}", key=f"dsq_{name}", type="primary",
+                                                        icon=":material/rule:"):
+            st.session_state[f"dsv_{name}"] = "Quality"
+        if st.button("Analyze", key=f"da_{name}", icon=":material/auto_awesome:",
+                     type="secondary" if h and h[1] in ("bad", "warn") else "primary",
+                     help=f"Lyst reads {d['title']} and reports what stands out"):
+            ask(f"Summarise {name}: what does it contain and what stands out?")
+        with st.popover("Ask about it", icon=":material/chat_bubble:", key=f"dq_pop_{name}"):
+            qq = st.text_input("Ask about it", key=f"d{name}_q", placeholder=f"Ask about {d['title']}",
+                               label_visibility="collapsed")
+            if st.button("Use in analysis", key=f"d{name}_use", type="primary", icon=":material/arrow_upward:",
+                         disabled=not qq.strip(), width="stretch"):
+                ask(f"Using {name}: {qq.strip()}")
+        with st.popover("More", icon=":material/more_horiz:", key=f"dm_{name}"):
+            if st.button("Review data quality", key=f"d{name}_dq", type="tertiary", icon=":material/rule:",
+                         width="stretch", help="Flagged rows in one table: accept, fix, or let Lyst resolve them"):
+                st.session_state[f"dsv_{name}"] = "Quality"
+            if st.button("Ask Lyst about its quality", key=f"d{name}_dqa", type="tertiary", icon=":material/fact_check:",
+                         width="stretch"):
+                ask(f"Check {name} for gaps, duplicates and unusual values. What should I know before relying on it?")
+            if editor and st.button("Build a dataset from data Lyst has", type="tertiary", icon=":material/add:",
+                                    key="tf_open", width="stretch"):
+                close_sheet()
+                st.session_state["_data_then"] = "build"
                 st.rerun()
-            if st.button("Analyze", key=f"da_{name}", icon=":material/auto_awesome:",
-                         help=f"Lyst reads {d['title']} and reports what stands out"):
-                ask(f"Summarise {name}: what does it contain and what stands out?")
-            with st.popover("More", icon=":material/more_horiz:", key=f"dm_{name}"):
-                if st.button("Review data quality", key=f"d{name}_dq", type="tertiary", icon=":material/rule:",
-                             width="stretch", help="Flagged rows in one table: accept, fix, or let Lyst resolve them"):
-                    review_quality(name)
-                if st.button("Ask Lyst about its quality", key=f"d{name}_dqa", type="tertiary", icon=":material/fact_check:",
-                             width="stretch"):
-                    ask(f"Check {name} for gaps, duplicates and unusual values. What should I know before relying on it?")
-                qq = st.text_input("Ask about it", key=f"d{name}_q", placeholder=f"Ask about {d['title']}")
-                if st.button("Use in analysis", key=f"d{name}_use", type="primary", icon=":material/arrow_upward:",
-                             disabled=not qq.strip(), width="stretch"):
-                    ask(f"Using {name}: {qq.strip()}")
-                if editor and st.button("Build a dataset from data Lyst has", type="tertiary", icon=":material/add:",
-                                        key="tf_open", width="stretch"):
-                    transforms.build()
-                activity.panel("dataset", name, key=f"dsact_{name}", admin=st.session_state.get("role") in ("admin", "owner"))
-                actions.menu("dataset", name, page="data", label="Actions", exclude=("dataset.open",), inline=True)
-        if st.session_state.get("data_explore") == name:
-            explore(d)
+            activity.panel("dataset", name, key=f"dsact_{name}", admin=st.session_state.get("role") in ("admin", "owner"))
+            actions.menu("dataset", name, page="data", label="Actions", exclude=("dataset.open",), inline=True)
+    if feeds:
+        with st.container(horizontal=True, gap="small", vertical_alignment="center", key="dsh_feeds"):
+            st.html('<span class="lyst-sh-label">Feeds</span>', width="content")
+            for m in feeds:
+                if st.button(m.get("title") or m["name"], key=f"dsf_{name}_{m['name']}", icon=":material/speed:",
+                             help=f"What {m.get('title') or m['name']} is and where its number comes from"):
+                    _go_sheet("metric", m["name"])
+    st.html('<hr class="lyst-sh-rule">')
+    st.session_state.setdefault(f"dsv_{name}", "Preview")
+    explore(d)
+
+
+def source_sheet(sid: str, every: list[dict], src: dict) -> None:
+    """A source, opened over the flow: a connection's health and what to do about it, or the files and built
+    datasets with what they give. Every dataset it gives opens as its own sheet."""
+    conn = next((c for c in src["conns"] if c["id"] == sid), None)
+    if conn:
+        connection_body(sid, in_flow=True)
+        return
+    label, about = SOURCE_WORDS.get(sid, (sid, ""))
+    gives = sorted((d for d in every if source_of(d, src["conns"]) == sid), key=lambda d: d["title"])
+    latest = max(((d.get("freshness") or {}).get("latest") or "" for d in gives), default="")
+    staged = src["staged"] if sid == "files" else []
+    _hero(_icon_face("description" if sid == "files" else "construction"), f"Source · {kit._esc(label)}", about,
+          [(f"{len(staged)} upload{'s' * (len(staged) != 1)} waiting for review", "warn")] if staged else [],
+          [("datasets", str(len(gives))), ("rows", f"{sum(_rows_of(d) for d in gives):,}"),
+           ("data through", _month(latest) or "—")])
+    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="dsh_moves"):
+        if sid == "files" and editor and st.button("Upload a file", key="ssh_upload", icon=":material/upload:",
+                                                   type="primary"):
+            close_sheet()
+            st.session_state["_data_then"] = "upload"
+            st.rerun()
+        if staged and editor and st.button("Review uploads", key="ssh_staged", icon=":material/inbox:"):
+            close_sheet()
+            go("sources")
+    kit.label(f"What it gives · {len(gives)}")
+    _dataset_rows(gives, key=f"ssh_{sid}")
+
+
+def _dataset_rows(gives: list[dict], *, key: str) -> None:
+    if not gives:
+        st.caption("No datasets from it yet.")
+        return
+    with kit.card(f"{key}_list"):
+        for i, d in enumerate(gives):
+            fresh = (d.get("freshness") or {}).get("latest")
+            if kit.row(d["title"], " · ".join(x for x in (f"{_rows_of(d):,} rows", f"through {_month(fresh)}"
+                                                          if fresh else None) if x),
+                       status=health(d), actions=[("Open", "open")], key=f"{key}_{d['name']}",
+                       divider=i < len(gives) - 1):
+                _go_sheet("dataset", d["name"])
+
+
+def metric_sheet(mid: str, every: list[dict]) -> None:
+    """An approved metric the data feeds, opened over the flow: its latest value and trend, what it means, how it
+    is calculated and the datasets it reads. Its full definition (versions, retiring) stays in Brain."""
+    from lyst.semantic import MetricSpec, value_expr  # noqa: PLC0415
+
+    m = next((x for ms in _metrics_by_dataset().values() for x in ms if x["name"] == mid), None)
+    if not m:
+        st.caption("This metric is no longer approved.")
+        return
+    title = m.get("title") or mid.replace("_", " ")
+    p = visuals.pulse(api, ws).get(mid) or {}
+    dims = ", ".join(x.replace("_", " ") for x in m.get("dimensions") or [])
+    _hero(_icon_face("speed"), f"Approved metric · <code>{kit._esc(mid)}</code>",
+          m.get("description") or f"{title}, as the workspace agreed to calculate it.",
+          [("Higher is better", "ok") if m.get("higher_is_better") is True else
+           ("Lower is better", "ok") if m.get("higher_is_better") is False else ("", "")],
+          [("latest" + (f" · {p['period']}" if p.get("period") else ""), str(p.get("value_text") or "—")),
+           ("split by", dims or "nothing"), ("over time by", str(m.get("time_column") or "—").replace("_", " "))])
+    if p.get("history"):
+        with kit.card(f"msh_{mid}_trend"):
+            st.html(f'<div class="lyst-sh-trend"><div>{visuals.delta(p.get("change_text", "") + " vs prior "
+                                                                     + str(p.get("grain", "period")), p.get("good"))}'
+                    f'</div>{visuals.spark(p["history"], label=f"{title}, last {len(p["history"])} "
+                                           f"{p.get("grain", "period")}s", height=72, width=760)}</div>')
+    with st.container(horizontal=True, gap="small", vertical_alignment="center", key="dsh_moves"):
+        if st.button("Ask about it", key=f"msh_ask_{mid}", type="primary", icon=":material/auto_awesome:"):
+            ask(f"How has {title} moved recently, and why?")
+        if st.button("Open in Brain", key=f"msh_brain_{mid}", icon=":material/psychology:",
+                     help="Its full definition: versions, synonyms and who owns it"):
+            close_sheet()
+            st.switch_page("app_pages/brain.py", query_params={"view": "definitions", "metric": mid})
+    kit.label("How it's calculated")
+    try:
+        st.code(value_expr(MetricSpec.model_validate(m)), language="sql")
+    except Exception:  # noqa: BLE001 - an older definition the current spec cannot read: say so rather than fail
+        st.caption("Its formula is shown in Brain.")
+    reads = [d for d in every if d["name"] == m.get("dataset")]
+    kit.label("Reads")
+    _dataset_rows(reads, key=f"msh_{mid}")
+
+
+def sheet(every: list[dict], src: dict) -> None:
+    """Draw the open sheet, if any, over the page."""
+    o = st.session_state.get("data_open")
+    if not isinstance(o, dict):
+        return
+    kind, oid = o.get("kind"), str(o.get("id") or "")
+    d = next((x for x in every if x["name"] == oid), None)
+    conn = next((c for c in src["conns"] if c["id"] == oid), None)
+    if kind == "dataset" and d:
+        title, body = d["title"], lambda: dataset_sheet(d, _metrics_by_dataset().get(oid) or [], src)
+    elif kind == "source" and (conn or oid in SOURCE_WORDS):
+        title, body = _source_label(oid, src), lambda: source_sheet(oid, every, src)
+    elif kind == "metric":
+        m = next((x for ms in _metrics_by_dataset().values() for x in ms if x["name"] == oid), None)
+        title, body = (m or {}).get("title") or oid.replace("_", " "), lambda: metric_sheet(oid, every)
+    elif kind == "sync" and conn:
+        title, body = f"Sync a table from {conn['name']}", lambda: sync_body(conn, after=lambda: open_sheet("source", oid))
+    else:
+        close_sheet()
+        return
+    st.html('<span class="lyst-sheet-open" hidden></span>')
+    st.dialog(title, width="large", icon=SHEET_ICON.get(str(kind)), on_dismiss=close_sheet)(body)()
 
 
 @st.dialog("How the data connects", width="large")
@@ -842,20 +1056,39 @@ ACTION = {"test": "Test", "discover": "List tables", "read": "Read", "load": "Lo
 
 @st.dialog("Source", width="large")
 def source_detail(cid: str) -> None:
-    """Why a source is healthy or not, what to do about it, what it feeds, and what happened recently."""
+    connection_body(cid)
+
+
+def connection_body(cid: str, *, in_flow: bool = False) -> None:
+    """Why a source is healthy or not, what to do about it, what it feeds, and what happened recently. ``in_flow``:
+    drawn as the Data flow's sheet, where its datasets and Sync open as sheets of their own."""
     h = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/connections/{cid}/health"))
     if not h:
         return
     text, tone = STATE.get(h["state"], (h["state"], "info"))
-    top = st.columns([4, 1.4], vertical_alignment="center")
-    top[0].markdown(f"**{md(h['name'])}** · {h['kind']}")
-    kit.chip(text, tone, top[1])
+    day = h.get("last_24h") or {}
+    if in_flow:
+        _hero(_icon_face("api" if "rest" in h["kind"] or "api" in h["kind"] else "database"),
+              f"Source · {kit._esc(h['kind'])}",
+              "Lyst reads it with least privilege and never writes back; each table loads as a versioned dataset.",
+              [(text, tone)], [("datasets", str(len(h.get("tables") or []))),
+                               ("last worked", kit.when(h.get("last_success_at")) or "never"),
+                               ("operations, 24 h", str(day.get("operations", 0))),
+                               ("errors, 24 h", str(day.get("errors", 0)))])
+        with st.container(horizontal=True, gap="small", vertical_alignment="center", key="dsh_moves"):
+            if st.button("Test", icon=":material/network_check:", key=f"src_test_{cid}", type="primary"):
+                kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/connections/{cid}/test"), "Connection works")
+            if editor and st.button("Sync a table", icon=":material/sync:", key=f"src_sync_{cid}"):
+                _go_sheet("sync", cid)
+    else:
+        top = st.columns([4, 1.4], vertical_alignment="center")
+        top[0].markdown(f"**{md(h['name'])}** · {h['kind']}")
+        kit.chip(text, tone, top[1])
     if h.get("required_action"):
         st.error(md(h["required_action"]), icon=":material/build:")
     anticipate.about("connection", cid, key=f"hf_c{cid}")
     for r in h.get("reasons") or []:
         st.caption(md(r))
-    day = h.get("last_24h") or {}
     st.caption(" · ".join(x for x in (
         f"last worked {kit.when(h.get('last_success_at'))}" if h.get("last_success_at") else "has not worked yet",
         f"last failed {kit.when(h.get('last_failure_at'))}" if h.get("last_failure_at") else None,
@@ -880,6 +1113,8 @@ def source_detail(cid: str) -> None:
                 (f"repeats {EVERY.get(sched.get('every_seconds'), 'on a schedule').lower()}"
                  + ("" if sched.get("enabled") else " (awaiting approval)")) if sched else None) if x),
                 status=status, actions=[("Open", "open")], key=f"st_{cid}_{k}", divider=k < len(tables) - 1):
+            if in_flow:
+                _go_sheet("dataset", t["dataset"])
             st.query_params["dataset"] = t["dataset"]
             st.rerun()
     cred = h.get("credential")
@@ -898,6 +1133,8 @@ def source_detail(cid: str) -> None:
                 "Cause": CATEGORY.get(e.get("category"), e.get("category") or ""), "Message": e.get("message") or "",
                 "Attempts": e.get("attempts"), "Time": f"{e['ms']} ms" if e.get("ms") is not None else ""} for e in ev]),
                 hide_index=True, width="stretch", height=min(38 + 35 * len(ev), 360))
+    if in_flow:
+        return
     b = st.columns([1.2, 1.2, 4])
     if b[0].button("Test", icon=":material/network_check:", key=f"src_test_{cid}"):
         kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/connections/{cid}/test"), "Connection works")
@@ -1189,10 +1426,7 @@ def focus(every: list[dict], src: dict) -> None:
         more = f" · {len(flagged) - 1} more" if len(flagged) > 1 else ""
         if st.button(f"{c['title']}: {h[0].lower()} before you rely on it{more}", key=f"read_{c['name']}_open",
                      type="tertiary", icon=":material/fiber_manual_record:", help=sentence):
-            st.session_state["data_pick"] = c["name"]
-            st.session_state["data_explore"] = c["name"]
-            st.session_state[f"dsv_{c['name']}"] = "Quality"
-            st.rerun()
+            review_quality(c["name"])
     elif staged and editor:
         if st.button(f"{staged} upload{'s' * (staged != 1)} waiting for review", key="read_staged", type="tertiary",
                      icon=":material/fiber_manual_record:"):
@@ -1219,11 +1453,9 @@ try:
     if st.query_params.get("connection"):  # a link to one source opens it where sources live
         st.query_params["view"] = "sources"
     if (asked := st.query_params.get("dataset")) and any(d["name"] == asked for d in every):
-        st.session_state["data_pick"] = asked  # a link from search, a pin or a source
-        st.query_params.pop("dataset", None)
-        if st.query_params.pop("review", None) == "quality":  # "Review data quality" from anywhere opens it here
-            st.session_state["data_explore"] = asked
-            st.session_state[f"dsv_{asked}"] = "Quality"
+        st.query_params.pop("dataset", None)  # a link from search, a pin or a source opens it as a sheet
+        # "Review data quality" from anywhere opens the sheet on its Quality view
+        open_sheet("dataset", asked, view="Quality" if st.query_params.pop("review", None) == "quality" else None)
     view = (st.query_params.get("view") or "").lower()
     if view in ADVANCED:
         advanced(view, catalog, src)
@@ -1240,10 +1472,15 @@ try:
                 add_data()
         else:
             focus(every, src)
-            pick = objects(every, src)
-            source_strip(every, src)
-            if pick:
-                panel(next(d for d in every if d["name"] == pick), _metrics_by_dataset().get(pick) or [])
+            objects(every, src)
+            then = st.session_state.pop("_data_then", None)  # a sheet's move that opens a sheet of its own
+            if then == "build" and editor:
+                transforms.build()
+            elif then == "upload" and editor:
+                st.session_state["add_how_pick"] = "Upload a file"
+                add_data()
+            else:
+                sheet(every, src)
             onboarding.data_suggestions()
         zone.board("data")
 except APIError as e:
