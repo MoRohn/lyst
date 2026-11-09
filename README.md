@@ -110,10 +110,11 @@ Suggested, Needs you, In progress and Done, scoped to the page with an **Everywh
 it, hold it (or press M) for its actions, or drag it to another column to propose that move, with each column
 saying what a drop would do; the keyboard works too (arrows, and Space to pick up and drop), every change asks for
 confirmation and goes through the usual approvals and permissions, and viewers can only open cards. On desktop
-the navigation is a 72px icon rail: Lyst's mark, then Home, Data, Brain and Settings, with search (Ctrl/⌘+K opens
-the palette from anywhere), notifications, the glossary and your account (role, workspace switcher, sign out) at
-its foot. Every icon shows its label on hover and keyboard focus; on a phone the menu opens as a sheet with
-words.
+the navigation is a 72px icon rail: Lyst's mark, then Home, Data, Brain and Settings, and at its foot, on the same
+centre line: search (Ctrl/⌘+K opens the palette from anywhere), notifications (a count badge, unread dots, Mark all
+read), help (the keys Lyst answers to, the glossary and the version) and your account (an avatar with your
+initials, your role and workspace, the workspace switcher, Settings and Sign out). Every icon shows its label on
+hover and keyboard focus, and each menu opens beside the rail; on a phone the menu opens as a sheet with words.
 
 | Area | What you do there |
 |---|---|
@@ -236,9 +237,14 @@ briefing, a deck, an Excel workbook or Markdown, each carrying everything the an
 editable charts in Excel and slides, vector charts in the PDF, an embedded chart with its data in Markdown).
 **Share** assigns it, asks for a review or publishes it. **More** holds Discuss, What if, Compare options, How this
 ran (each step, query and model call with its timing and tokens) and what Lyst can do with this answer right now:
-break it down, compare it, explain it, make a dashboard, or repeat it (marked as needing approval). One suggested
-next step leads, with the rest folded away, and **How was this figured?** answers where it is from, what could
-change it and whether it can be repeated, from the engine's own records.
+break it down, compare it, explain it, make a dashboard, or repeat it (marked as needing approval). Below them is one
+**Next** block: the suggestion Lyst ranks first as a card (its reason in one line, one main button such as Run now
+or Watch it, and Why, Later and Dismiss in a small menu), then one row of choices mixing Lyst's other suggestions
+with follow-up questions, never repeating what the answer already shows. **How was this figured?** opens *About
+this answer* from the engine's own records, drawn for people rather than as SQL: the approved definition in words
+(**Operating margin = Operating income ÷ revenue**, with its version), a tile per figure with its steps in plain
+words and its query count, the queries folded away, a card for each dataset it read (title, version, rows, when it
+loaded, sensitivity), whether the data has changed since, and whether running it again returns the same rows.
 
 **Is this right?** Mark the answer **Right**, **Partly** or **Wrong**, add what it should have said if you like, and
 **Undo** any time. A wrong answer stops being reused, recalled or cited; a right one becomes validated memory.
@@ -285,7 +291,8 @@ you (**Resolve**).
 
 Ask a what-if in plain words on Home, such as "What happens to operating margin if labor costs increase 6% while
 revenue grows 3%?". Lyst answers from a driver model whose observed inputs are read from governed data for a named
-period, with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
+period (the same "last quarter" as every other answer, named in the headline: "from 32.49% (Q3 2026 actual)"),
+with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
 hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
 formulas as evidence, and is recomputed independently. Changes can be given as percentages or in points ("COGS
 ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, any change
@@ -445,8 +452,10 @@ where they point, with Mark all read and "What to tell me about".
 
 ### Analysis you can rely on
 
-* **Answers and investigations.** Values with prior-period and year-ago comparisons, breakdowns, trends,
-  anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
+* **Answers and investigations.** Values with prior-period and year-ago comparisons (a single figure comes with
+  its recent history as a chart), breakdowns, rankings ("top 3 regions by operating income", "which channel had the
+  fewest tickets"), trends over the window you ask for, with a headline that says where the metric went and its
+  biggest move, anomalies, forecasts with backtests, "why" questions with exact rate and mix attribution, deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
@@ -585,7 +594,7 @@ where they point, with Mark all read and "What to tell me about".
   forecast drift, projected breach), investigates it first, and surfaces a verified warning in Brain › Work › Needs you
   with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Brain › Work › Recurring
   (Ready, Blocked or Check first, with Run now, Later and Why), **Prepared for you** in Needs you for items that
-  need a person, **Next steps** under each answer, a line on Home when an upcoming run is blocked, and **Working
+  need a person, the **Next** block under each answer, a line on Home when an upcoming run is blocked, and **Working
   ahead** in Settings › Preferences to pick the level and see today's use against the daily limits. The **Why**
   dialog lists each check and how it was made, and takes Useful, Not useful or Wrong as feedback. From metadata it
   already records, without contacting any source, Lyst also warns before integrations and data changes break work:
