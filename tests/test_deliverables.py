@@ -20,7 +20,7 @@ def test_workbook_and_briefing_match_the_verified_result(seeded):
     assert wb.sheetnames[0] == "Summary" and "Checks" in wb.sheetnames and "Queries" in wb.sheetnames
     summary = {r[0].value: r[1].value for r in wb["Summary"].iter_rows(min_row=4, max_row=9)}
     assert summary["Answer"] == t["result"]["answer"] and summary["Confidence"] == "verified"
-    table_sheet = next(n for n in wb.sheetnames if n.startswith("Change in Operating"))
+    table_sheet = next(n for n in wb.sheetnames if n.lower().startswith("change in operating"))
     rows = [r for r in wb[table_sheet].iter_rows(min_row=4, values_only=True)]
     assert rows[0][0] == "Region" and {r[0] for r in rows[1:]} == {"EMEA", "North America", "APAC", "LATAM"}
     m = lyst.artifacts.build(owner, t, "md")

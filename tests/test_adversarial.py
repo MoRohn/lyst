@@ -22,7 +22,7 @@ def test_conflicting_definitions_are_surfaced_not_guessed(seeded):
     lyst.semantic.set_term(owner, "northwind", "top line", "Finance: revenue. Sales: bookings.", maps_to_metric="hardware_revenue")
     r = ask(lyst, owner, "What was our top line last quarter?")["result"]
     assert r["status"] == "needs_input" and "more than one approved metric" in r["answer"]
-    assert "hardware_revenue" in r["answer"] and "revenue" in r["answer"]
+    assert "hardware revenue or revenue" in r["answer"]  # the metrics by name, not their ids
 
 
 def test_missing_data_is_declared_not_estimated(seeded):

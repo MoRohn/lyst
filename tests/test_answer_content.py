@@ -86,3 +86,77 @@ def test_a_what_if_starts_from_the_quarter_every_other_answer_calls_last(seeded)
     assert r["answer"].startswith(f"Operating margin would go from {base * 100:.2f}% (Q3 2026 actual) to ")
     assert any("Q3 2026" in e and "data through 2026-09-30" in e for e in r["evidence"])
     assert "pnl_drivers" not in " ".join(r["actions"]) and "Quarterly P&L drivers" in r["actions"][0]
+
+
+def test_a_split_compared_with_a_year_earlier_names_each_members_change(seeded):
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Compare hardware revenue by region year over year")
+    r = t["result"]
+    df = demo.pnl()
+    hw = df[df.product_line == "Hardware"]
+    now = _q(hw, "2026-07-01", "2026-10-01").groupby("region").revenue.sum()
+    then = _q(hw, "2025-07-01", "2025-10-01").groupby("region").revenue.sum()
+    change = (now - then).sort_values(ascending=False)
+    assert r["confidence"]["level"] == "verified", r["answer"]  # it answers the comparison asked, so it is not flagged
+    assert r["answer"].startswith("Hardware revenue by region, Q3 2026 versus Q3 2025: " + change.index[0])
+    assert " In total " in r["answer"]
+    chart = r["charts"][0]
+    assert chart["type"] == "bar" and chart["x"] == list(change.index)
+    assert chart["y"] == pytest.approx(list(change.values), rel=1e-9)
+    table = r["tables"][0]
+    assert table["columns"] == ["region", "Q3 2025", "Q3 2026", "change", "change_pct"]
+    # quarter over quarter works the same way
+    r = ask(lyst, owner, "Revenue by region versus the previous quarter")["result"]
+    assert "Q3 2026 versus Q2 2026" in r["answer"]
+
+
+def test_a_data_quality_question_checks_the_data_instead_of_listing_it(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Are there any data quality issues in the pnl dataset?")["result"]
+    assert r.get("mode") != "conversation"
+    assert r["answer"].startswith("pnl has ") and r["tables"][-1]["title"] == "Columns"
+    # with no dataset named it asks which one, with the datasets as choices
+    t = ask(lyst, owner, "Are there any duplicates in our data?")
+    assert t["result"]["status"] == "needs_input" and "Name the dataset" in t["result"]["answer"]
+
+
+def test_an_ambiguous_term_names_the_metrics_in_words(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Show me margin")["result"]
+    assert r["status"] == "needs_input"
+    assert r["answer"] == "“Margin” matches more than one approved metric: COGS ratio or operating margin. Pick the one you mean."
+
+
+def test_a_rise_in_a_lower_is_better_metric_is_called_a_rise(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Why did support tickets increase in August 2026?")["result"]
+    assert r["implications"][0].startswith("The rise is concentrated in channel chat")
+    assert "pricing" not in " ".join(r["actions"])
+    assert r["evidence"][0].startswith("The largest driver is channel chat")
+    assert r["tables"][0]["title"] == "Change in support tickets by channel"
+
+
+def test_year_to_date_is_compared_with_the_same_months_a_year_earlier(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What's the revenue split by product line this year?")["result"]
+    df = demo.pnl()
+    now, then = _q(df, "2026-01-01", "2026-10-01").revenue.sum(), _q(df, "2025-01-01", "2025-10-01").revenue.sum()
+    assert r["answer"].startswith("Revenue was ") and "in 2026 YTD" in r["answer"]
+    assert "versus 2025 YTD" in r["answer"] and "prior period" not in r["answer"]
+    assert f"({(now - then) / then:+.1%})" in r["answer"]
+    assert r["tables"][0]["title"] == "Revenue by product line"
+
+
+def test_a_quarter_forecast_is_read_against_the_last_quarter(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Forecast revenue for next quarter")["result"]
+    assert "for Q4 2026" in r["answer"] and r["answer"].endswith("against $25.41M in Q3 2026.")
+
+
+def test_which_month_was_highest_names_the_month(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Which month had the highest revenue in 2025?")["result"]
+    by_month = _q(demo.pnl(), "2025-01-01", "2026-01-01").groupby("month").revenue.sum()
+    best = pd.Timestamp(by_month.idxmax()).strftime("%b %Y")
+    assert r["answer"].startswith(f"{best} had the highest revenue in 2025: ")
+    assert r["charts"][0]["title"] == "Revenue by month" and len(r["charts"][0]["x"]) == 12
