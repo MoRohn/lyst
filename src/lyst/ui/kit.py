@@ -51,6 +51,8 @@ p.lyst-label {text-transform: uppercase; letter-spacing: var(--lyst-tracking-lab
 /* list rows: a hairline separator instead of a box per item */
 div.lyst-row-title p {font-weight: var(--lyst-weight-medium); margin: 0;}
 div.lyst-row-meta p {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm); margin: 0;}
+/* a row's status and actions sit together at its right edge, not spread across the row */
+div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) > div[data-testid="stColumn"]:not(:first-child) > div[data-testid="stVerticalBlock"] {align-items: flex-end;}
 div[data-testid="stElementContainer"]:has(> div > hr) {margin: -0.55rem 0 -0.55rem 0;}
 hr {margin: 0.2rem 0 !important; border-color: var(--lyst-border) !important;}
 /* empty states */
@@ -391,7 +393,7 @@ def row(title: str, meta: str = "", *, status: tuple[str, str] | None = None,
         cols[1].html('<div class="lyst-slot"></div>')
     clicked = None
     for (text, aid), col in zip(actions, cols[i:], strict=True):
-        if col.button(text, key=f"{key}_{aid}", type="tertiary", width="stretch"):
+        if col.button(text, key=f"{key}_{aid}", type="tertiary", width="content"):
             clicked = aid
     if divider:
         st.divider()
