@@ -82,8 +82,8 @@ export const capabilities: {
   {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
-    text: 'Rigorous quantitative work, end to end. A single figure comes with its recent history, and what-ifs and forecasts read against the same last quarter as every other answer.',
-    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings', 'One named line per region', 'Year over year, for each member', 'Year to date against last year’s', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
+    text: 'Rigorous quantitative work, end to end. A single figure comes with its recent history, and what-ifs and forecasts read against the same last complete quarter as every other answer, never a half-loaded month.',
+    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings by client, category or region', 'One named line per region', 'Year over year, for each member', 'Year to date against last year’s', 'Backtested forecasts', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
@@ -178,7 +178,7 @@ export const enterprise = {
     { icon: 'UserCheck', title: 'Human-in-the-loop approval', text: 'Approvals show the risk, the effect and how to undo it. In a graph run, anything that cannot be undone waits for a person other than its planner. Approvals also work inside any AI SDK chat, under the same role checks.', status: 'available' as Status },
     { icon: 'Library', title: 'Data contracts and lineage', text: 'Versioned contracts flag breaking upstream changes with every affected metric, dashboard and workflow, and any metric can explain where it comes from. Flagged rows are reviewed in one table, and the fixes Lyst proposes apply only after approval, as a new dataset version you can undo.', status: 'available' as Status },
     { icon: 'KeyRound', title: 'Role-aware access', text: 'Single sign-on, roles, row and column policies and an enforced data policy decide what each person, model and export can see.', status: 'available' as Status },
-    { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost.', status: 'available' as Status },
+    { icon: 'History', title: 'Transparent task history', text: 'Every task has a frozen contract and leaves a receipt for each run. “How this ran” shows the steps, model calls, tokens, queries, time and cost, and the audit trail reads in plain words.', status: 'available' as Status },
     { icon: 'Repeat', title: 'Repeatable, governed learning', text: 'Verified analyses compile into versioned workflows that schedules can rerun; one that keeps failing, or gave an answer a person disputed, is held back with its reason. Only an admin takes back approved memory, and agent-observed memory expires after 365 days by default.', status: 'available' as Status },
     { icon: 'Building2', title: 'Deployment independence', text: 'Private by default: the interface listens only on your machine until you open it up. Scheduled, encrypted backups, each test-restored automatically, and whole workspaces that move in one sealed file. Lyst checks its own setup and opens the setting that fixes a problem.', status: 'available' as Status },
   ],
