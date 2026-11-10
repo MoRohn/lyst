@@ -474,6 +474,10 @@ where they point, with Mark all read and "What to tell me about".
   behind each big move, and lists open alerts, approvals waiting and how current the data is. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
   "Every Monday at 8" repeats it, after approval.
+* **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
+  metrics (income invoiced, expenses, invoices sent, active clients). Ask "Who owes me money?" for what each client
+  owes today, how late it is, how long clients take to pay, and who to remind first. Lyst never contacts a client
+  itself.
 * **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
   the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
   the one named): the period has **arrived** complete (every segment that reported last period reported this one),
@@ -725,9 +729,9 @@ where they point, with Mark all read and "What to tell me about".
 ### Working with others
 
 * **Gets itself ready for a new organization.** Connect or upload data and Lyst studies the metadata only (names,
-  types and shape, never rows), recognises the business areas from thirteen versioned industry packages (finance,
+  types and shape, never rows), recognises the business areas from fourteen versioned industry packages (finance,
   procurement, sales, marketing, HR, manufacturing, customer service, product, logistics, IT, healthcare,
-  professional services, financial services), and suggests metrics, business terms, privacy limits for personal
+  professional services, financial services, small business), and suggests metrics, business terms, privacy limits for personal
   data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
   official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
   business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
