@@ -37,6 +37,10 @@ class CandidateMetric(BaseModel):
     format: Literal["number", "currency", "percent"] = "number"
     higher_is_better: bool = True
     description: str = ""
+    # words the dataset's name, title or description must show, when the column name alone is too common to tell
+    # (an "amount" column is income in an invoices export and spend in an expenses one)
+    datasets: list[str] = Field(default_factory=list)
+    synonyms: list[str] = Field(default_factory=list)  # everyday words for it ("income" for invoiced)
 
 
 class SourceHint(BaseModel):
@@ -81,16 +85,25 @@ def get(package_id: str) -> DomainPackage:
         raise KeyError(f"unknown domain package {package_id!r}") from None
 
 
+def _singular(w: str) -> str | None:
+    """``invoices`` -> ``invoice``, ``categories`` -> ``category``; None when the word does not look plural."""
+    if len(w) < 4 or not w.endswith("s") or w.endswith(("ss", "us", "is")):
+        return None
+    return w[:-3] + "y" if w.endswith("ies") else w[:-1]
+
+
 def words(text: str | None) -> set[str]:
-    """Lower-case words of a name or title, adjacent pairs joined by ``_``, and each name whole
-    (``lead_time_days`` gives lead, time, days, lead_time, time_days and lead_time_days)."""
+    """Lower-case words of a name or title, adjacent pairs joined by ``_``, each name whole, and the singular of a
+    plural word (``lead_time_days`` gives lead, time, days, day, lead_time, time_days and lead_time_days; an export
+    called ``invoices.csv`` shows the signal ``invoice``)."""
     if not text:
         return set()
     low = text.lower()
     seq = [w for w in _SPLIT.split(low) if w]
     pairs = {f"{a}_{b}" for a, b in zip(seq, seq[1:], strict=False)}
     whole = {w for w in re.split(r"[^a-z0-9_]+", low) if w}
-    return set(seq) | pairs | whole
+    singular = {x for w in seq if (x := _singular(w))}
+    return set(seq) | pairs | whole | singular
 
 
 def recognize(datasets: list[dict[str, Any]], documents: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
@@ -139,6 +152,9 @@ def match_metric(m: CandidateMetric, datasets: list[dict[str, Any]]) -> dict[str
     Sums and averages need a numeric column; distinct counts need an identifier. The time column is the dataset's
     date column (the one the catalog measured continuity on when there is one), and dimensions are its small
     categorical columns."""
+    if m.datasets:
+        want = set(m.datasets)
+        datasets = [d for d in datasets if want & (words(d["name"]) | words(d.get("title")) | words(d.get("description")))]
     for wanted in m.columns:
         for d in datasets:
             for c in d.get("columns", []):
