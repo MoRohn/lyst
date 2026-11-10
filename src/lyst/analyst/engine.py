@@ -148,11 +148,19 @@ _VS_YEAR = re.compile(r"\b(year[- ]over[- ]year|yoy|y/y|(vs\.?|versus|against|co
 _VS_PRIOR = re.compile(r"\b((quarter|month)[- ](over|on)[- ](quarter|month)|qoq|q/q|mom|(vs\.?|versus|against|compared "
                        r"(to|with)) (the )?(previous|prior|last) (quarter|month))\b", re.I)
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
-_BOTTOM = {"bottom", "lowest", "smallest", "weakest", "slowest"}
+_BOTTOM = {"bottom", "lowest", "smallest", "weakest", "slowest", "least", "fewest"}
 _GROWTH = re.compile(r"\b(fastest|slowest|gr[eo]w\w*|growth|increas\w*|declin\w*|shr[iau]nk\w*|improv\w*)\b", re.I)
 _RANK = re.compile(r"\b(top(?![ -]line)|bottom|highest|lowest|largest|biggest|smallest|leading|strongest|weakest|"
-                   r"fastest|slowest)"
+                   r"fastest|slowest|most(?! (?:recent|likely|important)\b)|least|fewest)"
                    r"(?:\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\b)?", re.I)
+
+
+def _plural_pattern(dimension: str) -> str:
+    """"category" also as "categories", "client" as "clients", "product_line" as "product lines"."""
+    words = dimension.replace("_", " ")
+    stem = re.escape(words[:-1]) + "(y|ies)" if words.endswith("y") and words[-2:-1] not in "aeiou" else \
+        re.escape(words) + "(s|es)?"
+    return rf"\b{stem}\b"
 
 
 def rule_intent(text: str) -> str:
@@ -253,8 +261,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         rm = _RANK.search(text)
         if rm:
             lowered = text.lower()
-            named = [d for d in metrics[resolved["metrics"][0]].dimensions
-                     if re.search(rf"\b{re.escape(d.replace('_', ' '))}(s|es)?\b", lowered)]
+            named = [d for d in metrics[resolved["metrics"][0]].dimensions if re.search(_plural_pattern(d), lowered)]
             when = re.search(r"\b(?:which|what)\s+(month|quarter)\b", lowered)
             if when and not by and not named:
                 # "which month had the highest revenue in 2025?": a ranking of the periods inside the one asked about
@@ -951,8 +958,13 @@ def metric_series(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         members = {str(k): _frame_records(g.drop(columns=[by]).sort_values("period")) for k, g in df.groupby(by, sort=False)}
         return {"metric": spec.name, "grain": args.get("grain", "month"), "by": by, "members": members,
                 "evidence": [_evidence(r, f"{spec.name} by month and {by}")]}
-    return {"metric": spec.name, "grain": args.get("grain", "month"), "points": _frame_records(df),
-            "evidence": [_evidence(r, f"{spec.name} by month")]}
+    out = {"metric": spec.name, "grain": args.get("grain", "month"), "points": _frame_records(df),
+           "evidence": [_evidence(r, f"{spec.name} by month")]}
+    through = _max_date(ctx, spec) if args.get("grain", "month") == "month" and len(df) else None
+    if through is not None and pd.Timestamp(through) < df["period"].max() + pd.offsets.MonthEnd(0):
+        # the last month is only partly in the data: a forecast learns from complete months only
+        out["partial"] = {"period": df["period"].max().date().isoformat(), "through": through.isoformat()}
+    return out
 
 
 def _sum_target(m: Measure) -> str | None:
@@ -1036,7 +1048,8 @@ def anomaly_scan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 @capability(REGISTRY, "forecast_metric", agent="data_scientist", phase="execute", permission="data.query",
             description="Forecast a metric series with ETS (or seasonal naive) and report its backtest error.")
 def forecast_metric(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
-    pts = ctx.outputs[args["series_key"]]["points"]
+    series = ctx.outputs[args["series_key"]]
+    pts = series["points"][:-1] if series.get("partial") and len(series["points"]) > 3 else series["points"]
     y = pd.Series([p["value"] for p in pts], index=pd.to_datetime([p["period"] for p in pts]), dtype=float)
     f = timeseries.forecast(y, horizon=int(args.get("horizon", 6)), grain="month")
     return _clean({"method": f.method, "level": f.level, "backtest_mape": f.backtest_mape,
@@ -1988,6 +2001,7 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         if o.get("forecast"):
             f = o["forecast"]
             last = f["table"][-1]
+            hist = o["series"]["points"][:-1] if o["series"].get("partial") else o["series"]["points"]
             answer = answer or (f"Lyst forecasts {spec.title.lower()} at {fmt(last['yhat'], spec)} by {last['period']} "
                                 f"({int(f['level'] * 100)}% interval {fmt(last['lo'], spec)} to {fmt(last['hi'], spec)}).")
             if f.get("backtest_mape") is not None:
@@ -1996,14 +2010,19 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             charts.append({"type": "forecast", "title": f"{_named(spec, u.get('filters'))} forecast", "x": [r["period"] for r in f["table"]],
                            "y": [r["yhat"] for r in f["table"]], "lo": [r["lo"] for r in f["table"]],
                            "hi": [r["hi"] for r in f["table"]], "format": spec.format,
-                           "history_x": [p["period"] for p in o["series"]["points"]],
-                           "history_y": [p["value"] for p in o["series"]["points"]]})
+                           "history_x": [p["period"] for p in hist], "history_y": [p["value"] for p in hist]})
+            if o["series"].get("partial"):
+                assumptions.append(f"{_month_label(o['series']['partial']['period'])} is left out of the forecast: the "
+                                   f"data only runs to {o['series']['partial']['through']}.")
         if o.get("forecast_period"):
             fp = o["forecast_period"]
             tot = fp["total"]
             answer = (f"Lyst forecasts {spec.title.lower()} of {fmt(tot['total'], spec)} for {fp['period_label']} "
                       f"(80% interval {fmt(tot['lo'], spec)} to {fmt(tot['hi'], spec)}), against "
                       + _forecast_basis(spec, fp) + ".")
+            if fp.get("partial"):
+                assumptions.append(f"{_month_label(fp['partial']['period'])} is left out of the forecast and the "
+                                   f"comparison: the data only runs to {fp['partial']['through']}.")
             if fp.get("backtest_mape") is not None:
                 findings.append(f"Method: {fp['method']}; backtest error {fp['backtest_mape']:.1%} over the last "
                                 f"{fp['backtest_points']} months. The interval treats months as independent.")

@@ -234,3 +234,43 @@ def test_a_segment_ratio_investigation_verifies_and_keeps_the_acronym(seeded):
     # the history behind it is EMEA's, not the whole company's
     quarters = next(c for c in r["charts"] if c["title"] == "COGS ratio (EMEA) by quarter")
     assert f"was {quarters['y'][-1]:.1%} in Q3 2026" in r["answer"]
+
+
+def _studio(lyst, owner):
+    """Daily invoices by client and category through 2026-10-12: October is only partly in the data."""
+    import numpy as np
+
+    from lyst.semantic import Measure, MetricSpec
+
+    rng = np.random.default_rng(7)
+    days = pd.date_range("2024-01-01", "2026-10-12", freq="D")
+    clients = {"Acme Co": 900, "Bluebird Cafe": 300, "Corner Dental": 150}
+    rows = [{"day": d.date(), "client": c, "category": cat, "income": round(base * float(rng.uniform(0.8, 1.2)), 2)}
+            for d in days for c, base in clients.items() for cat in ("Design services", "Hosting")]
+    lyst.data.ingest(owner, "northwind", "studio", demo.csv_bytes(pd.DataFrame(rows)), filename="studio.csv")
+    lyst.semantic.define(owner, "northwind", MetricSpec(
+        name="studio_income", title="Studio income", dataset="studio", measure=Measure(agg="sum", column="income"),
+        time_column="day", dimensions=["client", "category"], format="currency"))
+
+
+@pytest.mark.parametrize("question,by,first", [
+    ("Which clients bring in the most studio income?", "client", "Acme Co"),
+    ("What are the biggest categories of studio income?", "category", "Design services"),
+    ("Which client brings in the least studio income?", "client", "Corner Dental")])
+def test_plural_and_most_least_rank_by_the_dimension(seeded, question, by, first):
+    lyst, owner = seeded
+    _studio(lyst, owner)
+    r = ask(lyst, owner, question)["result"]
+    assert r["tables"] and r["tables"][0]["columns"][0] == by, r["answer"]
+    assert first in r["answer"].split(":", 1)[-1][:60], r["answer"]
+
+
+def test_a_partial_month_is_left_out_of_a_forecast(seeded):
+    lyst, owner = seeded
+    _studio(lyst, owner)
+    r = ask(lyst, owner, "Forecast studio income for the next quarter")["result"]
+    # read against the last complete quarter, not a few days of October
+    assert "Oct 2026" not in r["answer"] and r["answer"].endswith("in Q3 2026."), r["answer"]
+    assert any("Oct 2026 is left out" in a for a in r["supporting"]["assumptions"])
+    chart = next(c for c in r["charts"] if c["type"] == "forecast")
+    assert str(chart["history_x"][-1])[:7] == "2026-09"
