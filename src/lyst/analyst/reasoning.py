@@ -69,10 +69,10 @@ def _ev(r, purpose: str) -> dict[str, Any]:
 
 
 def _spec(ctx: Context, name: str) -> MetricSpec:
-    for m in ctx.outputs["contextualize"]["metrics"]:
-        if m["spec"]["name"] == name:
-            return MetricSpec.model_validate(m["spec"])
-    return ctx.services.semantic.get(ctx.actor, ctx.workspace_id, name)
+    """The metric as the request asked for it: with any segment it named ("in EMEA") applied, like every other step."""
+    from .engine import _spec as engine_spec  # noqa: PLC0415
+
+    return engine_spec(ctx, name)
 
 
 def _label(ts: pd.Timestamp, grain: str, fs: int = 1) -> str:

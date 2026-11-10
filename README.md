@@ -458,10 +458,12 @@ where they point, with Mark all read and "What to tell me about".
 * **Answers and investigations.** Values with prior-period and year-ago comparisons (a single figure comes with
   its recent history as a chart, and "by region year over year" compares each member with a chart of the changes
   and a table of both periods; year to date is compared with the same months a year earlier), breakdowns, rankings ("top 3 regions by operating income", "which channel had the
-  fewest tickets"), trends over the window you ask for, with a headline that says where the metric went and its
+  fewest tickets"), trends over the window you ask for (one named
+  line per member for "revenue trend by region"), with a headline that says where the metric went and its
   biggest move, the peak period named ("which month had the highest revenue in 2025?"), anomalies, forecasts with
-  backtests (a quarter's forecast read against the last complete quarter), "why" questions with exact rate and mix attribution (a rise is called a rise, and members named in words
-  such as "product line Hardware"), deep investigations
+  backtests (a quarter's forecast read against the last complete quarter), "why" questions with exact rate and mix attribution (a rise is called a rise, members named in words
+  such as "product line Hardware", and a question about one segment, such as "Why did COGS ratio change in EMEA?",
+  investigated and verified within that segment), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
 * **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
@@ -471,6 +473,13 @@ where they point, with Mark all read and "What to tell me about".
   behind each big move, and lists open alerts, approvals waiting and how current the data is. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
   "Every Monday at 8" repeats it, after approval.
+* **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
+  the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
+  the one named): the period has **arrived** complete (every segment that reported last period reported this one),
+  it is **clean** (no exact duplicates, no missing amounts), it **ties out** key by key within 0.5% to any second
+  source carrying the same measures, and the **flux** lines that need a comment are listed segment by segment against
+  last period and a year earlier. Lyst reports only: it never posts a journal, edits data or marks a period closed,
+  and a second source you cannot read is listed as not checked. "Every weekday at 9" repeats it, after approval.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
   raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
   model wording verified against the computed numbers.
