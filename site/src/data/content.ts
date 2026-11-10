@@ -55,7 +55,7 @@ export const pillars = {
       icon: 'Compass',
       title: 'Understand',
       text: 'Lyst studies your metadata, never the rows, to learn each dataset’s grain, keys and quality risks and the business areas involved, then reads every question in that context.',
-      detail: ['Grain, keys and relationships', '13 industry packages', 'Your own words for metrics'],
+      detail: ['Grain, keys and relationships', '13 industry packages', 'Starter metrics for a small business or freelancer', 'Your own words for metrics'],
     },
     {
       icon: 'SquareTerminal',
@@ -89,7 +89,7 @@ export const capabilities: {
   {
     icon: 'ScanSearch',
     title: 'Investigate',
-    text: 'Find what changed, and why.',
+    text: 'Find what changed, and why. Ask “Who owes me money?” and Lyst lists what each client owes today, how late it is and who to remind first. It never contacts a client itself.',
     items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', '“Why did it change?” within one segment', 'Quality questions that run the check', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
