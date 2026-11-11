@@ -176,7 +176,10 @@ class _Scan:
                 self._add("duplicate", int(i), None, f"An exact copy of row {int(first.iat[i]) + 1:,}; its amounts count twice.",
                           original=int(first.iat[i]) + 1)
         for c in cols:
-            for i in np.flatnonzero(f[c].isna().to_numpy()):
+            empty = f[c].isna()
+            if c not in self.numeric and (pd.api.types.is_object_dtype(f[c]) or pd.api.types.is_string_dtype(f[c])):
+                empty |= f[c].astype(str).str.strip().eq("") & f[c].notna()  # a blank text cell is empty too
+            for i in np.flatnonzero(empty.to_numpy()):
                 self._add("null", int(i), c, f"{c} is empty in this row.")
         for c in cols:
             if c in self.numeric or not (pd.api.types.is_object_dtype(f[c]) or pd.api.types.is_string_dtype(f[c])):

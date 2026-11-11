@@ -19,6 +19,7 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - Receivables (open invoices today, aging, owed by client, days to pay): `src/lyst/analyst/receivables.py`.
 - Profit from separate income and expense metrics: `src/lyst/analyst/profit.py`.
 - Label audit of annotated datasets (agreement, annotator bias, items to adjudicate): `src/lyst/analyst/annotations.py`.
+- Datasheets and annotation guideline drafts: `src/lyst/analyst/datasheet.py`.
 - The AI SDK wire format (Lyst's work as a UI message stream for `useChat`): `src/lyst/uistream.py`, `src/lyst/api/aisdk.py`,
   `docs/AI_SDK.md`; `tests/aisdk` reads it with the real `ai` package.
 - Lyst Apps (generated micro-apps, specs bound to governed metrics): `src/lyst/apps.py`, `src/lyst/api/apps.py`.

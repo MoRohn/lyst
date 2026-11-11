@@ -36,7 +36,8 @@ from . import brief as brief_mod
 from .registry import REGISTRY, Context, capability
 
 ASKS = re.compile(
-    r"\b(annotat\w*|label(l)?(ing|ers?)|inter[- ]?(annotator|rater|coder)|krippendorff|kappa|raters?|adjudicat\w*|"
+    r"\b(annotators?|labell?ers?|(annotation|labell?ing) (quality|agreement|consistency|errors?|audit|review|noise)|"
+    r"inter[- ]?(annotator|rater|coder)|krippendorff|kappa|raters?|adjudicat\w*|"
     r"gold (set|labels?|standard)|label (quality|noise|distribution|balance|consistency|errors?|spellings?)|"
     r"class (balance|imbalance)|(which|what) labels|labels? (are )?used|mislabel\w*)\b", re.I)
 
@@ -136,12 +137,18 @@ def krippendorff_alpha(units: list[list[str]]) -> float | None:
             description="Label audit of an annotated dataset: label shares and spellings, missing labels, Krippendorff's "
                         "alpha, confused label pairs, each annotator's agreement and bias, and items to adjudicate.")
 def label_audit(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
-    from .engine import _evidence  # noqa: PLC0415
 
     u = ctx.outputs["understand"]
     found = next((f for f in [find_labeled(metadata(ctx), u["question"])] if f and f["dataset"] == u.get("dataset")), None)
     if not found:
         return {"empty": True}
+    return audit(ctx, found)
+
+
+def audit(ctx: Context, found: dict[str, Any]) -> dict[str, Any]:
+    """The audit itself, for a labeled dataset ``find_labeled`` found (the datasheet reuses it)."""
+    from .engine import _evidence  # noqa: PLC0415
+
     cols = {k: found[k] for k in ("item", "annotator", "label", "confidence", "text") if found[k]}
     select = ", ".join(f"{_q(v)} AS {k}" for k, v in cols.items())
     r = ctx.services.data.query(ctx.actor, ctx.workspace_id, f"SELECT {select} FROM {_q(found['dataset'])}",
@@ -390,5 +397,5 @@ def result(ctx: Context) -> dict[str, Any]:
     return out
 
 
-__all__ = ["ASKS", "asks_for_audit", "find_labeled", "krippendorff_alpha", "label_audit", "normalize", "result",
+__all__ = ["ASKS", "asks_for_audit", "audit", "find_labeled", "krippendorff_alpha", "label_audit", "normalize", "result",
            "understanding"]
