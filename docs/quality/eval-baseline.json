@@ -10,7 +10,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 0,
-   "seconds": 0.069,
+   "seconds": 0.314,
    "steps": 6,
    "tokens": 0
   },
@@ -25,8 +25,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 14,
-   "seconds": 0.185,
+   "queries": 16,
+   "seconds": 0.74,
    "steps": 12,
    "tokens": 0
   },
@@ -43,8 +43,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 29,
-   "seconds": 0.281,
+   "queries": 30,
+   "seconds": 1.233,
    "steps": 17,
    "tokens": 0
   },
@@ -58,9 +58,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 11,
-   "seconds": 0.142,
-   "steps": 9,
+   "queries": 12,
+   "seconds": 0.591,
+   "steps": 10,
    "tokens": 0
   },
   "forecast": {
@@ -73,8 +73,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 4,
-   "seconds": 0.151,
+   "queries": 5,
+   "seconds": 0.612,
    "steps": 8,
    "tokens": 0
   },
@@ -88,9 +88,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 10,
-   "seconds": 0.142,
-   "steps": 9,
+   "queries": 11,
+   "seconds": 0.598,
+   "steps": 10,
    "tokens": 0
   },
   "impact-emea": {
@@ -105,7 +105,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 4,
-   "seconds": 0.118,
+   "seconds": 0.522,
    "steps": 7,
    "tokens": 0
   },
@@ -121,9 +121,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 11,
-   "seconds": 0.428,
-   "steps": 9,
+   "queries": 12,
+   "seconds": 0.587,
+   "steps": 10,
    "tokens": 0
   },
   "learning-reuse": {
@@ -138,9 +138,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 9,
-   "seconds": 0.445,
-   "steps": 9,
+   "queries": 10,
+   "seconds": 0.548,
+   "steps": 10,
    "tokens": 0
   },
   "learning-withdraw": {
@@ -152,9 +152,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 9,
-   "seconds": 0.496,
-   "steps": 9,
+   "queries": 10,
+   "seconds": 0.568,
+   "steps": 10,
    "tokens": 0
   },
   "margin-synonym": {
@@ -168,8 +168,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 14,
-   "seconds": 0.191,
+   "queries": 16,
+   "seconds": 0.804,
    "steps": 12,
    "tokens": 0
   },
@@ -186,8 +186,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 14,
-   "seconds": 0.33,
+   "queries": 16,
+   "seconds": 0.907,
    "steps": 12,
    "tokens": 0
   },
@@ -201,9 +201,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 11,
-   "seconds": 0.142,
-   "steps": 9,
+   "queries": 12,
+   "seconds": 0.683,
+   "steps": 10,
    "tokens": 0
   },
   "prior-quarter-value": {
@@ -217,9 +217,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 11,
-   "seconds": 0.145,
-   "steps": 9,
+   "queries": 12,
+   "seconds": 0.643,
+   "steps": 10,
    "tokens": 0
   },
   "quality": {
@@ -234,7 +234,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 3,
-   "seconds": 0.103,
+   "seconds": 0.551,
    "steps": 8,
    "tokens": 0
   },
@@ -250,7 +250,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 12,
-   "seconds": 0.152,
+   "seconds": 0.656,
    "steps": 10,
    "tokens": 0
   },
@@ -265,9 +265,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 11,
-   "seconds": 0.16,
-   "steps": 9,
+   "queries": 12,
+   "seconds": 0.621,
+   "steps": 10,
    "tokens": 0
   },
   "revenue-named-quarter": {
@@ -281,9 +281,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 11,
-   "seconds": 0.142,
-   "steps": 9,
+   "queries": 12,
+   "seconds": 0.542,
+   "steps": 10,
    "tokens": 0
   },
   "revenue-year": {
@@ -296,9 +296,9 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 9,
-   "seconds": 0.14,
-   "steps": 8,
+   "queries": 10,
+   "seconds": 0.538,
+   "steps": 9,
    "tokens": 0
   },
   "scenario-c": {
@@ -313,8 +313,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 4,
-   "seconds": 0.168,
+   "queries": 5,
+   "seconds": 0.92,
    "steps": 8,
    "tokens": 0
   },
@@ -327,8 +327,8 @@
    },
    "model_calls": 0,
    "passed": true,
-   "queries": 4,
-   "seconds": 0.111,
+   "queries": 5,
+   "seconds": 0.558,
    "steps": 8,
    "tokens": 0
   },
@@ -341,7 +341,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 0,
-   "seconds": 0.065,
+   "seconds": 0.351,
    "steps": 6,
    "tokens": 0
   },
@@ -358,7 +358,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 4,
-   "seconds": 0.16,
+   "seconds": 0.659,
    "steps": 7,
    "tokens": 0
   },
@@ -374,7 +374,7 @@
    "model_calls": 0,
    "passed": true,
    "queries": 4,
-   "seconds": 0.117,
+   "seconds": 0.552,
    "steps": 7,
    "tokens": 0
   }
