@@ -89,7 +89,7 @@ export const capabilities: {
   {
     icon: 'ScanSearch',
     title: 'Investigate',
-    text: 'Find what changed, and why. Ask “Who owes me money?” and Lyst lists what each client owes today, how late it is and who to remind first. It never contacts a client itself.',
+    text: 'Find what changed, and why. Ask “Who owes me money?” and Lyst lists what each client owes today, how late it is and who to remind first. It never contacts a client itself. “What was my profit last quarter?” works across separate income and expense exports.',
     items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', '“Why did it change?” within one segment', 'Quality questions that run the check', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
