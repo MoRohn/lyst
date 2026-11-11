@@ -664,3 +664,39 @@ def test_a_line_chart_with_series_draws_one_named_line_each():
 
     assert "EMEA ending at 12" in _alt({"type": "line", "title": "t", "x": [1, 2, 3], "y": [30, 33, 36],
                                         "series": [{"name": "EMEA", "y": [10, 11, 12]}, {"name": "Americas", "y": [20, 22, 24]}]})
+
+
+def test_a_workbook_sheet_reads_with_the_column_names_under_its_title():
+    import io
+
+    from openpyxl import Workbook
+
+    from lyst.ui.artifacts import sheet_tables
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Change by region"
+    ws["A1"], ws["A2"] = "Change in operating margin by region", "4 rows"
+    for j, name in enumerate(["Region", "Prior rate", "Current rate"], start=1):
+        ws.cell(row=4, column=j, value=name)
+    for i, (region, a, b) in enumerate([("EMEA", 0.368, 0.24), ("APAC", 0.354, 0.365)], start=5):
+        ws.cell(row=i, column=1, value=region)
+        for j, v in ((2, a), (3, b)):
+            ws.cell(row=i, column=j, value=v).number_format = "0.0%"
+    buf = io.BytesIO()
+    wb.save(buf)
+    (sheet,) = sheet_tables(buf.getvalue())
+    assert sheet["title"] == "Change in operating margin by region" and sheet["note"] == "4 rows"
+    assert list(sheet["frame"].columns) == ["Region", "Prior rate", "Current rate"]
+    assert sheet["frame"]["Prior rate"].round(1).tolist() == [36.8, 35.4] and "Prior rate" in sheet["config"]
+
+
+def test_the_preview_drops_the_title_stamp_and_folded_data_and_steps_headings_down():
+    from lyst.ui.artifacts import _inline
+
+    text = ("# Why did margin fall?\n\n*Lyst · 11 Nov 2026 · task t_1 · Verified*\n\n## Answer\n\n**Down 3.5 pts**\n\n"
+            "![chart](data:image/svg+xml;base64,AAA)\n\n<details><summary>Chart data</summary>\n\n| a |\n</details>\n\n"
+            "## What to do\n")
+    out = _inline(text)
+    assert not out.startswith("# ") and "*Lyst · " not in out and "<details>" not in out and "| a |" not in out
+    assert "#### Answer" in out and "#### What to do" in out and "data:image/svg+xml" in out
