@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 from .. import studio as studio_mod
-from ..analytics import drivers, timeseries
+from ..analytics import drivers, planning, timeseries
 from ..data import DataService
 from ..live import DRAFTS, DraftGuard
 from ..llm import LLMClient, LLMUnavailable
@@ -148,6 +148,7 @@ _VS_YEAR = re.compile(r"\b(year[- ]over[- ]year|yoy|y/y|(vs\.?|versus|against|co
                       r"(last|a|the previous|the prior) year|a year (ago|earlier)|year[- ]on[- ]year)\b", re.I)
 _VS_PRIOR = re.compile(r"\b((quarter|month)[- ](over|on)[- ](quarter|month)|qoq|q/q|mom|(vs\.?|versus|against|compared "
                        r"(to|with)) (the )?(previous|prior|last) (quarter|month))\b", re.I)
+_AHEAD = re.compile(r"\bnext\s+(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(quarters?|months?)\b", re.I)
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 _BOTTOM = {"bottom", "lowest", "smallest", "weakest", "slowest", "least", "fewest"}
 _GROWTH = re.compile(r"\b(fastest|slowest|gr[eo]w\w*|growth|increas\w*|declin\w*|shr[iau]nk\w*|improv\w*)\b", re.I)
@@ -644,7 +645,14 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 add("staffing_scenarios", "scenarios", forecast_key="forecast_period", after=["forecast_period"])
         elif u["intent"] == "forecast":
             add("metric_series", "series", metric=m, grain="month")
-            add("forecast_metric", "forecast", series_key="series", horizon=6, after=["series"])
+            ahead = _AHEAD.search(u["question"])
+            n = (_NUM_WORDS.get(ahead.group(1).lower()) or int(ahead.group(1))) if ahead else 0
+            if ahead and ahead.group(2).lower().startswith("quarter") and 1 <= n <= 4:
+                # "the next 2 quarters": enough months to cover each whole quarter after the data, read per quarter
+                add("forecast_metric", "forecast", series_key="series", horizon=3 * n + 2, quarters=n, after=["series"])
+            else:
+                months = n if ahead and 1 <= n <= 24 else 6  # "the next 9 months"
+                add("forecast_metric", "forecast", series_key="series", horizon=months, after=["series"])
         if u["intent"] == "impact":
             add("event_impact", "impact", metric=m, **u["impact"])
     everything = [st["key"] for st in steps]
@@ -783,6 +791,42 @@ def _forecast_basis(spec: MetricSpec, fp: dict[str, Any]) -> str:
         if last.month % 3 == 0:  # the history ends on a calendar quarter's last month
             return f"{fmt(sum(h['value'] for h in hist[-3:]), spec)} in Q{(last.month - 1) // 3 + 1} {last.year}"
     return f"{fmt(fp['history_last']['value'], spec)} in {_month_label(fp['history_last'].get('period'))}"
+
+
+def _forecast_quarters(spec: MetricSpec, f: dict[str, Any], hist: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """"The next 2 quarters": each whole calendar quarter the monthly forecast covers, as a total (an amount) or an
+    average of its months (a rate), with the last complete actual quarter to read it against."""
+    n = f.get("quarters")
+    if not n:
+        return None
+    additive = spec.format != "percent" and getattr(spec, "kind", "simple") == "simple"
+    level = f.get("level") or 0.8
+    by_q: dict[pd.Period, list[dict[str, Any]]] = {}
+    for r in f["table"]:
+        by_q.setdefault(pd.Timestamp(str(r["period"])[:10]).to_period("Q"), []).append(r)
+    ahead = []
+    for q, rows in sorted(by_q.items()):
+        if len(rows) != 3 or len(ahead) == n:
+            continue
+        if additive:
+            agg = planning.quarter_from_monthly([r["yhat"] for r in rows], [r["lo"] for r in rows],
+                                                [r["hi"] for r in rows], level=level)
+            v, lo, hi = agg["total"], agg["lo"], agg["hi"]
+        else:
+            v, lo, hi = (sum(r[k] for r in rows) / 3 for k in ("yhat", "lo", "hi"))
+        ahead.append({"label": f"Q{q.quarter} {q.year}", "value": fmt(v, spec), "lo": fmt(lo, spec), "hi": fmt(hi, spec),
+                      "end": q.end_time.normalize()})
+    if not ahead:
+        return None
+    basis = None
+    pts = [h for h in hist if h.get("value") is not None]
+    if len(pts) >= 3:
+        last = pd.Timestamp(str(pts[-1]["period"])[:10])
+        if last.month % 3 == 0:
+            vals = [h["value"] for h in pts[-3:]]
+            q = f"Q{(last.month - 1) // 3 + 1} {last.year}"
+            basis = (f"{fmt(sum(vals), spec)} in {q}" if additive else f"an average of {fmt(sum(vals) / 3, spec)} in {q}")
+    return {"ahead": ahead, "basis": basis, "average": not additive}
 
 
 def _member_series(sb: dict[str, Any], months: list[Any]) -> list[dict[str, Any]]:
@@ -1060,7 +1104,7 @@ def forecast_metric(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     y = pd.Series([p["value"] for p in pts], index=pd.to_datetime([p["period"] for p in pts]), dtype=float)
     f = timeseries.forecast(y, horizon=int(args.get("horizon", 6)), grain="month")
     return _clean({"method": f.method, "level": f.level, "backtest_mape": f.backtest_mape,
-                   "backtest_points": f.backtest_points, "table": _frame_records(f.table)})
+                   "backtest_points": f.backtest_points, "table": _frame_records(f.table), "quarters": args.get("quarters")})
 
 
 @capability(REGISTRY, "correlate_metrics", agent="statistical_analyst", phase="test", permission="data.query",
@@ -1872,6 +1916,15 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 tables.append({"title": f"Change in {spec.title.lower()} by {b['dimension'].replace('_', ' ')}",
                                "columns": [b["dimension"], "prior", "current", "change", "share_of_change"],
                                "rows": [[r[b["dimension"]], r["prior"], r["current"], r["change"], r.get("share_of_change")] for r in t]})
+            # the "why" at a glance: each member's share of the move, largest first, ahead of the history line
+            key = "contribution" if d["kind"] == "rate" else "change"
+            moved = sorted((r for r in t if r.get(key) is not None), key=lambda r: abs(r[key]), reverse=True)[:12]
+            if len(moved) >= 2 and cur and prev:
+                dim_words = b["dimension"].replace("_", " ")
+                charts.insert(0, {"type": "bar", "title": f"What moved {_lower_first(_named(spec, u.get('filters')))}: "
+                                  f"each {dim_words}'s contribution, {prev['period']['label']} to {cur['period']['label']}",
+                                  "x": [str(r[b["dimension"]]) for r in moved], "y": [r[key] for r in moved],
+                                  "format": spec.format, "delta": True})
             worse = (cur and prev and cur["value"] is not None and prev["value"] is not None
                      and ((cur["value"] < prev["value"]) == spec.higher_is_better))
             if worse:
@@ -2011,7 +2064,20 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             f = o["forecast"]
             last = f["table"][-1]
             hist = o["series"]["points"][:-1] if o["series"].get("partial") else o["series"]["points"]
-            answer = answer or (f"Lyst forecasts {spec.title.lower()} at {fmt(last['yhat'], spec)} by {last['period']} "
+            quarters = _forecast_quarters(spec, f, hist)
+            if quarters and not answer:
+                each = [f"{q['value']} in {q['label']} ({int(f['level'] * 100)}% interval {q['lo']} to {q['hi']})"
+                        for q in quarters["ahead"]]
+                answer = (f"Lyst forecasts {_lower_first(_named(spec, u.get('filters')))} "
+                          + ("averaging " if quarters["average"] else "of ") + ", then ".join(each)
+                          + (f", against {quarters['basis']}" if quarters.get("basis") else "") + ".")
+                if quarters["average"]:
+                    assumptions.append("A quarter's forecast is the average of its three monthly forecasts.")
+                # the chart and table stop at the last quarter asked about
+                f = {**f, "table": [r for r in f["table"] if pd.Timestamp(str(r["period"])[:10]) <= quarters["ahead"][-1]["end"]]}
+                last = f["table"][-1]
+            answer = answer or (f"Lyst forecasts {_lower_first(_named(spec, u.get('filters')))} at "
+                                f"{fmt(last['yhat'], spec)} by {_month_label(last['period'])} "
                                 f"({int(f['level'] * 100)}% interval {fmt(last['lo'], spec)} to {fmt(last['hi'], spec)}).")
             if f.get("backtest_mape") is not None:
                 findings.append(f"Method: {f['method']}; backtest error {f['backtest_mape']:.1%} on the last "

@@ -182,7 +182,10 @@ def test_forecast_downloads_carry_the_chart_with_history_forecast_and_interval(s
     text = " ".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
     assert "Actual" in text and "Interval" in text and "Forecast" in text and "Jan 2025" in text
     _, md = lyst.artifacts.get(owner, lyst.artifacts.build(owner, t, "md")["id"])
-    assert md.decode().count("data:image/svg+xml;base64,") >= 2  # in the answer and under Made in this answer
+    # each chart is drawn once, in the answer; "Made in this answer" lists it rather than drawing it again
+    text = md.decode()
+    assert text.count("data:image/svg+xml;base64,") == len(t["result"]["charts"])
+    assert f"- Chart · {c['title']} (above)" in text
 
 
 def test_the_answer_page_and_the_downloads_read_an_answer_the_same_way(seeded):
