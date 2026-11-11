@@ -163,7 +163,9 @@ Breakdown answers show their split as a chart.
 
 Dashboards, charts, briefings, slides, workbooks and saved analyses appear as previews drawn from their own
 content, and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides
-as slides, a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to
+as slides, a workbook sheet by sheet, a PDF page by page. A downloaded PDF, deck or workbook opens on a **Preview** of
+its answer with live charts in the current theme, with the file's own pages, slides or sheets in the next tab
+(workbook sheets show real column names, percents and months) and **Download** as the main button at the top. Inspect the evidence behind any of them, ask Lyst to
 refine it in words ("break that down by region", "compare it to last year", "every Monday", however you phrase or
 quote it), see its versions, pin it to Home's **Recent**, and return exactly where you were. Every chart in an answer
 appears under **Made in this answer**, Data › More › Dashboards is the gallery of everything made, and ⌘K finds artifacts
