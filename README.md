@@ -477,7 +477,11 @@ where they point, with Mark all read and "What to tell me about".
 * **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
   metrics (income invoiced, expenses, invoices sent, active clients). Ask "Who owes me money?" for what each client
   owes today, how late it is, how long clients take to pay, and who to remind first. Lyst never contacts a client
-  itself.
+  itself. "What was my profit last quarter?", "How much did I make this year?" or "Am I making money?"
+  works across separate income and expense exports: income minus expenses and the margin for the last complete
+  month, a named month or quarter, or the year so far, against the period before and a year earlier, with the last
+  12 months, the best and weakest month and any month that lost money. It says plainly that this is a simple profit,
+  not tax or accrual accounting, and it steps aside when the workspace has its own profit or margin metric.
 * **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
   the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
   the one named): the period has **arrived** complete (every segment that reported last period reported this one),
