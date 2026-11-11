@@ -34,6 +34,7 @@ from ..memory import MemoryService
 from ..security import Guard, untrusted
 from ..semantic import Measure, MetricSpec, SemanticService, _cond, _q, compile_metric, value_expr
 from ..specialists import applied as expertise_rules
+from . import annotations as annotations_mod
 from . import brief as brief_mod
 from . import close as close_mod
 from . import converse as converse_mod
@@ -188,6 +189,11 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         pr = profit_mod.pair(s.semantic.metrics(ctx.actor, ctx.workspace_id))
         if pr and set(resolved["metrics"]) <= {pr[0].name, pr[1].name}:
             return profit_mod.understanding(text, *pr)
+    if not ctx.request.get("workflow") and annotations_mod.asks_for_audit(text):
+        # "How consistent are the annotators?" / "Check the label quality" audits a labeled dataset (annotations.py)
+        found = annotations_mod.find_labeled(annotations_mod.metadata(ctx), text)
+        if found:
+            return annotations_mod.understanding(text, found)
     if not resolved["ambiguous"] and not ctx.request.get("workflow") and (
             brief_mod.asks_for_brief(text) if not resolved["metrics"]
             else brief_mod.asks_for_metric_brief(text) and rule_intent(text) == "value"):
@@ -444,7 +450,7 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
 def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     u = ctx.outputs["understand"]
     s = ctx.services
-    if u["intent"] in ("converse", "brief", "close", "receivables", "profit"):  # a reply reads the catalog; a brief or close finds its own period
+    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations"):  # a reply reads the catalog; a brief or close finds its own period
         return {"metrics": [], "datasets": [], "memory": [], "period": None, "passages": [], "prior_answers": []}
     catalog = {d["name"]: d for d in s.data.catalog(ctx.actor, ctx.workspace_id)}
     metrics = []
@@ -509,10 +515,10 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             s["agent"], s["phase"] = cap.agent, cap.phase
         return {"steps": steps, "blockers": [], "depth": "conversation", "verification": "none", "strategy": "conversation",
                 "success_criteria": ["the reply names only what exists in the workspace", "the reply states no figures"]}
-    if u["intent"] in ("brief", "close", "receivables", "profit"):  # computes and checks its own figures
+    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations"):  # computes and checks its own figures
         key = u["intent"]
         cap_name = {"brief": "business_brief", "close": "close_checks", "receivables": "receivables",
-                    "profit": "profit"}[key]
+                    "profit": "profit", "annotations": "label_audit"}[key]
         steps = [{"capability": cap_name, "key": key, "args": {},
                   "after": ["plan"]},
                  {"capability": "deliver", "key": "deliver", "args": {}, "after": [key]}]
@@ -1647,6 +1653,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return _clean(receivables_mod.result(ctx))
     if u["intent"] == "profit":
         return _clean(profit_mod.result(ctx))
+    if u["intent"] == "annotations":
+        return _clean(annotations_mod.result(ctx))
     if u["intent"] == "converse":
         return _clean(converse_mod.result(u["question"], o["reply"], narrative_by=o["reply"].get("narrative_by", "template")))
     v = o.get("validate", {"checks": [], "status": "passed"})
