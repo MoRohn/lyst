@@ -37,8 +37,6 @@ _CSS = """
   div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) > div[data-testid="stColumn"] {
     min-width: 0 !important; width: auto !important; flex: 1 1 auto !important;}
   div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) > div[data-testid="stColumn"]:first-child {flex: 4 1 0 !important;}
-  /* an empty status slot takes no room on a phone */
-  div[data-testid="stColumn"]:has(div.lyst-slot) {display: none;}
 }
 /* type scale: one title size, one section label, quiet captions */
 h1.lyst-title {font-size: var(--lyst-size-xl); font-weight: var(--lyst-weight-strong); letter-spacing: var(--lyst-tracking-title);
@@ -102,7 +100,7 @@ div[class*="st-key-sqlr_"] button {min-height: 0; padding: .1rem 0; justify-cont
 [data-testid="stSidebarNavLink"][aria-current="page"] span {font-weight: var(--lyst-weight-strong);}
 /* cards (kit.card): raised, soft edge, a gentle lift when they hold an action */
 div[class*="st-key-lyst_card"] {background: var(--lyst-raised); border: 1px solid var(--lyst-edge);
-  border-radius: var(--lyst-radius-lg); box-shadow: var(--lyst-shadow-1); padding: 1rem 1.1rem .7rem 1.1rem;
+  border-radius: var(--lyst-radius-lg); box-shadow: var(--lyst-shadow-1); padding: 1rem 1.1rem 1.05rem 1.1rem;
   transition: box-shadow var(--lyst-motion-base) var(--lyst-motion-ease), transform var(--lyst-motion-base) var(--lyst-motion-ease);}
 div[class*="st-key-lyst_card"]:hover {box-shadow: var(--lyst-shadow-2); transform: translateY(-1px);}
 div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
@@ -376,25 +374,25 @@ def row(title: str, meta: str = "", *, status: tuple[str, str] | None = None,
         actions: Sequence[tuple[str, str]] = (), key: str, divider: bool = True, slot: bool = True) -> str | None:
     """One list item. ``actions`` are (label, id) pairs shown as quiet buttons; returns the id clicked, if any.
 
-    Rows with actions keep a status slot even when this row has no status, so the action buttons of every row in
-    a list sit in the same column instead of jumping right when a neighbour has a chip. ``slot=False`` opts out."""
-    reserve = bool(status) or (slot and bool(actions))
-    widths = [6] + ([1.4] if reserve else []) + [1.1] * len(actions)
-    cols = st.columns(widths, vertical_alignment="center")
+    The status chip and the actions sit together in one group at the row's right edge, so the actions of every row
+    in a list end in the same place whether or not a row has a chip. ``slot`` is kept for callers; it changes
+    nothing now that there is no separate status column."""
+    side = (1.4 if status else 0) + 1.1 * len(actions)
+    cols = st.columns([6, side], vertical_alignment="center") if side else [st.container()]
     with cols[0]:
         # Markdown (bold, :material: icons) still works; raw HTML in a title from workspace data is shown as text
         st.markdown(f'<div class="lyst-row-title">\n\n{_md_text(title)}\n\n</div>', unsafe_allow_html=True)
         if meta:
             st.markdown(f'<div class="lyst-row-meta">\n\n{_md_text(meta)}\n\n</div>', unsafe_allow_html=True)
-    i = 2 if reserve else 1
-    if status:
-        chip(status[0], status[1], cols[1])
-    elif reserve:
-        cols[1].html('<div class="lyst-slot"></div>')
     clicked = None
-    for (text, aid), col in zip(actions, cols[i:], strict=True):
-        if col.button(text, key=f"{key}_{aid}", type="tertiary", width="content"):
-            clicked = aid
+    if side:
+        group = cols[1].container(horizontal=True, horizontal_alignment="right", vertical_alignment="center",
+                                  gap="small", wrap=False)
+        if status:
+            chip(status[0], status[1], group)
+        for text, aid in actions:
+            if group.button(text, key=f"{key}_{aid}", type="tertiary", width="content"):
+                clicked = aid
     if divider:
         st.divider()
     return clicked

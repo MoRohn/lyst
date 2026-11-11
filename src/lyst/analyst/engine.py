@@ -38,6 +38,8 @@ from . import brief as brief_mod
 from . import close as close_mod
 from . import converse as converse_mod
 from . import foundry, periods, prescriptive, reasoning
+from . import profit as profit_mod
+from . import receivables as receivables_mod
 from .registry import REGISTRY, Context, Registry, capability
 
 
@@ -178,6 +180,14 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if not resolved["ambiguous"] and not ctx.request.get("workflow") and close_mod.asks_for_close(text):
         # "Run the month-end close checks" / "Does the P&L tie to the ledger?" checks a period's data (close.py)
         return close_mod.understanding(text)
+    if not ctx.request.get("workflow") and receivables_mod.asks_for_receivables(text):
+        # "Who owes me money?" / "Which invoices are overdue?" reads the open invoices today (receivables.py)
+        return receivables_mod.understanding(text)
+    if not resolved["ambiguous"] and not ctx.request.get("workflow") and profit_mod.asks_for_profit(text):
+        # "What was my profit last quarter?" where income and expenses are separate approved metrics (profit.py)
+        pr = profit_mod.pair(s.semantic.metrics(ctx.actor, ctx.workspace_id))
+        if pr and set(resolved["metrics"]) <= {pr[0].name, pr[1].name}:
+            return profit_mod.understanding(text, *pr)
     if not resolved["ambiguous"] and not ctx.request.get("workflow") and (
             brief_mod.asks_for_brief(text) if not resolved["metrics"]
             else brief_mod.asks_for_metric_brief(text) and rule_intent(text) == "value"):
@@ -434,7 +444,7 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
 def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     u = ctx.outputs["understand"]
     s = ctx.services
-    if u["intent"] in ("converse", "brief", "close"):  # a reply reads the catalog; a brief or close finds its own period
+    if u["intent"] in ("converse", "brief", "close", "receivables", "profit"):  # a reply reads the catalog; a brief or close finds its own period
         return {"metrics": [], "datasets": [], "memory": [], "period": None, "passages": [], "prior_answers": []}
     catalog = {d["name"]: d for d in s.data.catalog(ctx.actor, ctx.workspace_id)}
     metrics = []
@@ -499,9 +509,11 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             s["agent"], s["phase"] = cap.agent, cap.phase
         return {"steps": steps, "blockers": [], "depth": "conversation", "verification": "none", "strategy": "conversation",
                 "success_criteria": ["the reply names only what exists in the workspace", "the reply states no figures"]}
-    if u["intent"] in ("brief", "close"):  # every approved metric for one period; computes and checks its own figures
+    if u["intent"] in ("brief", "close", "receivables", "profit"):  # computes and checks its own figures
         key = u["intent"]
-        steps = [{"capability": "business_brief" if key == "brief" else "close_checks", "key": key, "args": {},
+        cap_name = {"brief": "business_brief", "close": "close_checks", "receivables": "receivables",
+                    "profit": "profit"}[key]
+        steps = [{"capability": cap_name, "key": key, "args": {},
                   "after": ["plan"]},
                  {"capability": "deliver", "key": "deliver", "args": {}, "after": [key]}]
         for s in steps:
@@ -1631,6 +1643,10 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return _clean(brief_mod.result(ctx))
     if u["intent"] == "close":
         return _clean(close_mod.result(ctx))
+    if u["intent"] == "receivables":
+        return _clean(receivables_mod.result(ctx))
+    if u["intent"] == "profit":
+        return _clean(profit_mod.result(ctx))
     if u["intent"] == "converse":
         return _clean(converse_mod.result(u["question"], o["reply"], narrative_by=o["reply"].get("narrative_by", "template")))
     v = o.get("validate", {"checks": [], "status": "passed"})

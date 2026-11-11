@@ -122,7 +122,7 @@ hover and keyboard focus, and each menu opens beside the rail; on a phone the me
 | **Home** | One question, "What should Lyst work on?", and a composer that grows as you write (Shift+Enter for a new line; on focus it offers **Add data** and keyboard hints). Ask, and the answer leads: the verified finding, why it matters, the trust line, one chart and what to do, with everything else one click away. Before you ask, Home shows up to three starters and at most one focus line (a question that needs your input, an answer that did not verify, a blocked run, or "add data" on an empty workspace), never a list. The dock at the foot holds work in progress, what needs you, **Get started** (a progress ring and the one next step, in a sheet) and **Recent** |
 | **Data** | Opens as a flow: where the data comes from (**From**), the datasets, and the approved metrics they **Feed**, joined by lines (solid from source to dataset, dashed from dataset to metric). Each dataset's face is its *shape*, one bar per column coloured by what the column holds. Hover, focus or pick anything and its whole path lights up, upstream and downstream, so "what depends on this?" is answered by looking. Click anything and it opens as a sheet over the page, laid out for what it is. A dataset shows its shape, one sentence on it, its state (Ready to use, or **Review: 1 to fix** first), rows, columns, how recent it is and what it feeds, with **Analyze**, **Ask about it** and **More**, and Preview, Columns, Quality, Relationships, SQL and Contract inside the sheet. A source lists the datasets it gives (or, for a connection, its health, **Test** and **Sync a table**), and a metric shows its latest value, trend, how it is calculated, the dataset it reads and **Open in Brain**. Sheets lead to each other (source, dataset, metric), and closing one puts the flow back as it was. Above the flow sit Lyst's one line on the data (a link straight to the quality checks when a dataset needs a look), **Find a dataset**, **Add data** and **More** (Sources, Dashboards, Saved analyses, SQL with a sandboxed **Python** tab, and How the data connects). The keyboard works throughout |
 | **Brain** | Opens on a map of what Lyst knows: metrics, datasets, terms, memories and answers, gathered by kind, with pills to filter and a search that highlights matches. Pick a thing and only its relationships are drawn (with a filter open, what it connects to in other kinds comes in dimmed at the edge, and picking one opens its kind); a panel says what it is (a metric shows its value and trend), what it connects to (each a step further), and offers **Ask about it** and **Open**. With nothing picked, the panel shows what Lyst learned and used lately. **Work** holds needs you, activity (Running, Done, Stopped, Automatic, Decisions, Published) and recurring work. **More** holds Definitions, Documents, Memory (with memories waiting for review), Graph (with graph runs and the harness) and Specializations, the catalog of 136 kinds of analyst work |
-| **Settings** | Seven sections in one native-style list: **Account** (who you are, your workspaces, personal keys, sign out), **Workspaces** (members, business profile, usage and limits, move or copy), **Connections** (credentials, notifications and webhooks), **Models & Voice**, **Privacy & Security** (the external-model switch, data policy and audit trail), **Preferences** (autonomy, working ahead, event rules, the Get started guide) and **Advanced** (skills, capabilities, evaluation runs, health, backups). Lyst checks the setup itself (no model connected, data not encrypted at rest, a failing health check) and opens the section that fixes it, or says in one quiet line that nothing needs a look. Technical controls such as the full model list and prices, installation policy, who reads what and the full audit trail open as sheets |
+| **Settings** | Seven sections in one native-style list: **Account** (who you are, your workspaces, personal keys, sign out), **Workspaces** (members, business profile, usage and limits, move or copy), **Connections** (credentials, notifications and webhooks), **Models & Voice**, **Privacy & Security** (the external-model switch, data policy and audit trail), **Preferences** (autonomy, working ahead, event rules, the Get started guide) and **Advanced** (skills, capabilities, evaluation runs, health, backups). Lyst checks the setup itself (no model connected, data not encrypted at rest, a failing health check) and opens the section that fixes it, or says in one quiet line that nothing needs a look. Settings stays short: details sit behind help icons, the model line reads like "X, then 2 fallbacks if a call fails", and the audit trail reads in words ("A memory saved · Avery Lin · 2 min ago"). Technical controls such as the full model list and prices, installation policy, who reads what and the full audit trail open as sheets |
 
 <p align="center">
 <picture>
@@ -457,11 +457,14 @@ where they point, with Mark all read and "What to tell me about".
 
 * **Answers and investigations.** Values with prior-period and year-ago comparisons (a single figure comes with
   its recent history as a chart, and "by region year over year" compares each member with a chart of the changes
-  and a table of both periods; year to date is compared with the same months a year earlier), breakdowns, rankings ("top 3 regions by operating income", "which channel had the
-  fewest tickets"), trends over the window you ask for, with a headline that says where the metric went and its
+  and a table of both periods; year to date is compared with the same months a year earlier), breakdowns, rankings ("top 3 regions by operating income", "which clients bring in the most income?", "our biggest expense
+  categories", "which channel had the
+  fewest tickets"), trends over the window you ask for (one named
+  line per member for "revenue trend by region"), with a headline that says where the metric went and its
   biggest move, the peak period named ("which month had the highest revenue in 2025?"), anomalies, forecasts with
-  backtests (a quarter's forecast read against the last complete quarter), "why" questions with exact rate and mix attribution (a rise is called a rise, and members named in words
-  such as "product line Hardware"), deep investigations
+  backtests (a partly loaded month is left out, and a quarter's forecast is read against the last complete quarter), "why" questions with exact rate and mix attribution (a rise is called a rise, members named in words
+  such as "product line Hardware", and a question about one segment, such as "Why did COGS ratio change in EMEA?",
+  investigated and verified within that segment), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
 * **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
@@ -471,6 +474,17 @@ where they point, with Mark all read and "What to tell me about".
   behind each big move, and lists open alerts, approvals waiting and how current the data is. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
   "Every Monday at 8" repeats it, after approval.
+* **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
+  metrics (income invoiced, expenses, invoices sent, active clients). Ask "Who owes me money?" for what each client
+  owes today, how late it is, how long clients take to pay, and who to remind first. Lyst never contacts a client
+  itself.
+* **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
+  the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
+  the one named): the period has **arrived** complete (every segment that reported last period reported this one),
+  it is **clean** (no exact duplicates, no missing amounts), it **ties out** key by key within 0.5% to any second
+  source carrying the same measures, and the **flux** lines that need a comment are listed segment by segment against
+  last period and a year earlier. Lyst reports only: it never posts a journal, edits data or marks a period closed,
+  and a second source you cannot read is listed as not checked. "Every weekday at 9" repeats it, after approval.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
   raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
   model wording verified against the computed numbers.
@@ -715,9 +729,9 @@ where they point, with Mark all read and "What to tell me about".
 ### Working with others
 
 * **Gets itself ready for a new organization.** Connect or upload data and Lyst studies the metadata only (names,
-  types and shape, never rows), recognises the business areas from thirteen versioned industry packages (finance,
+  types and shape, never rows), recognises the business areas from fourteen versioned industry packages (finance,
   procurement, sales, marketing, HR, manufacturing, customer service, product, logistics, IT, healthcare,
-  professional services, financial services), and suggests metrics, business terms, privacy limits for personal
+  professional services, financial services, small business), and suggests metrics, business terms, privacy limits for personal
   data, contracts, starter questions and sources that seem to be missing. Every suggestion says why, and none is
   official until an administrator accepts it through the usual governed, versioned and audited path. A versioned
   business profile holds the chosen industries, the organization's own words for its metrics (so "outlay"
