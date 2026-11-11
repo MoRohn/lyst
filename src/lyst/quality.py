@@ -7,7 +7,9 @@ A dataset's current version is scanned for the rows and cells a person should lo
 * **duplicate**: an exact copy of an earlier row (its amounts would count twice);
 * **null**: an empty cell;
 * **negative**: a negative value in a column that is otherwise positive (cost, revenue, quantity);
-* **outlier**: a value more than five robust deviations from the column's median.
+* **outlier**: a value more than five robust deviations from the column's median;
+* **variant**: a category written differently from its usual spelling only by case, spaces or punctuation
+  (``"Positive "`` where ``"positive"`` is used everywhere else), which would otherwise count as a separate value.
 
 Each flagged row or cell is an *issue* with a stable key (its kind, its column and a fingerprint of the row's values),
 so a person's review survives a refresh that leaves the row unchanged. A person can accept an issue as valid (an
@@ -19,6 +21,7 @@ edge case, nothing changes), or stage a fix (a new value) or an exclusion (the r
 * a cell is reconciled when the dataset carries an identity (``operating_income = revenue - cogs - opex`` holds in
   every other row): the empty or sign-flipped value is the one that makes the row reconcile;
 * an empty measure in a time series is estimated from the periods either side, and said to be an estimate;
+* a variant spelling is set to the column's usual spelling of the same value;
 * a negative of typical size is read as a sign error, and said to be the likeliest cause rather than a certainty;
 * otherwise Lyst says it cannot tell and leaves the issue to a person.
 
@@ -55,7 +58,9 @@ KINDS: dict[str, tuple[str, str]] = {  # kind -> (label, severity)
     "negative": ("Negative value", "high"),
     "null": ("Empty cell", "medium"),
     "outlier": ("Unusual value", "low"),
+    "variant": ("Inconsistent spelling", "medium"),
 }
+MAX_CATEGORIES = 500  # a text column with more distinct values than this is free text, not a category
 DECISIONS = ("accept", "exclude", "fix", "reopen")
 MAX_ROWS = 1_000_000  # reviewed row by row up to this size; larger tables are resolved with a transformation
 MAX_LISTED = 500
@@ -107,6 +112,12 @@ def _decimals(s: pd.Series) -> int:
         if np.allclose(vals, vals.round(d), atol=1e-9, rtol=0):
             return d
     return 4
+
+
+def _spelling(v: str) -> str:
+    """The value with case, spaces, underscores, hyphens and punctuation taken out: two spellings of one category
+    share it."""
+    return re.sub(r"[^\w]", "", re.sub(r"[\s_\-]+", "", v.strip().lower()))
 
 
 def _formula(target: str, coef: dict[str, int]) -> str:
@@ -167,6 +178,26 @@ class _Scan:
         for c in cols:
             for i in np.flatnonzero(f[c].isna().to_numpy()):
                 self._add("null", int(i), c, f"{c} is empty in this row.")
+        for c in cols:
+            if c in self.numeric or not (pd.api.types.is_object_dtype(f[c]) or pd.api.types.is_string_dtype(f[c])):
+                continue
+            vals = f[c].dropna().astype(str)
+            counts = vals.value_counts()
+            if counts.empty or len(counts) > MAX_CATEGORIES:
+                continue
+            groups: dict[str, list[tuple[str, int]]] = {}
+            for raw, n in counts.items():  # most common first
+                if key := _spelling(raw):
+                    groups.setdefault(key, []).append((raw, int(n)))
+            for members in groups.values():
+                if len(members) < 2:
+                    continue
+                usual, n_usual = members[0]
+                odd = {raw for raw, _ in members[1:]}
+                mask = (f[c].notna() & f[c].astype(str).isin(odd)).to_numpy()
+                for i in np.flatnonzero(mask):
+                    self._add("variant", int(i), c, f"{c} is {str(f[c].iat[i])!r} here; {usual!r} is the usual spelling "
+                              f"({n_usual:,} rows).", canonical=usual, usual_rows=n_usual)
         flagged: set[tuple[int, str]] = set()
         for c in self.numeric:
             s = f[c]
@@ -296,6 +327,10 @@ class _Scan:
                                   "If it is a credit or a reversal, accept it as valid instead."}
             return {"action": "none", "confidence": "low",
                     "reason": "It could be a credit or a reversal. Check it with the owner, then accept or fix it."}
+        if kind == "variant":
+            return {"action": "set", "value": issue["canonical"], "confidence": "high",
+                    "reason": f"It differs from {issue['canonical']!r} only by case, spaces or punctuation, and that spelling "
+                              f"is used in {issue['usual_rows']:,} rows; as it is, it counts as a separate value."}
         if kind == "outlier":
             if implied:
                 value, formula, hold, n = implied
