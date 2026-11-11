@@ -731,6 +731,6 @@ try:
             work.section(agent.state(ws)["tasks"], agent.waiting(agent.state(ws)))
         else:
             overview()
-        zone.board("brain", place="bottom")
+            zone.board("brain", place="bottom")  # Work lists the same activity itself; one quiet line would repeat it
 except APIError as e:
     st.error(str(e), icon=":material/cloud_off:")
