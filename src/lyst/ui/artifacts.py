@@ -503,8 +503,9 @@ def view_workflow(item: dict) -> None:
 
 
 def view_file(item: dict) -> None:
-    """A briefing, deck, workbook or PDF. All four are built from one answer, so each opens on that answer as the
-    page reads it, charts drawn; the file's own pages, slides or sheets follow, and the file to keep."""
+    """A briefing, deck, workbook or PDF. All four are built from one answer, so a PDF, deck or workbook opens on
+    that answer as the answer page draws it (charts live, in this theme); the file's own pages, slides or sheets
+    follow, and the file to keep. A briefing is its own Markdown, charts embedded."""
     api = client()
     a = item.get("asset") or {}
     ext, mime = EXT.get(item["kind"], ("bin", "application/octet-stream"))
@@ -517,12 +518,18 @@ def view_file(item: dict) -> None:
                            icon=":material/download:", key=f"fdl_{item['id']}")
     from lyst.ui.components import md  # noqa: PLC0415
 
-    text = data.decode("utf-8", "replace") if item["kind"] == "briefing" and data else _briefing(item)
+    text = data.decode("utf-8", "replace") if item["kind"] == "briefing" and data else ""
+    r = None if text else (result(item["task_id"]) if item.get("task_id") else None)
     own = {"report": "Pages", "presentation": "Slides", "workbook": "Sheets"}.get(item["kind"]) if data else None
-    tabs = st.tabs(["Preview", own]) if own and text else [st.container()]
+    tabs = st.tabs(["Preview", own]) if own and (text or r) else [st.container()]
     if text:
         with tabs[0], kit.card(f"doc_{item['id']}"):
             st.markdown(md(_inline(text)))
+    elif r:  # the answer the file was built from, as the answer page draws it: live charts, in this theme
+        from lyst.ui.components import answer  # noqa: PLC0415
+
+        with tabs[0]:
+            answer(r, key=f"fp_{item['id']}")
     elif not own:
         st.html(f'<img class="lyst-thumb" style="max-width:420px" src="{thumbnail(item, visuals.mode())}" alt="">')
     if own:
@@ -541,19 +548,6 @@ def _inline(text: str) -> str:
     lines = [ln for ln in lines if not ln.startswith("*Lyst · ")]  # the stamp: the header says kind and when
     return "\n".join("####" + ln[2:] if ln.startswith("## ") else "#####" + ln[3:] if ln.startswith("### ") else ln
                      for ln in lines).strip()
-
-
-def _briefing(item: dict) -> str:
-    """The answer behind a file, as the briefing Markdown (charts embedded as SVG): what every file kind shows."""
-    r = result(item["task_id"]) if item.get("task_id") else None
-    if not r:
-        return ""
-    from lyst.deliverables import briefing  # noqa: PLC0415 - the same builder the downloads use
-
-    try:
-        return briefing({k: v for k, v in r.items() if k != "_task"}, r.get("_task") or {})
-    except Exception:  # noqa: BLE001 - a preview that cannot be built leaves the file and its pages
-        return ""
 
 
 def _pages(item: dict, data: bytes) -> None:
@@ -673,7 +667,7 @@ def versions(item: dict) -> None:
 
 
 CSS = """
-/* a file's preview draws its charts as the file does (dark text on paper): on a paper surface in dark mode too */
+/* a briefing's charts are SVG drawn as in the file (dark text on paper): on a paper surface in dark mode too */
 [class*="st-key-lyst_card_doc_"] img {background: #fff; border-radius: var(--lyst-radius-md); padding: .5rem; max-width: 100%;}
 img.lyst-thumb {width: 100%; aspect-ratio: 240 / 132; border-radius: var(--lyst-radius-md); display: block;}
 .lyst-page {white-space: pre-wrap; font-size: var(--lyst-size-sm); line-height: var(--lyst-leading-body);
