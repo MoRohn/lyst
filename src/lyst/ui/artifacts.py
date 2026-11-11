@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import io
+import re
 from html import escape
 
 import streamlit as st
@@ -502,43 +503,134 @@ def view_workflow(item: dict) -> None:
 
 
 def view_file(item: dict) -> None:
-    """A briefing, deck, workbook or PDF: its content where the browser can show it, and the file to keep."""
+    """A briefing, deck, workbook or PDF. All four are built from one answer, so each opens on that answer as the
+    page reads it, charts drawn; the file's own pages, slides or sheets follow, and the file to keep."""
     api = client()
     a = item.get("asset") or {}
     ext, mime = EXT.get(item["kind"], ("bin", "application/octet-stream"))
     data = api.http.get(f"/v1/artifacts/{a.get('ref_id')}", headers=api._h()).content if a.get("ref_id") else b""
-    if item["kind"] == "briefing" and data:
-        from lyst.ui.components import md  # noqa: PLC0415
-
-        with kit.card(f"doc_{item['id']}"):
-            st.markdown(md(data.decode("utf-8", "replace")))
-    elif item["kind"] == "report" and data:
-        pages = _pdf_pages(data)
-        for i, text in enumerate(pages):
-            with kit.card(f"pg_{item['id']}_{i}"):
-                st.html(f'<div class="lyst-card-kicker">Page {i + 1} of {len(pages)}</div>'
-                        f'<div class="lyst-page">{escape(text)}</div>')
-    elif item["kind"] == "presentation" and data:
-        slides = _slides(data)
-        cols = st.columns(2)
-        for i, (title, lines) in enumerate(slides):
-            with cols[i % 2], kit.card(f"sl_{item['id']}_{i}"):
-                st.html(f'<div class="lyst-slide"><div class="lyst-card-kicker">Slide {i + 1}</div>'
-                        f'<div class="lyst-card-title">{escape(title)}</div>'
-                        + "".join(f'<div class="lyst-card-meta">{escape(t)}</div>' for t in lines[:6]) + "</div>")
-    elif item["kind"] == "workbook" and data:
-        import pandas as pd  # noqa: PLC0415
-
-        sheets = pd.read_excel(io.BytesIO(data), sheet_name=None)
-        for tab, df in zip(st.tabs(list(sheets)), sheets.values(), strict=True):
-            with tab:
-                st.dataframe(df, hide_index=True, width="stretch", placeholder="—")
-    else:
-        st.html(f'<img class="lyst-thumb" style="max-width:420px" src="{thumbnail(item, visuals.mode())}" alt="">')
     if data:
-        st.download_button(f"Download the {KINDS[item['kind']][0].lower()}", data,
-                           file_name=f"{item['title'][:60]}.{ext}", mime=mime, on_click="ignore",
+        label = KINDS[item["kind"]][0]
+        label = label if label[:2].isupper() else label[0].lower() + label[1:]  # "PDF briefing" keeps its PDF
+        st.download_button(f"Download the {label}", data,
+                           file_name=f"{item['title'][:60]}.{ext}", mime=mime, on_click="ignore", type="primary",
                            icon=":material/download:", key=f"fdl_{item['id']}")
+    from lyst.ui.components import md  # noqa: PLC0415
+
+    text = data.decode("utf-8", "replace") if item["kind"] == "briefing" and data else _briefing(item)
+    own = {"report": "Pages", "presentation": "Slides", "workbook": "Sheets"}.get(item["kind"]) if data else None
+    tabs = st.tabs(["Preview", own]) if own and text else [st.container()]
+    if text:
+        with tabs[0], kit.card(f"doc_{item['id']}"):
+            st.markdown(md(_inline(text)))
+    elif not own:
+        st.html(f'<img class="lyst-thumb" style="max-width:420px" src="{thumbnail(item, visuals.mode())}" alt="">')
+    if own:
+        with tabs[-1]:
+            {"report": _pages, "presentation": _slide_cards, "workbook": _sheets}[item["kind"]](item, data)
+
+
+def _inline(text: str) -> str:
+    """The briefing read inside the viewer: the page already shows its title, so the first heading goes, and its
+    sections step down to the card's heading size. A chart's data table (folded in the file under <details>, which
+    the viewer would print as tags) stays out: the chart is drawn above it and its rows are under Sheets or the file."""
+    text = re.sub(r"<details>.*?</details>\n?", "", text, flags=re.S)
+    lines = text.splitlines()
+    if lines and lines[0].startswith("# "):
+        lines = lines[1:]
+    lines = [ln for ln in lines if not ln.startswith("*Lyst · ")]  # the stamp: the header says kind and when
+    return "\n".join("####" + ln[2:] if ln.startswith("## ") else "#####" + ln[3:] if ln.startswith("### ") else ln
+                     for ln in lines).strip()
+
+
+def _briefing(item: dict) -> str:
+    """The answer behind a file, as the briefing Markdown (charts embedded as SVG): what every file kind shows."""
+    r = result(item["task_id"]) if item.get("task_id") else None
+    if not r:
+        return ""
+    from lyst.deliverables import briefing  # noqa: PLC0415 - the same builder the downloads use
+
+    try:
+        return briefing({k: v for k, v in r.items() if k != "_task"}, r.get("_task") or {})
+    except Exception:  # noqa: BLE001 - a preview that cannot be built leaves the file and its pages
+        return ""
+
+
+def _pages(item: dict, data: bytes) -> None:
+    pages = _pdf_pages(data)
+    for i, text in enumerate(pages):
+        with kit.card(f"pg_{item['id']}_{i}"):
+            st.html(f'<div class="lyst-card-kicker">Page {i + 1} of {len(pages)}</div>'
+                    f'<div class="lyst-page">{escape(text)}</div>')
+
+
+def _slide_cards(item: dict, data: bytes) -> None:
+    slides = _slides(data)
+    cols = st.columns(2)
+    for i, (title, lines) in enumerate(slides):
+        with cols[i % 2], kit.card(f"sl_{item['id']}_{i}"):
+            st.html(f'<div class="lyst-slide"><div class="lyst-card-kicker">Slide {i + 1}</div>'
+                    f'<div class="lyst-card-title">{escape(title)}</div>'
+                    + "".join(f'<div class="lyst-card-meta">{escape(t)}</div>' for t in lines[:6]) + "</div>")
+
+
+def _sheets(item: dict, data: bytes) -> None:
+    """Each table sheet under its own title, with the column names the sheet writes under that title. The Summary
+    sheet is the answer, which Preview already shows."""
+    sheets = [sh for sh in sheet_tables(data) if sh["name"] != "Summary"]
+    if not sheets:
+        return
+    for tab, sh in zip(st.tabs([sh["title"] for sh in sheets]), sheets, strict=True):
+        with tab:
+            if sh["note"]:
+                st.caption(sh["note"])
+            st.dataframe(sh["frame"], hide_index=True, width="stretch", placeholder="—",
+                         column_config=sh["config"])
+
+
+def sheet_tables(data: bytes) -> list[dict]:
+    """A Lyst workbook's sheets as tables. Each sheet starts with a title (row 1), maybe a note (row 2), a blank row,
+    then the header row (deliverables._sheet_head), so the first non-empty row after the title is the header."""
+    import pandas as pd  # noqa: PLC0415
+    from openpyxl import load_workbook  # noqa: PLC0415
+
+    try:
+        wb = load_workbook(io.BytesIO(data), read_only=True)
+    except Exception:  # noqa: BLE001 - an unreadable file still downloads
+        return []
+    out = []
+    for ws in wb.worksheets:
+        rows = [list(r) for r in ws.iter_rows()]
+        vals = [[c.value for c in r] for r in rows]
+        if not vals:
+            continue
+        title = str(vals[0][0] or ws.title)
+        note = str(vals[1][0]) if len(vals) > 1 and vals[1] and vals[1][0] is not None else ""
+        head = next((i for i in range(1, len(vals)) if sum(v is not None for v in vals[i]) >= 2), None)
+        if head is None:
+            continue
+        width = max((j + 1 for r in vals[head:] for j, v in enumerate(r) if v is not None), default=0)
+        names, seen = [], set()
+        for j in range(width):
+            n = str(vals[head][j]) if j < len(vals[head]) and vals[head][j] is not None else f"Column {j + 1}"
+            while n in seen:
+                n += " "
+            seen.add(n)
+            names.append(n)
+        body = [(r + [None] * width)[:width] for r in vals[head + 1:] if any(v is not None for v in r)]
+        frame = pd.DataFrame(body, columns=names)
+        config = {}
+        fmt_row = rows[head + 1] if head + 1 < len(rows) else []
+        for j, n in enumerate(names):
+            f = getattr(fmt_row[j], "number_format", "") if j < len(fmt_row) else ""
+            if "%" in (f or "") and pd.api.types.is_numeric_dtype(frame[n]):
+                frame[n] = frame[n] * 100
+                config[n] = st.column_config.NumberColumn(n, format="%.1f%%")
+            elif pd.api.types.is_datetime64_any_dtype(frame[n]):
+                monthly = bool(frame[n].dropna().dt.day.eq(1).all())
+                config[n] = st.column_config.DateColumn(n, format="MMM YYYY" if monthly else "D MMM YYYY")
+        out.append({"name": ws.title, "title": title, "note": note, "frame": frame, "config": config})
+    return out
 
 
 def _pdf_pages(data: bytes) -> list[str]:
