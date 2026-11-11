@@ -37,8 +37,13 @@ def test_a_kpi_brief_reads_every_metric_and_flags_the_planted_margin_drop(seeded
     # the planted EMEA cost jump from Jul 2026 holds flat month to month, so it is caught against a year earlier
     sup = r["supporting"]["brief"]
     assert "operating_margin" in sup["unusual"] and "cogs_ratio" in sup["unusual"]
-    assert "Operating margin is 4.0 pts below Sep 2025, at 32.4%" in r["answer"]
-    assert "mostly EMEA (region" in r["answer"]
+    # the headline tells one move in full and names the others; each has its own line under Evidence
+    assert r["answer"].count(". ") <= 4 and "Also unusual: " in r["answer"] and "operating margin" in r["answer"]
+    assert any(e.startswith("Operating margin: 32.4% in Sep 2026") for e in r["evidence"])
+    # the move with one place to act on leads (the EMEA cost jump), not operating income, whose segments offset
+    lead = r["answer"].split(". ")[1]
+    assert lead.startswith(("COGS ratio is ", "Operating margin is ")) and "mostly EMEA (region" in lead
+    assert "operating income" in r["answer"].split("Also unusual: ")[1]
     # the figures are the demo's own
     df = demo.pnl()
     sep = df[pd.to_datetime(df["month"]) == "2026-09-01"]
