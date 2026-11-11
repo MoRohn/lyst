@@ -274,3 +274,27 @@ def test_a_partial_month_is_left_out_of_a_forecast(seeded):
     assert any("Oct 2026 is left out" in a for a in r["supporting"]["assumptions"])
     chart = next(c for c in r["charts"] if c["type"] == "forecast")
     assert str(chart["history_x"][-1])[:7] == "2026-09"
+
+
+def test_a_why_answer_leads_with_each_members_contribution(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Why did operating margin decline last quarter?")["result"]
+    bar = r["charts"][0]
+    assert bar["type"] == "bar" and bar["title"].startswith("What moved operating margin: each region's contribution")
+    assert bar["x"][0] == "EMEA" and bar["y"][0] < 0  # the largest move first, with its sign
+    table = next(t for t in r["tables"] if t["title"].startswith("Change in operating margin"))
+    contribution = {row[0]: row[-1] for row in table["rows"]}
+    assert dict(zip(bar["x"], bar["y"], strict=True)) == pytest.approx(contribution)
+
+
+def test_next_quarters_are_forecast_quarter_by_quarter(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Forecast revenue for the next 2 quarters")["result"]
+    assert r["answer"].startswith("Lyst forecasts revenue of $") and " in Q4 2026 (80% interval " in r["answer"]
+    assert ", then $" in r["answer"] and " in Q1 2027 " in r["answer"] and r["answer"].endswith("in Q3 2026.")
+    chart = next(c for c in r["charts"] if c["type"] == "forecast")
+    assert [str(x)[:7] for x in chart["x"]] == ["2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"]
+    m = ask(lyst, owner, "Forecast operating margin for the next 2 quarters")["result"]
+    assert "averaging " in m["answer"] and "against an average of 32.5% in Q3 2026" in m["answer"]
+    n = ask(lyst, owner, "Forecast revenue for the next 9 months")["result"]
+    assert "by Jun 2027" in n["answer"]  # a month name, not 2027-06-01
