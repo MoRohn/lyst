@@ -68,7 +68,16 @@ def forecast_period(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     spec = _spec(ctx, args["metric"])
     y, r = _series(ctx, spec)
     grain = args.get("grain", "quarter")
-    last = y.index[-1]
+    last = y.index[-1]  # the period asked for follows the latest month seen ...
+    from .engine import _max_date  # noqa: PLC0415
+
+    through = _max_date(ctx, spec)
+    partial = None
+    if through is not None and len(y) > 2 and pd.Timestamp(through) < last + pd.offsets.MonthEnd(0):
+        # ... but a month the data only partly covers is not a month's value: the model learns from, and the answer is
+        # read against, complete months only
+        partial = {"period": last.date().isoformat(), "through": through.isoformat()}
+        y = y.iloc[:-1]
     from ..onboarding import fiscal_start  # noqa: PLC0415 - the business profile's fiscal calendar
 
     fs = fiscal_start(ctx.services.semantic.stores.workspace(ctx.workspace_id))
@@ -84,7 +93,8 @@ def forecast_period(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         months = pd.date_range(nxt_start, periods=3, freq="MS")
     else:
         months = pd.date_range(last + pd.offsets.MonthBegin(1), periods=1, freq="MS")
-    horizon = int((months[-1].year - last.year) * 12 + months[-1].month - last.month)
+    fit_last = y.index[-1]
+    horizon = int((months[-1].year - fit_last.year) * 12 + months[-1].month - fit_last.month)
     f = timeseries.forecast(y, horizon=horizon, grain="month", level=0.8)
     tbl = f.table[f.table["period"].isin(months)]
     agg = planning.quarter_from_monthly(tbl["yhat"].tolist(), tbl["lo"].tolist(), tbl["hi"].tolist(), level=0.8)
@@ -98,7 +108,7 @@ def forecast_period(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "monthly": [{"period": p.date().isoformat(), "yhat": float(a), "lo": float(b), "hi": float(c)}
                         for p, a, b, c in zip(tbl["period"], tbl["yhat"], tbl["lo"], tbl["hi"], strict=True)],
             "total": agg, "method": f.method, "backtest_mape": f.backtest_mape, "backtest_points": f.backtest_points,
-            "history_last": {"period": last.date().isoformat(), "value": float(y.iloc[-1])},
+            "history_last": {"period": fit_last.date().isoformat(), "value": float(y.iloc[-1])}, "partial": partial,
             "history": [{"period": p.date().isoformat(), "value": float(v)} for p, v in y.items()],
             "evidence": [_ev(r, f"{spec.name} by month (forecast input)")]}
 

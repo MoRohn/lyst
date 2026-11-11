@@ -144,7 +144,8 @@ class OnboardingService:
                     continue
                 spec = MetricSpec(name=m.name, title=m.title, description=m.description or f"{m.title} ({pkg.title} starting point).",
                                   dataset=hit["dataset"], measure=Measure(agg=m.agg, column=hit["column"]), time_column=hit["time_column"],
-                                  dimensions=hit["dimensions"], format=m.format, higher_is_better=m.higher_is_better)
+                                  dimensions=hit["dimensions"], format=m.format, higher_is_better=m.higher_is_better,
+                                  synonyms=m.synonyms)
                 proposed_metrics.add(m.name)
                 matched_any = True
                 out.append({"id": f"metric:{m.name}", "kind": "metric", "domain": pkg.id, "title": f"Define {m.title} as {m.agg} of {hit['dataset']}.{hit['column']}",
