@@ -97,7 +97,7 @@ export const capabilities: {
     icon: 'Blocks',
     title: 'Build',
     text: 'Versioned deliverables with an owner, flagged when their data changes and repaired by a verified re-run. In a Lyst App, every number comes from governed metrics, drawn in a sandbox.',
-    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Answers published as pages or expiring links', 'Datasets built from a sentence, verified', 'Lyst Apps from one sentence', 'A live answer component on the AI SDK', 'PDF, decks and workbooks, charts included'],
+    items: ['Interactive Dash dashboards', 'An immersive viewer for each deliverable', 'Answers published as pages or expiring links', 'Datasets built from a sentence, verified', 'Lyst Apps from one sentence', 'A live answer component on the AI SDK', 'PDF, decks and workbooks, charts included', 'Downloads previewed in Lyst first, with live charts'],
     status: 'available',
   },
   {
@@ -123,9 +123,9 @@ export const capabilities: {
   },
   {
     icon: 'CalendarCheck',
-    title: 'Close and brief',
-    text: 'The checks and briefs a finance team runs every period, ready when the data lands.',
-    items: ['Business briefs: what moved more than usual, and why', 'Briefs repeated on a schedule, after approval', 'Close checks: arrived, clean, ties out, flux', 'Each segment’s share of the move, in every download'],
+    title: 'Reviews and briefs',
+    text: 'The reviews a team runs every period, ready when the data lands. A change counts as an incident’s cause only when the incident names it.',
+    items: ['Briefs that lead with the one move to act on', 'Briefs repeated on a schedule, after approval', 'Close checks: arrived, clean, ties out, flux', 'Incident review: time to restore', 'Change failure rate, and changes behind incidents', 'Each segment’s share of the move, in every download'],
     status: 'available',
   },
   {
@@ -139,7 +139,7 @@ export const capabilities: {
     icon: 'Tags',
     title: 'Annotation QA',
     text: 'Ask how consistent your annotators are. Lyst measures and proposes; it never relabels anything itself.',
-    items: ['Agreement, as Krippendorff’s alpha', 'Label pairs annotators confuse', 'Items to adjudicate, hardest first', 'Labels spelled two ways, or left blank', 'Datasheets and guideline drafts'],
+    items: ['Agreement, as Krippendorff’s alpha', 'Label pairs annotators confuse', 'Items to adjudicate, hardest first', 'Labels spelled two ways, or left blank', 'Agreement per annotator, charted', 'Datasheets with an owner, and guideline drafts'],
     status: 'available',
   },
 ];
