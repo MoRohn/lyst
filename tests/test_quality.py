@@ -176,3 +176,31 @@ def test_a_quality_answer_opens_its_review_and_reads_plainly(seeded):
     assert res["open"] == {"kind": "quality", "id": DS, "title": f"Flagged rows in {DS}"}
     nulls = next(c for c in res["confidence"]["checks"] if c["name"] == "nulls")
     assert nulls["detail"] == "1 empty cell in revenue" and "{" not in nulls["detail"]
+
+
+def test_a_category_spelled_another_way_is_flagged_and_merged_on_approval(lyst):
+    import io
+
+    owner = lyst.guard.create_user("ana@labs.test", "Ana")
+    lyst.guard.create_workspace(owner, "labs", "Labeling team")
+    labels = ["positive"] * 40 + ["negative"] * 30 + ["Positive "] * 2 + ["NEGATIVE"] + ["neutral"] * 20 + ["neutral."]
+    df = pd.DataFrame({"item_id": [f"T{i:03d}" for i in range(len(labels))], "label": labels})
+    buf = io.StringIO()
+    df.to_csv(buf, index=False)
+    lyst.data.ingest(owner, "labs", "annotations", buf.getvalue().encode(), filename="annotations.csv")
+    r = lyst.quality.report(owner, "labs", "annotations")
+    assert r["counts"] == {"variant": 4}
+    by = {i["value"]: i for i in r["issues"]}
+    assert set(by) == {"Positive ", "NEGATIVE", "neutral."}
+    pos = by["Positive "]
+    assert pos["label"] == "Inconsistent spelling" and pos["column"] == "label" and "'positive'" in pos["why"]
+    assert pos["proposal"] == {**pos["proposal"], "action": "set", "value": "positive", "confidence": "high"}
+    # an identifier column is not a category: T001 and T010 never collide, and free text is left alone
+    assert all(i["column"] == "label" for i in r["issues"])
+    staged = lyst.quality.propose(owner, "labs", "annotations")
+    assert staged["proposed"] == 4
+    res = lyst.quality.apply(owner, "labs", "annotations")
+    lyst.runtime.decide(owner, res["approval_id"], True)
+    out = lyst.data.query(owner, "labs", 'SELECT label, count(*) FROM "annotations" GROUP BY 1 ORDER BY 1')
+    assert dict(out.rows) == {"negative": 31, "neutral": 21, "positive": 42}
+    assert lyst.quality.report(owner, "labs", "annotations")["counts"] == {}
