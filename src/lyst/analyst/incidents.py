@@ -53,7 +53,7 @@ _SERVICE = ["service", "application", "app", "system", "component", "product", "
 _OUTCOME = ["outcome", "result", "status", "change_status", "state"]
 _TYPE = ["change_type", "type", "category", "kind"]
 _LINK = ["caused_by_change", "change_id", "related_change", "linked_change", "cause_change", "root_cause_change"]
-_FAILED = re.compile(r"\b(fail\w*|rolled ?back|rollback|backed ?out|unsuccessful|aborted|reverted|caused incident)\b", re.I)
+_FAILED = re.compile(r"\b(?:fail\w*|rolled ?back|rollback|backed ?out|unsuccessful|aborted|reverted|caused incident)\b", re.I)
 WINDOW_HOURS = 24
 _BY_SEV = re.compile(r"(\d+)")
 
