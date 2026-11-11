@@ -197,6 +197,11 @@ def _period(question: str, grain: str, anchor: date, fs: int) -> tuple[periods.P
     return periods.last_complete(grain, anchor, fs), None
 
 
+def _name(spec: MetricSpec) -> str:
+    """A metric's title inside a sentence: "operating margin", but "COGS ratio"."""
+    return spec.title if spec.title[:2].isupper() else spec.title[:1].lower() + spec.title[1:]
+
+
 def _ago(d: date, today: date) -> str:
     days = (today - d).days
     return "today" if days <= 0 else ("yesterday" if days == 1 else f"{days} days ago")
@@ -373,7 +378,14 @@ def result(ctx: Context) -> dict[str, Any]:
                         f"{b['period']['grain']}s in a row.")
     elif unusual:
         lead.append(f"{p}: {len(unusual)} of {len(rows)} metrics moved more than usual.")
-        lead.append("; ".join(_move(x, specs[x["metric"]], b) + _driver_text(x) for x in unusual[:3]) + ".")
+        # one move told in full; the rest are named, and each has its own line under Evidence
+        # the move with a clear place to act leads: wrong way and mostly one segment (a share above 1 means segments
+        # offset each other, so no one place explains it), else the most unusual
+        top = next((x for x in unusual
+                    if x.get("good") is False and 0.6 <= (x.get("driver") or {}).get("share", 0) <= 1.0), unusual[0])
+        lead.append(_move(top, specs[top["metric"]], b) + _driver_text(top) + ".")
+        if len(unusual) > 1:
+            lead.append("Also unusual: " + ", ".join(_name(specs[x["metric"]]) for x in unusual if x is not top) + ".")
         if calm:
             lead.append(f"The other {len(calm)} stayed within their normal range.")
     else:
@@ -424,7 +436,7 @@ def result(ctx: Context) -> dict[str, Any]:
         else:
             actions.append(f"Ask why {name} changed between {b['year_ago_label']} and {p}.")
         if x["metric"] not in b["watched"]:
-            actions.append(f"Watch {spec.title} so the next unusual move is caught and investigated as it lands.")
+            actions.append(f"Watch {name} so the next unusual move is caught and investigated as it lands.")
     if b["alerts"]:
         actions.append(f"Review {len(b['alerts'])} open alert{'s' if len(b['alerts']) != 1 else ''} from the metrics Lyst "
                        "is watching.")
