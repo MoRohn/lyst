@@ -235,7 +235,7 @@ one chart and the PDF briefing, ready to forward.
 
 Under the answer sit four menus. **Keep watch** watches the metric or repeats the question. **Download** gives a PDF
 briefing, a deck, an Excel workbook or Markdown, each carrying everything the answer shows, charts included (native,
-editable charts in Excel and slides, vector charts in the PDF, an embedded chart with its data in Markdown).
+editable charts in Excel and slides, vector charts in the PDF, an embedded chart with its data in Markdown; in the PDF and Markdown every chart appears once, at full size).
 **Share** assigns it, asks for a review or publishes it. **More** holds Discuss, What if, Compare options, How this
 ran (each step, query and model call with its timing and tokens) and what Lyst can do with this answer right now:
 break it down, compare it, explain it, make a dashboard, or repeat it (marked as needing approval). Below them is one
@@ -462,7 +462,8 @@ where they point, with Mark all read and "What to tell me about".
   fewest tickets"), trends over the window you ask for (one named
   line per member for "revenue trend by region"), with a headline that says where the metric went and its
   biggest move, the peak period named ("which month had the highest revenue in 2025?"), anomalies, forecasts with
-  backtests (a partly loaded month is left out, and a quarter's forecast is read against the last complete quarter), "why" questions with exact rate and mix attribution (a rise is called a rise, members named in words
+  backtests ("next N quarters" forecasts each quarter, a partly loaded month is left out, and a quarter's forecast is read against the last complete quarter), "why" questions with exact rate and mix attribution, leading on screen and in every download with each segment's share
+  of the move (a rise is called a rise, members named in words
   such as "product line Hardware", and a question about one segment, such as "Why did COGS ratio change in EMEA?",
   investigated and verified within that segment), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -482,6 +483,12 @@ where they point, with Mark all read and "What to tell me about".
   month, a named month or quarter, or the year so far, against the period before and a year earlier, with the last
   12 months, the best and weakest month and any month that lost money. It says plainly that this is a simple profit,
   not tax or accrual accounting, and it steps aside when the workspace has its own profit or margin metric.
+* **Annotation QA.** Ask "How consistent are the annotators?" and Lyst measures agreement (Krippendorff's
+  alpha), names the label pairs annotators confuse and the annotator who labels differently from the team, and lists
+  the items to adjudicate, hardest first. The data quality review also catches the same label spelled different ways
+  and blank labels, and proposes the fix for approval. "Document the annotations dataset" writes a datasheet from
+  what Lyst has measured, and "Write annotation guidelines" drafts a guideline from how the labels were used,
+  leaving the definitions to your team. Lyst never relabels anything itself.
 * **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
   the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
   the one named): the period has **arrived** complete (every segment that reported last period reported this one),
