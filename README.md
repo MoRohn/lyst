@@ -163,7 +163,9 @@ Breakdown answers show their split as a chart.
 
 Dashboards, charts, briefings, slides, workbooks and saved analyses appear as previews drawn from their own
 content, and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides
-as slides, a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to
+as slides, a workbook sheet by sheet, a PDF page by page. A downloaded PDF, deck or workbook opens on a **Preview** of
+its answer with live charts in the current theme, with the file's own pages, slides or sheets in the next tab
+(workbook sheets show real column names, percents and months) and **Download** as the main button at the top. Inspect the evidence behind any of them, ask Lyst to
 refine it in words ("break that down by region", "compare it to last year", "every Monday", however you phrase or
 quote it), see its versions, pin it to Home's **Recent**, and return exactly where you were. Every chart in an answer
 appears under **Made in this answer**, Data › More › Dashboards is the gallery of everything made, and ⌘K finds artifacts
@@ -472,7 +474,8 @@ where they point, with Mark all read and "What to tell me about".
   briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
   month or quarter (or the one you name), flags what moved more than that metric usually does, against last period
   or a year ago (so a step change that then holds flat is still caught), names runs in one direction and the segment
-  behind each big move, and lists open alerts, approvals waiting and how current the data is. Metrics with no data
+  behind each big move, and lists open alerts, approvals waiting and how current the data is. It stays short: the one move with a clear
+  place to act is told in full, and the others are named. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
   "Every Monday at 8" repeats it, after approval.
 * **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
@@ -485,10 +488,16 @@ where they point, with Mark all read and "What to tell me about".
   not tax or accrual accounting, and it steps aside when the workspace has its own profit or margin metric.
 * **Annotation QA.** Ask "How consistent are the annotators?" and Lyst measures agreement (Krippendorff's
   alpha), names the label pairs annotators confuse and the annotator who labels differently from the team, and lists
-  the items to adjudicate, hardest first. The data quality review also catches the same label spelled different ways
+  the items to adjudicate, hardest first, with a chart of how often each annotator agrees with the rest; agreement
+  shows as percents in every download. The data quality review also catches the same label spelled different ways
   and blank labels, and proposes the fix for approval. "Document the annotations dataset" writes a datasheet from
-  what Lyst has measured, and "Write annotation guidelines" drafts a guideline from how the labels were used,
+  what Lyst has measured (naming the owner), and "Write annotation guidelines" drafts a guideline from how the labels were used,
   leaving the definitions to your team. Lyst never relabels anything itself.
+* **Incident and change review.** Load an incidents export and a change log and ask "What was our time to restore
+  last quarter?", "What is our change failure rate?" or "Which changes caused incidents?". Lyst reports incidents by
+  severity and service against the period before, median and mean time to restore, incidents still open, the change
+  failure rate, and the changes behind incidents. A change counts as the cause only when the incident names it; a
+  change on the same service shortly before is shown as a possible link.
 * **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
   the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
   the one named): the period has **arrived** complete (every segment that reported last period reported this one),
