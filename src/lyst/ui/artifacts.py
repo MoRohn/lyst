@@ -673,6 +673,8 @@ def versions(item: dict) -> None:
 
 
 CSS = """
+/* a file's preview draws its charts as the file does (dark text on paper): on a paper surface in dark mode too */
+[class*="st-key-lyst_card_doc_"] img {background: #fff; border-radius: var(--lyst-radius-md); padding: .5rem; max-width: 100%;}
 img.lyst-thumb {width: 100%; aspect-ratio: 240 / 132; border-radius: var(--lyst-radius-md); display: block;}
 .lyst-page {white-space: pre-wrap; font-size: var(--lyst-size-sm); line-height: var(--lyst-leading-body);
              max-width: 70ch;}
