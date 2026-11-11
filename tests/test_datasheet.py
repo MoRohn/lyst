@@ -31,6 +31,7 @@ def test_a_labeled_dataset_is_documented_from_measurements(lyst):
     assert issues["duplicate"] == 5 and issues["variant"] > 0 and issues["null"] == int(df["norm"].isna().sum())
     assert any(f.startswith("What it is: Sentiment labels from four annotators") for f in r["evidence"])
     assert any("data contract" in a for a in r["actions"])
+    assert any(f.startswith("Owner Ana, classification") for f in r["evidence"])  # a name, not a user id
 
 
 def test_annotation_guidelines_are_drafted_from_the_data_with_definitions_left_to_the_team(lyst):
@@ -48,6 +49,7 @@ def test_annotation_guidelines_are_drafted_from_the_data_with_definitions_left_t
     assert any(rule.startswith("Use exactly these spellings") for rule in rules)
     assert any(rule.startswith("Never leave label empty") for rule in rules)
     assert any("write each label's definition" in a for a in r["actions"])
+    assert not any(f.startswith("Guideline:") for f in r["evidence"])  # the rules live in the guideline table, once
 
 
 def test_an_unlabeled_dataset_gets_a_data_dictionary_and_its_metrics(seeded):

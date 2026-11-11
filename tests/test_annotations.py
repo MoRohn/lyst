@@ -84,6 +84,10 @@ def test_annotator_consistency_is_measured_and_the_odd_annotator_named(lyst):
     checks = {c["name"]: c["passed"] for c in r["confidence"]["checks"]}
     assert checks["labels_consistent"] is False and checks["labels_complete"] is False
     assert r["supporting"]["queries"] and any("does not relabel" in x for x in r["supporting"]["assumptions"])
+    # the answer names the dataset by its title, and a chart shows who agrees with the team, odd one out first
+    assert r["answer"].startswith("Sentiment annotations: ")
+    chart = next(c for c in r["charts"] if c["title"].startswith("Each annotator's agreement"))
+    assert chart["format"] == "percent" and chart["x"][0] == "a4" and chart["y"] == sorted(chart["y"])
 
 
 def test_disagreements_lead_when_asked_and_list_the_hardest_items(lyst):
@@ -148,3 +152,8 @@ def test_audit_phrases(text):
 @pytest.mark.parametrize("text", ["What was revenue last quarter?", "What do our documents say about labeling rules?"])
 def test_not_audit_phrases(text):
     assert not A.asks_for_audit(text)
+
+
+def test_agreement_columns_read_as_percents():
+    from lyst.answer_view import column_kind
+    assert column_kind("agreement with others") == "percent" and column_kind("agreement") == "percent"

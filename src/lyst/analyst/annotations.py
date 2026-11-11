@@ -282,7 +282,8 @@ def result(ctx: Context) -> dict[str, Any]:
         return out
     f = a["found"]
     ds = f["dataset"]
-    parts = [f"{ds}: {a['judgments']:,} labels on {a['items']:,} items, {len(a['labels'])} distinct labels"]
+    name = f.get("title") or ds
+    parts = [f"{name}: {a['judgments']:,} labels on {a['items']:,} items, {len(a['labels'])} distinct labels"]
     if a.get("alpha") is not None:
         parts.append(f"agreement (Krippendorff's alpha) is {a['alpha']:.2f}, {_alpha_words(a['alpha'])}; annotators all "
                      f"agreed on {_pct(a['unanimous_share'])} of the {a['annotated_by_several']:,} items labeled more than once")
@@ -383,8 +384,16 @@ def result(ctx: Context) -> dict[str, Any]:
     if a["confused"]:
         tables.append({"title": "Confused label pairs", "columns": ["label", "confused with", "disagreeing pairs"],
                        "rows": [[c["a"], c["b"], c["pairs"]] for c in a["confused"]]})
-    charts = [{"type": "bar", "title": f"Labels in {ds}", "x": [lab["label"] for lab in a["labels"]],
+    charts = [{"type": "bar", "title": f"Labels in {name}", "x": [lab["label"] for lab in a["labels"]],
                "y": [lab["judgments"] for lab in a["labels"]], "format": "number"}]
+    rated = [p for p in a["annotators"] if p["agreement"] is not None]
+    if len(rated) >= 2:  # who agrees with the rest of the team, lowest first, so the odd one out reads at a glance
+        rated = sorted(rated, key=lambda p: p["agreement"])
+        med = a.get("team_agreement")
+        charts.append({"type": "bar", "title": "Each annotator's agreement with the others' majority"
+                       + (f" (team median {_pct(med)})" if med is not None else ""),
+                       "x": [p["annotator"] for p in rated], "y": [round(p["agreement"], 4) for p in rated],
+                       "format": "percent"})
     status = "complete"
     out = brief_mod._shape(u["question"], u, answer, findings, implications, actions, tables, charts, checks,
                            {"evidence": a["evidence"]}, status=status, assumptions=assumptions)

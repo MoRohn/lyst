@@ -67,6 +67,18 @@ def _examples(col: dict[str, Any]) -> str:
     return ", ".join(str(v) for v, _ in top[:3])
 
 
+def _person(services: Any, user_id: Any) -> str | None:
+    """The owner as a reader knows them: their name, else their email; None when it cannot be looked up."""
+    db = getattr(getattr(services, "runtime", None), "db", None)
+    if not user_id or db is None:
+        return None
+    try:
+        rows = db.query("SELECT name, email FROM users WHERE id = ?", [user_id])
+    except Exception:  # noqa: BLE001 - a missing directory leaves the id, which is still true
+        return None
+    return (rows[0].get("name") or rows[0].get("email")) if rows else None
+
+
 @capability(REGISTRY, "datasheet", agent="communications", phase="deliver", permission="data.query",
             description="A datasheet for one dataset from what Lyst has measured: overview, data dictionary, quality, "
                         "lineage and use, and for labeled data the label set, agreement and a draft annotation guideline.")
@@ -89,6 +101,7 @@ def datasheet(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         out["hidden"] = sum(c["name"] not in seen for c in full.get("schema", []))
     except Exception:  # noqa: BLE001 - the catalog view is what the asker may see; nothing more to count
         out["hidden"] = 0
+    out["owner_name"] = _person(s, ov.get("owner"))
     out["metrics"] = [m.title for m in s.semantic.metrics(ctx.actor, ctx.workspace_id) if m.dataset == ds]
     quality = getattr(s.runtime, "quality", None) if s.runtime is not None else None
     if quality is not None:
@@ -184,7 +197,7 @@ def result(ctx: Context) -> dict[str, Any]:
     findings: list[str] = []
     if ov.get("description"):
         findings.append(f"What it is: {ov['description']}")
-    findings.append(f"Owner {ov.get('owner')}, classification {ov.get('classification')}, loaded from "
+    findings.append(f"Owner {d.get('owner_name') or ov.get('owner') or 'not set'}, classification {ov.get('classification')}, loaded from "
                     f"{ov.get('source') or 'a connection'}, last refreshed {str(ov.get('refreshed_at') or '')[:10]}.")
     if ov.get("summary"):
         findings.append(f"Catalog notes: {ov['summary']}")
@@ -225,7 +238,6 @@ def result(ctx: Context) -> dict[str, Any]:
             actions.append(f"Adjudicate the {len(a['split']):,} split items and add the decisions to the guideline as examples.")
         actions.append("Have the team write each label's definition into the draft guideline, then share it with "
                        "annotators and engineers.")
-        findings += [f"Guideline: {line}" for line in guideline] if guide else []
     if guide:
         tables.insert(0, tables.pop())  # the guideline first when that is what was asked for
     checks = [{"name": "from_measurements", "passed": True, "severity": "error",

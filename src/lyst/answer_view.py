@@ -96,7 +96,7 @@ def heading(col: Any) -> str:
 def column_kind(col: str, chart_kind: str = "number") -> str:
     """How a table column's numbers read, by the same rule the on-screen table uses."""
     c = str(col).lower()
-    if any(k in c for k in ("rate", "effect", "contribution", "share", "margin")):
+    if any(k in c for k in ("rate", "effect", "contribution", "share", "margin", "agreement")):
         return "percent"
     if c in ("value", "forecast", "low", "high", "lo", "hi", "actual", "prior", "current", "change") and chart_kind != "number":
         return chart_kind
