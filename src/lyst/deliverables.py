@@ -355,8 +355,8 @@ def briefing(result: dict[str, Any], task: dict[str, Any]) -> str:
         out += ["> **Read first**", ">"] + [f"> - {c}" for c in cav] + [""]
     if result.get("evidence"):
         out += ["## Evidence", ""] + [f"- {i}" for i in result["evidence"]] + [""]
-    if charts:
-        out += _md_chart(charts[0])
+    for c in charts:  # every chart at full size, once, in the answer's flow
+        out += _md_chart(c)
     for key in ("implications", "actions"):
         if result.get(key):
             out += [f"## {av.TITLES[key]}", ""] + [f"- {i}" for i in result[key]] + [""]
@@ -369,10 +369,8 @@ def briefing(result: dict[str, Any], task: dict[str, Any]) -> str:
             for h in result["hypotheses"]] + [""]
     made = av.made_here(result)
     if made:
-        out += [f"## {av.TITLES['made_here']}", ""]
-        for m in made:
-            out += [f"### Chart · {m['title']}", ""]
-            out += _md_chart(result["charts"][m["index"]])[2:]  # the title is the heading above
+        # a list of what the answer produced; each chart is drawn once, above, not repeated here
+        out += [f"## {av.TITLES['made_here']}", ""] + [f"- Chart · {m['title']} (above)" for m in made] + [""]
     if rail := av.rail(result):
         out += [f"## {av.TITLES['rail']}", ""] + [f"- **{h}:** {t}" for h, t in rail] + [""]
     out += [f"## {av.TITLES['method']}", ""]
@@ -489,8 +487,8 @@ def pdf_briefing(result: dict[str, Any], task: dict[str, Any]) -> bytes:
         story += [Spacer(1, 6), box]
     if result.get("evidence"):
         story += section("evidence") + bullets(result["evidence"])
-    if charts:
-        story += [Spacer(1, 8), chart_block(charts[0], width, 82 * mm)]
+    for c in charts:  # every chart at full size, once, in the answer's flow
+        story += [Spacer(1, 8), chart_block(c, width, 82 * mm)]
     if result.get("implications") or result.get("actions"):
         half = (width - 8 * mm) / 2
         left = [Paragraph(av.TITLES["implications"].upper(), kicker)] + bullets(result.get("implications") or []) if result.get("implications") else []
@@ -508,16 +506,8 @@ def pdf_briefing(result: dict[str, Any], task: dict[str, Any]) -> bytes:
                                                widths=[38 * mm, 22 * mm, width - 60 * mm])]
     made = av.made_here(result)
     if made:
-        story += section("made_here")
-        cw = (width - 6 * mm) / 2
-        cards = [[Paragraph("CHART", small), Paragraph(f"<b>{e(m['title'])}</b>", base),
-                  drawing(result["charts"][m["index"]], cw - 8, 44 * mm, title=False)] for m in made]
-        rows_ = [cards[i:i + 2] + ([""] if len(cards[i:i + 2]) == 1 else []) for i in range(0, len(cards), 2)]
-        tbl = Table(rows_, colWidths=[cw, cw], hAlign="LEFT")
-        tbl.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("BOX", (0, 0), (0, -1), 0.5, col(BORDER)),
-                                 ("BACKGROUND", (0, 0), (-1, -1), colors.white), ("TOPPADDING", (0, 0), (-1, -1), 6),
-                                 *([("BOX", (1, 0), (1, -1), 0.5, col(BORDER))] if len(cards) > 1 else [])]))
-        story.append(tbl)
+        # a list of what the answer produced; each chart is drawn once, above, not repeated as a thumbnail here
+        story += section("made_here") + bullets([f"Chart · {m['title']} (above)" for m in made])
     if rail := av.rail(result):
         story += section("rail")
         tbl = Table([[Paragraph(f"<b>{e(h)}</b>", cellst), Paragraph(e(t), cellst)] for h, t in rail],

@@ -268,6 +268,8 @@ def excel_chart(ws, c: dict[str, Any], *, first_row: int, last_row: int, cols: d
         s.dLbls = DataLabelList()
         s.dLbls.showVal = True
         s.dLbls.numFmt = native_format(kind, vals, labels=True)
+        if any(v is not None and v < 0 for v in c["y"]):
+            ch.x_axis.tickLblPos = "low"  # category names below the bars, not on the zero line
         ch.legend = None
         finish(ch)
         return ch
@@ -386,6 +388,11 @@ def slide_chart(slide, c: dict[str, Any], x, y, w, h):
     va.format.line.fill.background()
     chart.category_axis.format.line.color.rgb = rgb(BORDER)
     chart.category_axis.tick_labels.font.size = Pt(10)
+    if c.get("type") == "bar" and any(v is not None and v < 0 for v in c["y"]):
+        # with negative bars the labels sit at the bottom, not on the zero line inside the bars
+        from pptx.enum.chart import XL_TICK_LABEL_POSITION  # noqa: PLC0415
+
+        chart.category_axis.tick_label_position = XL_TICK_LABEL_POSITION.LOW
 
     if c.get("type") == "bar":
         plot = chart.plots[0]
