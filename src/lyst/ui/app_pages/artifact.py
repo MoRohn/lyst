@@ -48,8 +48,15 @@ if kind == "asset" and aid:  # a server-given link names only the asset; its kin
     item = artifacts.find("report", aid)
 else:
     item = artifacts.find(kind, aid) if kind in artifacts.VIEWERS and aid else None
-bar = st.columns([1.3, 4, 1.3, 1.1, 1.3], vertical_alignment="center")
-if bar[0].button("Back", icon=":material/arrow_back:", type="tertiary", key="art_back"):
+# one row on every screen: Back at the left, the artifact's controls together at the right (columns would stack
+# them one per line on a phone, and cut "Versions · 2" short on a desktop)
+# on a phone, Back and Pin keep their icons (their names stay as hover and screen-reader labels) so the row fits
+st.html("""<style>@media (max-width: 640px) {
+  .st-key-art_back button [data-testid="stMarkdownContainer"], .st-key-art_pin button [data-testid="stMarkdownContainer"]
+  {display: none;}
+}</style>""")
+bar = st.container(horizontal=True, vertical_alignment="center", gap="small", wrap=False, key="art_bar")
+if bar.button("Back", icon=":material/arrow_back:", type="tertiary", key="art_back", help="Back"):
     back()
 if not item:
     kit.empty(":material/search_off:", "Not found", "This artifact does not exist in this workspace, or you cannot "
@@ -59,17 +66,16 @@ if not item:
 label, icon = artifacts.KINDS.get(item["kind"], ("Artifact", ""))
 meta = " · ".join(x for x in (label, f"v{item['version']}" if item.get("version") else None,
                               f"updated {kit.when(item.get('updated'))}" if item.get("updated") else None) if x)
-with bar[2]:
+with bar:
     from lyst.ui import actions  # noqa: PLC0415
 
+    st.space("stretch")
+    pin_button(item)
+    artifacts.versions(item)
     if item.get("asset"):
         actions.menu("asset", item["id"], page="artifact", exclude=("asset.open",))
     elif item.get("task_id"):
         actions.menu("task", item["task_id"], page="artifact", exclude=("task.open",))
-with bar[3]:
-    pin_button(item)
-with bar[4]:
-    artifacts.versions(item)
 kit.header(item["title"], meta)
 a = item.get("asset") or {}
 chip = artifacts.HEALTH.get(a.get("health")) if a.get("health") else None
