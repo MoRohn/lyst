@@ -214,6 +214,32 @@ def test_schedules_read_as_cadence_and_settings_show_usage(seeded, ui):  # noqa:
     assert "Installation:" in _texts(at) and "Model spend this month" in _texts(at) and not at.get("metric")
 
 
+def test_a_schedule_can_be_paused_and_asked_to_resume_from_recurring(seeded, ui):  # noqa: F811
+    """Pause stops it at once; Resume asks an admin again, so the row then waits for approval rather than running."""
+    lyst, owner = seeded
+    sid = lyst.runtime.create_schedule(owner, "northwind", "Friday revenue check", "What was revenue last week?",
+                                       at="09:00", weekdays=["fri"], timezone="UTC")["schedule_id"]
+
+    def recurring() -> AppTest:
+        at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+        at.run()
+        at.switch_page("app_pages/brain.py")
+        at.query_params["view"] = "work"
+        at.query_params["work"] = "recurring"
+        at.run()
+        assert not at.exception, [e.value for e in at.exception]
+        return at
+
+    at = recurring()
+    assert "Waiting for approval" in _texts(at)
+    next(b for b in at.button if b.label == "Pause").click().run()
+    assert {s["id"]: s["state"] for s in lyst.runtime.schedules(owner, "northwind")}[sid] == "paused"
+    at = recurring()
+    assert "Paused" in _texts(at)
+    next(b for b in at.button if b.label == "Resume").click().run()
+    assert {s["id"]: s["state"] for s in lyst.runtime.schedules(owner, "northwind")}[sid] == "awaiting_approval"
+
+
 def test_times_ahead_read_as_times_ahead():
     from datetime import UTC, datetime, timedelta  # noqa: PLC0415
 
@@ -664,3 +690,78 @@ def test_a_line_chart_with_series_draws_one_named_line_each():
 
     assert "EMEA ending at 12" in _alt({"type": "line", "title": "t", "x": [1, 2, 3], "y": [30, 33, 36],
                                         "series": [{"name": "EMEA", "y": [10, 11, 12]}, {"name": "Americas", "y": [20, 22, 24]}]})
+
+
+def test_a_workbook_sheet_reads_with_the_column_names_under_its_title():
+    import io
+
+    from openpyxl import Workbook
+
+    from lyst.ui.artifacts import sheet_tables
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Change by region"
+    ws["A1"], ws["A2"] = "Change in operating margin by region", "4 rows"
+    for j, name in enumerate(["Region", "Prior rate", "Current rate"], start=1):
+        ws.cell(row=4, column=j, value=name)
+    for i, (region, a, b) in enumerate([("EMEA", 0.368, 0.24), ("APAC", 0.354, 0.365)], start=5):
+        ws.cell(row=i, column=1, value=region)
+        for j, v in ((2, a), (3, b)):
+            ws.cell(row=i, column=j, value=v).number_format = "0.0%"
+    buf = io.BytesIO()
+    wb.save(buf)
+    (sheet,) = sheet_tables(buf.getvalue())
+    assert sheet["title"] == "Change in operating margin by region" and sheet["note"] == "4 rows"
+    assert list(sheet["frame"].columns) == ["Region", "Prior rate", "Current rate"]
+    assert sheet["frame"]["Prior rate"].round(1).tolist() == [36.8, 35.4] and "Prior rate" in sheet["config"]
+
+
+def test_the_preview_drops_the_title_stamp_and_folded_data_and_steps_headings_down():
+    from lyst.ui.artifacts import _inline
+
+    text = ("# Why did margin fall?\n\n*Lyst · 11 Nov 2026 · task t_1 · Verified*\n\n## Answer\n\n**Down 3.5 pts**\n\n"
+            "![chart](data:image/svg+xml;base64,AAA)\n\n<details><summary>Chart data</summary>\n\n| a |\n</details>\n\n"
+            "## What to do\n")
+    out = _inline(text)
+    assert not out.startswith("# ") and "*Lyst · " not in out and "<details>" not in out and "| a |" not in out
+    assert "#### Answer" in out and "#### What to do" in out and "data:image/svg+xml" in out
+
+
+def test_a_data_table_shows_money_columns_with_separators_and_the_same_places():
+    import pandas as pd
+
+    from lyst.ui import kit
+
+    df = pd.DataFrame({"revenue": [930752.32, 386107.3], "delta": [-1.5, 2.25], "year": [2024, 2025],
+                       "units": [1.0, 2.0], "region": ["EMEA", "APAC"]})
+    cfg = kit.number_columns(df)
+    assert cfg["revenue"]["type_config"]["format"] == "accounting"  # 386,107.30 under 930,752.32
+    assert cfg["delta"]["type_config"]["format"] == "localized"  # a negative keeps its minus sign, not brackets
+    assert "year" not in cfg and "units" not in cfg and "region" not in cfg
+
+
+def test_a_pdf_page_reads_as_headings_bullets_and_a_table_without_its_chart_axis():
+    from lyst.ui.artifacts import page_blocks
+
+    text = ("Margin\nLyst · page 1\nANSWER\nOperating margin was 32.5% in Q3 2026, and\n-3.4 pts versus Q3 2025.\n"
+            "EVIDENCE\n\x7f EMEA moved margin by -3.8 pts, 107% of the total\nchange.\nOperating margin by month\n"
+            "32%\n34%\n36%\n38%\nJan 2024\nJul 2024\nJan 2025\nBY REGION\nRegion\nPrior rate\nCurrent rate\n"
+            "EMEA\n36.8%\n24.0%\nAPAC\n35.4%\n36.5%\n")
+    blocks = page_blocks(text, "Margin")
+    assert blocks[0] == ("h", "Answer")
+    assert blocks[1] == ("p", "Operating margin was 32.5% in Q3 2026, and -3.4 pts versus Q3 2025.")
+    assert ("li", "EMEA moved margin by -3.8 pts, 107% of the total change.") in blocks
+    flat = " ".join(str(t) for _, t in blocks)
+    assert "38%" not in flat and "Jul 2024" not in flat and "page 1" not in flat  # the axis and running head go
+    assert blocks[-1] == ("table", (3, ["Region", "Prior rate", "Current rate", "EMEA", "36.8%", "24.0%",
+                                        "APAC", "35.4%", "36.5%"]))
+
+
+def test_a_slide_reads_without_the_footer_every_slide_repeats():
+    from lyst.ui.artifacts import slide_lines
+
+    deck = "Why did margin fall?"
+    lines = ["Lyst · Why did margin fall?", "WHAT IT MEANS\n• EMEA drove it.\n• Act there.", "Lyst · 11 Nov 2026"]
+    assert slide_lines(lines, deck) == [("kicker", "What it means"), ("li", "EMEA drove it."), ("li", "Act there."),
+                                        ("p", "Lyst · 11 Nov 2026")]

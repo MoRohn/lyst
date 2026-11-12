@@ -314,6 +314,8 @@ POST /v1/workspaces/{ws}/scenario-models/{name}/evaluate | query: - | body: -
 POST /v1/workspaces/{ws}/scenario-models/{name}/scenarios | query: - | body: name
 POST /v1/workspaces/{ws}/scenarios/{scenario_id}/reproduce | query: - | body: -
 POST /v1/workspaces/{ws}/schedules | query: - | body: question,title
+POST /v1/workspaces/{ws}/schedules/{schedule_id}/pause | query: - | body: -
+POST /v1/workspaces/{ws}/schedules/{schedule_id}/resume | query: - | body: -
 POST /v1/workspaces/{ws}/skills | query: - | body: input_sql,name,purpose,source,tests,triggers
 POST /v1/workspaces/{ws}/skills/{name}/retire | query: - | body: -
 POST /v1/workspaces/{ws}/skills/{name}/{version}/register | query: - | body: -

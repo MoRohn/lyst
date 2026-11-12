@@ -133,11 +133,18 @@ div[class*="st-key-read_"] {margin: -.2rem 0 1.1rem -.5rem;}
 div[class*="st-key-read_"] button {color: var(--lyst-text); font-size: .95rem; border-radius: var(--lyst-radius-pill);
   padding: .3rem .7rem; min-height: 0;}
 div[class*="st-key-read_"] button:hover {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);}
-div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .8rem;}
+/* a solid dot, not the font's ring: the glyph is hidden and the box is painted */
+div[class*="st-key-read_"] [data-testid="stIconMaterial"] {font-size: 0; width: .5rem; height: .5rem; min-width: .5rem;
+  border-radius: 50%; background: var(--lyst-warn); margin: 0 .2rem;}
+div[class*="st-key-readtone_bad"] div[class*="st-key-read_"] [data-testid="stIconMaterial"] {background: var(--lyst-bad);}
 div.st-key-data_back button {color: var(--lyst-text-muted); padding-left: 0;}
 @media (max-width: 640px) {
   .block-container:has(.lyst-data) {padding-top: 4rem;}
   h1.lyst-data-title {font-size: 2rem;}
+  /* search, Add data and More on one row: the search takes what is left, More shows as its icon */
+  div.st-key-data_tools {justify-content: flex-start; flex-wrap: nowrap;}
+  div.st-key-data_tools > div:first-child {flex: 1 1 auto; min-width: 0; width: auto !important;}
+  div.st-key-data_more button [data-testid="stMarkdownContainer"] {display: none;}
 }
 /* ---------------------------------------------------------------- sheets over the flow
    A dataset, a source or a metric opens over the page: its face, what it is in a sentence, its state as chips, its
@@ -249,9 +256,12 @@ def upload() -> None:
     """Any file: a workbook, a document, a CSV. Lyst reads it first and shows what it found before anything loads."""
     fm = _formats()
     groups = fm.get("groups") or {}
-    st.caption("Spreadsheets (" + ", ".join(groups.get("spreadsheet", [])) + "), tables ("
-               + ", ".join(groups.get("table", [])) + ") and documents (" + ", ".join(groups.get("document", []))
-               + "). Lyst shows what it found before anything is loaded.")
+    # the uploader lists every file type itself; the line above it says what kinds and what happens next
+    kinds = [k for k, g in (("spreadsheets", "spreadsheet"), ("tables", "table"), ("documents", "document"))
+             if groups.get(g)]
+    st.caption((", ".join(kinds[:-1]) + " and " + kinds[-1] if len(kinds) > 1 else "".join(kinds)).capitalize()
+               + ". Lyst shows what it found before anything is loaded." if kinds
+               else "Lyst shows what it found before anything is loaded.")
     f = st.file_uploader("File", type=fm.get("extensions"), label_visibility="collapsed", key="ingest_file")
     jid = st.session_state.get("ingest_job")
     if f is not None:
@@ -426,7 +436,8 @@ def explore(d: dict) -> None:
         r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": f'SELECT * FROM "{name}" LIMIT 50',
                                                                         "max_rows": 50}))
         if r:
-            st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch", height=320)
+            df = pd.DataFrame(r["rows"], columns=r["columns"])
+            st.dataframe(df, hide_index=True, width="stretch", height=320, column_config=kit.number_columns(df))
     elif view == "Columns":
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
         if ins:
@@ -1361,7 +1372,8 @@ def sql_editor(catalog: list[dict]) -> None:
             chart = _result_chart(r["columns"], r["rows"])
             tabs = st.tabs(["Table", "Chart"] if chart else ["Table"])
             with tabs[0]:
-                st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch",
+                df = pd.DataFrame(r["rows"], columns=r["columns"])
+                st.dataframe(df, hide_index=True, width="stretch", column_config=kit.number_columns(df),
                              placeholder="—", height="auto" if n <= 12 else 420)
             if chart:
                 with tabs[1]:
@@ -1424,9 +1436,11 @@ def focus(every: list[dict], src: dict) -> None:
     if flagged:
         c, h = flagged[0]
         more = f" · {len(flagged) - 1} more" if len(flagged) > 1 else ""
-        if st.button(f"{c['title']}: {h[0].lower()} before you rely on it{more}", key=f"read_{c['name']}_open",
-                     type="tertiary", icon=":material/fiber_manual_record:", help=sentence):
-            review_quality(c["name"])
+        # the dot takes the dataset chip's own tone: red for something to fix, amber for something to check
+        with st.container(key=f"readtone_{h[1]}"):
+            if st.button(f"{c['title']}: {h[0].lower()} before you rely on it{more}", key=f"read_{c['name']}_open",
+                         type="tertiary", icon=":material/fiber_manual_record:", help=sentence):
+                review_quality(c["name"])
     elif staged and editor:
         if st.button(f"{staged} upload{'s' * (staged != 1)} waiting for review", key="read_staged", type="tertiary",
                      icon=":material/fiber_manual_record:"):

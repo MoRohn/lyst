@@ -40,6 +40,7 @@ from . import close as close_mod
 from . import converse as converse_mod
 from . import datasheet as datasheet_mod
 from . import foundry, periods, prescriptive, reasoning
+from . import incidents as incidents_mod
 from . import profit as profit_mod
 from . import receivables as receivables_mod
 from .registry import REGISTRY, Context, Registry, capability
@@ -191,6 +192,11 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         pr = profit_mod.pair(s.semantic.metrics(ctx.actor, ctx.workspace_id))
         if pr and set(resolved["metrics"]) <= {pr[0].name, pr[1].name}:
             return profit_mod.understanding(text, *pr)
+    if not ctx.request.get("workflow") and incidents_mod.asks_for_review(text):
+        # "What is our mean time to resolve incidents?" / "change failure rate" reviews incidents and changes
+        found = incidents_mod.find(annotations_mod.metadata(ctx))
+        if found:
+            return incidents_mod.understanding(text, found)
     if not ctx.request.get("workflow") and datasheet_mod.asks_for_datasheet(text):
         # "Document the annotations dataset" / "Draft annotation guidelines" writes a datasheet (datasheet.py)
         picked = datasheet_mod.pick(annotations_mod.metadata(ctx), text)
@@ -456,7 +462,7 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
 def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     u = ctx.outputs["understand"]
     s = ctx.services
-    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations", "datasheet"):  # a reply reads the catalog; a brief or close finds its own period
+    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents"):  # a reply reads the catalog; a brief or close finds its own period
         return {"metrics": [], "datasets": [], "memory": [], "period": None, "passages": [], "prior_answers": []}
     catalog = {d["name"]: d for d in s.data.catalog(ctx.actor, ctx.workspace_id)}
     metrics = []
@@ -521,11 +527,11 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             s["agent"], s["phase"] = cap.agent, cap.phase
         return {"steps": steps, "blockers": [], "depth": "conversation", "verification": "none", "strategy": "conversation",
                 "success_criteria": ["the reply names only what exists in the workspace", "the reply states no figures"]}
-    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations", "datasheet"):  # computes and checks its own figures
+    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents"):  # computes and checks its own figures
         key = u["intent"]
         cap_name = {"brief": "business_brief", "close": "close_checks", "receivables": "receivables",
                     "profit": "profit", "annotations": "label_audit",
-                    "datasheet": "datasheet"}[key]
+                    "datasheet": "datasheet", "incidents": "incident_review"}[key]
         steps = [{"capability": cap_name, "key": key, "args": {},
                   "after": ["plan"]},
                  {"capability": "deliver", "key": "deliver", "args": {}, "after": [key]}]
@@ -1707,6 +1713,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return _clean(annotations_mod.result(ctx))
     if u["intent"] == "datasheet":
         return _clean(datasheet_mod.result(ctx))
+    if u["intent"] == "incidents":
+        return _clean(incidents_mod.result(ctx))
     if u["intent"] == "converse":
         return _clean(converse_mod.result(u["question"], o["reply"], narrative_by=o["reply"].get("narrative_by", "template")))
     v = o.get("validate", {"checks": [], "status": "passed"})

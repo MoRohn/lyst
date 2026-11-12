@@ -163,7 +163,9 @@ Breakdown answers show their split as a chart.
 
 Dashboards, charts, briefings, slides, workbooks and saved analyses appear as previews drawn from their own
 content, and open in an immersive viewer made for each kind: an interactive dashboard with a period range, slides
-as slides, a workbook sheet by sheet, a PDF page by page. Inspect the evidence behind any of them, ask Lyst to
+as slides, a workbook sheet by sheet, a PDF page by page. A downloaded PDF, deck or workbook opens on a **Preview** of
+its answer with live charts in the current theme, with the file's own pages, slides or sheets in the next tab
+(workbook sheets show real column names, percents and months) and **Download** as the main button at the top. Inspect the evidence behind any of them, ask Lyst to
 refine it in words ("break that down by region", "compare it to last year", "every Monday", however you phrase or
 quote it), see its versions, pin it to Home's **Recent**, and return exactly where you were. Every chart in an answer
 appears under **Made in this answer**, Data › More › Dashboards is the gallery of everything made, and ⌘K finds artifacts
@@ -235,7 +237,7 @@ one chart and the PDF briefing, ready to forward.
 
 Under the answer sit four menus. **Keep watch** watches the metric or repeats the question. **Download** gives a PDF
 briefing, a deck, an Excel workbook or Markdown, each carrying everything the answer shows, charts included (native,
-editable charts in Excel and slides, vector charts in the PDF, an embedded chart with its data in Markdown).
+editable charts in Excel and slides, vector charts in the PDF, an embedded chart with its data in Markdown; in the PDF and Markdown every chart appears once, at full size).
 **Share** assigns it, asks for a review or publishes it. **More** holds Discuss, What if, Compare options, How this
 ran (each step, query and model call with its timing and tokens) and what Lyst can do with this answer right now:
 break it down, compare it, explain it, make a dashboard, or repeat it (marked as needing approval). Below them is one
@@ -462,7 +464,8 @@ where they point, with Mark all read and "What to tell me about".
   fewest tickets"), trends over the window you ask for (one named
   line per member for "revenue trend by region"), with a headline that says where the metric went and its
   biggest move, the peak period named ("which month had the highest revenue in 2025?"), anomalies, forecasts with
-  backtests (a partly loaded month is left out, and a quarter's forecast is read against the last complete quarter), "why" questions with exact rate and mix attribution (a rise is called a rise, members named in words
+  backtests ("next N quarters" forecasts each quarter, a partly loaded month is left out, and a quarter's forecast is read against the last complete quarter), "why" questions with exact rate and mix attribution, leading on screen and in every download with each segment's share
+  of the move (a rise is called a rise, members named in words
   such as "product line Hardware", and a question about one segment, such as "Why did COGS ratio change in EMEA?",
   investigated and verified within that segment), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
@@ -471,7 +474,8 @@ where they point, with Mark all read and "What to tell me about".
   briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
   month or quarter (or the one you name), flags what moved more than that metric usually does, against last period
   or a year ago (so a step change that then holds flat is still caught), names runs in one direction and the segment
-  behind each big move, and lists open alerts, approvals waiting and how current the data is. Metrics with no data
+  behind each big move, and lists open alerts, approvals waiting and how current the data is. It stays short: the one move with a clear
+  place to act is told in full, and the others are named. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
   "Every Monday at 8" repeats it, after approval.
 * **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
@@ -482,6 +486,18 @@ where they point, with Mark all read and "What to tell me about".
   month, a named month or quarter, or the year so far, against the period before and a year earlier, with the last
   12 months, the best and weakest month and any month that lost money. It says plainly that this is a simple profit,
   not tax or accrual accounting, and it steps aside when the workspace has its own profit or margin metric.
+* **Annotation QA.** Ask "How consistent are the annotators?" and Lyst measures agreement (Krippendorff's
+  alpha), names the label pairs annotators confuse and the annotator who labels differently from the team, and lists
+  the items to adjudicate, hardest first, with a chart of how often each annotator agrees with the rest; agreement
+  shows as percents in every download. The data quality review also catches the same label spelled different ways
+  and blank labels, and proposes the fix for approval. "Document the annotations dataset" writes a datasheet from
+  what Lyst has measured (naming the owner), and "Write annotation guidelines" drafts a guideline from how the labels were used,
+  leaving the definitions to your team. Lyst never relabels anything itself.
+* **Incident and change review.** Load an incidents export and a change log and ask "What was our time to restore
+  last quarter?", "What is our change failure rate?" or "Which changes caused incidents?". Lyst reports incidents by
+  severity and service against the period before, median and mean time to restore, incidents still open, the change
+  failure rate, and the changes behind incidents. A change counts as the cause only when the incident names it; a
+  change on the same service shortly before is shown as a possible link.
 * **Close checks.** "Run the month-end close checks", "Is August 2026 ready to close?" or "Does the P&L tie to
   the ledger for Q1 2026?" checks every dataset behind an approved metric for the last complete month or quarter (or
   the one named): the period has **arrived** complete (every segment that reported last period reported this one),
@@ -691,7 +707,9 @@ where they point, with Mark all read and "What to tell me about".
   finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
   admins get an operations report (queues, failures, run times, spend against budget). On screen, Settings ›
   Workspaces › **Usage & limits** shows spend, tokens and tasks against the limits; Brain › Work › **Recurring** shows each
-  schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
+  schedule's cadence, next and last run, any missed runs and whether it is Active, Waiting for approval or Paused.
+  Editors can pause a recurring question at any time; resuming asks an admin to approve it again, and it picks up
+  from its next run rather than catching up on the ones it missed; and at a limit, Home says so in plain words. See
   [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 <table>

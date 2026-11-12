@@ -5,10 +5,10 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 985,
+      "LCP_ms": 987,
       "CLS": 0,
       "TBT_ms": 0,
-      "FCP_ms": 985
+      "FCP_ms": 987
     },
     "runs": [
       {
@@ -16,20 +16,10 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 1039,
-        "CLS": 0,
+        "LCP_ms": 988,
+        "CLS": 0.049,
         "TBT_ms": 0,
-        "FCP_ms": 1039
-      },
-      {
-        "performance": 100,
-        "accessibility": 100,
-        "best-practices": 100,
-        "seo": 100,
-        "LCP_ms": 985,
-        "CLS": 0,
-        "TBT_ms": 0,
-        "FCP_ms": 985
+        "FCP_ms": 988
       },
       {
         "performance": 100,
@@ -40,6 +30,16 @@
         "CLS": 0,
         "TBT_ms": 0,
         "FCP_ms": 987
+      },
+      {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100,
+        "LCP_ms": 992,
+        "CLS": 0,
+        "TBT_ms": 0,
+        "FCP_ms": 992
       }
     ]
   },
@@ -49,10 +49,10 @@
       "accessibility": 100,
       "best-practices": 100,
       "seo": 100,
-      "LCP_ms": 263,
+      "LCP_ms": 262,
       "CLS": 0,
       "TBT_ms": 0,
-      "FCP_ms": 263
+      "FCP_ms": 262
     },
     "runs": [
       {
@@ -60,20 +60,20 @@
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 261,
+        "LCP_ms": 262,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 261
+        "FCP_ms": 262
       },
       {
         "performance": 100,
         "accessibility": 100,
         "best-practices": 100,
         "seo": 100,
-        "LCP_ms": 263,
+        "LCP_ms": 262,
         "CLS": 0,
         "TBT_ms": 0,
-        "FCP_ms": 263
+        "FCP_ms": 262
       },
       {
         "performance": 100,
@@ -89,5 +89,5 @@
   },
   "url": "http://localhost:4399/",
   "lighthouse": "13.6.0",
-  "date": "2026-11-10T12:00:16.384Z"
+  "date": "2026-11-12T16:36:53.588Z"
 }

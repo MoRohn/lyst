@@ -542,6 +542,7 @@ def lately(g: dict) -> None:
                 st.rerun()
         measures, expertise = _recent_use()
         if measures:
+            st.html('<p class="lyst-lately-sub">Metrics in recent answers</p>')
             pick = st.pills("Used lately", measures[:5], label_visibility="collapsed", key="bo_measures",
                             help="Definitions Lyst used in recent answers")
             if pick:
@@ -551,7 +552,8 @@ def lately(g: dict) -> None:
                     st.session_state["brain_sel"] = names[pick]
                     st.rerun()
         if expertise:
-            st.caption("Expertise applied: " + md(", ".join(expertise[:4])))
+            st.html('<p class="lyst-lately-sub">Expertise applied</p>'
+                    f'<p class="lyst-lately-note">{kit._esc(", ".join(expertise[:4]))}</p>')
         if not mem and not measures:
             st.caption("Nothing yet. Lyst learns from verified answers and from what you teach it.")
 
@@ -681,12 +683,15 @@ div.st-key-brain_essence, div.st-key-brain_lately {padding: 1.35rem 1.4rem 1.2re
   background: var(--lyst-raised); border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-2); gap: .55rem;}
 div.st-key-brain_essence {animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease); margin-top: 3.05rem;}
 div.st-key-brain_lately {background: transparent; box-shadow: none; border: 0 !important; padding: 0 0 0 .2rem; margin-top: 3.05rem;}
-div.st-key-brain_lately button, div.st-key-brain_rel button {justify-content: flex-start; text-align: left; min-height: 0;
+div[class*="st-key-brain_learn_"] button, div.st-key-brain_rel button {justify-content: flex-start; text-align: left; min-height: 0;
   padding: .35rem .55rem; border-radius: 12px; width: 100%; color: var(--lyst-text);}
-div.st-key-brain_lately button > div, div.st-key-brain_rel button > div {justify-content: flex-start;}
-div.st-key-brain_lately button p, div.st-key-brain_rel button p {font-size: var(--lyst-size-sm); line-height: 1.4;}
-div.st-key-brain_lately button:hover, div.st-key-brain_rel button:hover {background: var(--lyst-surface);}
+div[class*="st-key-brain_learn_"] button > div, div.st-key-brain_rel button > div {justify-content: flex-start;}
+div[class*="st-key-brain_learn_"] button p, div.st-key-brain_rel button p {font-size: var(--lyst-size-sm); line-height: 1.4;}
+div[class*="st-key-brain_learn_"] button:hover, div.st-key-brain_rel button:hover {background: var(--lyst-surface);}
 div.st-key-brain_lately [data-testid="stIconMaterial"] {color: var(--lyst-accent);}
+p.lyst-lately-sub {font-size: var(--lyst-size-xs, .75rem); color: var(--lyst-text-muted); margin: .7rem 0 0 .55rem;}
+div.st-key-bo_measures {margin-left: .45rem;}
+p.lyst-lately-note {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); margin: 0 0 0 .55rem; line-height: 1.45;}
 div.st-key-brain_rel {gap: 0; margin: -.3rem 0 .2rem -.55rem;}
 div.st-key-brain_moves button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.4rem; padding: 0 1rem;}
 div.st-key-brain_close button {color: var(--lyst-text-muted); justify-content: flex-end;}
