@@ -803,6 +803,10 @@ div[class*="st-key-set_diag_"] button > div > div:first-child [data-testid="stIc
 div.st-key-set_diag_warn button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-warn);}
 div.st-key-set_diag_bad button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-bad);}
 div.st-key-set_diag_info button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-info);}
+/* adding someone sits apart from the list of members, under a hairline */
+div.st-key-lyst_card_grp_members [data-testid="stForm"] {margin-top: .4rem; padding: .9rem 0 0 0 !important;
+  border: 0 !important; border-top: 1px solid var(--lyst-border) !important; border-radius: 0 !important;
+  background: transparent !important;}
 /* the list: icon tiles in a raised inset group */
 div.st-key-set_nav {background: var(--lyst-raised); border: 1px solid var(--lyst-edge); border-radius: 20px;
   box-shadow: var(--lyst-shadow-1); padding: .45rem; gap: .1rem; position: sticky; top: 1rem;}

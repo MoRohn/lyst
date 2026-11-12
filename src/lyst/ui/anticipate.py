@@ -254,8 +254,10 @@ def level_control() -> None:
     cur = s.get("level_name") or "suggest"
     pick = st.segmented_control("Working ahead", list(LEVELS), default=cur, format_func=LEVELS.get,
                                 label_visibility="collapsed", key="anticipation_level")
-    st.caption(LEVEL_TEXT.get(pick or cur, "") + " " + md(s.get("methods") or "").capitalize()
-               + ("" if s.get("external_services") else ". Nothing leaves this installation."))
+    methods = md(s.get("methods") or "").strip().rstrip(".")
+    # the engine's line may already say nothing leaves; say it once
+    stays = "" if s.get("external_services") or "nothing leaves" in methods.lower() else " Nothing leaves this installation."
+    st.caption(LEVEL_TEXT.get(pick or cur, "") + (" " + methods[:1].upper() + methods[1:] + "." if methods else "") + stays)
     if pick and pick != cur:
         kit.guarded(lambda: api.patch(f"/v1/workspaces/{ws}/anticipation/settings", {"level": pick}), "Saved")
         st.rerun()
