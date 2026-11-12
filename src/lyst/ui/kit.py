@@ -115,6 +115,12 @@ div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
   border: 1px solid var(--lyst-edge); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
 [data-testid="stPopoverBody"] {border-radius: var(--lyst-radius-lg) !important; box-shadow: var(--lyst-shadow-3) !important;
   border: 1px solid var(--lyst-edge) !important;}
+/* a menu reads down its left edge: each row starts with its icon, not centred in the sheet */
+[data-testid="stPopoverBody"] .stButton button[data-testid="stBaseButton-tertiary"] {justify-content: flex-start;
+  text-align: left; min-height: 2.35rem; padding: .4rem .7rem; border-radius: var(--lyst-radius-md, 10px);}
+[data-testid="stPopoverBody"] .stButton button[data-testid="stBaseButton-tertiary"] > div {justify-content: flex-start;}
+[data-testid="stPopoverBody"] .stButton button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled) {
+  background: var(--lyst-surface);}
 [data-testid="stToast"] {background: var(--lyst-material) !important; backdrop-filter: saturate(180%) blur(20px);
   border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-2); border-radius: var(--lyst-radius-lg) !important;}
 /* controls: a tactile press, quick hover, no jumps */
