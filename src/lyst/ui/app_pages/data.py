@@ -429,7 +429,8 @@ def explore(d: dict) -> None:
         r = kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/query", {"sql": f'SELECT * FROM "{name}" LIMIT 50',
                                                                         "max_rows": 50}))
         if r:
-            st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch", height=320)
+            df = pd.DataFrame(r["rows"], columns=r["columns"])
+            st.dataframe(df, hide_index=True, width="stretch", height=320, column_config=kit.number_columns(df))
     elif view == "Columns":
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights"))
         if ins:
@@ -1364,7 +1365,8 @@ def sql_editor(catalog: list[dict]) -> None:
             chart = _result_chart(r["columns"], r["rows"])
             tabs = st.tabs(["Table", "Chart"] if chart else ["Table"])
             with tabs[0]:
-                st.dataframe(pd.DataFrame(r["rows"], columns=r["columns"]), hide_index=True, width="stretch",
+                df = pd.DataFrame(r["rows"], columns=r["columns"])
+                st.dataframe(df, hide_index=True, width="stretch", column_config=kit.number_columns(df),
                              placeholder="—", height="auto" if n <= 12 else 420)
             if chart:
                 with tabs[1]:

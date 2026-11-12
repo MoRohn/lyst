@@ -475,3 +475,20 @@ def lower(title: str) -> str:
 
 def _esc(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def number_columns(df: Any) -> dict[str, Any]:
+    """How a data table shows its decimals: thousands separators and the same places on every row, so a column reads
+    down cleanly (930,752.32 above 386,107.30, not 386107.3). Whole numbers keep their plain form (years, ids, codes)."""
+    cfg: dict[str, Any] = {}
+    for c in df.columns:
+        s = df[c]
+        if s.dtype.kind != "f" or not s.notna().any():
+            continue
+        v = s.dropna()
+        if (v == v.round(0)).all():
+            continue
+        # two places for money-like values; a column that goes negative keeps a minus sign rather than brackets
+        two = bool((v.abs() >= 1).any() and (v.round(2) == v).all())
+        cfg[c] = st.column_config.NumberColumn(format="accounting" if two and (v >= 0).all() else "localized")
+    return cfg
