@@ -760,15 +760,20 @@ p.lyst-set-line {color: var(--lyst-text-muted); margin: .2rem 0 1.2rem 0; font-s
 p.lyst-set-ok {display: flex; align-items: center; gap: .5rem; color: var(--lyst-text-muted); font-size: var(--lyst-size-sm); margin: 0;}
 p.lyst-set-ok i {width: .5rem; height: .5rem; border-radius: 50%; background: var(--lyst-good);}
 div[class*="st-key-set_diag_"] button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.3rem;}
-div.st-key-set_diag_warn [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .75rem;}
-div.st-key-set_diag_bad [data-testid="stIconMaterial"] {color: var(--lyst-bad); font-size: .75rem;}
-div.st-key-set_diag_info [data-testid="stIconMaterial"] {color: var(--lyst-info); font-size: .75rem;}
+/* a solid dot in the worst tone, not the font's ring */
+div[class*="st-key-set_diag_"] button > div > div:first-child [data-testid="stIconMaterial"] {font-size: 0; width: .5rem; height: .5rem;
+  min-width: .5rem; border-radius: 50%; margin: 0 .15rem;}
+div.st-key-set_diag_warn button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-warn);}
+div.st-key-set_diag_bad button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-bad);}
+div.st-key-set_diag_info button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-info);}
 /* the list: icon tiles in a raised inset group */
 div.st-key-set_nav {background: var(--lyst-raised); border: 1px solid var(--lyst-edge); border-radius: 20px;
   box-shadow: var(--lyst-shadow-1); padding: .45rem; gap: .1rem; position: sticky; top: 1rem;}
 div[class*="st-key-set_nav_"] button {justify-content: flex-start; min-height: 2.6rem; padding: .3rem .55rem;
   border-radius: 13px; color: var(--lyst-text); font-weight: 450;}
 div[class*="st-key-set_nav_"] button > div {justify-content: flex-start; gap: .65rem;}
+div[class*="st-key-set_nav_"] button span:has(> [data-testid="stIconMaterial"]) {width: 1.75rem; min-width: 1.75rem;
+  margin-right: .3rem;}
 div[class*="st-key-set_nav_"] button [data-testid="stIconMaterial"] {width: 1.75rem; min-width: 1.75rem; height: 1.75rem;
   flex: none; border-radius: 8px; line-height: 1.75rem; text-align: center;
   display: grid; place-items: center; font-size: 1.05rem; color: var(--lyst-accent);

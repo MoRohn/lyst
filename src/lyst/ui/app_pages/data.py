@@ -133,8 +133,10 @@ div[class*="st-key-read_"] {margin: -.2rem 0 1.1rem -.5rem;}
 div[class*="st-key-read_"] button {color: var(--lyst-text); font-size: .95rem; border-radius: var(--lyst-radius-pill);
   padding: .3rem .7rem; min-height: 0;}
 div[class*="st-key-read_"] button:hover {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);}
-div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .8rem;}
-div[class*="st-key-readtone_bad"] div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-bad);}
+/* a solid dot, not the font's ring: the glyph is hidden and the box is painted */
+div[class*="st-key-read_"] [data-testid="stIconMaterial"] {font-size: 0; width: .5rem; height: .5rem; min-width: .5rem;
+  border-radius: 50%; background: var(--lyst-warn); margin: 0 .2rem;}
+div[class*="st-key-readtone_bad"] div[class*="st-key-read_"] [data-testid="stIconMaterial"] {background: var(--lyst-bad);}
 div.st-key-data_back button {color: var(--lyst-text-muted); padding-left: 0;}
 @media (max-width: 640px) {
   .block-container:has(.lyst-data) {padding-top: 4rem;}
