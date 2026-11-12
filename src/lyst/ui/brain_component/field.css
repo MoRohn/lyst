@@ -29,10 +29,16 @@
 .k-team, .k-person, .k-system, .k-process, .k-objective, .k-business_unit { --c: color-mix(in srgb, var(--k-neutral) 55%, var(--k-surface)); }
 
 /* collections: quiet pills; the open one raised */
-.k-cols { display: flex; gap: .35rem; margin: 0 0 .9rem; overflow-x: auto; scrollbar-width: none; }
-.k-col { display: inline-flex; align-items: center; gap: .45rem; height: 2.15rem; padding: 0 .85rem; flex: none;
+/* every collection in view: they wrap on a wide screen; on a phone they scroll, the edge fading to say there is more */
+.k-cols { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .9rem; }
+@media (max-width: 640px) {
+  .k-cols { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-right: 2rem;
+            -webkit-mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent);
+            mask-image: linear-gradient(to right, black calc(100% - 3rem), transparent); }
+}
+.k-col { display: inline-flex; align-items: center; gap: .4rem; height: 2.05rem; padding: 0 .7rem; flex: none;
          border: 1px solid transparent; border-radius: var(--k-pill); background: transparent; cursor: pointer; white-space: nowrap;
-         color: var(--k-muted); font-size: var(--lyst-size-sm, .84rem);
+         color: var(--k-muted); font-size: .8rem;
          transition: background var(--k-base) var(--k-ease), box-shadow var(--k-base) var(--k-ease), color var(--k-fast); }
 .k-col:hover { background: color-mix(in srgb, var(--k-raised) 70%, transparent); color: var(--k-text); }
 .k-col.on { background: var(--k-raised); box-shadow: var(--k-s2); color: var(--k-text); font-weight: var(--lyst-weight-medium, 560); }
