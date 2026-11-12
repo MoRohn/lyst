@@ -471,8 +471,12 @@ def pdf_briefing(result: dict[str, Any], task: dict[str, Any]) -> bytes:
     level = av.level_label(result)
     tone = {"Verified": GOOD, "Needs your input": WARN}.get(level, WARN if level else MUTED)
     story: list = [Paragraph(e(result.get("question", "Analysis")), h1)]
+    # the badge is as wide as its label, so "Verified with warnings" stays on one line next to the stamp
+    from reportlab.pdfbase.pdfmetrics import stringWidth  # noqa: PLC0415
+
+    pill = stringWidth(level or "Answer", "Helvetica-Bold", small.fontSize) + 14
     badge = Table([[Paragraph(f'<font color="white"><b>{e(level or "Answer")}</b></font>', small),
-                    Paragraph(e(_stamp(result, task, level=False)), small)]], colWidths=[26 * mm, width - 26 * mm], hAlign="LEFT")
+                    Paragraph(e(_stamp(result, task, level=False)), small)]], colWidths=[pill, width - pill], hAlign="LEFT")
     badge.setStyle(TableStyle([("BACKGROUND", (0, 0), (0, 0), col(tone)), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                                ("LEFTPADDING", (1, 0), (1, 0), 8)]))
     story += [badge, Spacer(1, 6), Paragraph(av.TITLES["answer"].upper(), kicker), Paragraph(e(result.get("answer", "")), headline)]
