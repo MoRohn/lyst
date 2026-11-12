@@ -707,7 +707,9 @@ where they point, with Mark all read and "What to tell me about".
   finishes or fails. A supervisor flags stalled steps and late or undecided work without ever killing it, and
   admins get an operations report (queues, failures, run times, spend against budget). On screen, Settings ›
   Workspaces › **Usage & limits** shows spend, tokens and tasks against the limits; Brain › Work › **Recurring** shows each
-  schedule's cadence, next and last run and any missed runs; and at a limit, Home says so in plain words. See
+  schedule's cadence, next and last run, any missed runs and whether it is Active, Waiting for approval or Paused.
+  Editors can pause a recurring question at any time; resuming asks an admin to approve it again, and it picks up
+  from its next run rather than catching up on the ones it missed; and at a limit, Home says so in plain words. See
   [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 <table>
