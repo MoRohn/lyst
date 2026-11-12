@@ -469,11 +469,60 @@ class TaskRuntime:
         self.services.guard.audit(actor, workspace_id, "schedule.create", sid, "pending_approval")
         return {"schedule_id": sid, "approval_id": aid, "enabled": False, "cadence": ops.describe_schedule(row)}
 
+    def _schedule_row(self, workspace_id: str, schedule_id: str) -> dict[str, Any]:
+        rows = self.db.query("SELECT * FROM schedules WHERE id = ? AND workspace_id = ?", [schedule_id, workspace_id])
+        if not rows:
+            raise KeyError(schedule_id)
+        return rows[0]
+
+    def pause_schedule(self, actor: Principal, workspace_id: str, schedule_id: str) -> dict[str, Any]:
+        """Stop a schedule from starting new runs. Runs already started finish; past runs stay in history. A pending
+        approval to start it is withdrawn, so a later approval cannot quietly switch back on what someone stopped."""
+        self.services.guard.require(actor, workspace_id, "task.control", schedule_id)
+        row = self._schedule_row(workspace_id, schedule_id)
+
+        def tx(c):
+            c.execute("UPDATE schedules SET enabled = false WHERE id = ?", [schedule_id])
+            c.execute("UPDATE approvals SET status = 'withdrawn', decided_by = ?, decided_at = now() "
+                      "WHERE workspace_id = ? AND action = 'schedule.activate' AND status = 'pending' "
+                      "AND json_extract_string(payload, '$.schedule_id') = ?", [actor.user_id, workspace_id, schedule_id])
+
+        self.db.write(tx)
+        self.services.guard.audit(actor, workspace_id, "schedule.pause", schedule_id, "ok",
+                                  {"was_enabled": bool(row["enabled"])})
+        return {"schedule_id": schedule_id, "enabled": False, "cadence": ops.describe_schedule(row)}
+
+    def resume_schedule(self, actor: Principal, workspace_id: str, schedule_id: str) -> dict[str, Any]:
+        """Ask to start a paused schedule again. Like a new schedule, it runs only after an admin approves it, and it
+        picks up from its next occurrence after now rather than catching up on the runs it missed while paused."""
+        self.services.guard.require(actor, workspace_id, "schedule.create", schedule_id)
+        row = self._schedule_row(workspace_id, schedule_id)
+        if row["enabled"]:
+            return {"schedule_id": schedule_id, "enabled": True, "cadence": ops.describe_schedule(row)}
+        pending = self.db.query("SELECT id FROM approvals WHERE workspace_id = ? AND action = 'schedule.activate' "
+                                "AND status = 'pending' AND json_extract_string(payload, '$.schedule_id') = ?",
+                                [workspace_id, schedule_id])
+        if pending:
+            aid = pending[0]["id"]
+        else:
+            aid = self.request_approval(workspace_id, actor.user_id, "schedule.activate",
+                                        f"Resume '{row['title']}' {ops.describe_schedule(row)}", {"schedule_id": schedule_id})
+        self.db.execute("UPDATE schedules SET approval_id = ?, next_run_at = ? WHERE id = ?",
+                        [aid, ops.schedule_next(row, _now()), schedule_id])
+        self.services.guard.audit(actor, workspace_id, "schedule.resume", schedule_id, "pending_approval")
+        return {"schedule_id": schedule_id, "approval_id": aid, "enabled": False, "cadence": ops.describe_schedule(row)}
+
     def schedules(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
         self.services.guard.require(actor, workspace_id, "workspace.read")
         rows = self.db.query("SELECT * FROM schedules WHERE workspace_id = ? ORDER BY title", [workspace_id])
+        pending = {r["sid"] for r in self.db.query(
+            "SELECT json_extract_string(payload, '$.schedule_id') AS sid FROM approvals WHERE workspace_id = ? "
+            "AND action = 'schedule.activate' AND status = 'pending'", [workspace_id])}
         for r in rows:
             r["cadence"] = ops.describe_schedule(r)
+            # enabled alone cannot tell a paused schedule from one waiting to be approved: both are off. A rejected or
+            # withdrawn request leaves it paused, so the person can ask again.
+            r["state"] = "active" if r["enabled"] else ("awaiting_approval" if r["id"] in pending else "paused")
         return rows
 
     def tick_schedules(self, now: datetime | None = None) -> list[str]:
