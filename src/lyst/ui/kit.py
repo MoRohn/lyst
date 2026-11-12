@@ -49,6 +49,8 @@ p.lyst-label {text-transform: uppercase; letter-spacing: var(--lyst-tracking-lab
 /* list rows: a hairline separator instead of a box per item */
 div.lyst-row-title p {font-weight: var(--lyst-weight-medium); margin: 0;}
 div.lyst-row-meta p {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm); margin: 0;}
+div.lyst-row-meta a[href^="mailto:"] {color: inherit; text-decoration: none;}
+div.lyst-row-meta a[href^="mailto:"]:hover {text-decoration: underline;}
 /* a row's status and actions sit together at its right edge, not spread across the row */
 div[data-testid="stHorizontalBlock"]:has(div.lyst-row-title):not(:has(div[data-testid="stHorizontalBlock"] div.lyst-row-title)) > div[data-testid="stColumn"]:not(:first-child) > div[data-testid="stVerticalBlock"] {align-items: flex-end;}
 div[data-testid="stElementContainer"]:has(> div > hr) {margin: -0.55rem 0 -0.55rem 0;}

@@ -22,6 +22,7 @@ import base64
 import io
 import re
 from html import escape
+from typing import Any
 
 import streamlit as st
 
@@ -550,12 +551,107 @@ def _inline(text: str) -> str:
                      for ln in lines).strip()
 
 
+_NUM = re.compile(r"^-?[\d.,]+\s?(%|pts|[kKmMbB])?$")
+_WHEN = re.compile(r"^([A-Z][a-z]{2} \d{4}|Q[1-4] \d{4})$")
+
+
+def _axis(run: list[str]) -> bool:
+    """A chart's axis labels: months or quarters, or numbers that climb in even steps (a table's column does not)."""
+    if all(_WHEN.match(x) for x in run):
+        return True
+    try:
+        vals = [float(re.sub(r"[^\d.-]", "", x)) for x in run]
+    except ValueError:
+        return False
+    steps = {round(b - a, 6) for a, b in zip(vals, vals[1:], strict=False)}
+    return len(steps) == 1 and next(iter(steps)) > 0
+
+
+def _short(ln: str) -> bool:
+    return len(ln) <= 60 and not ln.startswith("•") and not re.search(r"[.!?]$", ln)
+
+
+def _table(run: list[str]) -> int:
+    """How many columns a run of cells (one per line, header first) has. The header is the run's opening cells in
+    Title case: it ends at the first cell that starts in lower case (a check's id) or, for a table of figures, one
+    before the first number (the first row's label). 0 when it cannot be told: the cells are then listed as they are."""
+    lower = next((k for k, x in enumerate(run) if x[:1].islower()), 0)
+    first = next((k for k, x in enumerate(run) if _NUM.match(x)), 0)
+    n = lower if lower and (not first or lower < first) else first - 1
+    return n if 2 <= n <= 10 and len(run) >= 2 * n else 0
+
+
+def page_blocks(text: str, title: str = "") -> list[tuple[str, Any]]:
+    """A PDF page's text as something to read: ('h', heading), ('li', bullet), ('p', paragraph) and ('table',
+    (columns, cells)) blocks. The running head (the title and 'Lyst · page N') goes, a chart's axis labels go (the
+    chart is in Preview), lines a PDF wrapped mid-sentence join up again, and a table's cells, one per line in the
+    PDF's text, line up in their columns again."""
+    lines = [ln.replace("\x7f", "•").strip() for ln in text.splitlines()]
+    lines = [ln for ln in lines if ln and ln != title.strip() and not re.match(r"^Lyst · page \d+$", ln)]
+    keep, i = [], 0
+    while i < len(lines):
+        j = i
+        kind = _WHEN if _WHEN.match(lines[i]) else _NUM
+        while j < len(lines) and kind.match(lines[j]):
+            j += 1
+        if j - i >= 3 and _axis(lines[i:j]):
+            i = j
+            continue
+        keep.append(lines[i])
+        i += 1
+    out: list[tuple[str, Any]] = []
+    i = 0
+    while i < len(keep):
+        ln = keep[i]
+        j = i
+        while j < len(keep) and _short(keep[j]) and not _heading(keep[j]):
+            j += 1
+        if j - i >= 6 and len(ln) > 30:  # a table's caption sits on the line above its header
+            out.append(("p", ln))
+            i += 1
+            continue
+        if j - i >= 6:  # a run of short cells: a table, one cell per line
+            cols = _table(keep[i:j])
+            out.append(("table", (cols or 1, keep[i:j])))
+            i = j
+            continue
+        prev = out[-1] if out and out[-1][0] in ("p", "li") else None
+        if ln.startswith("•"):
+            out.append(("li", ln.lstrip("• ").strip()))
+        elif _heading(ln):
+            out.append(("h", ln.capitalize()))
+        elif prev and (ln[:1].islower() or not re.search(r"[.:!?)%]$", prev[1])):
+            out[-1] = (prev[0], prev[1] + " " + ln)  # the PDF wrapped this sentence: join it back
+        else:
+            out.append(("p", ln))
+        i += 1
+    return out
+
+
+def _heading(ln: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z0-9 ,&'()·:/-]{6,}", ln)) and sum(c.isalpha() for c in ln) >= 5
+
+
 def _pages(item: dict, data: bytes) -> None:
+    """The PDF's words, page by page, set as headings, bullets and paragraphs. Tables and charts read best in Preview;
+    the download is the file itself."""
     pages = _pdf_pages(data)
+    if pages:
+        st.caption("The briefing's words, page by page. Its charts are drawn in Preview.")
+    tag = {"h": "lyst-page-h", "li": "lyst-page-li", "p": "lyst-page-p"}
+
+    def block(k: str, t: Any) -> str:
+        if k != "table":
+            return f'<div class="{tag[k]}">{escape(t)}</div>'
+        cols, cells = t
+        return (f'<div class="lyst-page-table" style="--cols:{cols}">'
+                + "".join(f'<span class="{"hd" if cols > 1 and n < cols else ""}">{escape(c)}</span>'
+                          for n, c in enumerate(cells)) + "</div>")
+
     for i, text in enumerate(pages):
         with kit.card(f"pg_{item['id']}_{i}"):
-            st.html(f'<div class="lyst-card-kicker">Page {i + 1} of {len(pages)}</div>'
-                    f'<div class="lyst-page">{escape(text)}</div>')
+            st.html(f'<div class="lyst-card-kicker">Page {i + 1} of {len(pages)}</div><div class="lyst-page">'
+                    + "".join(block(k, t) for k, t in page_blocks(text, item.get("title") or "")) + "</div>")
 
 
 def _slide_cards(item: dict, data: bytes) -> None:
@@ -670,8 +766,18 @@ CSS = """
 /* a briefing's charts are SVG drawn as in the file (dark text on paper): on a paper surface in dark mode too */
 [class*="st-key-lyst_card_doc_"] img {background: #fff; border-radius: var(--lyst-radius-md); padding: .5rem; max-width: 100%;}
 img.lyst-thumb {width: 100%; aspect-ratio: 240 / 132; border-radius: var(--lyst-radius-md); display: block;}
-.lyst-page {white-space: pre-wrap; font-size: var(--lyst-size-sm); line-height: var(--lyst-leading-body);
-             max-width: 70ch;}
+.lyst-page {font-size: var(--lyst-size-sm); line-height: var(--lyst-leading-body); max-width: 70ch;}
+.lyst-page-h {font-size: var(--lyst-size-xs, .72rem); letter-spacing: .06em; text-transform: uppercase; font-weight: 650;
+              color: var(--lyst-text-muted); margin: 1rem 0 .3rem;}
+.lyst-page-h:first-child {margin-top: .2rem;}
+.lyst-page-p {margin: 0 0 .45rem; overflow-wrap: anywhere;}
+.lyst-page-li {margin: 0 0 .35rem; padding-left: 1rem; position: relative; overflow-wrap: anywhere;}
+.lyst-page-li::before {content: "•"; position: absolute; left: .2rem; color: var(--lyst-text-muted);}
+.lyst-page-table {display: grid; grid-template-columns: repeat(var(--cols), minmax(0, auto)); gap: .15rem 1.1rem;
+                  margin: .2rem 0 .8rem; font-variant-numeric: tabular-nums; overflow-x: auto; max-width: 100%;}
+.lyst-page-table span {overflow-wrap: anywhere;}
+.lyst-page-table span.hd {font-weight: 600; color: var(--lyst-text-muted); border-bottom: 1px solid var(--lyst-border);
+                          padding-bottom: .15rem;}
 .lyst-slide {aspect-ratio: 16 / 9; overflow: hidden; display: grid; align-content: start; gap: .3rem;}
 .lyst-clamp {display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
              min-height: 2.6em;}

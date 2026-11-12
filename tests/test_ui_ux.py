@@ -739,3 +739,20 @@ def test_a_data_table_shows_money_columns_with_separators_and_the_same_places():
     assert cfg["revenue"]["type_config"]["format"] == "accounting"  # 386,107.30 under 930,752.32
     assert cfg["delta"]["type_config"]["format"] == "localized"  # a negative keeps its minus sign, not brackets
     assert "year" not in cfg and "units" not in cfg and "region" not in cfg
+
+
+def test_a_pdf_page_reads_as_headings_bullets_and_a_table_without_its_chart_axis():
+    from lyst.ui.artifacts import page_blocks
+
+    text = ("Margin\nLyst · page 1\nANSWER\nOperating margin was 32.5% in Q3 2026, and\n-3.4 pts versus Q3 2025.\n"
+            "EVIDENCE\n\x7f EMEA moved margin by -3.8 pts, 107% of the total\nchange.\nOperating margin by month\n"
+            "32%\n34%\n36%\n38%\nJan 2024\nJul 2024\nJan 2025\nBY REGION\nRegion\nPrior rate\nCurrent rate\n"
+            "EMEA\n36.8%\n24.0%\nAPAC\n35.4%\n36.5%\n")
+    blocks = page_blocks(text, "Margin")
+    assert blocks[0] == ("h", "Answer")
+    assert blocks[1] == ("p", "Operating margin was 32.5% in Q3 2026, and -3.4 pts versus Q3 2025.")
+    assert ("li", "EMEA moved margin by -3.8 pts, 107% of the total change.") in blocks
+    flat = " ".join(str(t) for _, t in blocks)
+    assert "38%" not in flat and "Jul 2024" not in flat and "page 1" not in flat  # the axis and running head go
+    assert blocks[-1] == ("table", (3, ["Region", "Prior rate", "Current rate", "EMEA", "36.8%", "24.0%",
+                                        "APAC", "35.4%", "36.5%"]))
