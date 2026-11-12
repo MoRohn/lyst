@@ -212,16 +212,31 @@ def recurring() -> None:
     for i, s in enumerate(scheds):
         when = (s.get("cadence") or every(s["every_seconds"])).replace("every", "Every", 1)
         meta = " · ".join(x for x in (
-            when, f"next {kit.when(s['next_run_at'])}" if s.get("next_run_at") else None,
+            when, f"next {kit.when(s['next_run_at'])}" if s.get("next_run_at") and s.get("state") != "paused" else None,
             f"last ran {kit.when(s['last_run_at'])}" if s.get("last_run_at") else None,
             f"missed {s['missed']}" if s.get("missed") else None,
             f"skipped {s['skipped']} (the last run was still going)" if s.get("skipped") else None) if x)
-        status = ("Awaiting approval", "wait") if not s["enabled"] else (("Missed runs", "warn") if s.get("missed")
-                                                                         else ("Active", "ok"))
-        hit = kit.row(s["title"], meta, status=status, key=f"s{s['id']}", divider=i < len(scheds) - 1,
-                      actions=[("Last result", "last")] if s.get("last_task_id") else [])
+        # the engine says where each stands: running, waiting on an admin's approval, or paused (asked, refused or
+        # withdrawn: Resume asks again)
+        state = s.get("state") or ("active" if s["enabled"] else "awaiting_approval")
+        status = {"paused": ("Paused", "info"), "awaiting_approval": ("Waiting for approval", "wait")}.get(
+            state, ("Missed runs", "warn") if s.get("missed") else ("Active", "ok"))
+        acts = [("Last result", "last")] if s.get("last_task_id") else []
+        if editor and state in ("active", "awaiting_approval"):
+            acts.append(("Pause", "pause"))
+        elif editor and state == "paused":
+            acts.append(("Resume", "resume"))
+        hit = kit.row(s["title"], meta, status=status, key=f"s{s['id']}", divider=i < len(scheds) - 1, actions=acts)
         if hit == "last":
             open_in_analyst(s["last_task_id"])
+        elif hit == "pause":
+            if kit.guarded(lambda sid=s["id"]: api.post(f"/v1/workspaces/{ws}/schedules/{sid}/pause"),
+                           "Paused. Runs already started finish; no new ones start."):
+                st.rerun(scope="fragment")
+        elif hit == "resume":
+            if kit.guarded(lambda sid=s["id"]: api.post(f"/v1/workspaces/{ws}/schedules/{sid}/resume"),
+                           "Asked to resume. It starts again once an admin approves it."):
+                st.rerun(scope="fragment")
     if editor:
         with st.popover("Schedule a question", icon=":material/event_repeat:"):
             title = st.text_input("Name", placeholder="Weekly margin review", key="sch_title")
