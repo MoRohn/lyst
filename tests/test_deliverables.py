@@ -206,3 +206,14 @@ def test_the_answer_page_and_the_downloads_read_an_answer_the_same_way(seeded):
     assert results[1].get("charts") or ui.breakdown_chart(results[1])  # the breakdown case is really exercised
     for col in ("prior_rate", "region", "operating_margin", "x"):
         assert ui.heading(col) == av.heading(col)
+
+
+def test_a_pdf_keeps_a_long_level_on_one_line(seeded):
+    from pypdf import PdfReader
+
+    lyst, owner = seeded
+    t = ask(lyst, owner, "Profile pnl_ledger for data quality issues")
+    p = lyst.artifacts.build(owner, t, "pdf")
+    _, pdf = lyst.artifacts.get(owner, p["id"])
+    first = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
+    assert "Verified with warnings" in first  # one line beside the stamp, not "Verified with" / "warnings"
