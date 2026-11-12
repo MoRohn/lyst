@@ -66,41 +66,48 @@ def details(tid: str) -> None:
     t = api.get(f"/v1/tasks/{tid}")
     text, color, _ = task_state(t["status"], t.get("outcome"))
     st.markdown(f"**{t['title']}**")
-    kit.chip(text, TONE.get(color, "info"))
     kind = {"scheduled": "Scheduled", "workflow": "Repeated analysis"}.get(t["kind"], "Asked")
-    st.caption(f"{kind} · started {kit.when(t['created_at'])} · {sum(s['status'] == 'done' for s in t['steps'])} of "
-               f"{len(t['steps'])} steps done")
+    with st.container(horizontal=True, vertical_alignment="center", gap="small", key="task_head"):
+        kit.chip(text, TONE.get(color, "info"))
+        st.caption(f"{kind} {kit.when(t['created_at'])} · {AUTONOMY.get(t.get('autonomy'), '')}".rstrip(" ·"))
     if t.get("error"):
         st.error(t["error"])
     n_done = sum(s["status"] == "done" for s in t["steps"])
     if t["steps"]:
         st.html(visuals.meter(n_done / len(t["steps"]), label="Steps done", tone="good" if t["status"] == "done" else
-                              "info", text=f"{n_done} of {len(t['steps'])} steps done · autonomy: {t['autonomy']}"))
+                              "info", text=f"{n_done} of {len(t['steps'])} steps done"))
     from lyst.ui import actions  # noqa: PLC0415
 
-    if (t.get("lifecycle") or {}).get("detail"):
+    # where it stands, in Lyst's words, while it is still going (a done task's chip already says so)
+    if (t.get("lifecycle") or {}).get("detail") and t["status"] not in ("done", "cancelled"):
         st.caption(f"{t['lifecycle']['state']}: {t['lifecycle']['detail']}")
     with st.expander("Steps", icon=":material/list:", expanded=t["status"] in ("running", "failed", "paused")):
         st.html(visuals.steps(t["steps"]))
     with st.expander("How it progressed", icon=":material/timeline:"):
         actions.timeline(tid)
-    actions.menu("task", tid, page="brain", label="More", exclude=("task.open", "task.pause", "task.resume",
-                                                                    "task.retry", "task.cancel"))
-    c = st.columns(3)
-    if t["status"] == "done" and c[0].button("Open the answer", type="primary", icon=":material/arrow_outward:"):
-        open_in_analyst(tid)
-    if t["status"] in ("queued", "running") and c[0].button("Pause", icon=":material/pause:"):
-        kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/pause"), "Paused")
-        st.rerun()
-    if t["status"] == "paused" and c[0].button("Resume", type="primary", icon=":material/play_arrow:"):
-        kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/resume"), "Resumed")
-        st.rerun()
-    if t["status"] == "failed" and c[0].button("Try again", type="primary", icon=":material/refresh:"):
-        kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/retry"), "Running it again")
-        st.rerun()
-    if t["status"] not in ("done", "failed", "cancelled") and c[1].button("Cancel", icon=":material/block:"):
-        kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/cancel"), "Cancelled")
-        st.rerun()
+    # the sheet's moves on one row: the main one first, the rest after it, More at the end
+    with st.container(horizontal=True, vertical_alignment="center", gap="small", key="task_moves"):
+        if t["status"] == "done" and st.button("Open the answer", type="primary", icon=":material/arrow_outward:"):
+            open_in_analyst(tid)
+        if t["status"] in ("queued", "running") and st.button("Pause", icon=":material/pause:"):
+            kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/pause"), "Paused")
+            st.rerun()
+        if t["status"] == "paused" and st.button("Resume", type="primary", icon=":material/play_arrow:"):
+            kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/resume"), "Resumed")
+            st.rerun()
+        if t["status"] == "failed" and st.button("Try again", type="primary", icon=":material/refresh:"):
+            kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/retry"), "Running it again")
+            st.rerun()
+        if t["status"] not in ("done", "failed", "cancelled") and st.button("Cancel", icon=":material/block:"):
+            kit.guarded(lambda: api.post(f"/v1/tasks/{tid}/cancel"), "Cancelled")
+            st.rerun()
+        actions.menu("task", tid, page="brain", label="More", exclude=("task.open", "task.pause", "task.resume",
+                                                                        "task.retry", "task.cancel"))
+
+
+# how far Lyst may go on its own, as the task sheet says it (Settings › Privacy & Security sets it)
+AUTONOMY = {"assist": "you run each step", "delegate": "Lyst asks before it changes anything",
+            "autonomous": "Lyst acts within policy", "governed": "every action waits for approval"}
 
 
 @st.fragment
