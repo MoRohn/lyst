@@ -654,14 +654,37 @@ def _pages(item: dict, data: bytes) -> None:
                     + "".join(block(k, t) for k, t in page_blocks(text, item.get("title") or "")) + "</div>")
 
 
+def slide_lines(lines: list[str], deck: str = "") -> list[tuple[str, str]]:
+    """A slide's text as ('kicker' | 'li' | 'p', text) lines: each paragraph of a text box on its own line, bullets as
+    bullets, a SHOUTED label as a quiet kicker, and the footer every slide repeats ('Lyst · <the deck's title>')
+    left out."""
+    out: list[tuple[str, str]] = []
+    for box in lines:
+        for ln in (x.strip() for x in box.splitlines()):
+            if not ln or (deck and ln.startswith("Lyst · ") and deck.strip() in ln):
+                continue
+            if ln.startswith(("•", "\u2022")):
+                out.append(("li", ln.lstrip("•\u2022 ").strip()))
+            elif ln.upper() == ln and sum(c.isalpha() for c in ln) >= 4:
+                out.append(("kicker", ln.capitalize()))
+            else:
+                out.append(("p", ln))
+    return out
+
+
 def _slide_cards(item: dict, data: bytes) -> None:
     slides = _slides(data)
-    cols = st.columns(2)
+    deck = slides[0][0] if slides else ""
+    cls = {"kicker": "lyst-slide-k", "li": "lyst-slide-li", "p": "lyst-card-meta"}
+    cols: list = []
     for i, (title, lines) in enumerate(slides):
+        if i % 2 == 0:  # a row of two at a time, so a phone stacks them 1, 2, 3 ... rather than every odd one first
+            cols = st.columns(2)
         with cols[i % 2], kit.card(f"sl_{item['id']}_{i}"):
             st.html(f'<div class="lyst-slide"><div class="lyst-card-kicker">Slide {i + 1}</div>'
                     f'<div class="lyst-card-title">{escape(title)}</div>'
-                    + "".join(f'<div class="lyst-card-meta">{escape(t)}</div>' for t in lines[:6]) + "</div>")
+                    + "".join(f'<div class="{cls[k]}">{escape(t)}</div>' for k, t in slide_lines(lines, deck)[:8])
+                    + "</div>")
 
 
 def _sheets(item: dict, data: bytes) -> None:
@@ -740,7 +763,14 @@ def _slides(data: bytes) -> list[tuple[str, list[str]]]:
         return []
     out = []
     for slide in Presentation(io.BytesIO(data)).slides:
-        texts = [sh.text_frame.text for sh in slide.shapes if getattr(sh, "has_text_frame", False) and sh.text_frame.text]
+        texts = []
+        for sh in slide.shapes:
+            if getattr(sh, "has_text_frame", False) and sh.text_frame.text:
+                texts.append(sh.text_frame.text)
+            elif getattr(sh, "has_table", False):  # a table: its header, and how many rows sit under it
+                rows = list(sh.table.rows)
+                head = " · ".join(c.text for c in rows[0].cells) if rows else ""
+                texts.append(f"Table: {head} ({len(rows) - 1} row{'s' * (len(rows) != 2)})" if head else "Table")
         title = slide.shapes.title.text if slide.shapes.title is not None else (texts[0] if texts else "")
         out.append((title, [t for t in texts if t != title]))
     return out
@@ -778,7 +808,13 @@ img.lyst-thumb {width: 100%; aspect-ratio: 240 / 132; border-radius: var(--lyst-
 .lyst-page-table span {overflow-wrap: anywhere;}
 .lyst-page-table span.hd {font-weight: 600; color: var(--lyst-text-muted); border-bottom: 1px solid var(--lyst-border);
                           padding-bottom: .15rem;}
-.lyst-slide {aspect-ratio: 16 / 9; overflow: hidden; display: grid; align-content: start; gap: .3rem;}
+.lyst-slide {aspect-ratio: 16 / 9; overflow: hidden; display: grid; align-content: start; gap: .3rem;
+             -webkit-mask-image: linear-gradient(to bottom, black 82%, transparent);
+             mask-image: linear-gradient(to bottom, black 82%, transparent);}
+.lyst-slide-k {font-size: var(--lyst-size-xs, .72rem); letter-spacing: .06em; text-transform: uppercase;
+               color: var(--lyst-text-muted); font-weight: 600;}
+.lyst-slide-li {font-size: var(--lyst-size-sm); color: var(--lyst-text-muted); padding-left: .9rem; position: relative;}
+.lyst-slide-li::before {content: "•"; position: absolute; left: .15rem;}
 .lyst-clamp {display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
              min-height: 2.6em;}
 """

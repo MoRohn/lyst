@@ -756,3 +756,12 @@ def test_a_pdf_page_reads_as_headings_bullets_and_a_table_without_its_chart_axis
     assert "38%" not in flat and "Jul 2024" not in flat and "page 1" not in flat  # the axis and running head go
     assert blocks[-1] == ("table", (3, ["Region", "Prior rate", "Current rate", "EMEA", "36.8%", "24.0%",
                                         "APAC", "35.4%", "36.5%"]))
+
+
+def test_a_slide_reads_without_the_footer_every_slide_repeats():
+    from lyst.ui.artifacts import slide_lines
+
+    deck = "Why did margin fall?"
+    lines = ["Lyst · Why did margin fall?", "WHAT IT MEANS\n• EMEA drove it.\n• Act there.", "Lyst · 11 Nov 2026"]
+    assert slide_lines(lines, deck) == [("kicker", "What it means"), ("li", "EMEA drove it."), ("li", "Act there."),
+                                        ("p", "Lyst · 11 Nov 2026")]
