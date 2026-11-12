@@ -58,3 +58,28 @@ def test_every_section_renders_and_technical_controls_wait_in_sheets(ui):  # noq
     at = _settings("privacy")
     assert not any(s.label == "Restricted data is read by" for s in at.selectbox)  # a sentence first
     assert "Audit trail" in _texts(at)
+
+
+def test_the_audit_trail_reads_in_words_for_every_action_lyst_records():
+    """Each action the engine audits ('artifact.create', 'data.ingest', ...) reads as a sentence, never 'Artifact ·
+    create'. The helpers are read out of the page without running it."""
+    import ast
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "src" / "lyst"
+    tree = ast.parse((root / "ui" / "app_pages" / "settings.py").read_text(encoding="utf-8"))
+    keep = [n for n in tree.body if (isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name)
+                                     and n.targets[0].id in ("PAST", "NOUN", "WHOLE"))
+            or (isinstance(n, ast.FunctionDef) and n.name == "audit_title")]
+    ns: dict = {}
+    exec(compile(ast.Module(body=keep, type_ignores=[]), "settings", "exec"), ns)  # noqa: S102
+    title = ns["audit_title"]
+    assert title("artifact.create") == "An artifact created" and title("data.ingest") == "Data loaded"
+    assert title("memory.write") == "A memory saved"
+    audited = {a for f in root.rglob("*.py") if "/ui/" not in f.as_posix()
+               for call in re.findall(r"audit\([^)]{0,120}", f.read_text(encoding="utf-8"))
+               for a in re.findall(r'"([a-z_]+\.[a-z_]+)"', call)}
+    assert len(audited) > 50
+    raw = sorted(a for a in audited if " · " in title(a))
+    assert not raw, raw
