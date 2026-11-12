@@ -103,8 +103,8 @@ export const capabilities: {
   {
     icon: 'Workflow',
     title: 'Automate',
-    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up.',
-    items: ['Graph runs that plan, build, check and fix', 'Event rules, tried by dry run first', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets'],
+    text: 'Recurring work on calendar schedules that keep local time, run once after downtime, and never double up. A resumed schedule picks up from its next run rather than catching up on the ones it missed.',
+    items: ['Graph runs that plan, build, check and fix', 'Event rules, tried by dry run first', 'Approved monitors', 'Verified early warnings', 'Work prepared before it runs', 'Autonomy levels with daily budgets', 'Pause any schedule; resuming needs approval again'],
     status: 'available',
   },
   {
