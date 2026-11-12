@@ -141,6 +141,10 @@ div.st-key-data_back button {color: var(--lyst-text-muted); padding-left: 0;}
 @media (max-width: 640px) {
   .block-container:has(.lyst-data) {padding-top: 4rem;}
   h1.lyst-data-title {font-size: 2rem;}
+  /* search, Add data and More on one row: the search takes what is left, More shows as its icon */
+  div.st-key-data_tools {justify-content: flex-start; flex-wrap: nowrap;}
+  div.st-key-data_tools > div:first-child {flex: 1 1 auto; min-width: 0; width: auto !important;}
+  div.st-key-data_more button [data-testid="stMarkdownContainer"] {display: none;}
 }
 /* ---------------------------------------------------------------- sheets over the flow
    A dataset, a source or a metric opens over the page: its face, what it is in a sentence, its state as chips, its
