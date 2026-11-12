@@ -515,8 +515,14 @@ class TaskRuntime:
     def schedules(self, actor: Principal, workspace_id: str) -> list[dict[str, Any]]:
         self.services.guard.require(actor, workspace_id, "workspace.read")
         rows = self.db.query("SELECT * FROM schedules WHERE workspace_id = ? ORDER BY title", [workspace_id])
+        pending = {r["sid"] for r in self.db.query(
+            "SELECT json_extract_string(payload, '$.schedule_id') AS sid FROM approvals WHERE workspace_id = ? "
+            "AND action = 'schedule.activate' AND status = 'pending'", [workspace_id])}
         for r in rows:
             r["cadence"] = ops.describe_schedule(r)
+            # enabled alone cannot tell a paused schedule from one waiting to be approved: both are off. A rejected or
+            # withdrawn request leaves it paused, so the person can ask again.
+            r["state"] = "active" if r["enabled"] else ("awaiting_approval" if r["id"] in pending else "paused")
         return rows
 
     def tick_schedules(self, now: datetime | None = None) -> list[str]:

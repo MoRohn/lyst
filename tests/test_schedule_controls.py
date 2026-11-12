@@ -26,6 +26,10 @@ def _row(lyst, sid):
     return lyst.runtime.db.query("SELECT * FROM schedules WHERE id = ?", [sid])[0]
 
 
+def _state(lyst, actor, sid: str) -> str:
+    return next(r["state"] for r in lyst.runtime.schedules(actor, WS) if r["id"] == sid)
+
+
 def test_pause_stops_new_runs_and_resume_needs_approval_again(seeded):
     lyst, owner = seeded
     admin = _admin(lyst, owner)
@@ -50,8 +54,9 @@ def test_pause_stops_new_runs_and_resume_needs_approval_again(seeded):
     assert pending and pending[0]["summary"].startswith("Resume 'KPI brief'")
     # asking twice does not open a second approval
     assert lyst.runtime.resume_schedule(owner, WS, s["schedule_id"])["approval_id"] == res["approval_id"]
+    assert _state(lyst, owner, s["schedule_id"]) == "awaiting_approval"
     lyst.runtime.decide(admin, res["approval_id"], True)
-    assert _row(lyst, s["schedule_id"])["enabled"]
+    assert _row(lyst, s["schedule_id"])["enabled"] and _state(lyst, owner, s["schedule_id"]) == "active"
 
 
 def test_pausing_before_approval_withdraws_the_request(seeded):
@@ -63,6 +68,18 @@ def test_pausing_before_approval_withdraws_the_request(seeded):
     with pytest.raises(ValueError):  # a withdrawn request cannot be approved later to switch it back on
         lyst.runtime.decide(admin, s["approval_id"], True)
     assert not _row(lyst, s["schedule_id"])["enabled"]
+    assert _state(lyst, owner, s["schedule_id"]) == "paused"  # not "awaiting approval": nothing is pending
+
+
+def test_a_rejected_request_leaves_the_schedule_paused_so_it_can_be_asked_again(seeded):
+    lyst, owner = seeded
+    admin = _admin(lyst, owner)
+    s = lyst.runtime.create_schedule(owner, WS, "Brief", "What changed this month?", 3600)
+    assert _state(lyst, owner, s["schedule_id"]) == "awaiting_approval"
+    lyst.runtime.decide(admin, s["approval_id"], False)
+    assert _state(lyst, owner, s["schedule_id"]) == "paused"
+    assert lyst.runtime.resume_schedule(owner, WS, s["schedule_id"])["approval_id"] != s["approval_id"]
+    assert _state(lyst, owner, s["schedule_id"]) == "awaiting_approval"
 
 
 def test_only_editors_control_schedules_and_only_in_their_workspace(seeded):
@@ -89,4 +106,6 @@ def test_schedule_controls_over_http(seeded):
         assert r.status_code == 200 and r.json()["enabled"] is False
         r = client.post(f"/v1/workspaces/{WS}/schedules/{s['schedule_id']}/resume", headers=h)
         assert r.status_code == 200 and r.json()["approval_id"]
+        listed = client.get(f"/v1/workspaces/{WS}/schedules", headers=h).json()
+        assert next(x for x in listed if x["id"] == s["schedule_id"])["state"] == "awaiting_approval"
         assert client.post(f"/v1/workspaces/{WS}/schedules/s_missing/pause", headers=h).status_code == 404
