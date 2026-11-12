@@ -214,6 +214,32 @@ def test_schedules_read_as_cadence_and_settings_show_usage(seeded, ui):  # noqa:
     assert "Installation:" in _texts(at) and "Model spend this month" in _texts(at) and not at.get("metric")
 
 
+def test_a_schedule_can_be_paused_and_asked_to_resume_from_recurring(seeded, ui):  # noqa: F811
+    """Pause stops it at once; Resume asks an admin again, so the row then waits for approval rather than running."""
+    lyst, owner = seeded
+    sid = lyst.runtime.create_schedule(owner, "northwind", "Friday revenue check", "What was revenue last week?",
+                                       at="09:00", weekdays=["fri"], timezone="UTC")["schedule_id"]
+
+    def recurring() -> AppTest:
+        at = AppTest.from_file("../src/lyst/ui/app.py", default_timeout=30)
+        at.run()
+        at.switch_page("app_pages/brain.py")
+        at.query_params["view"] = "work"
+        at.query_params["work"] = "recurring"
+        at.run()
+        assert not at.exception, [e.value for e in at.exception]
+        return at
+
+    at = recurring()
+    assert "Waiting for approval" in _texts(at)
+    next(b for b in at.button if b.label == "Pause").click().run()
+    assert {s["id"]: s["state"] for s in lyst.runtime.schedules(owner, "northwind")}[sid] == "paused"
+    at = recurring()
+    assert "Paused" in _texts(at)
+    next(b for b in at.button if b.label == "Resume").click().run()
+    assert {s["id"]: s["state"] for s in lyst.runtime.schedules(owner, "northwind")}[sid] == "awaiting_approval"
+
+
 def test_times_ahead_read_as_times_ahead():
     from datetime import UTC, datetime, timedelta  # noqa: PLC0415
 
