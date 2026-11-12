@@ -61,6 +61,7 @@
 | Analyst | Verification intensity by consequence (low / standard / high); high adds an independent pandas recomputation of the headline value from raw rows | Tested | `test_execution.py::test_verification_intensity_follows_consequence` |
 | Runtime | Pause, resume, cancel, retry, step budget | Tested | `test_runtime.py` |
 | Runtime | Approval-gated schedules | Tested | `test_schedule_needs_approval_then_runs` |
+| Runtime | Pause and resume a schedule: pausing stops new runs at once and withdraws an approval still waiting to start it; resuming asks for approval again and starts from the next occurrence, not the missed ones; editors only, audited | Tested | `test_schedule_controls.py` |
 | Runtime | Calendar schedules (local time, weekdays, IANA time zone, correct across DST), one catch-up run after downtime with the missed count, overlap skip or queue, one task per occurrence even with concurrent ticks, inbox notice when a scheduled run finishes or fails | Tested | `test_operations.py`, docs/OPERATIONS.md OP5-OP7 |
 | Runtime | Task priority by kind with deadline order, fairness between workspaces, one worker held back from background work, time budget counted across pauses, takeovers and restarts | Tested | `test_operations.py`, docs/OPERATIONS.md OP1-OP2 |
 | Ops | Workspace quotas set by installation admins: running and queued tasks (429 admission), monthly model spend and tokens (model refused, analysis continues), task time ceiling | Tested | `test_operations.py`, docs/OPERATIONS.md OP3-OP4 |
