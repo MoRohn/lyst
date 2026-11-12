@@ -700,3 +700,16 @@ def test_the_preview_drops_the_title_stamp_and_folded_data_and_steps_headings_do
     out = _inline(text)
     assert not out.startswith("# ") and "*Lyst · " not in out and "<details>" not in out and "| a |" not in out
     assert "#### Answer" in out and "#### What to do" in out and "data:image/svg+xml" in out
+
+
+def test_a_data_table_shows_money_columns_with_separators_and_the_same_places():
+    import pandas as pd
+
+    from lyst.ui import kit
+
+    df = pd.DataFrame({"revenue": [930752.32, 386107.3], "delta": [-1.5, 2.25], "year": [2024, 2025],
+                       "units": [1.0, 2.0], "region": ["EMEA", "APAC"]})
+    cfg = kit.number_columns(df)
+    assert cfg["revenue"]["type_config"]["format"] == "accounting"  # 386,107.30 under 930,752.32
+    assert cfg["delta"]["type_config"]["format"] == "localized"  # a negative keeps its minus sign, not brackets
+    assert "year" not in cfg and "units" not in cfg and "region" not in cfg

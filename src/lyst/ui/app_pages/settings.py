@@ -509,7 +509,7 @@ def _audit_rows(log: list[dict]) -> pd.DataFrame:
     except APIError:
         names = {}
     return pd.DataFrame([{"When": kit.when(r["occurred_at"]), "Who": names.get(r["actor"], r["actor"]),
-                          "Action": r["action"], "On": r["target"] or "", "Outcome": r["outcome"],
+                          "Action": audit_title(r["action"]), "On": r["target"] or "", "Outcome": r["outcome"],
                           "Detail": "" if r["detail"] in (None, "{}", {}) else str(r["detail"])} for r in log])
 
 
@@ -523,16 +523,53 @@ def audit_sheet(log: list[dict]) -> None:
 PAST = {"write": "saved", "create": "created", "version": "versioned", "compile": "compiled", "delete": "deleted",
         "update": "updated", "approve": "approved", "reject": "rejected", "revoke": "revoked", "test": "tested",
         "run": "ran", "publish": "published", "connect": "connected", "replace": "replaced", "use": "used",
-        "login": "signed in", "invite": "invited", "decide": "decided", "cancel": "stopped", "retry": "retried"}
+        "login": "signed in", "invite": "invited", "decide": "decided", "cancel": "stopped", "retry": "retried",
+        "define": "defined", "ingest": "loaded", "set": "changed", "save": "saved", "retire": "retired",
+        "pause": "paused", "resume": "resumed", "resolve": "resolved", "remove": "removed", "share": "shared",
+        "repair": "repaired", "promote": "promoted", "deprecate": "deprecated", "activate": "turned on",
+        "disable": "turned off", "export": "exported", "import": "imported", "refresh": "refreshed",
+        "build": "built", "sync": "synced", "add": "added", "dismiss": "dismissed", "accept": "accepted",
+        "review": "reviewed", "submit": "submitted", "complete": "completed", "request": "requested",
+        "propose": "proposed", "register": "registered", "generate": "generated", "classify": "classified",
+        "commit": "loaded", "discard": "discarded", "inspect": "read", "transfer": "transferred", "undo": "undone",
+        "reproduce": "reproduced", "redeliver": "sent again", "discover": "discovered", "check": "checked",
+        "edit": "edited", "revise": "revised", "link": "linked", "query": "queried", "backup": "backed up"}
 NOUN = {"task": "A question", "memory": "A memory", "asset": "An asset", "workflow": "A repeatable analysis",
-        "metric": "A metric", "dataset": "A dataset", "credential": "A credential", "policy": "The data policy"}
+        "metric": "A metric", "dataset": "A dataset", "credential": "A credential", "policy": "The data policy",
+        "artifact": "An artifact", "data": "Data", "member": "A member", "glossary": "A term",
+        "scenario": "A scenario", "workspace": "The workspace", "monitor": "A monitor", "schedule": "A schedule",
+        "dashboard": "A dashboard", "connection": "A connection", "contract": "A data contract",
+        "transform": "A transform", "experiment": "An experiment", "rule": "A rule", "webhook": "A webhook",
+        "skill": "A skill", "app": "A Lyst App", "spec": "A living spec", "decision": "A decision",
+        "approval": "An approval", "review": "A review", "quality": "A data quality check", "document": "A document",
+        "publication": "A publication", "settings": "Settings", "quota": "A limit", "installation": "The installation",
+        "connector": "A connector", "assignment": "An assignment", "comment": "A comment", "ingest": "An upload",
+        "source": "A source", "ownership": "Ownership", "onboarding": "Get started", "voice": "Voice"}
+
+
+WHOLE = {"action.refused": "An action refused", "answer.feedback": "Feedback on an answer",
+         "answer.feedback_withdraw": "Feedback withdrawn", "answer.reconcile": "An answer reconciled",
+         "anticipation.attention": "Something flagged for attention", "anticipation.settings": "Anticipation changed",
+         "auth.oidc": "Signed in with single sign-on", "connector.draft": "A connector drafted",
+         "connector.draft_test": "A drafted connector tested", "data.column_policy": "A column's access changed",
+         "data.policy": "The data policy changed", "monitor.tick": "A monitor checked", "onboarding.profile":
+         "Workspace profile saved", "policy.read": "Data read under policy", "policy.rows": "Row access changed",
+         "rule.deactivate": "A rule turned off", "source.authority": "A source's precedence changed",
+         "spec.mark": "A living spec marked", "voice.action_refused": "A spoken action refused",
+         "voice.assent_refused": "A spoken yes refused", "voice.duplex": "Voice conversation changed",
+         "voice.end": "Voice ended", "voice.session": "Voice session", "voice.settings": "Voice settings changed",
+         "voice.start": "Voice started", "voice.turn": "Spoken turn", "workbench.python": "Workbench code ran",
+         "workflow.stale": "A repeatable analysis went stale", "workspace.export_download": "Workspace export downloaded"}
 
 
 def audit_title(action: str) -> str:
-    """'memory.write' reads 'A memory saved'; anything unknown reads 'Memory · write', as before."""
+    """'memory.write' reads 'A memory saved', 'artifact.create' 'An artifact created'; a noun Lyst has no word for
+    still gets its verb in words ('Thing ran'), and anything else reads 'Thing · act', as before."""
+    if action in WHOLE:
+        return WHOLE[action]
     noun, _, verb = str(action).partition(".")
-    if noun in NOUN and verb in PAST:
-        return f"{NOUN[noun]} {PAST[verb]}"
+    if verb in PAST:
+        return f"{NOUN.get(noun) or noun.replace('_', ' ').capitalize()} {PAST[verb]}"
     return str(action).replace("_", " ").replace(".", " · ").capitalize()
 
 
@@ -760,15 +797,20 @@ p.lyst-set-line {color: var(--lyst-text-muted); margin: .2rem 0 1.2rem 0; font-s
 p.lyst-set-ok {display: flex; align-items: center; gap: .5rem; color: var(--lyst-text-muted); font-size: var(--lyst-size-sm); margin: 0;}
 p.lyst-set-ok i {width: .5rem; height: .5rem; border-radius: 50%; background: var(--lyst-good);}
 div[class*="st-key-set_diag_"] button {border-radius: var(--lyst-radius-pill) !important; min-height: 2.3rem;}
-div.st-key-set_diag_warn [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .75rem;}
-div.st-key-set_diag_bad [data-testid="stIconMaterial"] {color: var(--lyst-bad); font-size: .75rem;}
-div.st-key-set_diag_info [data-testid="stIconMaterial"] {color: var(--lyst-info); font-size: .75rem;}
+/* a solid dot in the worst tone, not the font's ring */
+div[class*="st-key-set_diag_"] button > div > div:first-child [data-testid="stIconMaterial"] {font-size: 0; width: .5rem; height: .5rem;
+  min-width: .5rem; border-radius: 50%; margin: 0 .15rem;}
+div.st-key-set_diag_warn button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-warn);}
+div.st-key-set_diag_bad button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-bad);}
+div.st-key-set_diag_info button > div > div:first-child [data-testid="stIconMaterial"] {background: var(--lyst-info);}
 /* the list: icon tiles in a raised inset group */
 div.st-key-set_nav {background: var(--lyst-raised); border: 1px solid var(--lyst-edge); border-radius: 20px;
   box-shadow: var(--lyst-shadow-1); padding: .45rem; gap: .1rem; position: sticky; top: 1rem;}
 div[class*="st-key-set_nav_"] button {justify-content: flex-start; min-height: 2.6rem; padding: .3rem .55rem;
   border-radius: 13px; color: var(--lyst-text); font-weight: 450;}
 div[class*="st-key-set_nav_"] button > div {justify-content: flex-start; gap: .65rem;}
+div[class*="st-key-set_nav_"] button span:has(> [data-testid="stIconMaterial"]) {width: 1.75rem; min-width: 1.75rem;
+  margin-right: .3rem;}
 div[class*="st-key-set_nav_"] button [data-testid="stIconMaterial"] {width: 1.75rem; min-width: 1.75rem; height: 1.75rem;
   flex: none; border-radius: 8px; line-height: 1.75rem; text-align: center;
   display: grid; place-items: center; font-size: 1.05rem; color: var(--lyst-accent);

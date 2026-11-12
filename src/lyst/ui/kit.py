@@ -113,8 +113,16 @@ div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
 /* sheets: dialogs rise from below with depth; popovers and toasts float on the material */
 [data-testid="stDialog"] [role="dialog"] {border-radius: var(--lyst-radius-xl) !important; box-shadow: var(--lyst-shadow-3); background: var(--lyst-raised) !important;
   border: 1px solid var(--lyst-edge); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
+/* the uploader's list of file types wraps rather than trailing off, so a phone shows every type it takes */
+[data-testid="stFileUploaderDropzoneInstructions"] span {white-space: normal; overflow: visible; text-overflow: clip;}
 [data-testid="stPopoverBody"] {border-radius: var(--lyst-radius-lg) !important; box-shadow: var(--lyst-shadow-3) !important;
   border: 1px solid var(--lyst-edge) !important;}
+/* a menu reads down its left edge: each row starts with its icon, not centred in the sheet */
+[data-testid="stPopoverBody"] .stButton button[data-testid="stBaseButton-tertiary"] {justify-content: flex-start;
+  text-align: left; min-height: 2.35rem; padding: .4rem .7rem; border-radius: var(--lyst-radius-md, 10px);}
+[data-testid="stPopoverBody"] .stButton button[data-testid="stBaseButton-tertiary"] > div {justify-content: flex-start;}
+[data-testid="stPopoverBody"] .stButton button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled) {
+  background: var(--lyst-surface);}
 [data-testid="stToast"] {background: var(--lyst-material) !important; backdrop-filter: saturate(180%) blur(20px);
   border: 1px solid var(--lyst-edge); box-shadow: var(--lyst-shadow-2); border-radius: var(--lyst-radius-lg) !important;}
 /* controls: a tactile press, quick hover, no jumps */
@@ -469,3 +477,20 @@ def lower(title: str) -> str:
 
 def _esc(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def number_columns(df: Any) -> dict[str, Any]:
+    """How a data table shows its decimals: thousands separators and the same places on every row, so a column reads
+    down cleanly (930,752.32 above 386,107.30, not 386107.3). Whole numbers keep their plain form (years, ids, codes)."""
+    cfg: dict[str, Any] = {}
+    for c in df.columns:
+        s = df[c]
+        if s.dtype.kind != "f" or not s.notna().any():
+            continue
+        v = s.dropna()
+        if (v == v.round(0)).all():
+            continue
+        # two places for money-like values; a column that goes negative keeps a minus sign rather than brackets
+        two = bool((v.abs() >= 1).any() and (v.round(2) == v).all())
+        cfg[c] = st.column_config.NumberColumn(format="accounting" if two and (v >= 0).all() else "localized")
+    return cfg
