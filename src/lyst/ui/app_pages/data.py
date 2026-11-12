@@ -134,6 +134,7 @@ div[class*="st-key-read_"] button {color: var(--lyst-text); font-size: .95rem; b
   padding: .3rem .7rem; min-height: 0;}
 div[class*="st-key-read_"] button:hover {background: var(--lyst-raised); box-shadow: var(--lyst-shadow-1);}
 div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-warn); font-size: .8rem;}
+div[class*="st-key-readtone_bad"] div[class*="st-key-read_"] [data-testid="stIconMaterial"] {color: var(--lyst-bad);}
 div.st-key-data_back button {color: var(--lyst-text-muted); padding-left: 0;}
 @media (max-width: 640px) {
   .block-container:has(.lyst-data) {padding-top: 4rem;}
@@ -1424,9 +1425,11 @@ def focus(every: list[dict], src: dict) -> None:
     if flagged:
         c, h = flagged[0]
         more = f" · {len(flagged) - 1} more" if len(flagged) > 1 else ""
-        if st.button(f"{c['title']}: {h[0].lower()} before you rely on it{more}", key=f"read_{c['name']}_open",
-                     type="tertiary", icon=":material/fiber_manual_record:", help=sentence):
-            review_quality(c["name"])
+        # the dot takes the dataset chip's own tone: red for something to fix, amber for something to check
+        with st.container(key=f"readtone_{h[1]}"):
+            if st.button(f"{c['title']}: {h[0].lower()} before you rely on it{more}", key=f"read_{c['name']}_open",
+                         type="tertiary", icon=":material/fiber_manual_record:", help=sentence):
+                review_quality(c["name"])
     elif staged and editor:
         if st.button(f"{staged} upload{'s' * (staged != 1)} waiting for review", key="read_staged", type="tertiary",
                      icon=":material/fiber_manual_record:"):
