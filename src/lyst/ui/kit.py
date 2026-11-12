@@ -113,6 +113,8 @@ div[class*="st-key-lyst_card"]:focus-within {box-shadow: var(--lyst-shadow-2);}
 /* sheets: dialogs rise from below with depth; popovers and toasts float on the material */
 [data-testid="stDialog"] [role="dialog"] {border-radius: var(--lyst-radius-xl) !important; box-shadow: var(--lyst-shadow-3); background: var(--lyst-raised) !important;
   border: 1px solid var(--lyst-edge); animation: lyst-sheet var(--lyst-motion-slow) var(--lyst-motion-ease);}
+/* the uploader's list of file types wraps rather than trailing off, so a phone shows every type it takes */
+[data-testid="stFileUploaderDropzoneInstructions"] span {white-space: normal; overflow: visible; text-overflow: clip;}
 [data-testid="stPopoverBody"] {border-radius: var(--lyst-radius-lg) !important; box-shadow: var(--lyst-shadow-3) !important;
   border: 1px solid var(--lyst-edge) !important;}
 /* a menu reads down its left edge: each row starts with its icon, not centred in the sheet */

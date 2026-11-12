@@ -252,9 +252,12 @@ def upload() -> None:
     """Any file: a workbook, a document, a CSV. Lyst reads it first and shows what it found before anything loads."""
     fm = _formats()
     groups = fm.get("groups") or {}
-    st.caption("Spreadsheets (" + ", ".join(groups.get("spreadsheet", [])) + "), tables ("
-               + ", ".join(groups.get("table", [])) + ") and documents (" + ", ".join(groups.get("document", []))
-               + "). Lyst shows what it found before anything is loaded.")
+    # the uploader lists every file type itself; the line above it says what kinds and what happens next
+    kinds = [k for k, g in (("spreadsheets", "spreadsheet"), ("tables", "table"), ("documents", "document"))
+             if groups.get(g)]
+    st.caption((", ".join(kinds[:-1]) + " and " + kinds[-1] if len(kinds) > 1 else "".join(kinds)).capitalize()
+               + ". Lyst shows what it found before anything is loaded." if kinds
+               else "Lyst shows what it found before anything is loaded.")
     f = st.file_uploader("File", type=fm.get("extensions"), label_visibility="collapsed", key="ingest_file")
     jid = st.session_state.get("ingest_job")
     if f is not None:
