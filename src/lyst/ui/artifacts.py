@@ -663,8 +663,8 @@ def slide_lines(lines: list[str], deck: str = "") -> list[tuple[str, str]]:
         for ln in (x.strip() for x in box.splitlines()):
             if not ln or (deck and ln.startswith("Lyst · ") and deck.strip() in ln):
                 continue
-            if ln.startswith(("•", "\u2022")):
-                out.append(("li", ln.lstrip("•\u2022 ").strip()))
+            if ln.startswith("•"):
+                out.append(("li", re.sub(r"^[•\s]+", "", ln)))
             elif ln.upper() == ln and sum(c.isalpha() for c in ln) >= 4:
                 out.append(("kicker", ln.capitalize()))
             else:
