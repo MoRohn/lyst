@@ -24,6 +24,7 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - Workspace data quality review (no dataset named): `src/lyst/analyst/quality_review.py`.
 - A first question with a cadence ("every Monday") also asks for the schedule: `src/lyst/analyst/repeat.py`.
 - Forecast track record ("How accurate were your last forecasts?"): `src/lyst/analyst/track_record.py`.
+- A question that asks to watch ("Watch operating margin in EMEA") also requests the monitor: `src/lyst/analyst/watch.py`.
 - The AI SDK wire format (Lyst's work as a UI message stream for `useChat`): `src/lyst/uistream.py`, `src/lyst/api/aisdk.py`,
   `docs/AI_SDK.md`; `tests/aisdk` reads it with the real `ai` package.
 - Lyst Apps (generated micro-apps, specs bound to governed metrics): `src/lyst/apps.py`, `src/lyst/api/apps.py`.
@@ -47,7 +48,7 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - A task ends only through `_fail` or `_finish`, which are fenced on the worker's lease. **checked**
 - The UI never imports the store, runtime, data or security layers; it calls the API. **checked**
 - Backend code never imports `lyst.ui`. **checked**
-- Migration versions are never reused; each lane appends in its own range (needs you 160-169, data quality 150-159, learning 120-129, events 110-119, harness 100-109, graph 90-99, UI 80-89,
+- Migration versions are never reused; each lane appends in its own range (analyst autonomy 170-179, needs you 160-169, data quality 150-159, learning 120-129, events 110-119, harness 100-109, graph 90-99, UI 80-89,
   specializations 70-79, voice 60-69, anticipate 50-59, tenth 40-49, adapt 30-39, ops 20-29, platform below 20).
   **checked** for uniqueness and the harness, events and learning ranges.
 - Work that must happen because of an event is a durable consumer (`events.consume`), idempotent by event id; the

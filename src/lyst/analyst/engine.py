@@ -47,6 +47,7 @@ from . import quality_review as quality_review_mod
 from . import receivables as receivables_mod
 from . import repeat as repeat_mod
 from . import track_record as track_record_mod
+from . import watch as watch_mod
 from .registry import REGISTRY, Context, Registry, capability
 
 
@@ -1885,7 +1886,7 @@ def converse(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                         "Supporting work.")
 def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     # a first question that says "every Monday" also asks for the schedule (repeat.py)
-    return repeat_mod.apply(ctx, _deliver(ctx, args))
+    return watch_mod.apply(ctx, repeat_mod.apply(ctx, _deliver(ctx, args)))
 
 
 def _deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:

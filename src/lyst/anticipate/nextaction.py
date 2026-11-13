@@ -11,6 +11,8 @@ suggestion per person and thread however often the analysis is repeated (it foll
   Verified by counting the rows that question would read; an empty slice is dropped, not shown.
 * **Watch the metric.** A change large enough to have drivers, on a metric with no monitor. Accepting requests a
   monitor, which still needs an admin's approval.
+* **Watch the segment.** One member explains most of the change (``share >= 60%``) and no monitor watches that member
+  on its own: "Watch operating margin in EMEA". Accepting requests a segment monitor, approved like any other.
 * **Make it recurring.** The same question (period aside) asked three or more times in 60 days with no schedule.
   Accepting proposes a schedule at the observed rhythm, which still needs approval.
 * **Extend into a forecast.** A quarter or year reviewed on a metric with at least a year of monthly history and no
@@ -139,7 +141,8 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
                                  "_ctx": {"check": "slice", "actor": user, "spec": spec, "dimension": d["dimension"], "member": d["member"],
                                           "period": period}})
         # 2. watch the metric
-        if d and not db.scalar("SELECT count(*) FROM monitors WHERE metric = ? AND (enabled OR approval_id IS NOT NULL)", [spec.name]):
+        if d and not db.scalar("SELECT count(*) FROM monitors WHERE metric = ? AND segment IS NULL "
+                               "AND (enabled OR approval_id IS NOT NULL)", [spec.name]):
             mine.append({**base, "kind": "next_best_action", "objective": f"Watch {spec.title.lower()} for the next move",
                          "signals": sigs + [{"kind": "material_change_unwatched", "metric": spec.name}],
                          "reasons": [f"{spec.title} moved enough in {label} for Lyst to attribute drivers, and nothing watches it yet.",
@@ -149,6 +152,26 @@ def candidates(svc, ws: str, now: datetime, signals: list[dict[str, Any]]) -> li
                          "actions": [{"id": "watch", "label": "Watch this metric", "metric": spec.name, "grain": "month",
                                       "effect": "requests a monthly monitor; an admin approves it before it runs"}],
                          "dedupe_key": f"nba|watch|{user}|{spec.name}", "_ctx": {"check": "metric", "spec": spec}})
+        # 2b. watch the segment the change came from: the follow-through an investigation recommends
+        seg = {"dimension": d["dimension"], "member": str(d["member"])} if d and d["share"] >= 0.6 else None
+        if seg and not db.scalar("SELECT count(*) FROM monitors WHERE metric = ? AND (enabled OR approval_id IS NOT NULL) "
+                                 "AND json_extract_string(segment, '$.dimension') = ? "
+                                 "AND json_extract_string(segment, '$.member') = ?", [spec.name, seg["dimension"], seg["member"]]):
+            mine.append({**base, "kind": "next_best_action",
+                         "objective": f"Watch {spec.title.lower()} in {seg['member']}",
+                         "signals": sigs + [{"kind": "concentrated_change_unwatched", "metric": spec.name, **seg,
+                                             "share": d["share"]}],
+                         "reasons": [f"{seg['member']} accounts for {d['share']:.0%} of the change in {spec.title.lower()} in "
+                                     f"{label}, and nothing watches it on its own.",
+                                     f"A monitor on {seg['member']} alone catches its next move even when the total hides it, "
+                                     "and investigates it before telling you."],
+                         "scores": {"value": round(0.45 + 0.3 * min(d["share"], 1.0), 3), "likelihood": 0.5, "evidence": 0.7,
+                                    "urgency": 0.35, "cost": 0.02, "risk": 0.0, "interruption": 0.0},
+                         "actions": [{"id": "watch", "label": f"Watch {seg['member']}", "metric": spec.name, "grain": "month",
+                                      "segment": seg,
+                                      "effect": "requests a monthly monitor on this segment; an admin approves it before it runs"}],
+                         "dedupe_key": f"nba|watch|{user}|{spec.name}|{seg['dimension']}={seg['member']}",
+                         "_ctx": {"check": "metric", "spec": spec}})
         # 3. make it recurring
         same = sorted(_aware(a["created_at"]) for a in asked if pattern((_j(a["request"]) or {}).get("question", "")) == pattern(parsed["question"]))
         scheduled = {pattern(_j(s["request"]).get("question", "")) for s in svc.stores.control.query(
@@ -239,7 +262,8 @@ def run(svc, actor: Principal, ws: str, a: dict[str, Any], action: str) -> dict[
     if action == "run_now":
         return {"task_id": svc.runtime.submit(actor, ws, act["question"], kind="followup")}
     if action == "watch":
-        m = svc.services.monitors.create(actor, ws, metric=act["metric"], grain=act.get("grain", "month"))
+        m = svc.services.monitors.create(actor, ws, metric=act["metric"], grain=act.get("grain", "month"),
+                                         segment=act.get("segment"))
         return {"monitor_id": m["monitor_id"], "approval_id": m["approval_id"], "needs_approval": True}
     if action == "schedule":
         title = act["question"][:80]

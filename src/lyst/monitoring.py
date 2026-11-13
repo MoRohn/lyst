@@ -23,6 +23,7 @@ investigating as that person.
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -34,7 +35,7 @@ import pandas as pd
 
 from .analytics import timeseries
 from .security import Guard, Principal, redact
-from .semantic import MetricSpec, compile_metric
+from .semantic import Filter, MetricSpec, compile_metric
 from .store import Stores
 
 log = logging.getLogger("lyst.monitoring")
@@ -57,19 +58,25 @@ class MonitorService:
     # -- lifecycle --------------------------------------------------------------------------
 
     def create(self, actor: Principal, ws: str, *, metric: str, grain: str = "month", threshold_sigma: float = 3.0,
-               every_seconds: int = 3600, title: str | None = None, investigate: bool = True) -> dict[str, Any]:
+               every_seconds: int = 3600, title: str | None = None, investigate: bool = True,
+               segment: dict[str, Any] | None = None) -> dict[str, Any]:
+        """``segment`` ({"dimension": "region", "member": "EMEA"}) watches one member of an approved dimension
+        instead of the whole metric; the member must exist in the data the creator can read."""
         self.guard.require(actor, ws, "schedule.create", metric)
         spec = self.semantic.get(actor, ws, metric)  # raises KeyError when unknown
         if grain not in ("month", "quarter", "week"):
             raise ValueError("grain must be month, quarter or week")
         if every_seconds < 60:
             raise ValueError("the shortest interval is 60 seconds")
+        if segment:
+            segment = self._check_segment(actor, ws, spec, segment)
         mid = "mon_" + uuid.uuid4().hex[:10]
-        title = title or f"{spec.title} by {grain}"
+        title = title or f"{spec.title}{_in(segment)} by {grain}"
         self._db(ws).execute(
             "INSERT INTO monitors (id, metric, grain, threshold_sigma, every_seconds, title, investigate, enabled, created_by, "
-            "next_run_at) VALUES (?, ?, ?, ?, ?, ?, ?, false, ?, now())",
-            [mid, metric, grain, threshold_sigma, every_seconds, title, investigate, actor.user_id])
+            "next_run_at, segment) VALUES (?, ?, ?, ?, ?, ?, ?, false, ?, now(), ?)",
+            [mid, metric, grain, threshold_sigma, every_seconds, title, investigate, actor.user_id,
+             json.dumps(segment) if segment else None])
         aid = self.runtime.request_approval(ws, actor.user_id, "monitor.activate",
                                             f"Watch {title}: tell us about "
                                             f"{_SENSITIVITY.get(float(threshold_sigma), f'moves beyond {threshold_sigma:g} sigma')}, "
@@ -77,6 +84,29 @@ class MonitorService:
         self._db(ws).execute("UPDATE monitors SET approval_id = ? WHERE id = ?", [aid, mid])
         self.guard.audit(actor, ws, "monitor.create", mid, "pending_approval")
         return {"monitor_id": mid, "approval_id": aid, "enabled": False}
+
+    def _check_segment(self, actor: Principal, ws: str, spec: MetricSpec, segment: dict[str, Any]) -> dict[str, Any]:
+        dim, member = segment.get("dimension"), segment.get("member")
+        if dim not in spec.dimensions:
+            raise ValueError(f"{spec.title} can be watched by {', '.join(spec.dimensions) or 'no dimension'}, not {dim}")
+        if member is None or str(member) == "":
+            raise ValueError("name the member to watch, for example EMEA")
+        r = self.data.query(actor, ws, f'SELECT DISTINCT CAST("{dim}" AS VARCHAR) FROM "{spec.dataset}"')
+        members = {row[0] for row in r.rows if row[0] is not None}
+        if str(member) not in members:
+            raise ValueError(f"{member} is not a {dim.replace('_', ' ')} in {spec.dataset}")
+        return {"dimension": dim, "member": str(member)}
+
+    def _spec(self, actor: Principal, ws: str, monitor: dict[str, Any]) -> MetricSpec:
+        """The monitored metric, narrowed to its segment when it watches one."""
+        spec = self.semantic.get(actor, ws, monitor["metric"])
+        seg = _segment(monitor)
+        if not seg:
+            return spec
+        return spec.model_copy(update={
+            "title": f"{spec.title} in {seg['member']}",
+            "filters": spec.filters + [Filter(column=seg["dimension"], value=seg["member"])],
+            "dimensions": [d for d in spec.dimensions if d != seg["dimension"]]})
 
     def on_approved(self, approver: Principal, ws: str, monitor_id: str) -> None:
         self._db(ws).execute("UPDATE monitors SET enabled = true WHERE id = ?", [monitor_id])
@@ -89,7 +119,10 @@ class MonitorService:
 
     def list(self, actor: Principal, ws: str) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.read")
-        return self._db(ws).query("SELECT * FROM monitors ORDER BY created_at DESC")
+        rows = self._db(ws).query("SELECT * FROM monitors ORDER BY created_at DESC")
+        for r in rows:
+            r["segment"] = _segment(r)
+        return rows
 
     # -- detection --------------------------------------------------------------------------
 
@@ -137,7 +170,7 @@ class MonitorService:
         return out
 
     def detect(self, actor: Principal, ws: str, monitor: dict[str, Any]) -> list[dict[str, Any]]:
-        spec = self.semantic.get(actor, ws, monitor["metric"])
+        spec = self._spec(actor, ws, monitor)
         s = self._history(actor, ws, spec, monitor["grain"])
         if len(s) < 6:
             return []
@@ -175,10 +208,15 @@ class MonitorService:
         end = (latest_ts + (pd.offsets.MonthBegin(1) if monitor["grain"] == "month" else pd.offsets.QuarterBegin(1))).date().isoformat()
         cols = sorted(spec.columns())
         collist = ", ".join(f'"{c}"' for c in cols)
+        where = f'"{spec.time_column}" >= \'{start}\' AND "{spec.time_column}" < \'{end}\''
+        seg = _segment(monitor)
+        if seg:  # a segment monitor checks only its own rows; the member was validated against the data when created
+            member = str(seg["member"]).replace("'", "''")
+            where += f' AND CAST("{seg["dimension"]}" AS VARCHAR) = \'{member}\''
         r = self.data.query(actor, ws, f'SELECT count(*) AS n, count(*) - (SELECT count(*) FROM (SELECT DISTINCT {collist} FROM '
-                                       f'"{spec.dataset}" WHERE "{spec.time_column}" >= \'{start}\' AND "{spec.time_column}" < \'{end}\')) AS dups, '
+                                       f'"{spec.dataset}" WHERE {where})) AS dups, '
                                        + ", ".join(f'count(*) - count("{c}") AS "null_{c}"' for c in cols if c != spec.time_column)
-                                       + f' FROM "{spec.dataset}" WHERE "{spec.time_column}" >= \'{start}\' AND "{spec.time_column}" < \'{end}\'')
+                                       + f' FROM "{spec.dataset}" WHERE {where}')
         row = dict(zip(r.columns, r.rows[0], strict=True))
         problems = ([f"{row['dups']} duplicate rows"] if row["dups"] else []) + \
                    [f"{v} nulls in {k[5:]}" for k, v in row.items() if k.startswith("null_") and v]
@@ -223,7 +261,10 @@ class MonitorService:
                 # a monthly alert is investigated at quarter level, so a shift that began earlier in the quarter is
                 # compared with the quarter before it rather than with its own already-shifted neighbour
                 scope = f"Q{(ts.month - 1) // 3 + 1} {ts.year}" if m["grain"] == "month" else f0["label"]
-                q = (f"Investigate why {f0['metric_title'].lower()} changed in {scope} (alert raised for {f0['label']}) "
+                seg = _segment(m)
+                what = (f"{self.semantic.get(actor, ws, m['metric']).title.lower()} in {seg['member']}" if seg
+                        else f0["metric_title"].lower())
+                q = (f"Investigate why {what} changed in {scope} (alert raised for {f0['label']}) "
                      f"and test alternative explanations.")
                 investigation = self.runtime.submit(actor, ws, q, autonomy="autonomous", kind="investigation")
             for f in fresh:
@@ -297,6 +338,15 @@ class MonitorService:
         return self._db(ws).query(
             "SELECT n.id AS notification_id, n.status AS read_status, f.* FROM notifications n JOIN findings f ON f.id = n.finding_id "
             "WHERE n.user_id = ? AND n.channel = 'inbox' ORDER BY f.priority DESC, f.created_at DESC", [actor.user_id])
+
+
+def _segment(monitor: dict[str, Any]) -> dict[str, Any] | None:
+    seg = monitor.get("segment")
+    return json.loads(seg) if isinstance(seg, str) else (seg or None)
+
+
+def _in(segment: dict[str, Any] | None) -> str:
+    return f" in {segment['member']}" if segment else ""
 
 
 def _fmt(value: float, spec: MetricSpec) -> str:

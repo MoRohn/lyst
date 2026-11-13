@@ -82,7 +82,8 @@ def test_watch_requests_a_monitor_that_still_needs_approval(suppliers):
     lyst, owner = suppliers
     t = _analyse(lyst, owner, "Why did on-time delivery rate fall in Q3 2026?")
     lyst.anticipation.cycle(WS)                                          # level 1: suggested, not executed
-    watch = next(s for s in lyst.anticipation.list(owner, WS, subject_id=t["id"]) if s["actions"][0]["id"] == "watch")
+    watch = next(s for s in lyst.anticipation.list(owner, WS, subject_id=t["id"]) if s["actions"][0]["id"] == "watch"
+                 and not s["actions"][0].get("segment"))
     assert watch["status"] == "candidate"
     r = lyst.anticipation.act(owner, WS, watch["id"], "watch")
     assert r["needs_approval"] and r["approval_id"]
@@ -135,8 +136,11 @@ def test_repeating_an_analysis_does_not_repeat_its_suggestions(suppliers):
     q = "Why did on-time delivery rate fall in Q3 2026?"
     first, second = _analyse(lyst, owner, q), _analyse(lyst, owner, q)
     lyst.anticipation.cycle(WS)
-    watch = [s for s in lyst.anticipation.list(owner, WS) if s["actions"][0]["id"] == "watch"]
+    watch = [s for s in lyst.anticipation.list(owner, WS) if s["actions"][0]["id"] == "watch"
+             and not s["actions"][0].get("segment")]
     assert len(watch) == 1 and watch[0]["subject_id"] == second["id"] != first["id"]   # one, under the latest answer
+    seg = [s for s in lyst.anticipation.list(owner, WS) if s["actions"][0].get("segment")]
+    assert len(seg) <= 1
 
 
 def test_next_steps_appear_as_soon_as_the_answer_is_read(suppliers):
@@ -147,3 +151,22 @@ def test_next_steps_appear_as_soon_as_the_answer_is_read(suppliers):
     assert lyst.stores.workspace(WS).scalar("SELECT count(*) FROM anticipations") == 0
     sugg = lyst.anticipation.list(owner, WS, subject_id=t["id"])
     assert sugg and any("Acme Metals" in (s["actions"][0].get("question") or "") for s in sugg)
+
+
+def test_a_concentrated_change_offers_a_watch_on_its_segment(suppliers):
+    lyst, owner = suppliers
+    t = _analyse(lyst, owner, "Why did on-time delivery rate fall in Q3 2026?")
+    lyst.anticipation.cycle(WS)
+    seg = next(s for s in lyst.anticipation.list(owner, WS, subject_id=t["id"]) if s["actions"][0].get("segment"))
+    act = seg["actions"][0]
+    assert seg["objective"] == "Watch on-time delivery rate in Acme Metals"
+    assert act["segment"] == {"dimension": "supplier", "member": "Acme Metals"}
+    r = lyst.anticipation.act(owner, WS, seg["id"], "watch")
+    assert r["needs_approval"]
+    mon = next(m for m in lyst.monitors.list(owner, WS) if m["id"] == r["monitor_id"])
+    assert mon["segment"] == {"dimension": "supplier", "member": "Acme Metals"} and mon["enabled"] is False
+    # once requested, it is not offered again
+    lyst.anticipation.cycle(WS)
+    again = _analyse(lyst, owner, "Why did on-time delivery rate fall in Q3 2026?")
+    lyst.anticipation.cycle(WS)
+    assert not [s for s in lyst.anticipation.list(owner, WS, subject_id=again["id"]) if s["actions"][0].get("segment")]
