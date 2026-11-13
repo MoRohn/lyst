@@ -96,13 +96,15 @@ calm canvas with raised, softly lit surfaces, a slim icon rail, dialogs that ris
 segmented controls and buttons, the system typeface, and motion that respects reduced-motion settings, in light
 and dark. A single set of design tokens drives Streamlit's widgets, Lyst's own components and every chart, every
 screen is checked by an automated render with WCAG 2.2 AA accessibility scanning, and text and status colours meet
-4.5:1 contrast in both themes. Home is one composer that fills the page: Lyst's own mark sits
+4.5:1 contrast in both themes. Data, Brain and Settings have tablet layouts as well as desktop and phone; ids and
+codes read in plain words (in the audit trail, dataset relationships, the Brain map, Memory and saved analyses); and
+an error reads as a sentence, never "Internal Server Error". Home is one composer that fills the page: Lyst's own mark sits
 above it as its presence, still while idle, catching light while it works, rippling while it listens and glowing
 amber when something waits on you. Below it are at most three starters drawn from your approved metrics, at most
 one line for the single thing that most wants you, and a floating dock for what is in flight, what needs you,
 **Get started** and **Recent** (pinned items and recent answers). Everywhere else, the **Lyst agent bar** sits at
 the top of the page: ask by typing or speaking (asked from Data, Brain or Settings, the answer follows in a panel
-without leaving the page), go anywhere by name ("go to SQL", "open definitions"), and watch Lyst work: a
+without leaving the page), go anywhere by name ("go to SQL", "open definitions"; **Go to** opens ready to type and matches partial names), and watch Lyst work: a
 **Watch** chip for what is running, a **Live** panel with each step and the event feed, and an opt-in **Follow
 Lyst**; a running answer shows Lyst's mark and the current step over a hairline of progress. Data, Brain and
 Settings each have the same **activity board** in the same place: under the page header when something needs you
@@ -299,7 +301,8 @@ period (the same "last quarter" as every other answer, named in the headline: "f
 with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
 hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
 formulas as evidence, and is recomputed independently. Changes can be given as percentages or in points ("COGS
-ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, any change
+ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, a change to something
+the model cannot move says what it can change instead, past tense works too ("What if costs fell 10%?"), any change
 Lyst could not apply is stated, and such an answer is never marked Verified. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
 P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
 any drift reported.
@@ -385,7 +388,9 @@ overrides a person's call. Staged changes show as a diff with row counts and tot
 needs an approval; once approved they become a new dataset version with the same schema, the earlier version is
 kept, and **Undo** puts it back. If the data changed after staging, the resolution is refused as stale. Open it from
 Lyst's one line on Data, a dataset's **Review** or **More › Review data quality**, or by simply asking ("Are there any
-data quality issues in the pnl dataset?" runs the check, and asks which dataset if you name none); a profiling
+data quality issues in the pnl dataset?" runs the check; "Is our data clean?" with no dataset named checks every
+dataset you can read and reports the open issues worst first, with the fixes it can propose, changing nothing until a
+fix is approved); a profiling
 answer shows the table in place.
 
 <p align="center">
@@ -470,6 +475,13 @@ where they point, with Mark all read and "What to tell me about".
   investigated and verified within that segment), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
+* **Everyday questions, answered the way they were asked.** Name two quarters ("Compare revenue by region for Q2 and
+  Q3 2026") and Lyst shows each region's change between them. Ask what drove growth "year over year" and the change
+  is explained against the same quarter a year earlier. "Which region grew fastest?" ranks by revenue growth when no
+  metric is named, and says so. "Is the drop significant?" is judged against how much the metric usually moves, and
+  Lyst says plainly that this is not a formal statistical test. "How many staff do we need next quarter?" answers
+  with a headcount, from the demand forecast and the staffing data. Simple figures stay simple; investigations and
+  forecasts keep their checklist note.
 * **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
   briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
   month or quarter (or the one you name), flags what moved more than that metric usually does, against last period
@@ -477,7 +489,8 @@ where they point, with Mark all read and "What to tell me about".
   behind each big move, and lists open alerts, approvals waiting and how current the data is. It stays short: the one move with a clear
   place to act is told in full, and the others are named. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
-  "Every Monday at 8" repeats it, after approval.
+  "Send me the KPI brief every Monday" answers now and sets up the weekly schedule, which starts once an admin
+  approves it.
 * **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
   metrics (income invoiced, expenses, invoices sent, active clients). Ask "Who owes me money?" for what each client
   owes today, how late it is, how long clients take to pay, and who to remind first. Lyst never contacts a client

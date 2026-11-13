@@ -187,10 +187,16 @@ class KnowledgeService:
             self.relate(actor, ws, "analysis", analysis_id, "read", "dataset", s["dataset"],
                         evidence={"version": s.get("version"), "sha256": s.get("sha256")}, source="system")
 
-    def record_artifact(self, actor: Principal, ws: str, artifact_id: str, task_id: str, kind: str) -> None:
+    def record_artifact(self, actor: Principal, ws: str, artifact_id: str, task_id: str, kind: str,
+                        title: str | None = None) -> None:
+        """Link a downloaded artifact to the analysis it came from. Its entity carries a title (the answer's question and
+        the format), so the Brain names it in words rather than by its id."""
         aid = self._db(ws).scalar("SELECT id FROM analyses WHERE task_id = ?", [task_id])
         if aid:
             self.relate(actor, ws, "artifact", artifact_id, "produced_from", "analysis", aid, evidence={"kind": kind}, source="system")
+            self._db(ws).execute("UPDATE entities SET attributes = ? WHERE kind = 'artifact' AND name = ?",
+                                 [json.dumps({"title": title or f"{kind.upper()} download", "format": kind,
+                                              "task_id": task_id}), artifact_id])
 
     # -- documents --------------------------------------------------------------------------
 

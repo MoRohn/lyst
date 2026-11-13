@@ -115,9 +115,9 @@ def test_a_data_quality_question_checks_the_data_instead_of_listing_it(seeded):
     r = ask(lyst, owner, "Are there any data quality issues in the pnl dataset?")["result"]
     assert r.get("mode") != "conversation"
     assert r["answer"].startswith("pnl has ") and r["tables"][-1]["title"] == "Columns"
-    # with no dataset named it asks which one, with the datasets as choices
+    # with no dataset named it checks every dataset the asker can read (quality_review.py)
     t = ask(lyst, owner, "Are there any duplicates in our data?")
-    assert t["result"]["status"] == "needs_input" and "Name the dataset" in t["result"]["answer"]
+    assert t["result"]["status"] == "complete" and t["result"]["mode"] == "quality_review"
 
 
 def test_an_ambiguous_term_names_the_metrics_in_words(seeded):
@@ -298,3 +298,91 @@ def test_next_quarters_are_forecast_quarter_by_quarter(seeded):
     assert "averaging " in m["answer"] and "against an average of 32.5% in Q3 2026" in m["answer"]
     n = ask(lyst, owner, "Forecast revenue for the next 9 months")["result"]
     assert "by Jun 2027" in n["answer"]  # a month name, not 2027-06-01
+
+
+@pytest.mark.parametrize(("question", "earlier"), [("Compare revenue by region for Q2 and Q3 2026", "Q2 2026"),
+                                                   ("Compare revenue by region for Q1 2026 vs Q3 2026", "Q1 2026")])
+def test_two_named_quarters_compare_each_member(seeded, question, earlier):
+    lyst, owner = seeded
+    r = ask(lyst, owner, question)["result"]
+    assert r["answer"].startswith(f"Revenue by region, Q3 2026 versus {earlier}: ")
+    df = demo.pnl()
+    q3 = _q(df, "2026-07-01", "2026-10-01").groupby("region").revenue.sum()
+    start = {"Q2 2026": "2026-04-01", "Q1 2026": "2026-01-01"}[earlier]
+    base = _q(df, start, pd.Timestamp(start) + pd.DateOffset(months=3)).groupby("region").revenue.sum()
+    chart = next(c for c in r["charts"] if c["title"] == f"Change in revenue by region, Q3 2026 versus {earlier}")
+    assert dict(zip(chart["x"], chart["y"], strict=True)) == pytest.approx((q3 - base).to_dict())
+
+
+def test_a_year_over_year_why_explains_the_change_against_a_year_earlier(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What drove revenue growth year over year?")["result"]
+    assert r["answer"].startswith("Revenue was $25.41M in Q3 2026, +$2.69M (+11.8%) versus Q3 2025")
+    assert r["charts"][0]["title"].endswith("contribution, Q3 2025 to Q3 2026")
+    assert r["confidence"]["level"] == "verified"  # the bridge closes against the year-earlier quarter
+
+
+def test_growth_with_no_metric_named_reads_as_revenue_and_says_so(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Which region grew fastest this year?")["result"]
+    assert r["answer"].startswith("Fastest growth in revenue by region, 2026 YTD versus 2025 YTD: ")
+    assert any(a.startswith("No metric was named, so Lyst read the growth as revenue growth")
+               for a in r["supporting"]["assumptions"])
+
+
+def test_a_significance_question_is_answered_against_the_metrics_own_history(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "Is the drop in operating margin statistically significant?")["result"]
+    assert "Is it significant? The -3.5 pts move is " in r["answer"] and "unlikely to be ordinary variation" in r["answer"]
+    assert any("not a formal hypothesis test" in a for a in r["supporting"]["assumptions"])
+
+
+def test_a_plain_figure_does_not_carry_the_specialist_checklist(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "How many support tickets did we get last quarter?")["result"]
+    assert not any("checks Lyst does not run automatically" in a for a in r["supporting"]["assumptions"])
+
+
+def test_a_what_if_on_something_no_model_has_says_what_can_change(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What if EMEA costs fell 10%?")["result"]
+    assert r["status"] == "needs_input"
+    assert r["answer"].startswith("The what-if model Quarterly P&L drivers has nothing called “EMEA costs” to change.")
+    assert "operating expenses" in r["answer"] and "company totals" in r["answer"]
+    # the same change on something the model has, in the past tense, is applied
+    r = ask(lyst, owner, "What if operating expenses fell 10%?")["result"]
+    assert "Assumed: Operating expenses -10%" in r["answer"]
+
+
+def test_how_many_staff_is_answered_with_a_headcount(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "How many staff do we need next quarter?")["result"]
+    assert r["answer"].startswith("Lyst forecasts support tickets of ")
+    assert "Keeping the risk of falling short under 5% takes " in r["answer"] and " agents, against 43 now." in r["answer"]
+    assert any(a.startswith("No demand was named, so staffing is planned against Support tickets")
+               for a in r["supporting"]["assumptions"])
+
+
+def test_what_to_do_about_a_segment_investigates_its_worst_move(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What should we do about EMEA?")["result"]
+    assert r.get("mode") != "conversation"
+    assert r["answer"].startswith("For EMEA, the figure to act on is operating margin, the one that moved most the wrong way. "
+                                  "Operating margin (EMEA) was ")
+    assert any(a.startswith("Review what changed in ") and " in EMEA in Q3 2026" in a for a in r["actions"])
+    assert any(a.startswith("You asked what to do about EMEA: of the 5 approved metrics split by region")
+               for a in r["supporting"]["assumptions"])
+
+
+def test_advice_about_a_segment_that_did_well_says_nothing_needs_fixing(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "How do we fix APAC?")["result"]
+    assert r["answer"].startswith("Nothing in APAC moved the wrong way in Q3 2026: every approved metric split by region "
+                                  "held or improved.")
+    assert r["actions"][-1].startswith("No fix is needed for APAC on these numbers")
+
+
+def test_advice_about_something_that_is_not_a_segment_stays_a_conversation(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What should we do about pricing?")["result"]
+    assert r.get("mode") == "conversation"

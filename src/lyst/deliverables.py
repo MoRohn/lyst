@@ -835,7 +835,10 @@ class ArtifactService:
             [aid, ws, task["id"], kind, str(path), len(data), hashlib.sha256(data).hexdigest(), actor.user_id])
         self.guard.audit(actor, ws, "artifact.create", aid, "ok", {"kind": kind, "task": task["id"]})
         if self.knowledge:
-            self.knowledge.record_artifact(actor, ws, aid, task["id"], kind)
+            label = {"xlsx": "Excel workbook", "md": "Markdown briefing", "pdf": "PDF briefing", "pptx": "slide deck"}[kind]
+            question = str(result.get("question") or task.get("title") or "Analysis")
+            self.knowledge.record_artifact(actor, ws, aid, task["id"], kind,
+                                           title=f"{question[:100]}{'…' if len(question) > 100 else ''} ({label})")
         out = {"id": aid, "kind": kind, "name": name, "mime": mime, "bytes": len(data), "path": str(path)}
         if self.assets is not None:
             reg = self.assets.on_artifact(actor, task, kind, out, hashlib.sha256(data).hexdigest(), asset_id=asset_id)
