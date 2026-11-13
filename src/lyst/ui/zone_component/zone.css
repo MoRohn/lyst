@@ -246,6 +246,19 @@
   .z-col:not(.has) .z-empty { padding: .55rem .5rem; font-size: var(--z-xs); }
   .z-foot .keys { display: none; }
 }
+/* a phone: the columns stack, each the full width, so a card's action is never off the right edge; an empty one
+   is a single short line */
+@container (max-width: 599px) {
+  .z-cols { flex-direction: column; overflow-x: visible; scroll-snap-type: none; margin: 0; padding: 0; }
+  .z-col, .z-col:not(.has) { flex: none; width: 100%; }
+  .z-col:not(.has) { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem; }
+  .z-col:not(.has) .z-col-head { padding: 0 .35rem; flex: none; }
+  .z-col:not(.has) .z-empty { border: 0; padding: 0; text-align: left; flex: 1; }
+}
+/* a tablet: a column with cards sits whole beside an empty one instead of running off the right edge */
+@container (min-width: 600px) and (max-width: 760px) {
+  .z-cols:has(.z-col:not(.has)) .z-col.has { flex-basis: calc(100% - min(11rem, 46%) - .6rem); }
+}
 @container (min-width: 761px) and (max-width: 1000px) {
   .z-card-meta { display: none; }
 }
