@@ -3,6 +3,8 @@
 """Brain: what Lyst knows about this business, as one field to explore, and what it is doing with it (Work).
 Definitions, documents, memory, the graph and specializations sit one gesture away, each with provenance."""
 
+import re
+
 import pandas as pd
 import streamlit as st
 
@@ -249,6 +251,13 @@ def review_memory() -> None:
                     status=("May not apply", "warn"), key=f"mr{m['id']}", divider=i < min(len(stale), 20) - 1)
 
 
+def qa(content: str) -> tuple[str, str | None]:
+    """A memory Lyst kept from an answer ("Q: ... A: ...") as the question, then what it found, rather than one run-on
+    line; any other memory is its own text."""
+    m = re.match(r"\s*Q:\s*(.+?)\s+A:\s*(.+)", content or "", re.S)
+    return (m.group(1).strip(), m.group(2).strip().rstrip(".")) if m else (content, None)
+
+
 def memory() -> None:
     review_memory()
     mem = api.get(f"/v1/workspaces/{ws}/memory")
@@ -261,8 +270,8 @@ def memory() -> None:
                 st.rerun()
     taught = [m for m in mem if m["trust"] in ("approved", "user_validated")]
     learned = [m for m in mem if m["trust"] not in ("approved", "user_validated")]
-    if mem:  # how much of what Lyst knows a person stands behind
-        n = {t: sum(1 for m in mem if m["trust"] == t) for t in ("approved", "user_validated")}
+    n = {t: sum(1 for m in mem if m["trust"] == t) for t in ("approved", "user_validated")}
+    if sum(1 for v in (*n.values(), len(learned)) if v) > 1:  # how much of what Lyst knows a person stands behind
         st.html(visuals.stacked([(f"Approved {n['approved']}", n["approved"], "good"),
                                  (f"Validated by the team {n['user_validated']}", n["user_validated"], "accent"),
                                  (f"Observed in past analyses {len(learned)}", len(learned), "neutral")],
@@ -280,14 +289,19 @@ def memory() -> None:
     if learned:
         kit.label(f"From past analyses · {len(learned)}")
         for i, m in enumerate(learned[:15]):
-            kit.row(m["content"], kit.when(m["created_at"]), key=f"l{m['id']}", divider=i < min(len(learned), 15) - 1)
+            asked, said = qa(m["content"])
+            kit.row(asked, " · ".join(x for x in (said, kit.when(m["created_at"])) if x), key=f"l{m['id']}",
+                    divider=i < min(len(learned), 15) - 1)
     if not mem:
         st.caption("Nothing yet. Lyst records what it learns from verified answers, and what you teach it.")
     if admin:
+        st.html('<div style="height:.75rem"></div>')
         with st.expander("Business entities and relations", icon=":material/account_tree:"):
             ents = api.get(f"/v1/workspaces/{ws}/entities")
             if ents:
-                st.dataframe(pd.DataFrame(ents)[["kind", "name", "description", "owner"]], hide_index=True, width="stretch")
+                ent = pd.DataFrame(ents)[["kind", "name", "description", "owner"]]
+                ent["kind"] = ent["kind"].map(lambda k: str(k).replace("_", " ").capitalize())
+                st.dataframe(ent.rename(columns=str.capitalize), hide_index=True, width="stretch")
             with st.form("entity", border=False):
                 ec = st.columns([1, 2, 3])
                 kind = ec[0].selectbox("Kind", ["business_unit", "team", "person", "system", "process", "objective"],
@@ -353,7 +367,7 @@ def graph() -> dict:
     if hit and hit[0] == ws and time.monotonic() - hit[1] < TTL:
         return hit[2]
     try:
-        g = api.get(f"/v1/workspaces/{ws}/brain/graph", runs=False)
+        g = brain_graph.readable(api.get(f"/v1/workspaces/{ws}/brain/graph", runs=False))
     except APIError:
         g = {"nodes": [], "links": []}
     seen, links = set(), []

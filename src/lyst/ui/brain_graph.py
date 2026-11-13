@@ -66,6 +66,22 @@ def palette(mode: str) -> dict[str, Any]:
             "kinds": kinds}
 
 
+def readable(graph: dict[str, Any]) -> dict[str, Any]:
+    """Names a person can read on every node: a file Lyst made carries only its id ("art_438165bd1e"), so it takes
+    the question of the answer it was made from ("File · Why did operating margin decline last quarter?")."""
+    names = {n["id"]: n["label"] for n in graph.get("nodes") or []}
+    made = {}
+    for lk in graph.get("links") or []:
+        if lk.get("rel") == "produced_from" and str(lk.get("source", "")).startswith("artifact:"):
+            made[lk["source"]] = names.get(lk["target"])
+    for n in graph.get("nodes") or []:
+        if n.get("kind") == "artifact" and n.get("label") == str(n.get("id", "")).split(":", 1)[-1]:
+            n["label"] = f"File · {made[n['id']]}" if made.get(n["id"]) else "A file Lyst made"
+        elif n.get("kind") == "memory" and str(n.get("label", "")).startswith("Q: "):
+            n["label"] = n["label"][3:].split(" A: ", 1)[0]  # a memory kept from an answer reads as its question
+    return graph
+
+
 def canvas(graph: dict[str, Any], *, layout: str, key: str, height: int, alt: str,
            selected: str | None = None) -> str | None:
     """Draw the graph; return the id of a node clicked since the last rerun, or None."""
@@ -189,7 +205,7 @@ def knowledge() -> None:
                    "Lyst recorded a relation or a literal mention. Graph runs and the rules they learned join the map.")
     runs = top[1].toggle("Show graph runs", value=True, key="bg_runs")
     try:
-        graph = api.get(f"/v1/workspaces/{ws}/brain/graph", runs=runs)
+        graph = readable(api.get(f"/v1/workspaces/{ws}/brain/graph", runs=runs))
     except APIError as e:
         st.error(str(e), icon=":material/cloud_off:")
         return

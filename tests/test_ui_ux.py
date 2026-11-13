@@ -801,3 +801,27 @@ def test_a_relationship_reads_in_dataset_titles_from_the_open_dataset():
     assert rel(fk, "pnl_ledger", titles) == "Support demand's month points here (100% of values found)"
     odd = {"kind": "something_new", "from_dataset": "pnl_ledger", "to_dataset": "pnl", "text": "pnl_ledger and pnl differ"}
     assert rel(odd, "pnl", titles) == "P&L from the ledger and Monthly P&L differ"
+
+
+def test_the_brain_names_files_and_kept_answers_in_words_not_ids():
+    """A file Lyst made shows the question it answers, not "art_438165bd1e"; a memory kept from an answer reads as
+    its question, then what it found."""
+    import ast
+    import re
+    from pathlib import Path
+
+    from lyst.ui.brain_graph import readable
+
+    g = {"nodes": [{"id": "artifact:art_1", "kind": "artifact", "label": "art_1"},
+                   {"id": "artifact:art_2", "kind": "artifact", "label": "art_2"},
+                   {"id": "analysis:a1", "kind": "analysis", "label": "Why did margin fall?"},
+                   {"id": "memory:m1", "kind": "memory", "label": "Q: What was revenue? A: $25M"}],
+         "links": [{"source": "artifact:art_1", "target": "analysis:a1", "rel": "produced_from"}]}
+    labels = [n["label"] for n in readable(g)["nodes"]]
+    assert labels == ["File · Why did margin fall?", "A file Lyst made", "Why did margin fall?", "What was revenue?"]
+    src = (Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui" / "app_pages" / "brain.py").read_text(encoding="utf-8")
+    fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "qa")
+    ns: dict = {"re": re}
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), "brain", "exec"), ns)  # noqa: S102
+    assert ns["qa"]("Q: What was revenue? A: Revenue was $25.4M.") == ("What was revenue?", "Revenue was $25.4M")
+    assert ns["qa"]("EMEA excludes intercompany sales.") == ("EMEA excludes intercompany sales.", None)
