@@ -852,3 +852,17 @@ def test_a_saved_analysis_counts_its_runs_in_words():
     from lyst.ui.reports import times
 
     assert [times(n) for n in (0, 1, 2, 7)] == ["never", "once", "twice", "7 times"]
+
+
+def test_on_a_phone_the_activity_board_stacks_and_a_dataset_to_fix_keeps_its_dot():
+    """On a phone the board's columns stack full width, so no card's action sits off the right edge, and a dataset
+    card keeps its fix dot (only the words go) while its name and dates wrap instead of ending in an ellipsis."""
+    from pathlib import Path
+
+    folder = Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui"
+    zone = (folder / "zone_component" / "zone.css").read_text(encoding="utf-8")
+    phone = zone.split("@container (max-width: 599px)", 1)[1].split("\n}\n", 1)[0]
+    assert "flex-direction: column" in phone
+    data = (folder / "data_component" / "objects.css").read_text(encoding="utf-8")
+    small = data.split("@container (max-width: 520px)", 1)[1].split("\n}\n", 1)[0]
+    assert ".o-flag { display: none" not in small and ".o-ds-m { white-space: normal" in small
