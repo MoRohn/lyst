@@ -118,7 +118,7 @@ export const capabilities: {
     icon: 'Sprout',
     title: 'Evolve',
     text: 'Learns from use, measurably. A person’s verdict on an answer decides what Lyst reuses, and new methods need an owner’s approval.',
-    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'Brain: pick anything, see its links across collections', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
+    items: ['“Is this right?” on every answer, with undo', 'A wrong answer is never reused, recalled or cited', 'A learning report counted from stored records', 'A forecast track record, checked against what arrived', 'Brain: pick anything, see its links across collections', 'Memories flagged when their data changes', 'Rules learned from repeated failures', 'Governed skills'],
     status: 'available',
   },
   {
