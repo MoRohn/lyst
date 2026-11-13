@@ -366,9 +366,11 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if skill and intent not in ("sql",):
         intent = "skill"
     filters = []
+    unknown_member = None
     if resolved["metrics"]:
         spec0 = metrics[resolved["metrics"][0]]
         lowered = text.lower()
+        members: dict[str, list[str]] = {}
         for d in spec0.dimensions:
             try:
                 vals = s.data.query(ctx.actor, ctx.workspace_id, f'SELECT DISTINCT {_q(d)} FROM {_q(spec0.dataset)} LIMIT 200',
@@ -376,11 +378,14 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             except Exception as exc:  # noqa: BLE001 - filter detection is best effort; the question still runs unfiltered
                 logging.getLogger("lyst.analyst").warning("filter values for %s.%s could not be read: %s", spec0.dataset, d, type(exc).__name__)
                 vals = []
+            members[d] = [str(v) for (v,) in vals if v is not None]
             for (v,) in vals:
                 # a cheap substring test first; the word-boundary regex only for values that appear at all
                 if isinstance(v, str) and len(v) >= 3 and v.lower() in lowered and \
                         re.search(rf"(?<![a-z0-9]){re.escape(v.lower())}(?![a-z0-9])", lowered):
                     filters.append({"column": d, "op": "=", "value": v})
+        if not filters and intent not in ("sql", "skill", "method", "gap", "what_if", "what_if_unmatched", "dashboard"):
+            unknown_member = _unknown_member(text, spec0, members, metrics)
     impact = prescriptive.wants_impact(text)
     if impact and resolved["metrics"]:
         intent = "impact"
@@ -451,7 +456,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "ambiguous": resolved["ambiguous"], "precedence": resolved.get("precedence") or {}, "by": by, "dataset": dataset, "method": method,
             "sql": text if intent == "sql" else None, "skill": skill["name"] if skill else None,
             "depth": depth, "horizon": {"periods": horizon[0], "grain": horizon[1]} if horizon else None,
-            "filters": filters, "rank": rank, "compare": compare, "scenarios": prescriptive.wants_scenarios(text),
+            "filters": filters, "unknown_member": unknown_member, "rank": rank, "compare": compare, "scenarios": prescriptive.wants_scenarios(text),
             "impact": {"break_date": impact[0].isoformat(), "event": impact[1]} if impact else None,
             "next_period": bool(re.search(r"\bnext (quarter|month)\b", text, re.I)), "gap": gap,
             "refresh_dashboard": refresh.group(1) if refresh else None, "second_metric": second,
@@ -714,6 +719,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             options = [titles.get(n, n) for n in names]
             blockers.append(f"\u201c{term.capitalize()}\u201d matches more than one approved metric: "
                             f"{', '.join(options[:-1])} or {options[-1]}. Pick the one you mean.")
+    if u.get("unknown_member"):
+        blockers.append(u["unknown_member"]["message"])
     if drift and u["intent"] in ("correlate", "dashboard", "gap"):
         # these read an approved metric too: a definition on a changed schema blocks them like a plain value
         blockers.extend(drift_blockers)
@@ -862,6 +869,55 @@ def _lower_first(text: str) -> str:
 
 def _plural(word: str) -> str:
     return word if word.endswith("s") else (word[:-1] + "ies" if word.endswith("y") and word[-2:-1] not in "aeiou" else word + "s")
+
+
+_NAMED_PLACE = re.compile(r"\b(?:in|for|from|at|within)\s+(?:the\s+)?([A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,2})")
+_AFTER_PLACE = re.compile(
+    r"^(?:[?.!,;:)]|(?:last|this|next|in|for|by|over|during|since|vs\.?|versus|compared|and|or|from|to|at|on|"
+    r"moves?|moved|changes?|changed|drops?|dropped|falls?|fell|rises?|rose|goes|went|is|was|were|did|does|do|has|have|"
+    r"had|so far|year|month|quarter|week|ytd|q[1-4]|fy|h[12]|\d)\b)", re.I)
+_NOT_A_MEMBER = re.compile(
+    r"^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|"
+    r"october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday|q[1-4]|h[12]|fy\d*|ytd|qtd|mtd|"
+    r"total|all|each|every|this|that|last|next|lyst|streamlit|excel|powerpoint|pdf|csv|slack|email|teams|tableau|"
+    r"power bi|looker|python|sql|markdown|word|google sheets|sheets|usd|eur|gbp|jpy|cad|aud|chf|cny|inr|us dollars?|dollars?|euros?)$", re.I)
+
+
+def _unknown_member(text: str, spec: MetricSpec, members: dict[str, list[str]],
+                    metrics: dict[str, MetricSpec]) -> dict[str, Any] | None:
+    """A segment the question names ("revenue in Atlantis") that is no member of any of the metric's dimensions.
+
+    Answering for the whole metric instead would look like an answer about Atlantis, so the question stops and says
+    which members exist. Only capitalised names after "in"/"for"/"from" count; periods, currencies and the names of
+    metrics, dimensions and datasets are not segments."""
+    if not members or not any(members.values()):
+        return None
+    known = {v.lower() for vals in members.values() for v in vals}
+    words = {w.lower() for m in metrics.values() for w in re.findall(r"[A-Za-z&]+", f"{m.title} {m.name} {m.dataset}")}
+    words |= {w.lower() for d in members for w in re.split(r"[_\s]+", d)}
+    for m in _NAMED_PLACE.finditer(text):
+        after = text[m.end():].lstrip()
+        if after and not _AFTER_PLACE.match(after):  # "for the FP&A plan" names a purpose, not a segment
+            continue
+        name = m.group(1).rstrip(".'-")
+        toks = name.split()
+        while toks and (_NOT_A_MEMBER.match(toks[-1]) or toks[-1].lower() in words):
+            toks.pop()
+        if not toks or _NOT_A_MEMBER.match(toks[0]) or toks[0].lower() in words or any(c.isdigit() for c in name):
+            continue
+        name = " ".join(toks)
+        low = name.lower()
+        if low in known or any(low in k or k in low for k in known):
+            continue
+        dims = [d.replace("_", " ") for d, vals in members.items() if vals]
+        kinds = " or ".join(dims)
+        listing = "; ".join(f"the {d.replace('_', ' ')}s are " + ", ".join(sorted(vals)[:8])
+                            + (f" and {len(vals) - 8} more" if len(vals) > 8 else "")
+                            for d, vals in members.items() if vals)
+        return {"value": name, "dimensions": list(members),
+                "message": f"{name} is not a {kinds} in the data behind {spec.title.lower()}, so Lyst did not answer for "
+                           f"the whole metric instead. {listing[:1].upper() + listing[1:]}. Ask again naming one."}
+    return None
 
 
 def _subject(spec: MetricSpec, filters: list[dict[str, Any]] | None) -> str:
