@@ -161,6 +161,9 @@ _TWO_QUARTERS = re.compile(r"\bq([1-4])\s*(?:'?(\d{2,4}))?\s*(?:and|vs\.?|versus
                            re.I)
 _SIGNIFICANT = re.compile(r"\b(statistically significant|significan(?:t|ce)|real (?:change|drop|decline|rise|increase)|"
                           r"just (?:noise|random)|by chance)\b", re.I)
+# "what should we do about EMEA?", "how do we fix APAC?": advice about one segment, with no metric named
+_ADVICE = re.compile(r"\bwhat (?:should|can|do|could) (?:we|i) do (?:about|with|for)\b|\bhow (?:should|do|can|could) (?:we|i) "
+                     r"(?:fix|improve|turn around|handle|respond to|deal with)\b|\bwhat do you (?:recommend|suggest) for\b", re.I)
 _AHEAD = re.compile(r"\bnext\s+(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(quarters?|months?)\b", re.I)
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 _BOTTOM = {"bottom", "lowest", "smallest", "weakest", "slowest", "least", "fewest"}
@@ -201,6 +204,13 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         rev = next((m for m in s.semantic.metrics(ctx.actor, ctx.workspace_id) if m.name == "revenue"), None)
         if rev and any(re.search(_plural_pattern(d), text.lower()) for d in rev.dimensions):
             resolved["metrics"], defaulted = ["revenue"], rev.title
+    advice = None
+    if not resolved["metrics"] and not resolved["ambiguous"] and not ctx.request.get("workflow") and _ADVICE.search(text):
+        # "what should we do about EMEA?": the approved metric that moved most the wrong way for EMEA last quarter is
+        # investigated, and its actions are the recommendation
+        advice = _advice_target(ctx, text)
+        if advice:
+            resolved["metrics"] = [advice["metric"]]
     staffing_for = None
     if not resolved["metrics"] and not resolved["ambiguous"] and prescriptive.wants_scenarios(text) \
             and re.search(r"\b(how many|need|plan|enough)\b", text, re.I):
@@ -239,7 +249,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return brief_mod.understanding(text, resolved["metrics"])
     # expertise is now assembled for every task (runtime.before_submit), so it no longer marks an explicit analysis;
     # a request sent to the Analyst Core's own entry point (analyst_request_id) still does
-    if not ctx.request.get("workflow") and not ctx.request.get("analyst_request_id"):
+    if not ctx.request.get("workflow") and not ctx.request.get("analyst_request_id") and not advice:
         # "Do we have an executive dashboard?" asks what exists, not for a figure: answer it in conversation instead of
         # forcing it onto a metric. A scheduled or workflow run is always analysis.
         talk = converse_mod.route(text, metrics_named=bool(resolved["metrics"] or resolved["ambiguous"]))
@@ -426,6 +436,8 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             specialist = specialist_methods.choose(text, asked, s.data.catalog(ctx.actor, ctx.workspace_id)) or docs()
         if specialist:
             intent = "method"
+    if advice:
+        intent = "explain"
     if staffing_for and intent not in ("what_if", "what_if_unmatched"):
         intent = "forecast"
     horizon = reasoning.horizon_of(text)
@@ -442,7 +454,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                      "dataset": sync.group(4)} if sync else None,
             "audience": ("executive" if re.search(r"\b(board|executive|ceo|cfo|leadership|briefing)\b", text, re.I) else "analyst"),
             "refresh_every": studio_mod.refresh_interval(text), "scenario_model": scenario_model,
-            "specialist_method": specialist, "model_phrase": model_phrase, "defaulted_metric": defaulted, "staffing_for": staffing_for,
+            "specialist_method": specialist, "model_phrase": model_phrase, "defaulted_metric": defaulted, "staffing_for": staffing_for, "advice": advice,
             "what_if_unmatched": unmatched_what_if,
             "quarters": ([int(pair.group(1)), pair.group(2), int(pair.group(3)), pair.group(4)] if pair else None),
             "significance": bool(_SIGNIFICANT.search(text)) and intent in ("value", "explain")}
@@ -450,6 +462,60 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
 _GENERIC = re.compile(r"^(the |our |my |top |key |main |all |some |any |a |an )*(metrics?|kpis?|numbers?|figures?|"
                       r"performance|results?|data|stats?|statistics|things?|business|company|dashboard|report)$", re.I)
+
+
+def _advice_target(ctx: Context, text: str) -> dict[str, Any] | None:
+    """For advice about one segment ("what should we do about EMEA?"): the segment, and the approved metric that moved
+    most the wrong way for it over the last complete quarter. None when no segment of an approved split is named."""
+    from ..onboarding import fiscal_start  # noqa: PLC0415
+    from ..semantic import Filter  # noqa: PLC0415
+
+    s, lowered = ctx.services, text.lower()
+    fs = fiscal_start(s.semantic.stores.workspace(ctx.workspace_id))
+    seen: dict[tuple[str, str], list[str]] = {}
+    member = None
+    candidates = []
+    for spec in s.semantic.metrics(ctx.actor, ctx.workspace_id):
+        for d in spec.dimensions:
+            if (spec.dataset, d) not in seen:
+                try:
+                    seen[(spec.dataset, d)] = [v for (v,) in s.data.query(
+                        ctx.actor, ctx.workspace_id, f"SELECT DISTINCT {_q(d)} FROM {_q(spec.dataset)} LIMIT 200",
+                        task_id=ctx.task_id).rows if isinstance(v, str) and len(v) >= 2]
+                except Exception:  # noqa: BLE001 - a split the asker may not read is not a candidate
+                    seen[(spec.dataset, d)] = []
+            hit = next((v for v in seen[(spec.dataset, d)]
+                        if re.search(rf"(?<![a-z0-9]){re.escape(v.lower())}(?![a-z0-9])", lowered)), None)
+            if hit and (member is None or hit == member[1]):
+                member = (d, hit)
+                candidates.append(spec)
+    if not member:
+        return None
+    worst = None
+    for spec in candidates:
+        anchor = _max_date(ctx, spec)
+        if anchor is None:
+            continue
+        cur = periods.last_complete("quarter", anchor, fs)
+        prev = periods.previous(cur, fs)
+        only = [Filter(column=member[0], op="=", value=member[1])]
+        try:
+            vals = [ctx.services.data.query(ctx.actor, ctx.workspace_id, compile_metric(
+                spec, start=p.start.isoformat(), end=p.end.isoformat(), extra_filters=only), task_id=ctx.task_id).rows
+                for p in (cur, prev)]
+        except Exception as exc:  # noqa: BLE001 - a metric that cannot be split by this member is left out
+            logging.getLogger("lyst.analyst").info("advice: %s not read for %s: %s", spec.name, member[1], type(exc).__name__)
+            continue
+        now, then = (float(v[0][0]) if v and v[0][0] is not None else None for v in vals)
+        if now is None or not then:
+            continue
+        move = (now - then) / abs(then) * (1 if spec.higher_is_better else -1)  # below zero: the wrong way
+        if worst is None or move < worst[0]:
+            worst = (move, spec, cur.label)
+    if worst is None:
+        return None
+    return {"metric": worst[1].name, "title": worst[1].title, "member": member[1], "dimension": member[0],
+            "period": worst[2], "considered": len(candidates), "wrong_way": worst[0] < 0}
 
 
 def _what_if_unmatched(ctx: Context, text: str, scenario_mod: Any) -> str | None:
@@ -1856,6 +1922,12 @@ def _deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if spec:
         assumptions.append(f"{spec.title} uses the approved definition v{_metric_version(ctx, spec.name)}: "
                            f"{spec.description or value_expr(spec)}")
+    if spec and u.get("advice"):
+        adv = u["advice"]
+        assumptions.append(f"You asked what to do about {adv['member']}: of the {adv['considered']} approved metrics split by "
+                           f"{adv['dimension'].replace('_', ' ')}, {adv['title'].lower() if not adv['title'][:2].isupper() else adv['title']} "
+                           f"{'moved most the wrong way' if adv['wrong_way'] else 'moved least well'} for {adv['member']} in "
+                           f"{adv['period']}, so Lyst investigated it; the actions are the recommendation.")
     if spec and u.get("staffing_for"):
         assumptions.append(f"No demand was named, so staffing is planned against {u['staffing_for']}.")
     if spec and u.get("defaulted_metric"):
@@ -2044,6 +2116,16 @@ def _deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                               f"{cur['period']['label']}; it {moved} versus {prev['period']['label']}. " + answer)
                     assumptions.append("The request assumed a " + ("decline" if premise == "down" else "rise")
                                        + " that the data does not show; the drivers below explain the actual change.")
+        if cur and u.get("advice"):
+            adv = u["advice"]
+            if adv["wrong_way"]:
+                answer = (f"For {adv['member']}, the figure to act on is {_lower_first(adv['title'])}, the one that moved "
+                          "most the wrong way. " + answer)
+            else:
+                answer = (f"Nothing in {adv['member']} moved the wrong way in {adv['period']}: every approved metric split "
+                          f"by {adv['dimension'].replace('_', ' ')} held or improved. The weakest was {_lower_first(adv['title'])}. " + answer)
+                actions.append(f"No fix is needed for {adv['member']} on these numbers; set a monitor on "
+                               f"{_lower_first(adv['title'])} for {adv['member']} so a turn is caught early.")
         if cur and o.get("significance"):
             sig = _significance(spec, o["significance"])
             if sig:
@@ -2087,8 +2169,9 @@ def _deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                 move = "rise" if cur["value"] > prev["value"] else "decline"
                 implications.append(f"The {move} is concentrated in {b['dimension'].replace('_', ' ')} {b['member']}, so a "
                                     "company-wide response would treat the wrong problem.")
-                actions.append(f"Review what changed in {b['member']} in {cur['period']['label']} with its owner.")
-                actions.append(f"Set a monitor on {spec.title.lower()} for {b['member']} so the next move is caught early.")
+                within = "".join(f" in {f['value']}" for f in u.get("filters") or [])  # "Hardware in EMEA", not all Hardware
+                actions.append(f"Review what changed in {b['member']}{within} in {cur['period']['label']} with its owner.")
+                actions.append(f"Set a monitor on {spec.title.lower()} for {b['member']}{within} so the next move is caught early.")
             else:
                 implications.append(f"{b['member']} is carrying the change; check whether it is repeatable.")
         elif d and d.get("skipped"):
