@@ -394,8 +394,10 @@ def cases(model: Model, base: dict[str, float], output: str, overrides: dict[str
 
 # ----------------------------------------------------------------------------- natural-language what-if
 
-_UP = r"(?:increase|increases|rise|rises|grow|grows|go(?:es)? up|up)"
-_DOWN = r"(?:decrease|decreases|fall|falls|drop|drops|decline|declines|go(?:es)? down|down|shrink|shrinks|cut)"
+# present and past tense: "if costs fall 10%" and "what if costs fell 10%" are the same change
+_UP = r"(?:increased|increases|increase|rose|rises|rise|grew|grows|grow|go(?:es)? up|went up|up)"
+_DOWN = r"(?:decreased|decreases|decrease|fell|falls|fall|dropped|drops|drop|declined|declines|decline|go(?:es)? down|went down|down|" \
+        r"shrank|shrinks|shrink|cuts|cut)"
 _UNIT = r"(?P<unit>percentage points?|pp\b|points?\b|pts\b|%|percent\b|pct\b)"
 _CHANGE = re.compile(rf"(?P<subj>[a-z][a-z \-]*?)\s+(?:(?:were|was|is|are)\s+)?(?:to\s+)?(?P<dir>{_UP}|{_DOWN})\s+(?:by\s+)?"
                      rf"(?P<num>\d+(?:\.\d+)?)\s*{_UNIT}", re.I)
