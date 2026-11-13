@@ -481,7 +481,11 @@ where they point, with Mark all read and "What to tell me about".
   metric is named, and says so. "Is the drop significant?" is judged against how much the metric usually moves, and
   Lyst says plainly that this is not a formal statistical test. "How many staff do we need next quarter?" answers
   with a headcount, from the demand forecast and the staffing data. "What should we do about EMEA?" investigates the figure
-  that moved most the wrong way there and turns it into recommended actions; if nothing went wrong, it says so. Simple figures stay simple; investigations and
+  that moved most the wrong way there and turns it into recommended actions; if nothing went wrong, it says so.
+  "How accurate were your last forecasts?" checks every forecast Lyst gave against the months that have since
+  arrived: how far off it was on average, how often the actual landed inside the forecast's range, whether it ran
+  high or low, the biggest miss, and each metric's real error against the error its backtest claimed. A forecast
+  that cannot be checked yet says which month it is waiting for. Simple figures stay simple; investigations and
   forecasts keep their checklist note.
 * **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
   briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
