@@ -115,9 +115,9 @@ def test_a_data_quality_question_checks_the_data_instead_of_listing_it(seeded):
     r = ask(lyst, owner, "Are there any data quality issues in the pnl dataset?")["result"]
     assert r.get("mode") != "conversation"
     assert r["answer"].startswith("pnl has ") and r["tables"][-1]["title"] == "Columns"
-    # with no dataset named it asks which one, with the datasets as choices
+    # with no dataset named it checks every dataset the asker can read (quality_review.py)
     t = ask(lyst, owner, "Are there any duplicates in our data?")
-    assert t["result"]["status"] == "needs_input" and "Name the dataset" in t["result"]["answer"]
+    assert t["result"]["status"] == "complete" and t["result"]["mode"] == "quality_review"
 
 
 def test_an_ambiguous_term_names_the_metrics_in_words(seeded):
