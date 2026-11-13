@@ -204,6 +204,24 @@ div[class*="st-key-lyst_recent_"] button [data-testid="stIconMaterial"] {font-si
    On a desktop the four areas are a slim column of icons beside the page, not a sidebar of words: the mark on top,
    Home · Data · Brain · Settings, and the foot (search, notifications, glossary, account) at the bottom. Each icon
    names itself in a floating label on hover and focus; on a phone the menu opens as a sheet with its words. */
+/* "Skip to main content" lands on the page itself: its frame takes Lyst's focus colour, not a grey box round the screen */
+main[data-testid="stMain"]:focus-visible::before {box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--lyst-focus) 60%, transparent) !important;
+  border-radius: var(--lyst-radius-lg);}
+/* a tablet: Data's and Brain's titles take their own line and the tools sit in one row under them, so the tools
+   never fold into two rows beside the title; Settings' list keeps a width that holds each word whole */
+@media (min-width: 641px) and (max-width: 1100px) {
+  div[data-testid="stHorizontalBlock"]:has(div.st-key-data_tools, div.st-key-brain_tools) {flex-wrap: wrap !important; row-gap: .6rem;}
+  div[data-testid="stHorizontalBlock"]:has(div.st-key-data_tools, div.st-key-brain_tools) > div[data-testid="stColumn"] {
+    flex: 1 1 100% !important; width: 100% !important;}
+  div.st-key-data_tools, div.st-key-brain_tools {justify-content: flex-start !important;}
+  div[class*="st-key-lyst_card_intro_"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+    flex: 0 0 auto !important; width: auto !important; min-width: max-content !important;}
+  div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div.st-key-set_nav) {flex-wrap: nowrap !important;}
+  div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div.st-key-set_nav) > div[data-testid="stColumn"] {
+    flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;}
+  div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div.st-key-set_nav) > div[data-testid="stColumn"]:has(div.st-key-set_nav) {
+    flex: 0 0 12.5rem !important;}
+}
 @media (min-width: 641px) {
   :root {--lyst-rail: 4.5rem;}
   section[data-testid="stSidebar"] {width: var(--lyst-rail) !important; min-width: var(--lyst-rail) !important;
@@ -258,8 +276,13 @@ _SURFACES = """<script>
     const cs = getComputedStyle(e);
     e.setAttribute('data-lyst-surface', cs.borderTopWidth === '1px' && cs.borderTopStyle === 'solid' ? '1' : '0');
   });
+  // Go to opens ready to type: its field takes the focus once per opening (a stray key would otherwise reach the page)
+  const ready = () => {
+    const box = document.querySelector('[role="dialog"] .st-key-palette_q input');
+    if (box && !box.dataset.lystReady) { box.dataset.lystReady = '1'; box.focus(); }
+  };
   let queued = false;
-  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mark(); }); } })
+  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mark(); ready(); }); } })
     .observe(document.body, {childList: true, subtree: true});
   mark();
   // the rail: each icon carries its area's name as a floating label (the accessible name is already the link text)
@@ -418,6 +441,17 @@ def empty(icon: str, title: str, body: str, *, action: str | None = None, key: s
     return False
 
 
+def reason(e: Exception) -> str:
+    """Why a call failed, as a sentence: "Only read queries are allowed, not DELETE.", and for a failure on Lyst's
+    side a plain account of it rather than "Internal Server Error"."""
+    status, text = getattr(e, "status", None), str(e).strip()
+    if (isinstance(status, int) and status >= 500) or text.lower() in ("", "internal server error"):
+        return ("Lyst couldn't finish that. Try again; if it keeps happening, an admin can find what went wrong in "
+                "the server log.")
+    text = text[:1].upper() + text[1:]
+    return text if text.endswith((".", "!", "?", ")")) else text + "."
+
+
 def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":material/check:") -> Any:
     """Run an API call: a toast on success, the reason inline on failure. Nothing fails silently."""
     from lyst.ui.client import APIError  # noqa: PLC0415
@@ -425,7 +459,7 @@ def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":mater
     try:
         out = fn()
     except APIError as e:
-        st.error(str(e), icon=":material/error:")
+        st.error(reason(e), icon=":material/error:")
         return None
     st.session_state.pop("_waiting", None)  # something changed: recount what waits on this person
     st.session_state.pop("_home", None)  # and Home's starters, focus and recent work

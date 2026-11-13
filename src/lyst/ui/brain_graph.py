@@ -66,6 +66,22 @@ def palette(mode: str) -> dict[str, Any]:
             "kinds": kinds}
 
 
+def readable(graph: dict[str, Any]) -> dict[str, Any]:
+    """Names a person can read on every node: a file Lyst made carries only its id ("art_438165bd1e"), so it takes
+    the question of the answer it was made from ("File · Why did operating margin decline last quarter?")."""
+    names = {n["id"]: n["label"] for n in graph.get("nodes") or []}
+    made = {}
+    for lk in graph.get("links") or []:
+        if lk.get("rel") == "produced_from" and str(lk.get("source", "")).startswith("artifact:"):
+            made[lk["source"]] = names.get(lk["target"])
+    for n in graph.get("nodes") or []:
+        if n.get("kind") == "artifact" and n.get("label") == str(n.get("id", "")).split(":", 1)[-1]:
+            n["label"] = f"File · {made[n['id']]}" if made.get(n["id"]) else "A file Lyst made"
+        elif n.get("kind") == "memory" and str(n.get("label", "")).startswith("Q: "):
+            n["label"] = n["label"][3:].split(" A: ", 1)[0]  # a memory kept from an answer reads as its question
+    return graph
+
+
 def canvas(graph: dict[str, Any], *, layout: str, key: str, height: int, alt: str,
            selected: str | None = None) -> str | None:
     """Draw the graph; return the id of a node clicked since the last rerun, or None."""
@@ -189,9 +205,9 @@ def knowledge() -> None:
                    "Lyst recorded a relation or a literal mention. Graph runs and the rules they learned join the map.")
     runs = top[1].toggle("Show graph runs", value=True, key="bg_runs")
     try:
-        graph = api.get(f"/v1/workspaces/{ws}/brain/graph", runs=runs)
+        graph = readable(api.get(f"/v1/workspaces/{ws}/brain/graph", runs=runs))
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")
         return
     if not graph["nodes"]:
         kit.empty(":material/hub:", "Nothing in the Brain yet", "Add data, approve a metric or teach Lyst something, "
@@ -285,7 +301,7 @@ def run_view(run_id: str) -> None:
     try:
         run = api.get(f"/v1/workspaces/{ws}/graph-runs/{run_id}")
     except APIError as e:
-        st.error(str(e), icon=":material/error:")
+        st.error(kit.reason(e), icon=":material/error:")
         return
     label, tone = STATUS.get(run["status"], (run["status"], "info"))
     head = st.columns([4, 1.1, 1.1, 1.1], vertical_alignment="center")
@@ -364,7 +380,7 @@ def runs() -> None:
     try:
         items = api.get(f"/v1/workspaces/{ws}/graph-runs")
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")
         return
     _plan_form(expanded=not items)
     if not items:
@@ -384,7 +400,7 @@ def runs() -> None:
             brief = api.get(f"/v1/workspaces/{ws}/graph/brief")
             st.markdown(md("\n".join(f"- {x}" for x in brief["lines"])))
         except APIError as e:
-            st.caption(str(e))
+            st.caption(kit.reason(e))
     with c[1].expander("Weekly review", icon=":material/calendar_month:"):
         try:
             rv = api.get(f"/v1/workspaces/{ws}/graph/review")
@@ -394,7 +410,7 @@ def runs() -> None:
             for m in rv["can_merge"]:
                 st.caption(md(f"Can merge · {m}"))
         except APIError as e:
-            st.caption(str(e))
+            st.caption(kit.reason(e))
 
 
 # -- the harness ------------------------------------------------------------------------------------------------------
@@ -405,7 +421,7 @@ def harness() -> None:
     try:
         h = api.get(f"/v1/workspaces/{ws}/graph/harness")
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")
         return
     st.caption("What every node re-reads before it works. The fixed rules are enforced in code; the learned rules came "
                "from runs in this workspace.")

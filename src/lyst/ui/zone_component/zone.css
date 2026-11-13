@@ -241,6 +241,9 @@
   .z-cols { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: .6rem; padding-bottom: .4rem;
             margin: 0 -.25rem; padding-left: .25rem; padding-right: .25rem; scrollbar-width: thin; }
   .z-col { flex: 0 0 82%; scroll-snap-align: start; }
+  /* an empty column shrinks to its name, so the first full width goes to a column with something in it */
+  .z-col:not(.has) { flex-basis: min(11rem, 46%); min-height: 0; }
+  .z-col:not(.has) .z-empty { padding: .55rem .5rem; font-size: var(--z-xs); }
   .z-foot .keys { display: none; }
 }
 @container (min-width: 761px) and (max-width: 1000px) {

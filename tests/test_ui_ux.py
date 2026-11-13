@@ -765,3 +765,90 @@ def test_a_slide_reads_without_the_footer_every_slide_repeats():
     lines = ["Lyst · Why did margin fall?", "WHAT IT MEANS\n• EMEA drove it.\n• Act there.", "Lyst · 11 Nov 2026"]
     assert slide_lines(lines, deck) == [("kicker", "What it means"), ("li", "EMEA drove it."), ("li", "Act there."),
                                         ("p", "Lyst · 11 Nov 2026")]
+
+
+def test_a_tablet_keeps_page_tools_on_one_row_and_settings_words_whole():
+    """Between a phone and a desktop, Data's and Brain's tools sit in one row under the title, Settings' list keeps a
+    width that holds each word whole, and an empty activity column shrinks to its name."""
+    from pathlib import Path
+
+    folder = Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui"
+    kit = (folder / "kit.py").read_text(encoding="utf-8")
+    tablet = kit.split("@media (min-width: 641px) and (max-width: 1100px)", 1)[1].split("\n}\n", 1)[0]
+    assert "st-key-data_tools" in tablet and "st-key-brain_tools" in tablet and "st-key-set_nav" in tablet
+    assert ".z-col:not(.has)" in (folder / "zone_component" / "zone.css").read_text(encoding="utf-8")
+
+
+def test_a_relationship_reads_in_dataset_titles_from_the_open_dataset():
+    """The Relationships view names the other dataset by its title and the column in words, not table ids."""
+    import ast
+    import re
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui" / "app_pages" / "data.py").read_text(encoding="utf-8")
+    fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "relation")
+    ns: dict = {"re": re}
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), "data", "exec"), ns)  # noqa: S102
+    rel = ns["relation"]
+    titles = {"demand": "Support demand", "pnl": "Monthly P&L", "pnl_ledger": "P&L from the ledger"}
+    shared = {"kind": "shared_dimension", "from_dataset": "demand", "from_column": "month", "to_dataset": "pnl",
+              "to_column": "month", "evidence": {"matching": 33}, "text": "demand and pnl share month"}
+    assert rel(shared, "demand", titles) == "Shares month with Monthly P&L (33 values in common), so the two can be compared on it"
+    assert "Support demand" in rel(shared, "pnl", titles)
+    fk = {"kind": "foreign_key", "from_dataset": "demand", "from_column": "month", "to_dataset": "pnl_ledger",
+          "to_column": "month", "evidence": {"containment": [1.0, 0.4]}, "text": "demand.month references pnl_ledger.month"}
+    assert rel(fk, "demand", titles) == "Its month points to P&L from the ledger (100% of values found)"
+    assert rel(fk, "pnl_ledger", titles) == "Support demand's month points here (100% of values found)"
+    odd = {"kind": "something_new", "from_dataset": "pnl_ledger", "to_dataset": "pnl", "text": "pnl_ledger and pnl differ"}
+    assert rel(odd, "pnl", titles) == "P&L from the ledger and Monthly P&L differ"
+
+
+def test_the_brain_names_files_and_kept_answers_in_words_not_ids():
+    """A file Lyst made shows the question it answers, not "art_438165bd1e"; a memory kept from an answer reads as
+    its question, then what it found."""
+    import ast
+    import re
+    from pathlib import Path
+
+    from lyst.ui.brain_graph import readable
+
+    g = {"nodes": [{"id": "artifact:art_1", "kind": "artifact", "label": "art_1"},
+                   {"id": "artifact:art_2", "kind": "artifact", "label": "art_2"},
+                   {"id": "analysis:a1", "kind": "analysis", "label": "Why did margin fall?"},
+                   {"id": "memory:m1", "kind": "memory", "label": "Q: What was revenue? A: $25M"}],
+         "links": [{"source": "artifact:art_1", "target": "analysis:a1", "rel": "produced_from"}]}
+    labels = [n["label"] for n in readable(g)["nodes"]]
+    assert labels == ["File · Why did margin fall?", "A file Lyst made", "Why did margin fall?", "What was revenue?"]
+    src = (Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui" / "app_pages" / "brain.py").read_text(encoding="utf-8")
+    fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "qa")
+    ns: dict = {"re": re}
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), "brain", "exec"), ns)  # noqa: S102
+    assert ns["qa"]("Q: What was revenue? A: Revenue was $25.4M.") == ("What was revenue?", "Revenue was $25.4M")
+    assert ns["qa"]("EMEA excludes intercompany sales.") == ("EMEA excludes intercompany sales.", None)
+
+
+def test_a_failure_reads_as_a_sentence_and_never_as_internal_server_error():
+    """A refusal reads as a sentence; a failure on Lyst's side says so in words, not "Internal Server Error"."""
+    from lyst.ui.client import APIError
+    from lyst.ui.kit import reason
+
+    assert reason(APIError(400, "only read queries are allowed, not DELETE")) == "Only read queries are allowed, not DELETE."
+    said = reason(APIError(500, "Internal Server Error"))
+    assert "Internal Server Error" not in said and said.startswith("Lyst couldn't finish that")
+
+
+def test_go_to_finds_a_metric_while_its_name_is_still_being_typed():
+    """The catalog search matches whole words, so the palette also matches the start of a title's words: "rev"
+    finds Revenue and Hardware revenue, not nothing."""
+    from lyst.ui.palette import starting
+
+    items = [{"title": "Revenue"}, {"title": "Hardware revenue"}, {"title": "COGS ratio"}, {"title": "P&L from the ledger"}]
+    assert [x["title"] for x in starting(items, "rev")] == ["Revenue", "Hardware revenue"]
+    assert [x["title"] for x in starting(items, "led")] == ["P&L from the ledger"]
+    assert starting(items, "  ") == []
+
+
+def test_a_saved_analysis_counts_its_runs_in_words():
+    from lyst.ui.reports import times
+
+    assert [times(n) for n in (0, 1, 2, 7)] == ["never", "once", "twice", "7 times"]
