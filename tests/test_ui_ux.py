@@ -846,3 +846,9 @@ def test_go_to_finds_a_metric_while_its_name_is_still_being_typed():
     assert [x["title"] for x in starting(items, "rev")] == ["Revenue", "Hardware revenue"]
     assert [x["title"] for x in starting(items, "led")] == ["P&L from the ledger"]
     assert starting(items, "  ") == []
+
+
+def test_a_saved_analysis_counts_its_runs_in_words():
+    from lyst.ui.reports import times
+
+    assert [times(n) for n in (0, 1, 2, 7)] == ["never", "once", "twice", "7 times"]

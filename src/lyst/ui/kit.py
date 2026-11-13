@@ -214,6 +214,8 @@ main[data-testid="stMain"]:focus-visible::before {box-shadow: inset 0 0 0 2px co
   div[data-testid="stHorizontalBlock"]:has(div.st-key-data_tools, div.st-key-brain_tools) > div[data-testid="stColumn"] {
     flex: 1 1 100% !important; width: 100% !important;}
   div.st-key-data_tools, div.st-key-brain_tools {justify-content: flex-start !important;}
+  div[class*="st-key-lyst_card_intro_"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:last-child {
+    flex: 0 0 auto !important; width: auto !important; min-width: max-content !important;}
   div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div.st-key-set_nav) {flex-wrap: nowrap !important;}
   div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div.st-key-set_nav) > div[data-testid="stColumn"] {
     flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;}
