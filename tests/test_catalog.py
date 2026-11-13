@@ -261,3 +261,14 @@ def test_contract_edge_rules_null_keys_empty_sets_and_values_kept_out_of_inboxes
     inbox = lyst.monitors.inbox(owner, WS)
     assert inbox and "gold" not in inbox[0]["summary"] and "silver" not in inbox[0]["summary"]
     assert lyst.contracts.status(WS, "people").keys() == {"version", "outcome", "dataset_version", "checked_at", "problems"}
+
+
+def test_search_matches_a_word_typed_only_in_part(seeded):
+    lyst, owner = seeded
+    names = [h["name"] for h in lyst.catalog.search(owner, "northwind", "rev")["results"]]
+    assert "revenue" in names[:3]
+    # a whole word still ranks above a partial one, and two letters are not enough to guess from
+    full = lyst.catalog.search(owner, "northwind", "revenue")["results"]
+    part = lyst.catalog.search(owner, "northwind", "rev")["results"]
+    assert next(h for h in full if h["name"] == "revenue")["score"] > next(h for h in part if h["name"] == "revenue")["score"]
+    assert not lyst.catalog.search(owner, "northwind", "re")["results"]
