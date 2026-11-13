@@ -90,7 +90,7 @@ export const capabilities: {
     icon: 'ScanSearch',
     title: 'Investigate',
     text: 'Find what changed, and why.',
-    items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', '“Why did it change?” within one segment', '“Is our data clean?” checks every dataset you can read', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
+    items: ['Data discovery', 'Data as a flow, from source to metric', 'Trends that name the month that moved', '“Why did it change?” within one segment', '“What should we do about EMEA?” turns its worst move into actions', '“Is our data clean?” checks every dataset you can read', 'Flagged rows reviewed in one table', 'Authoritative sources, reconciled', 'Drill-down in conversation', 'Competing hypotheses', 'Root-cause analysis'],
     status: 'available',
   },
   {
