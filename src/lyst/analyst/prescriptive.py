@@ -16,13 +16,25 @@ from ..semantic import compile_metric
 from . import periods
 from .registry import REGISTRY, Context, capability
 
-SCENARIO_WORDS = re.compile(r"\b(scenario|staffing|headcount|hiring|agents?|capacity plan)\w*", re.I)
+SCENARIO_WORDS = re.compile(r"\b(scenario|staff|headcount|hiring|agents?|capacity plan)\w*", re.I)
 IMPACT_WORDS = re.compile(r"\b(impact|effect|consequence)s? of\b", re.I)
 AGENT_COUNTS = re.compile(r"\b(\d{1,4})\s*(?:,|and|or|/)?\s*(?:agents?|staff|people|heads?|fte)?", re.I)
 
 
 def wants_scenarios(text: str) -> bool:
     return bool(SCENARIO_WORDS.search(text))
+
+
+def staffing_demand(catalog: list[dict[str, Any]], metrics: list[Any]) -> tuple[Any, str] | None:
+    """The demand metric a staffing dataset is sized for ("Support staffing" covers the metric on "Support demand"),
+    with that dataset's title; None when there is no staffing dataset or no one metric it plainly covers."""
+    staff = next((d for d in catalog if {"agents", "capacity_per_agent"} <= {c["name"] for c in d.get("schema", [])}), None)
+    if not staff:
+        return None
+    words = lambda d: set(re.findall(r"[a-z]{4,}", f"{d.get('title') or ''} {d['name']}".lower())) - {"staffing", "staff"}  # noqa: E731
+    mine, titles = words(staff), {d["name"]: d for d in catalog}
+    hits = [m for m in metrics if m.dataset in titles and m.dataset != staff["name"] and words(titles[m.dataset]) & mine]
+    return (hits[0], staff.get("title") or staff["name"]) if len(hits) == 1 else None
 
 
 def wants_impact(text: str) -> tuple[date, str] | None:

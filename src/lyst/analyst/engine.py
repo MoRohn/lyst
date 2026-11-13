@@ -16,6 +16,7 @@ import json
 import logging
 import math
 import re
+import statistics
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -151,6 +152,11 @@ _VS_YEAR = re.compile(r"\b(year[- ]over[- ]year|yoy|y/y|(vs\.?|versus|against|co
                       r"(last|a|the previous|the prior) year|a year (ago|earlier)|year[- ]on[- ]year)\b", re.I)
 _VS_PRIOR = re.compile(r"\b((quarter|month)[- ](over|on)[- ](quarter|month)|qoq|q/q|mom|(vs\.?|versus|against|compared "
                        r"(to|with)) (the )?(previous|prior|last) (quarter|month))\b", re.I)
+# "Q2 and Q3 2026", "Q1 2026 vs Q3 2026": two quarters named together, the earlier one's year optional
+_TWO_QUARTERS = re.compile(r"\bq([1-4])\s*(?:'?(\d{2,4}))?\s*(?:and|vs\.?|versus|to|with|against|,|&)\s*q([1-4])\s*'?(\d{2,4})\b",
+                           re.I)
+_SIGNIFICANT = re.compile(r"\b(statistically significant|significan(?:t|ce)|real (?:change|drop|decline|rise|increase)|"
+                          r"just (?:noise|random)|by chance)\b", re.I)
 _AHEAD = re.compile(r"\bnext\s+(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(quarters?|months?)\b", re.I)
 _NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
 _BOTTOM = {"bottom", "lowest", "smallest", "weakest", "slowest", "least", "fewest"}
@@ -184,6 +190,21 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if not resolved["ambiguous"] and not ctx.request.get("workflow") and close_mod.asks_for_close(text):
         # "Run the month-end close checks" / "Does the P&L tie to the ledger?" checks a period's data (close.py)
         return close_mod.understanding(text)
+    defaulted = None
+    if not resolved["metrics"] and not resolved["ambiguous"] and _GROWTH.search(text) and _RANK.search(text):
+        # "which region grew fastest this year?" names no metric: growth of a split the revenue metric has reads as
+        # revenue growth, said in the answer's assumptions (any other metric is one word away)
+        rev = next((m for m in s.semantic.metrics(ctx.actor, ctx.workspace_id) if m.name == "revenue"), None)
+        if rev and any(re.search(_plural_pattern(d), text.lower()) for d in rev.dimensions):
+            resolved["metrics"], defaulted = ["revenue"], rev.title
+    staffing_for = None
+    if not resolved["metrics"] and not resolved["ambiguous"] and prescriptive.wants_scenarios(text) \
+            and re.search(r"\b(how many|need|plan|enough)\b", text, re.I):
+        # "how many staff do we need next quarter?" names no metric: the demand the staffing dataset is sized for
+        found = prescriptive.staffing_demand(s.data.catalog(ctx.actor, ctx.workspace_id),
+                                             s.semantic.metrics(ctx.actor, ctx.workspace_id))
+        if found:
+            resolved["metrics"], staffing_for = [found[0].name], f"{found[0].title} (what {found[1]} is sized for)"
     if not ctx.request.get("workflow") and receivables_mod.asks_for_receivables(text):
         # "Who owes me money?" / "Which invoices are overdue?" reads the open invoices today (receivables.py)
         return receivables_mod.understanding(text)
@@ -302,7 +323,11 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                     rank["growth"] = True
                 intent = "breakdown"
     compare = None
-    if resolved["metrics"] and by and intent in ("value", "breakdown", "trend"):
+    pair = _TWO_QUARTERS.search(text) if resolved["metrics"] else None
+    if pair and by and intent in ("value", "breakdown", "trend"):
+        # "compare revenue by region for Q2 and Q3 2026": each member in the later quarter against the earlier one
+        compare, intent = "prior", "breakdown"
+    elif resolved["metrics"] and by and intent in ("value", "breakdown", "trend"):
         # "hardware revenue by region year over year": each member against the same period a year earlier (or the
         # period before), not one total
         compare = "year_ago" if _VS_YEAR.search(text) else ("prior" if _VS_PRIOR.search(text) else
@@ -311,6 +336,9 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             intent = "breakdown"
     if intent == "breakdown" and not by:
         intent = "value"
+    if intent == "explain" and not compare and _VS_YEAR.search(text):
+        # "what drove revenue growth year over year?": the drivers of the change against a year earlier
+        compare = "year_ago"
     skill = s.skills.match(ctx.actor, ctx.workspace_id, text) if s.skills else None
     if skill and intent not in ("sql",):
         intent = "skill"
@@ -354,7 +382,7 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         intent = "sync"
     elif studio_mod.wants_dashboard(text) and resolved["metrics"]:
         intent = "dashboard"
-    scenario_model = None
+    scenario_model, unmatched_what_if = None, None
     if intent not in ("sql", "skill", "refresh", "sync", "dashboard") and s.scenarios is not None:
         from .. import scenarios as scenario_mod  # noqa: PLC0415
 
@@ -362,6 +390,12 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             scenario_model = s.scenarios.match(ctx.actor, ctx.workspace_id, text)
             if scenario_model:
                 intent = "what_if"
+            else:
+                # a what-if no model understands is said as such, with what the models can change, not answered as
+                # "no approved metric" or as the plain figure
+                unmatched_what_if = _what_if_unmatched(ctx, text, scenario_mod)
+                if unmatched_what_if:
+                    intent = "what_if_unmatched"
     specialist = None
     if ctx.request.get("expertise") and not resolved["metrics"] and intent not in ("sql", "skill", "refresh", "sync", "profile"):
         # a routed request that no governed metric covers: a specialist method on a dataset it names may (methods.py)
@@ -384,6 +418,8 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             specialist = specialist_methods.choose(text, asked, s.data.catalog(ctx.actor, ctx.workspace_id)) or docs()
         if specialist:
             intent = "method"
+    if staffing_for and intent not in ("what_if", "what_if_unmatched"):
+        intent = "forecast"
     horizon = reasoning.horizon_of(text)
     depth = reasoning.depth_of(text, intent, horizon)
     return {"question": text, "intent": intent, "metrics": resolved["metrics"], "matched": resolved["matched"],
@@ -398,11 +434,37 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                      "dataset": sync.group(4)} if sync else None,
             "audience": ("executive" if re.search(r"\b(board|executive|ceo|cfo|leadership|briefing)\b", text, re.I) else "analyst"),
             "refresh_every": studio_mod.refresh_interval(text), "scenario_model": scenario_model,
-            "specialist_method": specialist, "model_phrase": model_phrase}
+            "specialist_method": specialist, "model_phrase": model_phrase, "defaulted_metric": defaulted, "staffing_for": staffing_for,
+            "what_if_unmatched": unmatched_what_if,
+            "quarters": ([int(pair.group(1)), pair.group(2), int(pair.group(3)), pair.group(4)] if pair else None),
+            "significance": bool(_SIGNIFICANT.search(text)) and intent in ("value", "explain")}
 
 
 _GENERIC = re.compile(r"^(the |our |my |top |key |main |all |some |any |a |an )*(metrics?|kpis?|numbers?|figures?|"
                       r"performance|results?|data|stats?|statistics|things?|business|company|dashboard|report)$", re.I)
+
+
+def _what_if_unmatched(ctx: Context, text: str, scenario_mod: Any) -> str | None:
+    """What to say when a what-if names a change no scenario model can apply; None when the workspace has no model."""
+    models = ctx.services.scenarios.models(ctx.actor, ctx.workspace_id)
+    if not models:
+        return None
+    m = scenario_mod._CHANGE.search(text.split(" if ", 1)[-1] if " if " in text.lower() else text)
+    subj = re.sub(r"^(?:what|if|and|while|the|our)\s+", "", (m.group("subj") if m else "").strip(), flags=re.I)
+    subj = re.sub(r"^(?:if|the|our)\s+", "", subj, flags=re.I).strip()
+    model = models[0]
+    spec = ctx.services.scenarios.get(ctx.actor, ctx.workspace_id, model["name"])["spec"]
+    labels = [i.get("label") or i["name"].replace("_", " ") for i in spec.get("inputs") or []] + \
+             [f.get("label") or f["name"].replace("_", " ") for f in spec.get("formulas") or []
+              if f["name"] not in [o if isinstance(o, str) else o["name"] for o in spec.get("outputs") or []]]
+    labels = [lab if lab[:2].isupper() else lab[:1].lower() + lab[1:] for lab in labels]
+    example = next((lab for lab in labels if re.search(r"expense|cost", lab, re.I)), labels[0] if labels else "revenue")
+    totals = not any((i.get("source") or {}).get("filters") for i in spec.get("inputs") or [])
+    return (f"The what-if model {model['title'] or model['name']} has nothing called \u201c{subj or 'that'}\u201d to "
+            f"change. It can change {converse_mod._join(labels, limit=10)}; ask again with one of those, for example "
+            f"\u201cWhat if {example} fell 10%?\u201d"
+            + (" The model works on company totals, so one region or segment cannot be changed on its own." if totals else "")
+            + (f" {len(models) - 1} other model(s) did not recognise it either." if len(models) > 1 else ""))
 
 
 def _grounded_phrase(phrase: str, text: str) -> bool:
@@ -485,6 +547,15 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
         fs = fiscal_start(s.semantic.stores.workspace(ctx.workspace_id))
         p = periods.parse(u["question"], anchor, fs)
+        against = None
+        if u.get("quarters"):
+            qa, ya_, qb, yb = u["quarters"]
+            yb = int(yb) + (2000 if int(yb) < 100 else 0)
+            ya_ = int(ya_) + (2000 if int(ya_) < 100 else 0) if ya_ else yb
+            one, two = periods.quarter(qa, ya_, fs), periods.quarter(qb, yb, fs)
+            # the later quarter is the one reported; the earlier is what it is compared with
+            p, against = (max(one, two, key=lambda x: x.start), min(one, two, key=lambda x: x.start)) \
+                if one.start != two.start else (two, None)
         if p is None and u["intent"] in ("value", "explain", "breakdown"):
             p = periods.last_complete("quarter", anchor, fs)
             period_note = f"No period was named, so Lyst used the last complete quarter in the data ({p.label})."
@@ -495,6 +566,10 @@ def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                       "note": period_note, "anchor": anchor.isoformat()}
             if fs != 1:  # recorded only for a fiscal calendar, so calendar-year outputs are unchanged
                 period["fiscal_start"] = fs
+            if against is not None:  # the earlier of two named quarters, in place of the quarter just before
+                period["against"] = {"label": against.label, "start": against.start.isoformat(),
+                                     "end": against.end.isoformat(), "grain": against.grain,
+                                     **({"fiscal_start": fs} if fs != 1 else {})}
     passages, prior = [], []
     if s.knowledge:
         try:
@@ -582,6 +657,8 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         add("sync_connection", "sync", **u["sync"])
     elif u["intent"] == "what_if":
         add("what_if", "scenario", model=u["scenario_model"], question=u["question"])
+    elif u["intent"] == "what_if_unmatched":
+        blockers.append(u["what_if_unmatched"])
     elif u["intent"] == "dashboard":
         if ctx.services.guard.can(ctx.actor, ctx.workspace_id, "data.ingest"):
             add("design_dashboard", "design", metrics=u["metrics"], dimension=u.get("by"), every_seconds=u.get("refresh_every"))
@@ -618,11 +695,13 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         p = c["period"]
         if u["intent"] in ("value", "explain", "breakdown") and p:
             add("metric_value", "current", metric=m, period=p)
-            prev = _prev_period(p)
-            add("metric_value", "prior", metric=m, period=prev)
             ya = _year_ago(p) if p.get("grain") != "ytd" else None  # a YTD's prior already is the year-earlier YTD
+            yoy = u["intent"] == "explain" and u.get("compare") == "year_ago" and ya is not None
+            # the comparison: a named earlier quarter, a year earlier when a "why" asks year over year, else the period before
+            prev = p.get("against") or (ya if yoy else _prev_period(p))
+            add("metric_value", "prior", metric=m, period=prev)
             values = ["current", "prior"]
-            if ya:
+            if ya and not yoy:
                 add("metric_value", "year_ago", metric=m, period=ya)
                 values.append("year_ago")
             if u["intent"] == "breakdown" and u["by"]:
@@ -632,6 +711,10 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                            "prior": prev}.get(u.get("compare") or "")
                 if against:
                     add("metric_breakdown", "breakdown_compare", metric=m, period=against, by=u["by"])
+            if u.get("significance") and p.get("grain") in ("quarter", "month"):
+                # "is the drop significant?": the change read against the metric's own period-to-period variation
+                add("horizon_series", "significance", metric=m, grain=p["grain"],
+                    periods=12 if p["grain"] == "quarter" else 24, until=p)
             ranked = (u.get("rank") or {}).get("grain")
             if u["intent"] == "value" and ranked and p.get("grain") in ("year", "quarter") and ranked != p["grain"]:
                 # the months (or quarters) inside the period, so the answer can name the highest or lowest
@@ -907,6 +990,29 @@ _DOWN = re.compile(r"\b(declin\w*|fall(s|en|ing)?|fell|drop(s|ped|ping)?|decreas
                    r"deteriorat\w*|(go|went|gone) down|slump\w*|weaken\w*)\b", re.I)
 _UP = re.compile(r"\b(rise|rises|rising|risen|rose|increas\w*|gr[eo]w(s|n|ing)?|improv\w*|(go|went|gone) up|"
                  r"jump(s|ed|ing)?|climb\w*|strengthen\w*)\b", re.I)
+
+
+def _significance(spec: MetricSpec, series: dict[str, Any]) -> dict[str, str] | None:
+    """Whether the latest period's change stands out from the metric's own period-to-period changes before it."""
+    vals = [p["value"] for p in series.get("points") or []]
+    if len(vals) < 6 or any(v is None for v in vals):
+        return None
+    changes = [b - a for a, b in zip(vals, vals[1:], strict=False)]
+    last, hist = changes[-1], changes[:-1]
+    sd = statistics.stdev(hist)
+    grain = series.get("grain", "quarter")
+    basis = (f"The significance reading compares the latest {grain}'s change with the standard deviation of the "
+             f"{len(hist)} {grain}-to-{grain} changes before it; it is a check against the metric's own history, not a "
+             "formal hypothesis test on the underlying transactions.")
+    if not sd:
+        return None
+    z = abs(last) / sd
+    usual = fmt(sd, spec, delta=True).lstrip("+")
+    verdict = ("so it is unlikely to be ordinary variation" if z >= 2 else
+               "so it is within the metric's ordinary variation and may be noise")
+    return {"sentence": f"Is it significant? The {fmt(last, spec, delta=True)} move is {z:.1f} times the usual "
+                        f"{grain}-to-{grain} swing of {usual} over the previous {len(hist)} changes, {verdict}.",
+            "assumption": basis}
 
 
 def _premise(question: str) -> str | None:
@@ -1734,6 +1840,11 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     if spec:
         assumptions.append(f"{spec.title} uses the approved definition v{_metric_version(ctx, spec.name)}: "
                            f"{spec.description or value_expr(spec)}")
+    if spec and u.get("staffing_for"):
+        assumptions.append(f"No demand was named, so staffing is planned against {u['staffing_for']}.")
+    if spec and u.get("defaulted_metric"):
+        assumptions.append(f"No metric was named, so Lyst read the growth as {u['defaulted_metric'].lower()} growth; "
+                           "name another metric to rank by it.")
     if spec and u.get("method") == "model" and u.get("model_phrase"):
         assumptions.append(f"Lyst read \"{u['model_phrase']}\" in the request as {spec.title.lower()}. If you meant something "
                            "else, name the metric and ask again.")
@@ -1917,6 +2028,11 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                               f"{cur['period']['label']}; it {moved} versus {prev['period']['label']}. " + answer)
                     assumptions.append("The request assumed a " + ("decline" if premise == "down" else "rise")
                                        + " that the data does not show; the drivers below explain the actual change.")
+        if cur and o.get("significance"):
+            sig = _significance(spec, o["significance"])
+            if sig:
+                answer += " " + sig["sentence"]
+                assumptions.append(sig["assumption"])
         d = o.get("drivers")
         if d and d.get("best"):
             b = d["best"]
@@ -2147,6 +2263,10 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
                                     + (f", cost ${r_['cost']:,.0f}" if r_["cost"] is not None else "") + ".")
                 findings.append(f"The smallest headcount that keeps shortfall risk under 5% is {sc['minimum_agents_for_5pct']} agents "
                                 f"(current {int(sc['current_agents'])}).")
+                if answer:
+                    # "how many staff do we need?" is answered in the headline, not only in the findings
+                    answer += (f" Keeping the risk of falling short under 5% takes {sc['minimum_agents_for_5pct']} agents, "
+                               f"against {int(sc['current_agents'])} now.")
                 if sc.get("recommended"):
                     actions.insert(0, f"Plan for {sc['recommended']}: it is the cheapest scenario that keeps shortfall risk at or under 5%.")
                 else:
@@ -2274,7 +2394,9 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             assumptions.append(f"An earlier analysis ({consistency['at'][:16]}) answered differently on an earlier data version.")
     assumptions += context_notes
     expertise = expertise_rules.disclosure(ctx.request.get("expertise"), v.get("expertise_rules") or [])
-    if expertise and expertise["note"]:
+    if expertise and expertise["note"] and u.get("intent") not in expertise_rules.REPORTING_INTENTS:
+        # a reported figure (a count, a total, a split) does not carry the specialist checklist in its assumptions; the
+        # full disclosure stays in the answer's supporting record
         assumptions.append(expertise["note"])
     audience = u.get("audience", "analyst")
     brief = answer if audience != "executive" else " ".join([answer] + implications[:2] + (actions[:1] if actions else []))

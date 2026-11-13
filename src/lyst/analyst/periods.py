@@ -122,14 +122,18 @@ _MONTHS = {m.lower(): i for i, m in enumerate(
 _M = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(20\d{2})\b", re.I)
 
 
+def quarter(q: int, y: int, fs: int = 1) -> Period:
+    """Quarter ``q`` of year ``y`` ("Q2 2026"), read on the workspace's fiscal calendar like ``parse``."""
+    if fs == 1:
+        return _quarter(date(y, 3 * (q - 1) + 1, 1))
+    return _quarter(_add_months(date(y - 1, fs, 1), 3 * (q - 1)), fs)
+
+
 def parse(text: str, max_date: date, fs: int = 1) -> Period | None:
     t = text.lower()
     if m := _Q.search(t):
         y = int(m.group(2))
-        y = y + 2000 if y < 100 else y
-        if fs == 1:
-            return _quarter(date(y, 3 * (int(m.group(1)) - 1) + 1, 1))
-        return _quarter(_add_months(date(y - 1, fs, 1), 3 * (int(m.group(1)) - 1)), fs)
+        return quarter(int(m.group(1)), y + 2000 if y < 100 else y, fs)
     if m := _M.search(t):
         return _month(date(int(m.group(2)), _MONTHS[m.group(1)[:3].lower()], 1))
     if fs != 1 and (m := _FY.search(t)):
