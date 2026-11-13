@@ -491,7 +491,7 @@ def members() -> None:
                 st.rerun()
         if admin:
             with st.form("member", clear_on_submit=True, border=False):
-                c2 = st.columns([4, 1.4, 1.2], vertical_alignment="bottom")
+                c2 = st.columns([3.2, 1.8, 1.1], vertical_alignment="bottom")
                 email = c2[0].text_input("Add someone", placeholder="name@company.com",
                                          help="The person must have signed in to Lyst once.")
                 role = c2[1].selectbox("Role", ["viewer", "editor", "admin", "owner"], format_func=str.capitalize)
@@ -509,7 +509,7 @@ def _audit_rows(log: list[dict]) -> pd.DataFrame:
     except APIError:
         names = {}
     return pd.DataFrame([{"When": kit.when(r["occurred_at"]), "Who": names.get(r["actor"], r["actor"]),
-                          "Action": audit_title(r["action"]), "On": r["target"] or "", "Outcome": r["outcome"],
+                          "Action": audit_title(r["action"]), "On": r["target"] or "", "Outcome": outcome_word(r["outcome"]),
                           "Detail": "" if r["detail"] in (None, "{}", {}) else str(r["detail"])} for r in log])
 
 
@@ -518,6 +518,16 @@ def audit_sheet(log: list[dict]) -> None:
     st.caption("Every change, query and decision, newest first.", help="The trail is hash-chained, so an edit to a past "
                "entry is detected.")
     st.dataframe(_audit_rows(log), hide_index=True, width="stretch", height=520)
+
+
+OUTCOMES = {"ok": "done", "pending_approval": "waiting for approval", "denied": "not allowed", "error": "failed",
+            "failed": "failed", "rejected": "turned down", "approved": "approved", "partial": "partly done"}
+
+
+def outcome_word(outcome: object) -> str:
+    """An audit outcome in words: "pending_approval" reads "waiting for approval", never the code."""
+    o = str(outcome or "")
+    return OUTCOMES.get(o, o.replace("_", " "))
 
 
 PAST = {"write": "saved", "create": "created", "version": "versioned", "compile": "compiled", "delete": "deleted",
@@ -593,7 +603,7 @@ def audit() -> None:
             kit.row(audit_title(r["action"]),
                     " · ".join(x for x in (names.get(r.get("actor"), "Lyst" if not r.get("actor") else "Someone"),
                                            kit.when(r["occurred_at"]),
-                                           None if r.get("outcome") in (None, "ok") else str(r["outcome"])) if x),
+                                           None if r.get("outcome") in (None, "ok") else outcome_word(r["outcome"])) if x),
                     key=f"aud_{i}", divider=i < min(len(log), 4) - 1)
     if st.button(f"All {len(log):,} entries", type="tertiary", icon=":material/history:", key="set_audit_all"):
         audit_sheet(log)
@@ -827,7 +837,7 @@ div[class*="st-key-set_nav_on_"] button [data-testid="stIconMaterial"] {backgrou
 h2.lyst-set-h {font-size: 1.6rem; letter-spacing: -.02em; font-weight: 650; margin: .2rem 0 0 0; padding: 0;}
 p.lyst-set-sub {color: var(--lyst-text-muted); margin: .15rem 0 1rem 0;}
 h3.lyst-set-h3 {font-size: 1.15rem; font-weight: 650; margin: 0 0 .2rem 0; padding: 0;}
-hr.lyst-set-rule {border: 0; border-top: 1px solid var(--lyst-border); margin: 1.4rem 0 .6rem 0;}
+hr.lyst-set-rule {border: 0; border-top: 1px solid var(--lyst-border); margin: 1.8rem 0 1rem 0 !important;}
 .lyst-set-me {display: flex; align-items: center; gap: .9rem; margin: .2rem 0 1rem 0; line-height: 1.35;}
 .lyst-set-me span:last-child {color: var(--lyst-text-muted); font-size: var(--lyst-size-sm);}
 .lyst-set-me b {color: var(--lyst-text); font-size: 1.05rem;}

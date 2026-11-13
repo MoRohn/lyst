@@ -765,3 +765,15 @@ def test_a_slide_reads_without_the_footer_every_slide_repeats():
     lines = ["Lyst · Why did margin fall?", "WHAT IT MEANS\n• EMEA drove it.\n• Act there.", "Lyst · 11 Nov 2026"]
     assert slide_lines(lines, deck) == [("kicker", "What it means"), ("li", "EMEA drove it."), ("li", "Act there."),
                                         ("p", "Lyst · 11 Nov 2026")]
+
+
+def test_a_tablet_keeps_page_tools_on_one_row_and_settings_words_whole():
+    """Between a phone and a desktop, Data's and Brain's tools sit in one row under the title, Settings' list keeps a
+    width that holds each word whole, and an empty activity column shrinks to its name."""
+    from pathlib import Path
+
+    ui = Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui"
+    kit = (ui / "kit.py").read_text(encoding="utf-8")
+    tablet = kit.split("@media (min-width: 641px) and (max-width: 1100px)", 1)[1].split("\n}\n", 1)[0]
+    assert "st-key-data_tools" in tablet and "st-key-brain_tools" in tablet and "st-key-set_nav" in tablet
+    assert ".z-col:not(.has)" in (ui / "zone_component" / "zone.css").read_text(encoding="utf-8")
