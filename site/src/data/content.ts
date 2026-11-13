@@ -83,7 +83,7 @@ export const capabilities: {
     icon: 'ChartNoAxesCombined',
     title: 'Analyze',
     text: 'Rigorous quantitative work, end to end. A single figure comes with its recent history, and what-ifs and forecasts read against the same last complete quarter as every other answer, never a half-loaded month.',
-    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings by client, category or region', 'One named line per region', 'Year over year, for each member', 'Year to date against last year’s', 'Backtested forecasts, quarter by quarter', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
+    items: ['SQL', 'Sandboxed Python workbench', 'Statistics', 'Rankings by client, category or region', 'One named line per region', 'Two quarters compared, by region', 'Year over year, by member and by driver', '“Is it significant?” against its usual move', 'Headcount from the demand forecast', 'Year to date against last year’s', 'Backtested forecasts, quarter by quarter', 'What-if scenarios', 'Monte Carlo ranges', 'Fiscal quarters and years'],
     status: 'available',
   },
   {
