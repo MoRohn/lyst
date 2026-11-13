@@ -301,7 +301,8 @@ period (the same "last quarter" as every other answer, named in the headline: "f
 with your own permissions, and whose assumptions carry a plausible range. The answer is labelled
 hypothetical, lists the observed inputs (period, dataset version, data-through date), the assumptions and the
 formulas as evidence, and is recomputed independently. Changes can be given as percentages or in points ("COGS
-ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, any change
+ratio rises 2 points"). A driver the model does not have is listed as "Not modelled", never guessed, a change to something
+the model cannot move says what it can change instead, past tense works too ("What if costs fell 10%?"), any change
 Lyst could not apply is stated, and such an answer is never marked Verified. From there: tornado sensitivity, best, base and worst cases, a seeded Monte Carlo (P5,
 P50, P95 and the chance of falling below a threshold), and saved scenarios that can be rerun and compared, with
 any drift reported.
@@ -474,6 +475,13 @@ where they point, with Mark all read and "What to tell me about".
   investigated and verified within that segment), deep investigations
   that decide between competing hypotheses by computation, staffing scenarios under uncertainty, and event
   impact with stated assumptions.
+* **Everyday questions, answered the way they were asked.** Name two quarters ("Compare revenue by region for Q2 and
+  Q3 2026") and Lyst shows each region's change between them. Ask what drove growth "year over year" and the change
+  is explained against the same quarter a year earlier. "Which region grew fastest?" ranks by revenue growth when no
+  metric is named, and says so. "Is the drop significant?" is judged against how much the metric usually moves, and
+  Lyst says plainly that this is not a formal statistical test. "How many staff do we need next quarter?" answers
+  with a headcount, from the demand forecast and the staffing data. Simple figures stay simple; investigations and
+  forecasts keep their checklist note.
 * **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
   briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
   month or quarter (or the one you name), flags what moved more than that metric usually does, against last period
