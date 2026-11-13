@@ -217,3 +217,12 @@ def test_a_pdf_keeps_a_long_level_on_one_line(seeded):
     _, pdf = lyst.artifacts.get(owner, p["id"])
     first = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
     assert "Verified with warnings" in first  # one line beside the stamp, not "Verified with" / "warnings"
+
+
+def test_a_download_is_named_in_the_brain_by_its_question_and_format(seeded):
+    lyst, owner = seeded
+    t = ask(lyst, owner, "What was revenue last quarter?")
+    a = lyst.artifacts.build(owner, t, "pdf")
+    art = next(e for e in lyst.knowledge.entities(owner, "northwind", "artifact") if e["name"] == a["id"])
+    assert art["attributes"]["title"] == "What was revenue last quarter? (PDF briefing)"
+    assert art["attributes"]["format"] == "pdf" and art["attributes"]["task_id"] == t["id"]

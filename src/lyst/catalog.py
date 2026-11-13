@@ -336,9 +336,16 @@ class CatalogService:
         restricted, _ = self._visibility(actor, ws)
         hits: list[dict[str, Any]] = []
 
+        # a word typed only in part ("rev", "oper") matches the start of a word, at half the weight of a whole word,
+        # so search answers while someone is still typing
+        partial = {t for t in q if len(t) >= 3}
+
         def score(primary: str, secondary: str = "") -> float:
             p, s = set(tokens(primary)), set(tokens(secondary))
-            return 3.0 * len(q & p) + 1.0 * len(q & (s - p))
+            whole = 3.0 * len(q & p) + 1.0 * len(q & (s - p))
+            starts_p = {t for t in partial - p if any(w.startswith(t) for w in p)}
+            starts_s = {t for t in partial - p - s - starts_p if any(w.startswith(t) for w in s)}
+            return whole + 1.5 * len(starts_p) + 0.5 * len(starts_s)
 
         metrics = self.semantic.metrics(actor, ws)
         glossary = self.semantic.glossary(actor, ws)

@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 from urllib.parse import urlencode
 
+import duckdb
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
@@ -528,6 +529,20 @@ def create_app(lyst: Lyst | None = None, *, start_workers: bool = True, oidc: OI
     @app.exception_handler(QueryRejected)
     async def _rejected(_: Request, exc: QueryRejected):
         return JSONResponse({"error": "query_rejected", "detail": str(exc)}, status_code=400)
+
+    def _query_failed(_: Request, exc: Exception):
+        # a query the guard accepted but DuckDB could not run (a misspelled column, a bad cast) is the asker's to fix:
+        # say what DuckDB said, without the rewritten SQL it quotes (that names internal table versions)
+        lines = [x for x in str(exc).split("\n") if x.strip()]
+        keep = []
+        for x in lines:
+            if x.startswith("LINE ") or x.strip().startswith("^"):
+                break
+            keep.append(x.strip())
+        return JSONResponse({"error": "query_failed", "detail": " ".join(keep[:3])[:400]}, status_code=400)
+
+    app.add_exception_handler(duckdb.ProgrammingError, _query_failed)
+    app.add_exception_handler(duckdb.DataError, _query_failed)
 
     @app.exception_handler(ConnectorError)
     async def _connector(_: Request, exc: ConnectorError):

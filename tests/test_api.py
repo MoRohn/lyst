@@ -48,3 +48,15 @@ def test_settings_patch_and_model_usage_need_admin(seeded):
         assert c.get("/v1/workspaces/northwind/model-usage", headers=ho).json() == []
         assert c.get("/v1/workspaces/northwind/model-usage", headers=hv).status_code == 403
         assert c.patch("/v1/workspaces/northwind/settings", json={"autonomy": "reckless"}, headers=ho).status_code == 400
+
+
+def test_a_query_duckdb_cannot_run_is_the_askers_to_fix_not_a_server_error(seeded):
+    lyst, owner = seeded
+    h = {"Authorization": f"Bearer {lyst.guard.issue_token(owner)}"}
+    with TestClient(create_app(lyst, start_workers=False)) as c:
+        r = c.post("/v1/workspaces/northwind/query", headers=h, json={"sql": 'SELECT nope FROM "demand"'})
+        assert r.status_code == 400 and r.json()["error"] == "query_failed"
+        detail = r.json()["detail"]
+        assert 'Referenced column "nope" not found' in detail and "__v" not in detail and "LINE" not in detail
+        r = c.post("/v1/workspaces/northwind/query", headers=h, json={"sql": "SELECT CAST('x' AS INTEGER) FROM demand"})
+        assert r.status_code == 400 and "Could not convert" in r.json()["detail"]
