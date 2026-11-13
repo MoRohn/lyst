@@ -361,3 +361,28 @@ def test_how_many_staff_is_answered_with_a_headcount(seeded):
     assert "Keeping the risk of falling short under 5% takes " in r["answer"] and " agents, against 43 now." in r["answer"]
     assert any(a.startswith("No demand was named, so staffing is planned against Support tickets")
                for a in r["supporting"]["assumptions"])
+
+
+def test_what_to_do_about_a_segment_investigates_its_worst_move(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What should we do about EMEA?")["result"]
+    assert r.get("mode") != "conversation"
+    assert r["answer"].startswith("For EMEA, the figure to act on is operating margin, the one that moved most the wrong way. "
+                                  "Operating margin (EMEA) was ")
+    assert any(a.startswith("Review what changed in ") and " in EMEA in Q3 2026" in a for a in r["actions"])
+    assert any(a.startswith("You asked what to do about EMEA: of the 5 approved metrics split by region")
+               for a in r["supporting"]["assumptions"])
+
+
+def test_advice_about_a_segment_that_did_well_says_nothing_needs_fixing(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "How do we fix APAC?")["result"]
+    assert r["answer"].startswith("Nothing in APAC moved the wrong way in Q3 2026: every approved metric split by region "
+                                  "held or improved.")
+    assert r["actions"][-1].startswith("No fix is needed for APAC on these numbers")
+
+
+def test_advice_about_something_that_is_not_a_segment_stays_a_conversation(seeded):
+    lyst, owner = seeded
+    r = ask(lyst, owner, "What should we do about pricing?")["result"]
+    assert r.get("mode") == "conversation"
