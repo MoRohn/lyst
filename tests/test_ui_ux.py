@@ -772,8 +772,32 @@ def test_a_tablet_keeps_page_tools_on_one_row_and_settings_words_whole():
     width that holds each word whole, and an empty activity column shrinks to its name."""
     from pathlib import Path
 
-    ui = Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui"
-    kit = (ui / "kit.py").read_text(encoding="utf-8")
+    folder = Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui"
+    kit = (folder / "kit.py").read_text(encoding="utf-8")
     tablet = kit.split("@media (min-width: 641px) and (max-width: 1100px)", 1)[1].split("\n}\n", 1)[0]
     assert "st-key-data_tools" in tablet and "st-key-brain_tools" in tablet and "st-key-set_nav" in tablet
-    assert ".z-col:not(.has)" in (ui / "zone_component" / "zone.css").read_text(encoding="utf-8")
+    assert ".z-col:not(.has)" in (folder / "zone_component" / "zone.css").read_text(encoding="utf-8")
+
+
+def test_a_relationship_reads_in_dataset_titles_from_the_open_dataset():
+    """The Relationships view names the other dataset by its title and the column in words, not table ids."""
+    import ast
+    import re
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "src" / "lyst" / "ui" / "app_pages" / "data.py").read_text(encoding="utf-8")
+    fn = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "relation")
+    ns: dict = {"re": re}
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), "data", "exec"), ns)  # noqa: S102
+    rel = ns["relation"]
+    titles = {"demand": "Support demand", "pnl": "Monthly P&L", "pnl_ledger": "P&L from the ledger"}
+    shared = {"kind": "shared_dimension", "from_dataset": "demand", "from_column": "month", "to_dataset": "pnl",
+              "to_column": "month", "evidence": {"matching": 33}, "text": "demand and pnl share month"}
+    assert rel(shared, "demand", titles) == "Shares month with Monthly P&L (33 values in common), so the two can be compared on it"
+    assert "Support demand" in rel(shared, "pnl", titles)
+    fk = {"kind": "foreign_key", "from_dataset": "demand", "from_column": "month", "to_dataset": "pnl_ledger",
+          "to_column": "month", "evidence": {"containment": [1.0, 0.4]}, "text": "demand.month references pnl_ledger.month"}
+    assert rel(fk, "demand", titles) == "Its month points to P&L from the ledger (100% of values found)"
+    assert rel(fk, "pnl_ledger", titles) == "Support demand's month points here (100% of values found)"
+    odd = {"kind": "something_new", "from_dataset": "pnl_ledger", "to_dataset": "pnl", "text": "pnl_ledger and pnl differ"}
+    assert rel(odd, "pnl", titles) == "P&L from the ledger and Monthly P&L differ"
