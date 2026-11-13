@@ -480,7 +480,8 @@ where they point, with Mark all read and "What to tell me about".
   is explained against the same quarter a year earlier. "Which region grew fastest?" ranks by revenue growth when no
   metric is named, and says so. "Is the drop significant?" is judged against how much the metric usually moves, and
   Lyst says plainly that this is not a formal statistical test. "How many staff do we need next quarter?" answers
-  with a headcount, from the demand forecast and the staffing data. Simple figures stay simple; investigations and
+  with a headcount, from the demand forecast and the staffing data. "What should we do about EMEA?" investigates the figure
+  that moved most the wrong way there and turns it into recommended actions; if nothing went wrong, it says so. Simple figures stay simple; investigations and
   forecasts keep their checklist note.
 * **Business briefs.** Ask for a brief ("Give me a weekly KPI brief", "What changed this month?", "Board
   briefing on Q3 2026", "Brief me on revenue"). Lyst reads every approved metric you can query for the last complete
