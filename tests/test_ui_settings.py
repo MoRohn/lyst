@@ -71,7 +71,8 @@ def test_the_audit_trail_reads_in_words_for_every_action_lyst_records():
     tree = ast.parse((root / "ui" / "app_pages" / "settings.py").read_text(encoding="utf-8"))
     keep = [n for n in tree.body if (isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name)
                                      and n.targets[0].id in ("PAST", "NOUN", "WHOLE"))
-            or (isinstance(n, ast.FunctionDef) and n.name == "audit_title")]
+            or (isinstance(n, ast.FunctionDef) and n.name in ("audit_title", "outcome_word"))
+            or (isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "OUTCOMES")]
     ns: dict = {}
     exec(compile(ast.Module(body=keep, type_ignores=[]), "settings", "exec"), ns)  # noqa: S102
     title = ns["audit_title"]
@@ -83,3 +84,7 @@ def test_the_audit_trail_reads_in_words_for_every_action_lyst_records():
     assert len(audited) > 50
     raw = sorted(a for a in audited if " · " in title(a))
     assert not raw, raw
+    # and its outcome reads in words too: never "pending_approval"
+    word = ns["outcome_word"]
+    assert word("pending_approval") == "waiting for approval" and word("denied") == "not allowed"
+    assert "_" not in word("some_new_state")

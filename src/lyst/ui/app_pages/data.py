@@ -405,6 +405,40 @@ def health(d: dict) -> tuple[str, str] | None:
     return None
 
 
+def relation(x: dict, here: str, titles: dict[str, str]) -> str:
+    """One relationship in words and dataset titles, seen from the dataset that is open: "Shares month with Monthly
+    P&L (33 values in common), so the two can be compared on it", not "demand and pnl share month"."""
+    a, b = x.get("from_dataset"), x.get("to_dataset")
+    other = titles.get(b if a == here else a) or (b if a == here else a) or "another dataset"
+    col = str(x.get("from_column") or x.get("to_column") or "").replace("_", " ")
+    ev = x.get("evidence") or {}
+    kind = x.get("kind")
+    if kind == "shared_dimension":
+        n = ev.get("matching")
+        return f"Shares {col} with {other}" + (f" ({n:,} values in common)" if isinstance(n, int) else "") + \
+            ", so the two can be compared on it"
+    if kind == "foreign_key":
+        share = max(ev.get("containment") or [None], key=lambda v: v or 0)  # the side that points: 98% or more
+        found = f" ({share:.0%} of values found)" if isinstance(share, int | float) else ""
+        return f"Its {col} points to {other}{found}" if a == here else f"{other}'s {col} points here{found}"
+    if kind == "inconsistent_definition":
+        if ev.get("matching_ignoring_case"):
+            return f"{col.capitalize()} differs from {other} only by case or spacing"
+        if not ev.get("matching"):
+            return f"{col.capitalize()} here and in {other} share no values, so they likely mean different things"
+        lo = min(ev.get("distinct") or [0]) or 0
+        return f"{col.capitalize()} overlaps {other} only {ev['matching'] / lo:.0%}" if lo else \
+            f"{col.capitalize()} overlaps {other} only partly"
+    if kind == "overlap":
+        differing = [str(m).replace("_", " ") for m in ev.get("differing") or []]
+        return (f"Carries the same measures as {other} at the same grain; "
+                + (f"totals differ on {', '.join(differing)}" if differing else "the totals agree"))
+    text = str(x.get("text") or "")
+    for raw, title in sorted(titles.items(), key=lambda kv: -len(kv[0])):
+        text = re.sub(rf"\b{re.escape(raw)}\b", title, text)
+    return text
+
+
 EXPLORE = ["Preview", "Columns", "Quality", "Relationships", "SQL", "Contract"]
 # risks the review table already shows row by row (lyst.quality); the rest (time gaps, personal data ...) stay listed
 ROW_LEVEL = ("missing_values", "negative_amount", "outliers")
@@ -451,7 +485,9 @@ def explore(d: dict) -> None:
     elif view == "Relationships":
         ins = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/insights")) or {}
         rel = ins.get("relationships") or []
-        st.markdown("\n".join(f"- {md(x['text'])}" for x in rel) if rel else "No relationship to other data found yet.")
+        titles = {c["name"]: c.get("title") or c["name"] for c in catalog}
+        st.markdown("\n".join(f"- {md(relation(x, name, titles))}" for x in rel) if rel
+                    else "No relationship to other data found yet.")
         used = kit.guarded(lambda: api.get(f"/v1/workspaces/{ws}/datasets/{name}/impact")) or []
         kit.label("What depends on it")
         st.caption(", ".join(f"{u['title']} ({u['kind']})" for u in used) if used else "Nothing approved reads it yet.")
@@ -526,7 +562,8 @@ def contract(name: str) -> None:
             return
         st.markdown(f"Lyst drafted one from the data: **{len(draft['columns'])} columns**"
                     + (f", one row per {' × '.join(k.replace('_', ' ') for k in draft['key'])}" if draft.get("key") else "")
-                    + (f", {len(draft.get('references') or [])} link(s) to other tables" if draft.get("references") else "") + ".")
+                    + (f", {len(refs)} link{'s' * (len(refs) != 1)} to other tables" if (refs := draft.get("references") or [])
+                       else "") + ".")
         st.dataframe(pd.DataFrame([{"Column": x["name"], "Type": x["type"], "Required": x["required"],
                                     "Allowed values": ", ".join(map(str, x["accepted_values"] or [])),
                                     "Minimum": x["min"]} for x in draft["columns"]]), hide_index=True, width="stretch")
@@ -577,7 +614,7 @@ def sync_body(conn: dict, *, after: object = None) -> None:
     try:
         tables = api.get(f"/v1/workspaces/{ws}/connections/{conn['id']}/tables")
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     if not tables:
         st.caption("This source has no tables Lyst can read.")
@@ -1499,4 +1536,4 @@ try:
             onboarding.data_suggestions()
         zone.board("data", place="bottom")
 except APIError as e:
-    st.error(str(e), icon=":material/cloud_off:")
+    st.error(kit.reason(e), icon=":material/cloud_off:")

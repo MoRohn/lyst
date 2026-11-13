@@ -43,7 +43,9 @@ from . import datasheet as datasheet_mod
 from . import foundry, periods, prescriptive, reasoning
 from . import incidents as incidents_mod
 from . import profit as profit_mod
+from . import quality_review as quality_review_mod
 from . import receivables as receivables_mod
+from . import repeat as repeat_mod
 from .registry import REGISTRY, Context, Registry, capability
 
 
@@ -136,7 +138,9 @@ def _evidence(r, purpose: str) -> dict[str, Any]:
 
 INTENT_RULES: list[tuple[str, re.Pattern]] = [
     ("sql", re.compile(r"^\s*(select|with)\b", re.I)),
-    ("profile", re.compile(r"\b(profile|data quality|quality of|inconsisten|describe the data|nulls?|duplicates?)\b", re.I)),
+    ("profile", re.compile(r"\b(profile|data quality|quality of|inconsisten|describe the data|nulls?|duplicates?|"
+                           r"(is|are) (our|the|this|my) (data|datasets?) (clean|reliable|accurate|complete|ok|okay))\b",
+                           re.I)),
     ("forecast", re.compile(r"\b(forecast|predict|project(ion)?|next \d+ (months|quarters))\b", re.I)),
     ("explain", re.compile(r"\b(why|explain|driver|drove|declin\w*|drop|fell|increas\w*|rose|chang\w*|variance|cause|"
                            r"investigat\w*|contribut\w*|root cause)\b", re.I)),
@@ -258,6 +262,10 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         dataset = max(hits, key=len) if hits else None
         if not dataset and resolved["metrics"]:
             dataset = metrics[resolved["metrics"][0]].dataset
+        if not dataset and len(names) > 1 and not ctx.request.get("workflow"):
+            # "Are there any data quality issues?" names no dataset: check every one the asker can read
+            # (quality_review.py) instead of asking which
+            return quality_review_mod.understanding(text)
     method = "rules"
     model_phrase = None
     if s.llm.allowed_for(ctx.workspace_id) and not resolved["metrics"] and intent not in ("sql", "profile"):
@@ -524,7 +532,7 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
 def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     u = ctx.outputs["understand"]
     s = ctx.services
-    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents"):  # a reply reads the catalog; a brief or close finds its own period
+    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents", "quality_review"):  # a reply reads the catalog; a brief or close finds its own period
         return {"metrics": [], "datasets": [], "memory": [], "period": None, "passages": [], "prior_answers": []}
     catalog = {d["name"]: d for d in s.data.catalog(ctx.actor, ctx.workspace_id)}
     metrics = []
@@ -602,11 +610,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             s["agent"], s["phase"] = cap.agent, cap.phase
         return {"steps": steps, "blockers": [], "depth": "conversation", "verification": "none", "strategy": "conversation",
                 "success_criteria": ["the reply names only what exists in the workspace", "the reply states no figures"]}
-    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents"):  # computes and checks its own figures
+    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents", "quality_review"):  # computes and checks its own figures
         key = u["intent"]
         cap_name = {"brief": "business_brief", "close": "close_checks", "receivables": "receivables",
                     "profit": "profit", "annotations": "label_audit",
-                    "datasheet": "datasheet", "incidents": "incident_review"}[key]
+                    "datasheet": "datasheet", "incidents": "incident_review",
+                    "quality_review": "quality_review"}[key]
         steps = [{"capability": cap_name, "key": key, "args": {},
                   "after": ["plan"]},
                  {"capability": "deliver", "key": "deliver", "args": {}, "after": [key]}]
@@ -1805,6 +1814,11 @@ def converse(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             description="Write the answer: Answer, Evidence, Business implications, Recommended actions, "
                         "Supporting work.")
 def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
+    # a first question that says "every Monday" also asks for the schedule (repeat.py)
+    return repeat_mod.apply(ctx, _deliver(ctx, args))
+
+
+def _deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     o = ctx.outputs
     u, c, pl = o["understand"], o["contextualize"], o["plan"]
     if u["intent"] == "brief":
@@ -1821,6 +1835,8 @@ def deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return _clean(datasheet_mod.result(ctx))
     if u["intent"] == "incidents":
         return _clean(incidents_mod.result(ctx))
+    if u["intent"] == "quality_review":
+        return _clean(quality_review_mod.result(ctx))
     if u["intent"] == "converse":
         return _clean(converse_mod.result(u["question"], o["reply"], narrative_by=o["reply"].get("narrative_by", "template")))
     v = o.get("validate", {"checks": [], "status": "passed"})

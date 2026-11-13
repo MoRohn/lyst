@@ -17,6 +17,8 @@ switch never shows another workspace's items.
 
 from __future__ import annotations
 
+import re
+import time
 from typing import Any
 
 import streamlit as st
@@ -176,11 +178,35 @@ def _artifacts(q: str) -> None:
             artifacts.open_artifact(it)
 
 
+def _names(api: Any, ws: str) -> list[dict]:
+    """The workspace's metrics and datasets by title, kept for a minute so each keystroke doesn't ask again."""
+    kept = st.session_state.get("_pal_names")
+    if kept and kept[0] == ws and time.monotonic() - kept[1] < 60:
+        return kept[2]
+    out: list[dict] = []
+    for kind, path, why in (("metric", "metrics", "approved metric"), ("dataset", "datasets", "dataset")):
+        try:
+            out += [{"kind": kind, "name": x["name"], "title": x.get("title") or x["name"], "why": why}
+                    for x in api.get(f"/v1/workspaces/{ws}/{path}")]
+        except APIError:
+            pass
+    st.session_state["_pal_names"] = (ws, time.monotonic(), out)
+    return out
+
+
+def starting(items: list[dict], q: str) -> list[dict]:
+    """Items with a word in the title that starts with what was typed: "rev" finds Revenue and Hardware revenue."""
+    q = q.strip().lower()
+    return [x for x in items if q and any(w.startswith(q) for w in re.split(r"[^\w&]+", x["title"].lower()))]
+
+
 def _found(api: Any, ws: str, q: str) -> None:
     try:
         hits = api.get(f"/v1/workspaces/{ws}/catalog/search", q=q)["results"][:6]
     except APIError:
-        return
+        hits = []
+    if not hits:  # the search matches whole words; while a word is still being typed ("rev"), match its start
+        hits = starting(_names(api, ws), q)[:6]
     if not hits:
         return
     _section("Found", len(hits))

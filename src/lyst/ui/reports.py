@@ -12,6 +12,12 @@ from lyst.ui.client import APIError, client, workspace
 from lyst.ui.components import md
 
 
+def times(n: object) -> str:
+    """A count of runs in words: once, twice, 3 times."""
+    k = int(n or 0)
+    return {0: "never", 1: "once", 2: "twice"}.get(k, f"{k:,} times")
+
+
 def _ctx():
     """Read per run, never at import: this module is imported once and shared by every session."""
     return client(), workspace(), st.session_state.get("role") in ("editor", "admin", "owner")
@@ -98,7 +104,8 @@ def workflow_detail(w: dict, asset: dict | None = None) -> None:
     d = w["definition"]
     grain = (d["inputs"].get("period") or {}).get("grain")
     st.markdown(f"**{w['title']}**")
-    st.caption(f"{md(d['purpose'])} · v{w['version']} · verified {w['verified_runs']}× · reused {w['runs']}×")
+    st.caption(f"{md(d['purpose'])} · v{w['version']} · verified {times(w['verified_runs'])}"
+               + (f" · reused {times(w['runs'])}" if w.get("runs") else ""))
     if w["status"] == "stale":
         st.warning(f"Out of date: {w.get('invalid_reason')}. The next verified answer to this question rebuilds it.",
                    icon=":material/sync_problem:")
@@ -136,14 +143,16 @@ def workflows() -> None:
         kit.empty(":material/bolt:", "No workflows yet", "When an answer is verified, Lyst saves how it got there. Asking "
                   "again, for any period, reuses that checked plan instead of working it out from scratch.")
         return
-    st.caption("Saved analyses: verified answers Lyst can rerun for any period, or repeat on its own. A changed "
-               "definition or data layout marks one out of date until it is verified again.")
+    st.caption("A changed definition or data layout marks one out of date until it is verified again.")
     reg = assets_by_ref("workflow")
     for i, w in enumerate(flows):
         grain = (w["definition"]["inputs"].get("period") or {}).get("grain")
         own = ("Ready", "verified") if w["status"] == "active" else ("Out of date", "warn")
-        if kit.row(w["title"], f"Verified {w['verified_runs']}× · reused {w['runs']}×"
-                   + (f" · by {grain}" if grain else "") + f" · last used {kit.when(w.get('last_used_at')) or 'not yet'}",
+        used = kit.when(w.get("last_used_at"))
+        if kit.row(w["title"], " · ".join(x for x in (
+                       f"Verified {times(w['verified_runs'])}" if w.get("verified_runs") else "Not verified yet",
+                       f"reused {times(w['runs'])}" if w.get("runs") else "not reused yet",
+                       f"by {grain}" if grain else None, f"last used {used}" if used else None) if x),
                    status=health_chip(reg.get(w["id"])) or own,
                    actions=[("Open", "open")], key=f"w{w['id']}", divider=i < len(flows) - 1):
             workflow_detail(w, reg.get(w["id"]))

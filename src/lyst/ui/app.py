@@ -56,7 +56,7 @@ def setup_page() -> None:
     try:
         status = api.get("/setup/status")
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         st.stop()
     st.write("Lyst encrypts everything at rest: its databases and every credential you connect. The master key is kept "
              "outside the data, in this machine's credential store, and never beside the database.")
@@ -88,7 +88,7 @@ def setup_page() -> None:
                 st.session_state["recovery_key"] = out["recovery_key"]
                 st.rerun()
             except APIError as e:
-                st.error(str(e))
+                st.error(kit.reason(e))
     with c2:
         st.markdown("**Recover an installation**")
         st.caption("Paste the recovery copy of an existing installation's master key.")
@@ -99,7 +99,7 @@ def setup_page() -> None:
                     api.post("/setup/initialize", {"recovery_key": key.strip()})
                     st.rerun()
                 except APIError as e:
-                    st.error(str(e))
+                    st.error(kit.reason(e))
     st.stop()
 
 
