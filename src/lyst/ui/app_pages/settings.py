@@ -23,7 +23,7 @@ def _reauth(e: APIError) -> None:
         st.warning("Sign in again to manage credentials (recent authentication is required for this action).", icon=":material/lock:")
         st.link_button("Sign in again", f"{api.base}/auth/login", icon=":material/login:")
     else:
-        st.error(str(e))
+        st.error(kit.reason(e))
 
 
 @st.cache_data(ttl=300)
@@ -175,7 +175,7 @@ def model_sheet(opts: dict) -> None:
                 st.toast("Model choice saved; the next call uses it.", icon=":material/check:")
                 st.rerun()
             except APIError as e:
-                st.error(str(e))
+                st.error(kit.reason(e))
 
 
 @st.dialog("Every model and price", width="large")
@@ -251,7 +251,7 @@ def models() -> None:
         try:
             opts = api.get(f"/v1/workspaces/{ws}/model-options")
         except APIError as e:
-            st.caption(str(e))
+            st.caption(kit.reason(e))
     if opts and opts.get("selection"):
         sel, b, cat = opts["selection"], opts["basis"], opts["catalog"]
         st.markdown("**Model level**")
@@ -421,7 +421,7 @@ def usage_and_limits() -> None:
     try:
         op = api.get(f"/v1/workspaces/{ws}/operations")
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     kit.label("Usage & limits")
     me = next((u for u in op.get("usage") or [] if u["workspace_id"] == ws), {})
@@ -479,7 +479,7 @@ def members() -> None:
     try:
         people = api.get(f"/v1/workspaces/{ws}/members")
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     with kit.group(f"Members · {len(people)}", "members"):
         for i, p in enumerate(people):
@@ -589,7 +589,7 @@ def audit() -> None:
     try:
         log = api.get(f"/v1/workspaces/{ws}/audit")
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     if not log:
         st.caption("Nothing recorded yet.")

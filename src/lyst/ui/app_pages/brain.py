@@ -752,4 +752,4 @@ try:
             overview()
             zone.board("brain", place="bottom")  # Work lists the same activity itself; one quiet line would repeat it
 except APIError as e:
-    st.error(str(e), icon=":material/cloud_off:")
+    st.error(kit.reason(e), icon=":material/cloud_off:")

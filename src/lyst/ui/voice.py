@@ -51,7 +51,7 @@ def _turn(sid: str, body: dict) -> dict | None:
             fresh = _session()
             if fresh:
                 return kit.guarded(lambda: api.post(f"/v1/workspaces/{ws}/voice/sessions/{fresh}/turns", body))
-        st.error(str(e), icon=":material/error:")
+        st.error(kit.reason(e), icon=":material/error:")
         return None
 
 
@@ -155,7 +155,7 @@ def settings_section() -> None:
         cfg = api.get(f"/v1/workspaces/{ws}/voice/settings")
         eng = api.get(f"/v1/workspaces/{ws}/voice/engines")
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     kit.label("You")
     c = st.columns(3)

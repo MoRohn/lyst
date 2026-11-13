@@ -53,7 +53,7 @@ def submit(q: str) -> None:
                        f"{e} Try again shortly, or ask an administrator to raise the limit in Settings › Workspace.",
                        icon=":material/hourglass_top:")
         else:
-            st.error(str(e), icon=":material/error:")
+            st.error(kit.reason(e), icon=":material/error:")
         return
     st.session_state.pop("_agent", None)  # the new request shows in what Lyst is doing at once
     from lyst.ui.agent_bar import _settle  # noqa: PLC0415
@@ -246,7 +246,7 @@ def how_it_ran(task: str) -> None:
     try:
         tr = api.get(f"/v1/tasks/{task}/trace")
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     s = tr["summary"]
     parts = [f"{_secs(s['wall_ms'])} of work" + (f" after {_secs(s['queued_ms'])} in the queue" if s["queued_ms"] else ""),
@@ -524,7 +524,7 @@ def task_view(task: str) -> None:
     try:
         t = api.get(f"/v1/tasks/{task}")
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     # the heading is the whole request (list titles are shortened); long requests use a smaller size
     full = ((t.get("request") or {}).get("question") or t["title"]).strip()

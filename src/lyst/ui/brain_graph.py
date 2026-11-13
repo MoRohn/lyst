@@ -207,7 +207,7 @@ def knowledge() -> None:
     try:
         graph = readable(api.get(f"/v1/workspaces/{ws}/brain/graph", runs=runs))
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")
         return
     if not graph["nodes"]:
         kit.empty(":material/hub:", "Nothing in the Brain yet", "Add data, approve a metric or teach Lyst something, "
@@ -301,7 +301,7 @@ def run_view(run_id: str) -> None:
     try:
         run = api.get(f"/v1/workspaces/{ws}/graph-runs/{run_id}")
     except APIError as e:
-        st.error(str(e), icon=":material/error:")
+        st.error(kit.reason(e), icon=":material/error:")
         return
     label, tone = STATUS.get(run["status"], (run["status"], "info"))
     head = st.columns([4, 1.1, 1.1, 1.1], vertical_alignment="center")
@@ -380,7 +380,7 @@ def runs() -> None:
     try:
         items = api.get(f"/v1/workspaces/{ws}/graph-runs")
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")
         return
     _plan_form(expanded=not items)
     if not items:
@@ -400,7 +400,7 @@ def runs() -> None:
             brief = api.get(f"/v1/workspaces/{ws}/graph/brief")
             st.markdown(md("\n".join(f"- {x}" for x in brief["lines"])))
         except APIError as e:
-            st.caption(str(e))
+            st.caption(kit.reason(e))
     with c[1].expander("Weekly review", icon=":material/calendar_month:"):
         try:
             rv = api.get(f"/v1/workspaces/{ws}/graph/review")
@@ -410,7 +410,7 @@ def runs() -> None:
             for m in rv["can_merge"]:
                 st.caption(md(f"Can merge · {m}"))
         except APIError as e:
-            st.caption(str(e))
+            st.caption(kit.reason(e))
 
 
 # -- the harness ------------------------------------------------------------------------------------------------------
@@ -421,7 +421,7 @@ def harness() -> None:
     try:
         h = api.get(f"/v1/workspaces/{ws}/graph/harness")
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")
         return
     st.caption("What every node re-reads before it works. The fixed rules are enforced in code; the learned rules came "
                "from runs in this workspace.")

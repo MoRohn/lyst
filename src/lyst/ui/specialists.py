@@ -25,7 +25,7 @@ def catalog() -> None:
         ov = api.get("/v1/specializations/overview")
         doms = api.get("/v1/specializations/domains")
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     lv = ov.get("levels") or {}
     st.caption(md(f"{ov.get('profiles', 0)} kinds of analyst work across {ov.get('domains', 0)} areas. You don't pick one: "
@@ -40,7 +40,7 @@ def catalog() -> None:
     try:
         rows = api.get("/v1/specializations", **{k: v for k, v in (("q", q.strip()), ("domain", dom)) if v})
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     gaps = ov.get("capability_gaps") or []
     if gaps and not q and not dom:

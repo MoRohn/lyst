@@ -336,4 +336,4 @@ def section(tasks: list[dict], waiting: int) -> None:
     try:
         {"Needs you": needs_you, "Activity": activity, "Recurring": recurring}[view]()
     except APIError as e:
-        st.error(str(e), icon=":material/cloud_off:")
+        st.error(kit.reason(e), icon=":material/cloud_off:")

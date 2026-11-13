@@ -825,3 +825,24 @@ def test_the_brain_names_files_and_kept_answers_in_words_not_ids():
     exec(compile(ast.Module(body=[fn], type_ignores=[]), "brain", "exec"), ns)  # noqa: S102
     assert ns["qa"]("Q: What was revenue? A: Revenue was $25.4M.") == ("What was revenue?", "Revenue was $25.4M")
     assert ns["qa"]("EMEA excludes intercompany sales.") == ("EMEA excludes intercompany sales.", None)
+
+
+def test_a_failure_reads_as_a_sentence_and_never_as_internal_server_error():
+    """A refusal reads as a sentence; a failure on Lyst's side says so in words, not "Internal Server Error"."""
+    from lyst.ui.client import APIError
+    from lyst.ui.kit import reason
+
+    assert reason(APIError(400, "only read queries are allowed, not DELETE")) == "Only read queries are allowed, not DELETE."
+    said = reason(APIError(500, "Internal Server Error"))
+    assert "Internal Server Error" not in said and said.startswith("Lyst couldn't finish that")
+
+
+def test_go_to_finds_a_metric_while_its_name_is_still_being_typed():
+    """The catalog search matches whole words, so the palette also matches the start of a title's words: "rev"
+    finds Revenue and Hardware revenue, not nothing."""
+    from lyst.ui.palette import starting
+
+    items = [{"title": "Revenue"}, {"title": "Hardware revenue"}, {"title": "COGS ratio"}, {"title": "P&L from the ledger"}]
+    assert [x["title"] for x in starting(items, "rev")] == ["Revenue", "Hardware revenue"]
+    assert [x["title"] for x in starting(items, "led")] == ["P&L from the ledger"]
+    assert starting(items, "  ") == []

@@ -234,7 +234,7 @@ def details(aid: str) -> None:
     try:
         a = client().get(f"/v1/workspaces/{_ws()}/activities/{aid}")
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     card(a, key="dlg", admin=st.session_state.get("role") in ("admin", "owner"))
 
@@ -312,7 +312,7 @@ def rules(*, admin: bool) -> None:
     except APIError as e:
         if e.status in (404, 405):
             return
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     st.caption("Rules decide what Lyst does when something happens: a schema change, a failed check, a report that "
                "breaks. Each one has a ceiling on how far it may go on its own; anything that changes something "
@@ -359,7 +359,7 @@ def dry_run(spec: dict) -> None:
     try:
         out = client().post(f"/v1/workspaces/{_ws()}/rules/simulate", {"spec": spec, "last": 500})
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     c = out.get("counts") or {}
     st.html(visuals.stats([("Events checked", str(out["evaluated"]), None),

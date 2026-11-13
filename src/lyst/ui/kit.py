@@ -274,8 +274,13 @@ _SURFACES = """<script>
     const cs = getComputedStyle(e);
     e.setAttribute('data-lyst-surface', cs.borderTopWidth === '1px' && cs.borderTopStyle === 'solid' ? '1' : '0');
   });
+  // Go to opens ready to type: its field takes the focus once per opening (a stray key would otherwise reach the page)
+  const ready = () => {
+    const box = document.querySelector('[role="dialog"] .st-key-palette_q input');
+    if (box && !box.dataset.lystReady) { box.dataset.lystReady = '1'; box.focus(); }
+  };
   let queued = false;
-  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mark(); }); } })
+  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; mark(); ready(); }); } })
     .observe(document.body, {childList: true, subtree: true});
   mark();
   // the rail: each icon carries its area's name as a floating label (the accessible name is already the link text)
@@ -434,6 +439,17 @@ def empty(icon: str, title: str, body: str, *, action: str | None = None, key: s
     return False
 
 
+def reason(e: Exception) -> str:
+    """Why a call failed, as a sentence: "Only read queries are allowed, not DELETE.", and for a failure on Lyst's
+    side a plain account of it rather than "Internal Server Error"."""
+    status, text = getattr(e, "status", None), str(e).strip()
+    if (isinstance(status, int) and status >= 500) or text.lower() in ("", "internal server error"):
+        return ("Lyst couldn't finish that. Try again; if it keeps happening, an admin can find what went wrong in "
+                "the server log.")
+    text = text[:1].upper() + text[1:]
+    return text if text.endswith((".", "!", "?", ")")) else text + "."
+
+
 def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":material/check:") -> Any:
     """Run an API call: a toast on success, the reason inline on failure. Nothing fails silently."""
     from lyst.ui.client import APIError  # noqa: PLC0415
@@ -441,7 +457,7 @@ def guarded(fn: Callable[[], Any], ok: str | None = None, *, icon: str = ":mater
     try:
         out = fn()
     except APIError as e:
-        st.error(str(e), icon=":material/error:")
+        st.error(reason(e), icon=":material/error:")
         return None
     st.session_state.pop("_waiting", None)  # something changed: recount what waits on this person
     st.session_state.pop("_home", None)  # and Home's starters, focus and recent work

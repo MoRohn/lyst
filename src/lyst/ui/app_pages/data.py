@@ -614,7 +614,7 @@ def sync_body(conn: dict, *, after: object = None) -> None:
     try:
         tables = api.get(f"/v1/workspaces/{ws}/connections/{conn['id']}/tables")
     except APIError as e:
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     if not tables:
         st.caption("This source has no tables Lyst can read.")
@@ -1536,4 +1536,4 @@ try:
             onboarding.data_suggestions()
         zone.board("data", place="bottom")
 except APIError as e:
-    st.error(str(e), icon=":material/cloud_off:")
+    st.error(kit.reason(e), icon=":material/cloud_off:")

@@ -56,7 +56,7 @@ def view(p: dict) -> None:
     try:
         html = api.http.get(f"/v1/workspaces/{ws}/publications/{p['id']}/content", headers=api._h()).text
     except Exception as e:  # noqa: BLE001
-        st.error(str(e))
+        st.error(kit.reason(e))
         return
     st.caption(md(f"{p['title']} · version {p.get('current_version')} · {p.get('views', 0)} views"))
     components.html(html, height=640, scrolling=True)
@@ -68,7 +68,7 @@ def listed() -> None:
     try:
         pubs = api.get(f"/v1/workspaces/{ws}/publications")
     except APIError as e:
-        st.caption(str(e))
+        st.caption(kit.reason(e))
         return
     if not pubs:
         st.caption("Nothing published yet. On a finished answer, Share › Publish makes a read-only page of it.")
