@@ -654,7 +654,10 @@ where they point, with Mark all read and "What to tell me about".
   explains from recorded evidence why it appeared, and preparation never distributes reports, edits data or
   bypasses approvals. After an answer, Lyst also offers up to three next steps grounded in what it found (look
   inside the main driver, watch a metric that moved, make a repeated question recurring, extend a review into a
-  forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. On
+  forecast); each can be run now, watched or scheduled, and watching or scheduling still needs approval. A
+  monitor can watch one segment of a metric, such as operating margin in EMEA: after an analysis where one member
+  explains most of a change, Lyst offers to watch that member, and typing "Watch operating margin in EMEA" or "Alert
+  me when revenue moves" answers the question and requests the monitor, which starts once an admin approves it. On
   watched metrics it raises an early warning only when two kinds of evidence agree (change point, sustained trend,
   forecast drift, projected breach), investigates it first, and surfaces a verified warning in Brain › Work › Needs you
   with the answer, drivers, implications and next steps. On screen: **Coming up** at the top of Brain › Work › Recurring
