@@ -46,6 +46,7 @@ from . import profit as profit_mod
 from . import quality_review as quality_review_mod
 from . import receivables as receivables_mod
 from . import repeat as repeat_mod
+from . import track_record as track_record_mod
 from .registry import REGISTRY, Context, Registry, capability
 
 
@@ -232,6 +233,9 @@ def understand(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         found = incidents_mod.find(annotations_mod.metadata(ctx))
         if found:
             return incidents_mod.understanding(text, found)
+    if not ctx.request.get("workflow") and track_record_mod.asks_for_track_record(text):
+        # "How accurate were your last forecasts?" checks the forecasts already given against what happened
+        return track_record_mod.understanding(text)
     if not ctx.request.get("workflow") and datasheet_mod.asks_for_datasheet(text):
         # "Document the annotations dataset" / "Draft annotation guidelines" writes a datasheet (datasheet.py)
         picked = datasheet_mod.pick(annotations_mod.metadata(ctx), text)
@@ -598,7 +602,7 @@ def _compiled_understanding(ctx: Context, text: str) -> dict[str, Any] | None:
 def contextualize(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
     u = ctx.outputs["understand"]
     s = ctx.services
-    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents", "quality_review"):  # a reply reads the catalog; a brief or close finds its own period
+    if u["intent"] in ("converse", "brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents", "quality_review", "track_record"):  # a reply reads the catalog; a brief or close finds its own period
         return {"metrics": [], "datasets": [], "memory": [], "period": None, "passages": [], "prior_answers": []}
     catalog = {d["name"]: d for d in s.data.catalog(ctx.actor, ctx.workspace_id)}
     metrics = []
@@ -676,12 +680,12 @@ def plan(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             s["agent"], s["phase"] = cap.agent, cap.phase
         return {"steps": steps, "blockers": [], "depth": "conversation", "verification": "none", "strategy": "conversation",
                 "success_criteria": ["the reply names only what exists in the workspace", "the reply states no figures"]}
-    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents", "quality_review"):  # computes and checks its own figures
+    if u["intent"] in ("brief", "close", "receivables", "profit", "annotations", "datasheet", "incidents", "quality_review", "track_record"):  # computes and checks its own figures
         key = u["intent"]
         cap_name = {"brief": "business_brief", "close": "close_checks", "receivables": "receivables",
                     "profit": "profit", "annotations": "label_audit",
                     "datasheet": "datasheet", "incidents": "incident_review",
-                    "quality_review": "quality_review"}[key]
+                    "quality_review": "quality_review", "track_record": "forecast_track_record"}[key]
         steps = [{"capability": cap_name, "key": key, "args": {},
                   "after": ["plan"]},
                  {"capability": "deliver", "key": "deliver", "args": {}, "after": [key]}]
@@ -1903,6 +1907,8 @@ def _deliver(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         return _clean(incidents_mod.result(ctx))
     if u["intent"] == "quality_review":
         return _clean(quality_review_mod.result(ctx))
+    if u["intent"] == "track_record":
+        return _clean(track_record_mod.result(ctx))
     if u["intent"] == "converse":
         return _clean(converse_mod.result(u["question"], o["reply"], narrative_by=o["reply"].get("narrative_by", "template")))
     v = o.get("validate", {"checks": [], "status": "passed"})
