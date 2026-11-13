@@ -96,13 +96,15 @@ calm canvas with raised, softly lit surfaces, a slim icon rail, dialogs that ris
 segmented controls and buttons, the system typeface, and motion that respects reduced-motion settings, in light
 and dark. A single set of design tokens drives Streamlit's widgets, Lyst's own components and every chart, every
 screen is checked by an automated render with WCAG 2.2 AA accessibility scanning, and text and status colours meet
-4.5:1 contrast in both themes. Home is one composer that fills the page: Lyst's own mark sits
+4.5:1 contrast in both themes. Data, Brain and Settings have tablet layouts as well as desktop and phone; ids and
+codes read in plain words (in the audit trail, dataset relationships, the Brain map, Memory and saved analyses); and
+an error reads as a sentence, never "Internal Server Error". Home is one composer that fills the page: Lyst's own mark sits
 above it as its presence, still while idle, catching light while it works, rippling while it listens and glowing
 amber when something waits on you. Below it are at most three starters drawn from your approved metrics, at most
 one line for the single thing that most wants you, and a floating dock for what is in flight, what needs you,
 **Get started** and **Recent** (pinned items and recent answers). Everywhere else, the **Lyst agent bar** sits at
 the top of the page: ask by typing or speaking (asked from Data, Brain or Settings, the answer follows in a panel
-without leaving the page), go anywhere by name ("go to SQL", "open definitions"), and watch Lyst work: a
+without leaving the page), go anywhere by name ("go to SQL", "open definitions"; **Go to** opens ready to type and matches partial names), and watch Lyst work: a
 **Watch** chip for what is running, a **Live** panel with each step and the event feed, and an opt-in **Follow
 Lyst**; a running answer shows Lyst's mark and the current step over a hairline of progress. Data, Brain and
 Settings each have the same **activity board** in the same place: under the page header when something needs you
@@ -385,7 +387,9 @@ overrides a person's call. Staged changes show as a diff with row counts and tot
 needs an approval; once approved they become a new dataset version with the same schema, the earlier version is
 kept, and **Undo** puts it back. If the data changed after staging, the resolution is refused as stale. Open it from
 Lyst's one line on Data, a dataset's **Review** or **More › Review data quality**, or by simply asking ("Are there any
-data quality issues in the pnl dataset?" runs the check, and asks which dataset if you name none); a profiling
+data quality issues in the pnl dataset?" runs the check; "Is our data clean?" with no dataset named checks every
+dataset you can read and reports the open issues worst first, with the fixes it can propose, changing nothing until a
+fix is approved); a profiling
 answer shows the table in place.
 
 <p align="center">
@@ -477,7 +481,8 @@ where they point, with Mark all read and "What to tell me about".
   behind each big move, and lists open alerts, approvals waiting and how current the data is. It stays short: the one move with a clear
   place to act is told in full, and the others are named. Metrics with no data
   for the period are named, not dropped. Every figure comes from a recorded query and no model writes the wording.
-  "Every Monday at 8" repeats it, after approval.
+  "Send me the KPI brief every Monday" answers now and sets up the weekly schedule, which starts once an admin
+  approves it.
 * **Small business and freelancers.** Bring your invoicing and expense exports and Lyst proposes starting
   metrics (income invoiced, expenses, invoices sent, active clients). Ask "Who owes me money?" for what each client
   owes today, how late it is, how long clients take to pay, and who to remind first. Lyst never contacts a client
