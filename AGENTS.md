@@ -23,6 +23,7 @@ Rules marked **checked** are also enforced by a test, so breaking one fails CI r
 - Incident and change review (time to restore, change failure rate, change links): `src/lyst/analyst/incidents.py`.
 - Workspace data quality review (no dataset named): `src/lyst/analyst/quality_review.py`.
 - A first question with a cadence ("every Monday") also asks for the schedule: `src/lyst/analyst/repeat.py`.
+- Forecast track record ("How accurate were your last forecasts?"): `src/lyst/analyst/track_record.py`.
 - The AI SDK wire format (Lyst's work as a UI message stream for `useChat`): `src/lyst/uistream.py`, `src/lyst/api/aisdk.py`,
   `docs/AI_SDK.md`; `tests/aisdk` reads it with the real `ai` package.
 - Lyst Apps (generated micro-apps, specs bound to governed metrics): `src/lyst/apps.py`, `src/lyst/api/apps.py`.
