@@ -524,7 +524,8 @@ where they point, with Mark all read and "What to tell me about".
   last period and a year earlier. Lyst reports only: it never posts a journal, edits data or marks a period closed,
   and a second source you cannot read is listed as not checked. "Every weekday at 9" repeats it, after approval.
 * **Checks its own work.** Independent validation scaled to consequence (high-stakes answers are recomputed from
-  raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, and
+  raw rows in pandas), join fan-out and stale-source detection, ambiguous terms surfaced instead of guessed, a segment the data does not have ("Revenue in Atlantis") named as
+  missing along with the regions and product lines that exist, rather than answered for the whole metric, and
   model wording verified against the computed numbers.
 * **Shows its working on request.** Any figure in an answer or a generated report traces back through the step
   that computed it, the SQL that ran, the metric version and the dataset version (rows, checksum, load time,
