@@ -82,6 +82,12 @@ class Guard:
         # when a token was last used.
         self._touched: dict[str, float] = {}
         self._touch_lock = threading.Lock()
+        # Workspace roles, read 100-170 times per question. Every membership write in this process clears the cache
+        # (forget_roles), so a removal or role change applies to the very next check. One engine process owns the
+        # database files (docs/DUCKDB.md), so no other process can change a membership underneath it.
+        self._roles: dict[tuple[str, str], str | None] = {}
+        self._roles_lock = threading.Lock()
+        self._roles_gen = 0
 
     # -- identity ---------------------------------------------------------------------------
 
@@ -167,7 +173,10 @@ class Guard:
                 raise ValueError("a workspace keeps at least one owner")
             c.execute("DELETE FROM memberships WHERE workspace_id = ? AND user_id = ?", [workspace_id, user_id])
 
-        self.stores.control.write(tx)
+        try:
+            self.stores.control.write(tx)
+        finally:
+            self.forget_roles()
         self.audit(actor, workspace_id, "member.remove", user_id, "ok")
 
     # -- workspaces -------------------------------------------------------------------------
@@ -190,9 +199,11 @@ class Guard:
         try:
             self.stores.control.write(tx)
         except BaseException:
+            self.forget_roles()
             if not existed:  # a failed creation leaves no orphaned workspace file behind
                 self.stores.discard_workspace(workspace_id)
             raise
+        self.forget_roles()
         self.audit(owner, workspace_id, "workspace.create", workspace_id, "ok")
 
     def add_member(self, actor: Principal, workspace_id: str, user_id: str, role: str) -> None:
@@ -203,19 +214,37 @@ class Guard:
             raise AccessDenied("only an owner can make another owner")
         if not self.stores.control.scalar("SELECT count(*) FROM users WHERE id = ?", [user_id]):
             raise KeyError(user_id)
-        self.stores.control.execute(
-            "INSERT OR REPLACE INTO memberships (workspace_id, user_id, role) VALUES (?, ?, ?)",
-            [workspace_id, user_id, role],
-        )
+        try:
+            self.stores.control.execute(
+                "INSERT OR REPLACE INTO memberships (workspace_id, user_id, role) VALUES (?, ?, ?)",
+                [workspace_id, user_id, role],
+            )
+        finally:
+            self.forget_roles()
         self.audit(actor, workspace_id, "member.set", f"{user_id}:{role}", "ok")
 
     def role(self, principal: Principal, workspace_id: str) -> str | None:
         if principal.kind == "system":
             return "owner"
-        return self.stores.control.scalar(
+        key = (workspace_id, principal.user_id)
+        with self._roles_lock:
+            if key in self._roles:
+                return self._roles[key]
+            gen = self._roles_gen
+        found = self.stores.control.scalar(
             "SELECT role FROM memberships WHERE workspace_id = ? AND user_id = ?",
             [workspace_id, principal.user_id],
         )
+        with self._roles_lock:
+            if gen == self._roles_gen:  # a membership write while we read: do not keep a value it may have changed
+                self._roles[key] = found
+        return found
+
+    def forget_roles(self) -> None:
+        """Call after any write to memberships, so the next check reads the database again."""
+        with self._roles_lock:
+            self._roles.clear()
+            self._roles_gen += 1
 
     def workspaces_for(self, principal: Principal) -> list[dict[str, Any]]:
         return self.stores.control.query(

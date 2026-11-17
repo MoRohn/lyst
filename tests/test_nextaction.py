@@ -125,6 +125,7 @@ def test_viewer_without_rights_gets_no_runnable_slice_for_restricted_data(suppli
     lyst.stores.control.execute("DELETE FROM memberships WHERE user_id = ? AND workspace_id = ?", [owner.user_id, WS])
     admin = lyst.guard.create_user("adm@northwind.test", "Adm")
     lyst.stores.control.execute("INSERT INTO memberships VALUES (?, ?, 'owner')", [WS, admin.user_id])
+    lyst.guard.forget_roles()  # written behind the Guard's back, as only a test does
     lyst.anticipation.set_settings(admin, WS, {"level": 2})
     lyst.anticipation.cycle(WS)
     drills = db.query("SELECT status FROM anticipations WHERE subject_id = ? AND dedupe_key LIKE '%|drill|%'", [t["id"]])
