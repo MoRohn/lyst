@@ -8,7 +8,11 @@ function trackErrors(page: Page) {
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(String(e)));
-  page.on('requestfailed', (r) => errors.push(`failed: ${r.url()}`));
+  page.on('requestfailed', (r) => {
+    // A browser cancels a video's range request when it pauses or leaves view (net::ERR_ABORTED); that is not a broken asset.
+    if (r.resourceType() === 'media' && r.failure()?.errorText === 'net::ERR_ABORTED') return;
+    errors.push(`failed: ${r.url()} (${r.failure()?.errorText ?? 'unknown'})`);
+  });
   page.on('response', (r) => r.status() >= 400 && errors.push(`${r.status()}: ${r.url()}`));
   return errors;
 }

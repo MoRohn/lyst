@@ -272,3 +272,24 @@ def test_search_matches_a_word_typed_only_in_part(seeded):
     part = lyst.catalog.search(owner, "northwind", "rev")["results"]
     assert next(h for h in full if h["name"] == "revenue")["score"] > next(h for h in part if h["name"] == "revenue")["score"]
     assert not lyst.catalog.search(owner, "northwind", "re")["results"]
+
+
+def test_ingest_measures_only_the_new_datasets_pairs_and_matches_a_full_discovery(seeded):
+    lyst, owner = seeded
+    months = pd.date_range("2025-01-01", "2025-06-01", freq="MS")
+    for i in range(3):
+        frame = pd.DataFrame({"month": [m.date() for m in months], "region": ["EMEA"] * 6, f"value_{i}": [float(i)] * 6})
+        _ingest(lyst, owner, f"extra_{i}", frame)
+    after_ingest = lyst.catalog.relationships(owner, WS)
+    links = {(r["from_kind"], r["from_name"], r["rel"], r["to_name"]) for r in lyst.knowledge.relations(owner, WS) if r["source"] == "discovery"}
+    full = lyst.catalog.discover(owner, WS)["relationships"]
+    key = lambda r: json.dumps(r, sort_keys=True, default=str)  # noqa: E731
+    assert sorted(map(key, after_ingest)) == sorted(map(key, full))
+    assert [(r["from_dataset"], r["to_dataset"]) for r in after_ingest] == [(r["from_dataset"], r["to_dataset"]) for r in full]
+    assert links == {(r["from_kind"], r["from_name"], r["rel"], r["to_name"]) for r in lyst.knowledge.relations(owner, WS) if r["source"] == "discovery"}
+    assert any("extra_2" in (r["from_dataset"], r["to_dataset"]) for r in full)
+    # a re-ingest that drops the shared column takes the old pairs with it
+    _ingest(lyst, owner, "extra_2", pd.DataFrame({"code": ["a", "b"], "value_2": [1.0, 2.0]}))
+    assert not any("extra_2" in (r["from_dataset"], r["to_dataset"]) and r.get("from_column") == "region"
+                   for r in lyst.catalog.relationships(owner, WS))
+    assert not any(r["source"] == "discovery" and r["from_name"].startswith("extra_2.region") for r in lyst.knowledge.relations(owner, WS))

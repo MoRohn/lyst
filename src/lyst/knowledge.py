@@ -119,6 +119,28 @@ class KnowledgeService:
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [from_kind, from_name, rel, to_kind, to_name, json.dumps(evidence or {}, default=str), source, actor.user_id])
 
+    def replace_source(self, actor: Principal, ws: str, source: str, links: list[tuple[str, str, str, str, str, dict | None]]) -> None:
+        """Replace every relation recorded by ``source`` with ``links`` in one transaction, so a reader never sees the
+        graph half rebuilt and a rebuild costs one commit instead of three per link. System sources only."""
+        if source == "user":
+            raise ValueError("user relations are written one at a time through relate")
+        ents = {(k, n) for fk, fn, _, tk, tn, _ in links for k, n in ((fk, fn), (tk, tn))}
+        last = {(fk, fn, rel, tk, tn): ev for fk, fn, rel, tk, tn, ev in links}  # the last word on a link wins, as with relate
+        rows = [[*key, json.dumps(ev or {}, default=str), source, actor.user_id] for key, ev in last.items()]
+
+        def apply(c) -> None:
+            c.execute("DELETE FROM relations WHERE source = ?", [source])
+            if ents:
+                have = {(k, n) for k, n in c.execute("SELECT kind, name FROM entities").fetchall()}
+                new = [[k, n, source, actor.user_id] for k, n in sorted(ents - have)]
+                for chunk in _chunks(new):
+                    c.execute("INSERT INTO entities (kind, name, description, owner, attributes, source, updated_by) VALUES "
+                              + ", ".join(["(?, ?, '', NULL, '{}', ?, ?)"] * len(chunk)), [v for r in chunk for v in r])
+            for chunk in _chunks(rows):  # multi-row statements: DuckDB runs executemany one row at a time
+                c.execute("INSERT OR REPLACE INTO relations (from_kind, from_name, rel, to_kind, to_name, evidence, source, created_by) "
+                          "VALUES " + ", ".join(["(?, ?, ?, ?, ?, ?, ?, ?)"] * len(chunk)), [v for r in chunk for v in r])
+        self._db(ws).write(apply)
+
     def entities(self, actor: Principal, ws: str, kind: str | None = None) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "workspace.read")
         sql = "SELECT kind, name, description, owner, attributes, source, updated_at FROM entities"
@@ -365,3 +387,8 @@ class KnowledgeService:
             if len(out) >= limit:
                 break
         return out
+
+
+def _chunks(rows: list, size: int = 250):
+    for i in range(0, len(rows), size):
+        yield rows[i:i + size]

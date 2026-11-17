@@ -18,10 +18,40 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    name: Lint, test, evaluate
+  lint:
+    name: Lint, licenses, evaluate
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # the suite takes about 27-32 minutes on a hosted runner
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+      - name: Lockfile matches pyproject (reproducible install)
+        run: uv lock --check
+      - run: uv sync --frozen
+      - name: Ruff
+        run: uv run ruff check src tests scripts
+      - name: Every Python file carries the AGPL SPDX header
+        run: |
+          missing=$(grep -L "SPDX-License-Identifier: AGPL-3.0-only" $(git ls-files 'src/*.py' 'tests/*.py' 'scripts/*.py') || true)
+          if [ -n "$missing" ]; then echo "Missing SPDX header:"; echo "$missing"; exit 1; fi
+      - name: Test shards cover every test file exactly once
+        run: uv run python scripts/test_shard.py --check 4
+      - name: Evaluation suite (golden questions)
+        run: uv run lyst eval --baseline docs/quality/eval-baseline.json
+      - name: Dependency licenses (AGPL-compatible, open source only)
+        run: uv run python scripts/licenses.py
+
+  test:
+    # The whole suite took 37 of 45 minutes in one job (2026-11-13), so it runs as four shards side by side.
+    name: Tests (shard ${{ matrix.shard }} of 4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       # the PostgreSQL connector tests run against a real server, as they do on the development machine
       postgres:
@@ -42,23 +72,22 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: '3.13'
-      - name: Lockfile matches pyproject (reproducible install)
-        run: uv lock --check
       - run: uv sync --frozen
-      - name: Ruff
-        run: uv run ruff check src tests scripts
-      - name: Every Python file carries the AGPL SPDX header
-        run: |
-          missing=$(grep -L "SPDX-License-Identifier: AGPL-3.0-only" $(git ls-files 'src/*.py' 'tests/*.py' 'scripts/*.py') || true)
-          if [ -n "$missing" ]; then echo "Missing SPDX header:"; echo "$missing"; exit 1; fi
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: AI SDK used by the protocol tests (test-only, pinned; nothing ships)
         run: npm ci --prefix tests/aisdk --no-audit --no-fund
       - name: Tests
-        run: uv run pytest -q -rfE
-      - name: Evaluation suite (golden questions)
-        run: uv run lyst eval --baseline docs/quality/eval-baseline.json
-      - name: Dependency licenses (AGPL-compatible, open source only)
-        run: uv run python scripts/licenses.py
+        run: uv run pytest -q -rfE $(uv run python scripts/test_shard.py $(( ${{ matrix.shard }} - 1 )) 4)
+
+  result:
+    # One check to require: green only when lint, evaluation and every shard passed.
+    name: Lint, test, evaluate
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "lint: ${{ needs.lint.result }}, tests: ${{ needs.test.result }}"
+          test "${{ needs.lint.result }}" = success && test "${{ needs.test.result }}" = success
