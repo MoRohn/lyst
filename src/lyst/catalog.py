@@ -161,7 +161,7 @@ class CatalogService:
             return
         try:
             self.compute_insights(ws, result["dataset"], result["version"])
-            self._discover(actor, ws)
+            self._discover(actor, ws, changed=result["dataset"])
         except Exception:  # noqa: BLE001 - insights are advisory; the data is already committed
             log.exception("insights for %s v%s failed", result.get("dataset"), result.get("version"))
 
@@ -207,30 +207,46 @@ class CatalogService:
         self.guard.audit(actor, ws, "catalog.discover", None, "ok", {"datasets": out["datasets"], "relationships": len(out["relationships"])})
         return out
 
-    def _discover(self, actor: Principal, ws: str) -> dict[str, Any]:
+    def _discover(self, actor: Principal, ws: str, changed: str | None = None) -> dict[str, Any]:
+        """Relationships between current datasets. With ``changed`` (one dataset just ingested) only the pairs that
+        include it are measured again; every other pair keeps its stored result, since neither side moved. The
+        knowledge graph's discovery links are then replaced in one transaction."""
         current = self._current(ws)
         per = {d["name"]: self._stored(ws, d["name"], d["version"]) for d in current}
-        rels = _relationships(self._db(ws), current, per)
-        self._db(ws).execute("DELETE FROM relations WHERE source = 'discovery'")
+        names = set(per)
+        stored = self._stored_relationships(ws) if changed else None
+        if stored is None or changed not in names:
+            rels = _relationships(self._db(ws), current, per)
+        else:
+            kept = [r for r in stored if changed not in (r["from_dataset"], r["to_dataset"])
+                    and {r["from_dataset"], r["to_dataset"]} <= names]
+            fresh = _relationships(self._db(ws), current, per, only=changed)
+            order = {pair: i for i, pair in enumerate(itertools.combinations(sorted(names), 2))}
+            rels = sorted(kept + fresh, key=lambda r: order.get(tuple(sorted((r["from_dataset"], r["to_dataset"]))), len(order)))
         if self.knowledge:
+            links: list[tuple[str, str, str, str, str, dict | None]] = []
             for r in rels:
                 if r["kind"] in ("foreign_key", "shared_dimension"):
-                    self.knowledge.relate(actor, ws, "column", f"{r['from_dataset']}.{r['from_column']}", "references" if r["kind"] == "foreign_key"
-                                          else "joins", "column", f"{r['to_dataset']}.{r['to_column']}", evidence=r["evidence"], source="discovery")
-                    self.knowledge.relate(actor, ws, "dataset", r["from_dataset"], "joins", "dataset", r["to_dataset"],
-                                          evidence={"on": r["from_column"], "kind": r["kind"]}, source="discovery")
+                    links.append(("column", f"{r['from_dataset']}.{r['from_column']}", "references" if r["kind"] == "foreign_key" else "joins",
+                                  "column", f"{r['to_dataset']}.{r['to_column']}", r["evidence"]))
+                    links.append(("dataset", r["from_dataset"], "joins", "dataset", r["to_dataset"], {"on": r["from_column"], "kind": r["kind"]}))
                 elif r["kind"] == "overlap":
-                    self.knowledge.relate(actor, ws, "dataset", r["from_dataset"], "overlaps", "dataset", r["to_dataset"],
-                                          evidence=r["evidence"], source="discovery")
+                    links.append(("dataset", r["from_dataset"], "overlaps", "dataset", r["to_dataset"], r["evidence"]))
+            self.knowledge.replace_source(actor, ws, "discovery", links)
+        else:
+            self._db(ws).execute("DELETE FROM relations WHERE source = 'discovery'")
         self._db(ws).execute("INSERT OR REPLACE INTO dataset_insights (dataset, version, insights) VALUES (?, ?, ?)",
                              ["__relationships__", 0, json.dumps(rels, default=_jsonable)])
         return {"datasets": len(current), "relationships": rels,
                 "risks": sum(len(i.get("risks", [])) for i in per.values())}
 
+    def _stored_relationships(self, ws: str) -> list[dict[str, Any]] | None:
+        raw = self._db(ws).scalar("SELECT insights FROM dataset_insights WHERE dataset = '__relationships__' AND version = 0")
+        return json.loads(raw) if raw else None
+
     def relationships(self, actor: Principal, ws: str) -> list[dict[str, Any]]:
         self.guard.require(actor, ws, "data.read")
-        raw = self._db(ws).scalar("SELECT insights FROM dataset_insights WHERE dataset = '__relationships__' AND version = 0")
-        rels = json.loads(raw) if raw else []
+        rels = self._stored_relationships(ws) or []
         restricted, row_limited = self._visibility(actor, ws)
         out = []
         for r in rels:
@@ -584,12 +600,15 @@ def _time_grain(cur, table: str, col: str) -> str:
     return "week" if weekdays == 1 else "day"
 
 
-def _relationships(db, current: list[dict[str, Any]], per: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def _relationships(db, current: list[dict[str, Any]], per: dict[str, dict[str, Any]], only: str | None = None) -> list[dict[str, Any]]:
+    """Relationships between every pair of current datasets, or only the pairs that include ``only``."""
     out: list[dict[str, Any]] = []
     info = {d["name"]: {c["name"]: c for c in per[d["name"]]["columns"]} for d in current}
     physical = {d["name"]: f'data.{_q(d["physical_table"])}' for d in current}
     with db.read() as cur:
         for a, b in itertools.combinations(sorted(info), 2):
+            if only is not None and only not in (a, b):
+                continue
             shared = sorted(set(info[a]) & set(info[b]))
             for col in shared:
                 ca, cb = info[a][col], info[b][col]
