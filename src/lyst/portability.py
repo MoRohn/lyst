@@ -470,6 +470,7 @@ class PortabilityService:
         for r in cols:
             ctl.execute(f"DELETE FROM {_q(r['table_name'])} WHERE workspace_id = ?", [ws])
         ctl.execute("DELETE FROM workspaces WHERE id = ?", [ws])
+        self.guard.forget_roles()  # its memberships went with the rows above
         with self.stores._lock:  # noqa: SLF001
             db = self.stores._workspaces.pop(ws, None)  # noqa: SLF001
         if db is not None:
@@ -596,6 +597,7 @@ class PortabilityService:
             for m in members["mapped"]:
                 ctl.execute("INSERT OR IGNORE INTO memberships (workspace_id, user_id, role) VALUES (?, ?, ?)",
                             [ws, m["user_id"], m["role"]])
+            self.guard.forget_roles()
         for kind in ("artifacts", "dashboards"):
             prefix = f"files/{kind}/"
             for rel in [r for r in manifest["files"] if r.startswith(prefix)]:
