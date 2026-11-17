@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint, licenses, evaluate
+    name: Lint and licenses
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -38,8 +38,6 @@ jobs:
           if [ -n "$missing" ]; then echo "Missing SPDX header:"; echo "$missing"; exit 1; fi
       - name: Test shards cover every test file exactly once
         run: uv run python scripts/test_shard.py --check 4
-      - name: Evaluation suite (golden questions)
-        run: uv run lyst eval --baseline docs/quality/eval-baseline.json
       - name: Dependency licenses (AGPL-compatible, open source only)
         run: uv run python scripts/licenses.py
 
@@ -80,9 +78,14 @@ jobs:
         run: npm ci --prefix tests/aisdk --no-audit --no-fund
       - name: Tests
         run: uv run pytest -q -rfE $(uv run python scripts/test_shard.py $(( ${{ matrix.shard }} - 1 )) 4)
+      # After the tests, as before sharding: the latency baseline was recorded on a warm runner, and run first on a
+      # fresh one the first questions paid start-up costs and crossed their limits (2 of 3 runs on 2026-11-17).
+      - name: Evaluation suite (golden questions)
+        if: matrix.shard == 1
+        run: uv run lyst eval --baseline docs/quality/eval-baseline.json
 
   result:
-    # One check to require: green only when lint, evaluation and every shard passed.
+    # One check to require: green only when lint, every shard and the evaluation passed.
     name: Lint, test, evaluate
     if: always()
     needs: [lint, test]
