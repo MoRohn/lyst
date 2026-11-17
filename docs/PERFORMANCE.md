@@ -29,3 +29,19 @@ analyses asked for four quarters, a stub model on a local endpoint so model call
 tasks, compiled workflows cut model calls from 12 to 9 and SQL queries from 102 to 84, with 9 of 9 answers verified
 either way and identical results; median task time stayed about 0.10 s because the stub adds no model latency.
 Details and what the numbers do not say: docs/PRODUCT_EXCELLENCE.md.
+
+## Ingest as a workspace grows
+
+Measured on 2026-11-17 in a cloud container (Python 3.13): the Northwind demo plus N more datasets that share
+`month`, `region` and `customer_id`, timing one more file's ingest. Before, every ingest measured every dataset
+pair again and wrote three commits per knowledge-graph link; now it measures only the pairs that include the new
+dataset and replaces the graph's discovery links in one transaction (`catalog._discover(changed=...)`,
+`knowledge.replace_source`).
+
+| Datasets in the workspace | Before | After |
+|---:|---:|---:|
+| 10 | 1.45 s | 0.21 s |
+| 20 | 9.7 s | 0.35 s |
+| 35 | 37.1 s | 0.80 s |
+
+An explicit `POST /catalog/discover` still measures every pair.
