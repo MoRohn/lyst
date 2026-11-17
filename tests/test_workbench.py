@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -68,10 +69,16 @@ out['env'] = sorted(k for k in os.environ if k.startswith('LYST'))
 result = out
 """
     (tmp_path / "secret.txt").write_text("s")
+    escape = Path("/tmp/lyst-escape-test")  # noqa: S108 - the path the probe tries to write outside its job folder
+    escape.unlink(missing_ok=True)
     r = wb.python(owner, "northwind", probe)
     assert r["status"] == "ok", r["error"]
     seen = r["result"]["value"]
-    assert "READ" not in seen.values() and seen["net"] != "OPEN" and seen["write"] != "WROTE" and seen["env"] == []
+    assert "READ" not in seen.values() and seen["net"] != "OPEN" and seen["env"] == []
+    # macOS denies the write; bubblewrap gives the sandbox its own empty /tmp, so the write lands there and vanishes.
+    # Either way nothing reaches the host.
+    assert seen["write"] != "WROTE" or sandbox.backend()[0] == "bwrap"
+    assert not escape.exists()
     t = wb.python(owner, "northwind", "while True:\n    pass", timeout=3)
     assert t["status"] in ("timeout", "killed")
 
